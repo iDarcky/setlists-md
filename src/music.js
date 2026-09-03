@@ -63,11 +63,27 @@ export function transposeChord(chord, semitones, preferSharps) {
 // Transpose a key signature (same optional `preferSharps` as transposeChord).
 export function transposeKey(key, semitones, preferSharps) {
   if (!key) return key;
-  if (semitones === 0 && preferSharps === undefined) return key;
+  // ⚠ A MISSING transpose used to render the literal string "undefined" as the
+  // key. `(idx + undefined + 120) % 12` is NaN, `CHROMATIC[NaN]` is undefined,
+  // and `undefined + suffix` is the word. Nothing threw; the badge simply said
+  // "undefined" where the key goes.
+  //
+  // Six of the nine call sites already defended with `|| 0` and three did not
+  // (`SetlistOverview` twice — and it has TWO render sites — plus the builder's
+  // own `SetlistItemRow`). A guard that has to be remembered at every call site
+  // is a guard that will be missed, so it lives here now and the callers'
+  // `|| 0` become redundant rather than load-bearing.
+  //
+  // Reachable through IMPORTED, SHARED and older-synced setlists, whose items
+  // predate `transpose` or omit it; `SetlistBuilder.addSong` always writes
+  // `transpose: 0`, which is why the normal add path never showed it and this
+  // survived.
+  const semis = Number.isFinite(semitones) ? semitones : 0;
+  if (semis === 0 && preferSharps === undefined) return key;
   const { root, suffix } = parseRoot(key);
   const idx = CHROMATIC.indexOf(root);
   if (idx === -1) return key;
-  const newRoot = spellRoot(CHROMATIC[(idx + semitones + 120) % 12], preferSharps);
+  const newRoot = spellRoot(CHROMATIC[(idx + semis + 120) % 12], preferSharps);
   return newRoot + suffix;
 }
 
@@ -129,26 +145,84 @@ export function semitonesBetween(fromKey, toKey) {
 // Section type → colors, label, pre-computed bg/border
 // b = base color, d = display/text color, l = compact label
 // bg = low-opacity background, br = semi-transparent border
+/**
+ * One hue per section type — eleven types, eleven colours.
+ *
+ * Until 2026-08-06 there were twelve types sharing seven hues: Intro=Tag,
+ * Refrain=Interlude, Pre Chorus=Instrumental=Vamp, Ending=Outro. The heading
+ * and the ribbon chip are one system, so a shared colour cost the same thing
+ * twice — you could not tell which section the chart was naming, on the page or
+ * on the map.
+ *
+ * The colours live in `styles/index.css` as `--section-*`, per app theme, each
+ * contrast-checked against the real chart backgrounds. Fills and borders are
+ * mixed off the accent here rather than being separate tokens: one number to
+ * change per hue, and the same derivation a user's custom colour already gets.
+ *
+ * **`Ending` is gone from the picker and stays as an alias of Outro** (owner,
+ * 2026-08-06). They were one thing under two names — the same argument that
+ * retired 'ref' from the repeats knob — so `## Ending` in an existing file
+ * still parses, still renders, and now renders as what it always meant.
+ */
+const hue = (name, code) => ({
+  b: `var(--section-${name})`,
+  d: `var(--section-${name})`,
+  l: code,
+  bg: `color-mix(in srgb, var(--section-${name}) 14%, transparent)`,
+  br: `color-mix(in srgb, var(--section-${name}) 35%, transparent)`,
+  c: name,
+});
+
 const SECTION_COLORS = {
-  Intro:        { b: 'var(--ds-blue-700)',  d: 'var(--ds-blue-1000)',  l: 'I',  bg: 'var(--ds-blue-100)',  br: 'var(--ds-blue-400)', c: 'blue' },
-  Refrain:      { b: 'var(--ds-purple-700)',d: 'var(--ds-purple-1000)',l: 'Rf', bg: 'var(--ds-purple-100)',br: 'var(--ds-purple-400)',c: 'purple' },
-  Verse:        { b: 'var(--ds-green-700)', d: 'var(--ds-green-1000)', l: 'V',  bg: 'var(--ds-green-100)', br: 'var(--ds-green-400)', c: 'green' },
-  'Pre Chorus': { b: 'var(--ds-amber-700)', d: 'var(--ds-amber-1000)', l: 'Pc', bg: 'var(--ds-amber-100)', br: 'var(--ds-amber-400)', c: 'amber' },
-  Chorus:       { b: 'var(--ds-pink-700)',  d: 'var(--ds-pink-1000)',  l: 'C',  bg: 'var(--ds-pink-100)',  br: 'var(--ds-pink-400)', c: 'pink' },
-  Bridge:       { b: 'var(--ds-teal-700)',  d: 'var(--ds-teal-1000)',  l: 'B',  bg: 'var(--ds-teal-100)',  br: 'var(--ds-teal-400)', c: 'teal' },
-  Instrumental: { b: 'var(--ds-amber-700)', d: 'var(--ds-amber-1000)', l: 'It', bg: 'var(--ds-amber-100)', br: 'var(--ds-amber-400)', c: 'amber' },
-  Ending:       { b: 'var(--ds-red-700)',   d: 'var(--ds-red-1000)',   l: 'E',  bg: 'var(--ds-red-100)',   br: 'var(--ds-red-400)',  c: 'red' },
-  Tag:          { b: 'var(--ds-blue-700)',  d: 'var(--ds-blue-1000)',  l: 'T',  bg: 'var(--ds-blue-100)',  br: 'var(--ds-blue-400)', c: 'blue' },
-  Interlude:    { b: 'var(--ds-purple-700)',d: 'var(--ds-purple-1000)',l: 'Il', bg: 'var(--ds-purple-100)',br: 'var(--ds-purple-400)',c: 'purple' },
-  Vamp:         { b: 'var(--ds-amber-700)', d: 'var(--ds-amber-1000)', l: 'Vm', bg: 'var(--ds-amber-100)', br: 'var(--ds-amber-400)', c: 'amber' },
-  Outro:        { b: 'var(--ds-red-700)',   d: 'var(--ds-red-1000)',   l: 'O',  bg: 'var(--ds-red-100)',   br: 'var(--ds-red-400)',  c: 'red' },
+  Intro:        hue('intro', 'I'),
+  Refrain:      hue('refrain', 'Rf'),
+  Verse:        hue('verse', 'V'),
+  'Pre Chorus': hue('prechorus', 'Pc'),
+  Chorus:       hue('chorus', 'C'),
+  Bridge:       hue('bridge', 'B'),
+  Instrumental: hue('instrumental', 'It'),
+  // Alias, not a type — see the note above. Kept BEFORE `Tag` for the same
+  // reason every key's order matters here: the lookup is first-match.
+  Ending:       hue('outro', 'O'),
+  Tag:          hue('tag', 'T'),
+  Interlude:    hue('interlude', 'Il'),
+  Vamp:         hue('vamp', 'Vm'),
+  Outro:        hue('outro', 'O'),
 };
+
+// The types a user may PICK. `Ending` is deliberately absent: it resolves for
+// files that already contain it, and nobody makes a new one.
+export const RETIRED_SECTION_TYPES = ['Ending'];
 
 const DEFAULT_STYLE = { b: 'var(--ds-gray-700)', d: 'var(--ds-gray-1000)', l: '?', bg: 'var(--ds-gray-100)', br: 'var(--ds-gray-400)', c: 'gray' };
 
+// Letters only — the spelling-insensitive form of a section name.
+// "Pre-Chorus", "Pre Chorus", "PreChorus" and "pre chorus" are one section.
+const letters = (s) => String(s).toLowerCase().replace(/[^a-z]/g, '');
+
+/**
+ * A two-letter code for a section type the table doesn't know.
+ *
+ * `?` was the old answer, and `?` is not an abbreviation — it is the ribbon
+ * saying it has lost the section. Every custom type shared between two users,
+ * every "Turnaround" and "Chant", drew one. Two words give their initials
+ * ("Key Change" → "Kc", the same shape as the built-in "Pc"); one word gives
+ * its first two letters ("Turnaround" → "Tu").
+ */
+export function shortCode(name) {
+  const clean = String(name || '').replace(/\s*\d+$/, '').trim();
+  const words = clean.split(/[\s\-_]+/).map(w => w.replace(/[^A-Za-z]/g, '')).filter(Boolean);
+  if (words.length === 0) return '?';
+  const raw = words.length > 1
+    ? words[0][0] + words[1][0]
+    : words[0].slice(0, 2);
+  return raw[0].toUpperCase() + (raw[1] || '').toLowerCase();
+}
+
 // All canonical section type keys, exported so settings panels can iterate
 // over them without re-declaring the list.
-export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS);
+export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS)
+  .filter(k => !RETIRED_SECTION_TYPES.includes(k));
 
 // Resolve the canonical base type for a section header (e.g. "Verse 1" →
 // "Verse", "Chorus 2" → "Chorus"). Returns null if no built-in type matches
@@ -156,8 +230,10 @@ export const SECTION_TYPE_KEYS = Object.keys(SECTION_COLORS);
 export function sectionBaseType(type) {
   if (!type) return null;
   const base = type.replace(/\s*\d+$/, '');
+  // Letters only — same rule as `sectionStyle`, or "Pre-Chorus" has no base
+  // type here while having one there.
   return Object.keys(SECTION_COLORS).find(
-    k => base.toLowerCase().startsWith(k.toLowerCase())
+    k => letters(base).startsWith(letters(k))
   ) || null;
 }
 
@@ -191,15 +267,23 @@ export function sectionStyle(type, customColors = null, customTypes = null) {
     if (ct) {
       const c = customColors?.[ct.id] || ct.color || 'var(--ds-gray-700)';
       const style = deriveStyleFromColor(c);
-      return { ...style, l: ct.label?.[0]?.toUpperCase() || '?' };
+      return { ...style, l: shortCode(ct.label || ct.name) };
     }
   }
 
   // 2. Built-in type, possibly with a user colour override.
+  //
+  // ⚠ Matched on LETTERS ONLY. The table's key is `Pre Chorus` with a space,
+  // and a `startsWith` on the raw text meant `## Pre-Chorus` — which is how
+  // most charts and every importer write it — matched nothing and fell to the
+  // grey `?` default. Measured 2026-08-06: `Pre-Chorus`, `PreChorus` and
+  // `Prechorus` all drew a grey heading AND a `?` chip, so the section fell out
+  // of the heading and the map at the same time. Folding out spaces, hyphens
+  // and punctuation makes all four spellings one section.
   const key = Object.keys(SECTION_COLORS).find(
-    k => baseLower.startsWith(k.toLowerCase())
+    k => letters(baseLower).startsWith(letters(k.toLowerCase()))
   );
-  if (!key) return DEFAULT_STYLE;
+  if (!key) return { ...DEFAULT_STYLE, l: shortCode(base) };
 
   const override = customColors?.[key];
   if (override) {
@@ -261,9 +345,11 @@ export function inferStructureMode(structure, sections) {
 }
 
 // Compact label for live mode (e.g. "Chorus 1" → "C1", "Pre Chorus" → "Pc")
-export function compactLabel(name) {
+export function compactLabel(name, customTypes = null) {
   const num = name.match(/(\d+)$/)?.[1] || '';
-  const style = sectionStyle(name);
+  // `customTypes` matters here: without it an invented type falls to the
+  // default style and loses the code its own label would give it.
+  const style = sectionStyle(name, null, customTypes);
   return style.l + num;
 }
 
@@ -283,6 +369,44 @@ export function getNashvilleNumber(chord, key) {
   const semitones = (ti - fi + 12) % 12;
   const map = { 0: '1', 1: 'b2', 2: '2', 3: 'b3', 4: '3', 5: '4', 6: 'b5', 7: '5', 8: 'b6', 9: '6', 10: 'b7', 11: '7' };
   return (map[semitones] || '?') + suffix;
+}
+
+// Roman numerals — the classical analysis notation, and the fourth `notation`
+// mode beside letters, Nashville numbers and solfège.
+//
+// It shares Nashville's arithmetic (the scale degree above the key) and differs
+// in one thing that matters: **case carries the quality**. I / IV / V for major,
+// ii / iii / vi for minor, vii° for diminished. Nashville prints "6" whether the
+// chord is major or minor and lets the suffix say so; Roman numerals put it in
+// the numeral itself, which is the whole reason musicians who read this notation
+// prefer it. So the minor/dim suffix is CONSUMED into the case, not printed
+// twice — "vi", never "vim".
+const ROMAN = ['I', 'bII', 'II', 'bIII', 'III', 'IV', 'bV', 'V', 'bVI', 'VI', 'bVII', 'VII'];
+
+export function getRomanNumeral(chord, key) {
+  if (!chord || !key) return chord;
+  if (chord.includes('/')) {
+    const [main, bass] = chord.split('/');
+    return getRomanNumeral(main, key) + '/' + getRomanNumeral(bass, key);
+  }
+  const { root, suffix } = parseRoot(chord);
+  const keyRoot = parseRoot(key).root;
+  const fi = CHROMATIC.indexOf(keyRoot);
+  const ti = CHROMATIC.indexOf(root);
+  if (fi === -1 || ti === -1) return chord;
+
+  const numeral = ROMAN[(ti - fi + 12) % 12];
+  if (!numeral) return chord;
+
+  // Minor and diminished lower the case; everything else keeps it upper. The
+  // test is deliberately narrow — `m` not followed by `aj` — so maj7 stays
+  // major and m7/m9/m11 do not.
+  const minor = /^(m(?!aj)|min)/.test(suffix);
+  const dim = /^(dim|°|o(?![a-z]))/.test(suffix);
+  const rest = minor ? suffix.replace(/^(m(?!aj)|min)/, '')
+    : dim ? suffix.replace(/^(dim|°|o(?![a-z]))/, '') : suffix;
+
+  return (minor || dim ? numeral.toLowerCase() : numeral) + (dim ? '°' : '') + rest;
 }
  
 // Convert a chord to fixed-Do solfège (the Latin/Romanian convention):
@@ -309,14 +433,67 @@ export function getSolfege(chord) {
 //   'solfege'  → fixed-Do solfège of the transposed chord (tracks pitch like letters)
 export function notateChord(chord, { key, notation = 'letters', transpose = 0, accidentals = 'auto' } = {}) {
   if (notation === 'nashville') return getNashvilleNumber(chord, key);
+  if (notation === 'roman') return getRomanNumeral(chord, key);
   if (notation === 'solfege') return getSolfege(transposeChord(chord, transpose));
-  // Letters: choose sharp/flat spelling. 'auto' follows the key the chord is
-  // sounding in (the song key shifted by the current transpose).
   const targetKey = transpose ? transposeKey(key, transpose) : key;
-  const preferSharps = accidentals === 'sharps' ? true
-    : accidentals === 'flats' ? false
-    : keyPrefersSharps(targetKey);
-  return transposeChord(chord, transpose, preferSharps);
+  // An explicit preference always wins — that is what it is for.
+  if (accidentals === 'sharps') return transposeChord(chord, transpose, true);
+  if (accidentals === 'flats') return transposeChord(chord, transpose, false);
+  // 'auto' — see `transposeKeepingSpelling`.
+  return transposeKeepingSpelling(chord, transpose, targetKey);
+}
+
+/**
+ * ── What 'auto' means, since 2026-08-10 ──────────────────────────────────────
+ *
+ * **What the writer typed is right.** A chord that spells itself with a flat
+ * stays on the flat side wherever it is moved to; one that spells itself with a
+ * sharp stays sharp.
+ *
+ * It used to spell the whole chart by the KEY's convention, which broke twice:
+ *
+ *  - at ZERO transpose it still re-spelled, so a `Bb` written into a sharp-side
+ *    song was displayed as `A#`. Nobody asked for that, and it silently
+ *    overrode what the leader wrote.
+ *  - "one key, one accidental" is wrong on its own terms. In G major the flat
+ *    six is properly `Eb`, never `D#` — real notation spells by FUNCTION, and a
+ *    chord symbol alone does not carry function, so no key rule can get a
+ *    borrowed chord right.
+ *
+ * The obvious repair — "verbatim at zero transpose, key convention when moved"
+ * — was proposed and the owner killed it in one line: *"the user writes Ab to a
+ * song and then expects Ab to a different song, not G# when he modulates."*
+ * Exactly right. That rule fixes the chart at rest and reintroduces the same
+ * surprise the moment anybody transposes, which is the moment they are least
+ * able to check it.
+ *
+ * So the preference travels with the CHORD, not with the key. Zero transpose is
+ * then verbatim automatically — it falls out of the rule instead of being a
+ * special case.
+ *
+ * A natural root (`C`, `D`, `G`) carries no signal, so when it lands on a black
+ * note it follows the destination key's convention, which is the only thing
+ * left to ask.
+ *
+ * Each side of a slash chord is asked separately: `Ab/C` transposed +1 is
+ * `A/C#`, and the bass note's spelling is its own business.
+ */
+export function transposeKeepingSpelling(chord, semitones, targetKey) {
+  if (!chord) return chord;
+  if (String(chord).includes('/')) {
+    const [main, bass] = String(chord).split('/');
+    return transposeKeepingSpelling(main, semitones, targetKey)
+      + '/' + transposeKeepingSpelling(bass, semitones, targetKey);
+  }
+  const own = chordAccidental(chord);
+  return transposeChord(chord, semitones, own === null ? keyPrefersSharps(targetKey) : own);
+}
+
+/** How a chord spells itself: true = sharp, false = flat, null = natural root. */
+function chordAccidental(chord) {
+  const m = String(chord).match(/^[A-G]([#b])?/);
+  if (!m || !m[1]) return null;
+  return m[1] === '#';
 }
 
 // Diatonic chords for a given key (I, ii, iii, IV, V, vi, vii°)

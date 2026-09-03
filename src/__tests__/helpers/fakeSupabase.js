@@ -13,8 +13,8 @@
 //    two writes can never share an updated_at, so CAS comparisons behave like
 //    they do against a real Postgres.
 
-import { parseSongMd, songToMd } from '../../parser';
-import { songFromFlat } from '../../arrangements';
+import { parseSongMd, songToMd } from '@/parser';
+import { songFromFlat } from '@/arrangements';
 
 let rowSeq = 0;
 let lastTs = 0;

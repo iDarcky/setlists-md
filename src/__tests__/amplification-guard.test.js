@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { createAmplificationGuard } from '../sync/amplification-guard';
+import { createAmplificationGuard } from '@/sync/amplification-guard';
 
 afterEach(() => vi.useRealTimers());
 

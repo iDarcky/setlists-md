@@ -1,0 +1,338 @@
+// The structure ribbon's chip geometry.
+//
+// One regression, and it is worth a file of its own: the chip renders as a
+// <button> when it is tappable and as a <span> when it is not, and
+// `styles/index.css` carries
+//
+//   @layer base { button { min-height: 36px }
+//                 @media (max-width: 639px) { button { min-height: 44px } } }
+//
+// so the SAME component came out ~21px tall in a setlist card and 44px tall in
+// the reader. That is not a padding problem and no amount of padding tuning
+// reaches it — the utilities have to opt out with `min-h-0`.
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, act } from '@testing-library/react';
+import { StructureRibbon } from '@/features/chart/StructureRibbon';
+
+const structure = ['Verse 1', 'Chorus', 'Verse 2'];
+
+describe('ribbon chips vs the global button min-height', () => {
+  for (const style of ['codes', 'numbered', 'chips', 'dots', 'dotlabel']) {
+    it(`${style}: every tappable chip opts out`, () => {
+      const { container } = render(
+        <StructureRibbon structure={structure} style={style} activeIndex={0} activeFill onSelect={() => {}} />
+      );
+      const buttons = container.querySelectorAll('button');
+      expect(buttons.length).toBeGreaterThan(0);
+      for (const b of buttons) {
+        expect(b.className).toContain('min-h-0');
+      }
+    });
+  }
+
+  // The target and the chip are two different boxes (owner asked to try it,
+  // 2026-08-05). 29x21px is the right SIZE for chrome and a poor TARGET for a
+  // thumb in the dark, so the `::after` grows what the browser hit-tests
+  // without moving a pixel of what you see.
+  it('every tappable chip carries a hit area bigger than itself', () => {
+    for (const style of ['codes', 'chips', 'numbered', 'dots', 'dotlabel']) {
+      const { container, unmount } = render(
+        <StructureRibbon structure={structure} style={style} activeIndex={0} activeFill onSelect={() => {}} />
+      );
+      for (const b of container.querySelectorAll('button')) {
+        expect(b.className).toContain('after:absolute');
+        // `relative`, or the pseudo-element positions against the page.
+        expect(b.className).toContain('relative');
+      }
+      unmount();
+    }
+  });
+
+  it('a chip that does nothing has no hit area to grow', () => {
+    const { container } = render(<StructureRibbon structure={structure} style="codes" />);
+    expect(container.innerHTML).not.toContain('after:absolute');
+  });
+
+  // ── The chip is sized for a thumb — 2026-08-21 ───────────────────────────
+  // It used to be the Score mockup exactly: 10px mono in 2px/7px of padding,
+  // which measured 29 × 21px. That is a fine SIZE and a poor TARGET, and the
+  // component's own comment said so — it grew a transparent `::after` to reach
+  // 33px rather than spend chrome height on the chip itself.
+  //
+  // Owner, 2026-08-21: *"everything from the header to the menu and menu items
+  // are a bit too small for touch, both mobile and tablet… I would like the
+  // whole ui to be bigger"*, and *"the structure bar should be bigger when
+  // entering edit mode"*. So the chip pays the height now, and edit mode — where
+  // a chip is a drag handle you have to see under your own finger — pays more.
+  it('codes: the chip is thumb-sized, and edit mode is bigger again', () => {
+    const px = (cls, prop) => Number(cls.match(new RegExp(`${prop}-\\[(\\d+)px\\]`))?.[1]);
+    const chipOf = (size) => {
+      const { container, unmount } = render(
+        <StructureRibbon structure={structure} style="codes" size={size}
+          activeIndex={0} activeFill onSelect={() => {}} />
+      );
+      const cls = container.querySelector('button').className;
+      unmount();
+      return cls;
+    };
+    const md = chipOf('md');
+    const lg = chipOf('lg');
+    // Reading: bigger than the 10px/2px mockup it came from.
+    expect(px(md, 'text')).toBeGreaterThan(10);
+    expect(px(md, 'py')).toBeGreaterThan(2);
+    expect(md).toContain('rounded-[7px]');
+    // Editing: bigger again, on BOTH axes — a taller box with the same type
+    // would be a bigger target holding the same unreadable label.
+    expect(px(lg, 'text')).toBeGreaterThan(px(md, 'text'));
+    expect(px(lg, 'py')).toBeGreaterThan(px(md, 'py'));
+    expect(px(lg, 'px')).toBeGreaterThan(px(md, 'px'));
+  });
+
+  // ⚠ The hit area survives the chip getting bigger. It was the ONLY thing
+  // making the old 21px chip aimable, and the temptation once the chip is
+  // comfortable is to delete it — but a bigger chip with a bigger target is
+  // still better than either alone, and this is a control hit between two
+  // verses without looking.
+  it('codes: a bigger chip still keeps its grown hit area', () => {
+    const { container } = render(
+      <StructureRibbon structure={structure} style="codes" size="lg"
+        activeIndex={0} activeFill onSelect={() => {}} />
+    );
+    expect(container.querySelector('button').className).toContain('after:absolute');
+  });
+
+  it('codes: every code keeps its section colour, and the current one fills', () => {
+    // A verse and a chorus are different colours in the row, not two greys.
+    const { container } = render(
+      <StructureRibbon structure={structure} style="codes" activeIndex={0} activeFill onSelect={() => {}} />
+    );
+    const [verse1, chorus, verse2] = container.querySelectorAll('button');
+    // `backgroundColor`, not `background` — the chips use the longhand on
+    // purpose (see the note on the chip's style: the shorthand makes jsdom
+    // serialize shorthand + longhands together and blow up on re-parse).
+    expect(verse1.style.backgroundColor).toBeTruthy();      // the one you're in
+    expect(chorus.style.backgroundColor).toBe('transparent');
+    expect(chorus.style.color).toBeTruthy();
+    expect(chorus.style.color).not.toBe(verse2.style.color);
+  });
+});
+
+// ── Drag to reorder ─────────────────────────────────────────────────────────
+// This shipped broken TWICE. The cause was never the gesture: the effect that
+// owned the gesture depended on `runs`, `runs` re-memoised every render because
+// `structure` is a fresh array each time, and the effect's cleanup called
+// `clearHold()` — so the 250ms timer's own `setDrag` tore down the state it had
+// just created. These tests drive a whole gesture end to end so that a
+// regression in the effect's lifetime fails here rather than on a phone.
+describe('the song map — drag to reorder', () => {
+  const structure = ['Verse 1', 'Chorus', 'Verse 2'];
+
+  const point = (type, x, target) => {
+    const ev = new window.PointerEvent(type, {
+      bubbles: true, cancelable: true, clientX: x, clientY: 10, pointerId: 1,
+    });
+    (target || window).dispatchEvent(ev);
+  };
+
+  const renderRibbon = (onReorder) => render(
+    <StructureRibbon structure={structure} collapse={false} onReorder={onReorder} />
+  );
+
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('completes a drag and reports the move', () => {
+    const onReorder = vi.fn();
+    const { container } = renderRibbon(onReorder);
+    const chips = container.querySelectorAll('[data-run]');
+    expect(chips).toHaveLength(3);
+
+    // Press and hold on the first chip.
+    point('pointerdown', 0, chips[0]);
+    act(() => { vi.advanceTimersByTime(300); });
+
+    // Drop it on the third. `elementFromPoint` is stubbed because jsdom has no
+    // layout — the gesture's bookkeeping is what these tests are about.
+    document.elementFromPoint = () => chips[2];
+    point('pointermove', 200);
+    point('pointerup', 200);
+
+    // from slot 0, one slot, to slot 2.
+    expect(onReorder).toHaveBeenCalledWith(0, 1, 2);
+  });
+
+  it('does nothing without the hold — that gesture is a tap or a scroll', () => {
+    const onReorder = vi.fn();
+    const { container } = renderRibbon(onReorder);
+    const chips = container.querySelectorAll('[data-run]');
+    point('pointerdown', 0, chips[0]);
+    // Moved before 250ms: a swipe, not a drag.
+    document.elementFromPoint = () => chips[2];
+    point('pointermove', 200);
+    point('pointerup', 200);
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it('claims the horizontal axis and wraps, so the scroller cannot eat the drag', () => {
+    const { container } = renderRibbon(vi.fn());
+    const chip = container.querySelector('[data-run]');
+    expect(chip.style.touchAction).toBe('pan-y');
+    // A scrolling strip and a horizontal drag are the same gesture, and the
+    // scroller wins — so a reorderable ribbon wraps instead.
+    expect(chip.parentElement.className).toContain('flex-wrap');
+    expect(chip.parentElement.className).not.toContain('overflow-x-auto');
+  });
+});
+
+// ── The ends of a long strip ────────────────────────────────────────────────
+//
+// Owner, 2026-08-05: "Let's do a fade I think." A twelve-section song on a
+// 390px phone shows eleven chips and clips the twelfth flush against the
+// header's `overflow-hidden` — with the scrollbar hidden (`no-scrollbar`) that
+// looks exactly like a song with eleven sections.
+describe('the edges say there is more', () => {
+  const withOverflow = (fn) => {
+    // jsdom reports 0 for both, so nothing ever overflows. Fake the one fact
+    // the component reads.
+    // The descriptors live on Element, not HTMLElement.
+    const saved = ['scrollWidth', 'clientWidth'].map(
+      k => [k, Object.getOwnPropertyDescriptor(Element.prototype, k)]);
+    Object.defineProperty(Element.prototype, 'scrollWidth', { configurable: true, value: 600 });
+    Object.defineProperty(Element.prototype, 'clientWidth', { configurable: true, value: 300 });
+    try { fn(); } finally {
+      for (const [k, d] of saved) {
+        if (d) Object.defineProperty(Element.prototype, k, d);
+        else delete Element.prototype[k];
+      }
+    }
+  };
+  const fades = (container) => container.querySelectorAll('span[aria-hidden="true"][class*="absolute"]');
+
+  it('fades the end you have not reached, and only that one', () => {
+    withOverflow(() => {
+      const { container } = render(
+        <StructureRibbon structure={structure} style="codes" activeIndex={0} activeFill edgeFade onSelect={() => {}} />
+      );
+      const marks = fades(container);
+      // At rest the strip is scrolled to 0: there is more to the RIGHT and
+      // nothing to the left. A fade on an end you have already reached is the
+      // same lie in the other direction.
+      expect(marks).toHaveLength(1);
+      expect(marks[0].className).toContain('right-0');
+      // It fades to the paper the ribbon sits on, and it is a longhand:
+      // jsdom's shorthand parser throws on some gradients inside `cloneNode`,
+      // which Testing Library does for every role query.
+      expect(marks[0].style.backgroundImage).toContain('var(--chart-bg');
+      expect(marks[0].style.background).toBe('');
+    });
+  });
+
+  it('is opt-in — a setlist card would fade to the wrong colour', () => {
+    withOverflow(() => {
+      const { container } = render(
+        <StructureRibbon structure={structure} style="codes" activeIndex={0} onSelect={() => {}} />
+      );
+      expect(fades(container)).toHaveLength(0);
+    });
+  });
+
+  it('never fades the wrapping ribbon — edit mode has no ends to run off', () => {
+    withOverflow(() => {
+      const { container } = render(
+        <StructureRibbon structure={structure} style="codes" activeIndex={0} edgeFade
+          onSelect={null} onReorder={() => {}} />
+      );
+      expect(fades(container)).toHaveLength(0);
+    });
+  });
+});
+
+// ── The dots must not move each other — 2026-08-06 ─────────────────────────
+describe('a dot changes size without shoving its neighbours', () => {
+  it('gives every dot a fixed cell and sizes the dot inside it', () => {
+    const { container } = render(
+      <StructureRibbon structure={['Verse 1', 'Chorus', 'Verse 2']} style="dots"
+        orientation="vertical" activeIndex={1} activeFill onSelect={() => {}} />
+    );
+    // Owner: "there's like a shaking of the left side dots when scrolling
+    // fast, is it because one of the dots is getting bigger?" — yes. The dot
+    // WAS the flex item, so growing it from 7px to 11px moved every sibling
+    // below it, and a fast scroll walks the active dot down the list one
+    // section at a time. Measured in Chromium over 14 fast wheel steps: the
+    // worst dot wandered 4.0px. With a fixed cell: 0.0px.
+    //
+    // ⚠ The NUMBERS moved on 2026-08-21 (7/11 → 9/13) when the whole reader
+    // chrome went up a size — what this test pins is the SHAPE, not the pixels:
+    // a fixed cell, with the only thing that resizes inside it. Read the cell's
+    // size off the DOM and assert the two children agree with it, so the next
+    // size change cannot quietly reintroduce the shudder.
+    for (const cell of container.querySelectorAll('button > span:first-child')) {
+      const cellSize = cell.className.match(/w-\[(\d+)px\]/)?.[1];
+      expect(cellSize).toBeTruthy();
+      expect(cell.className).toContain(`h-[${cellSize}px]`);
+      // ...and the thing that actually resizes is INSIDE the cell, never bigger
+      // than it.
+      const dotSize = cell.firstElementChild.className.match(/w-\[(\d+)px\]/)?.[1];
+      expect(dotSize).toBeTruthy();
+      expect(Number(dotSize)).toBeLessThanOrEqual(Number(cellSize));
+    }
+  });
+});
+
+// ── A key change breaks the run ─────────────────────────────────────────────
+// The bug this pins was invisible and it hid the most common modulation there
+// is. `keyChanges` is keyed by SLOT and the mark was read at `run.index` — the
+// run's LEAD — so a key change landing on the second chorus of a `C ×2` run
+// pointed at a slot no chip carried, and the ribbon drew `C ×2` with no mark.
+// A chorus repeated a step up is *the* classic worship modulation, so the map
+// omitted exactly the case it exists for.
+//
+// Measured in Chromium before the fix: `V1 C ↗A B` drew the mark (the key
+// change fell between DIFFERENT sections, so there was no run to hide it) and
+// `V1 C×2` drew nothing.
+describe('a key change breaks a repeat run', () => {
+  const twoChoruses = ['Verse 1', 'Chorus', 'Chorus'];
+
+  it('collapses adjacent repeats when nothing changes key', () => {
+    // The control. Without this, a fix that simply stopped collapsing would
+    // pass every test below while quietly undoing the ribbon's whole job.
+    const { container } = render(
+      <StructureRibbon structure={twoChoruses} style="codes" activeIndex={0} />
+    );
+    expect(container.textContent).toContain('×2');
+  });
+
+  it('splits the run where the key changes, and shows the arrival key', () => {
+    const { container } = render(
+      <StructureRibbon structure={twoChoruses} style="codes" activeIndex={0} keyChanges={{ 2: 'A' }} />
+    );
+    // Two choruses in different keys are not one thing played twice.
+    expect(container.textContent).not.toContain('×2');
+    expect(container.textContent).toContain('A');
+  });
+
+  it('still marks a key change between DIFFERENT sections', () => {
+    // The case that already worked — pinned so the fix cannot trade one for
+    // the other.
+    const { container } = render(
+      <StructureRibbon
+        structure={['Verse 1', 'Chorus', 'Bridge']}
+        style="codes" activeIndex={0} keyChanges={{ 2: 'A' }}
+      />
+    );
+    expect(container.textContent).toContain('A');
+  });
+
+  it('only breaks the run at the slot that changes key', () => {
+    // Three in a row with the change on the last: the first two are still the
+    // same thing and must stay grouped.
+    const { container } = render(
+      <StructureRibbon
+        structure={['Chorus', 'Chorus', 'Chorus']}
+        style="codes" activeIndex={0} keyChanges={{ 2: 'A' }}
+      />
+    );
+    expect(container.textContent).toContain('×2');
+    expect(container.textContent).toContain('A');
+  });
+});

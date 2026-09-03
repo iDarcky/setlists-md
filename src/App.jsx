@@ -1,48 +1,54 @@
-import { Toaster } from "./components/ui/Toaster";
-import { toast } from "./components/ui/use-toast";
-import { showUndoToast } from "./lib/undoToast";
-import { useConfirm } from "./components/ui/useConfirmHook";
-import OfflineBanner from "./components/ui/OfflineBanner";
-import WorkspacePickerDialog from "./components/ui/WorkspacePickerDialog";
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+import { Toaster } from "@/ui/Toaster";
+import { toast } from "@/ui/use-toast";
+import { showUndoToast } from "@/lib/undoToast";
+import { useConfirm } from "@/ui/useConfirmHook";
+import OfflineBanner from "@/ui/OfflineBanner";
+import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
-import { shareTokenFromUrl } from './share/setlistShare';
-import { withArrangement, songFromFlat } from './arrangements';
+import { shareTokenFromUrl } from '@/lib/setlistShare';
+import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
-import { healSetlistLinks, matchSongByTitle } from './setlist/setlistLinks';
-import { DEMO_SONGS_MD } from './data/demos';
-import { createSyncEngine } from './sync/engine';
-import { createTeamSyncEngine } from './sync/team-engine';
-import { getSyncState, setActiveProvider } from './sync/tokens';
-import { reconcileAdopt, applyPulled } from './sync/adopt';
-import { useTeamSetlistMap } from './hooks/useTeamSetlistMap';
-import OnboardingFlow from './onboarding/OnboardingFlow';
-import Dashboard from './components/Dashboard';
-import Library from './components/Library';
-import Settings from './components/Settings';
-import Account from './components/Account';
-import Setlists from './components/Setlists';
-import BottomNav from './components/BottomNav';
-import DesktopLayout from './components/DesktopLayout';
-import MobileTopBar from './components/MobileTopBar';
-import MobileDrawer from './components/MobileDrawer';
-import NotificationTray from './components/NotificationTray';
-import NotificationsPage from './components/NotificationsPage';
-import ConflictResolver from './components/ConflictResolver';
-import ErrorBoundary from './components/ErrorBoundary';
-import { useAuth } from './auth/useAuth';
-import { useTeam } from './auth/useTeam';
+import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
+import { DEMO_SONGS_MD } from '@/data/demos';
+import { createSyncEngine } from '@/sync/engine';
+import { createTeamSyncEngine } from '@/sync/team-engine';
+import { getSyncState, setActiveProvider } from '@/sync/tokens';
+import { reconcileAdopt, applyPulled } from '@/sync/adopt';
+import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
+import { resolveMyInstrument } from '@/lib/myInstrument';
+import { resolveOpeningMode } from '@/lib/openingMode';
+import { APP_HEIGHT } from '@/lib/appViewport';
+import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
+import Dashboard from '@/features/dashboard/Dashboard';
+import Library from '@/features/library/Library';
+import Settings from '@/features/settings/Settings';
+import Account from '@/features/settings/Account';
+import Setlists from '@/features/setlists/Setlists';
+import BottomNav from '@/app/BottomNav';
+import DesktopLayout from '@/app/DesktopLayout';
+import MobileTopBar from '@/app/MobileTopBar';
+import MobileDrawer from '@/app/MobileDrawer';
+import NotificationTray from '@/features/notifications/NotificationTray';
+import NotificationsPage from '@/features/notifications/NotificationsPage';
+import ConflictResolver from '@/features/sync/ConflictResolver';
+import ErrorBoundary from '@/app/ErrorBoundary';
+import { usePreferenceSync } from '@/app/usePreferenceSync';
+import { useNotificationFeed } from '@/app/useNotificationFeed';
+import { useAppearance } from '@/app/useAppearance';
+import { useAuth } from '@/auth/useAuth';
+import { useTeam } from '@/auth/useTeam';
 import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
-import { exportSetlistPdf } from './pdf/exportSetlistPdf';
-import UpdatePrompt from './components/ui/UpdatePrompt';
-import { useInstallPrompt } from './hooks/useInstallPrompt';
-import { useTeamRealtime } from './hooks/useTeamRealtime';
-import { useChartTheme } from './hooks/useChartTheme';
-import { useTeamSchedules } from './hooks/useTeamSchedules';
-import { useTeamNotifications } from './hooks/useTeamNotifications';
-import { WorkspaceProvider } from './contexts/WorkspaceContext';
-import { BILLING_ENABLED, SUPPORT_CONTACT } from './billing/checkout';
+import { exportSetlistPdf } from '@/pdf/exportSetlistPdf';
+import UpdatePrompt from '@/ui/UpdatePrompt';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { useTeamRealtime } from '@/hooks/useTeamRealtime';
+import { useChartTheme } from '@/hooks/useChartTheme';
+import { useTeamSchedules } from '@/hooks/useTeamSchedules';
+import { useTeamNotifications } from '@/hooks/useTeamNotifications';
+import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
+import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
@@ -60,109 +66,46 @@ async function maybeWarnQuota(warnedRef) {
 }
 
 // Lazy-loaded: heavy secondary views not needed on initial render
-const ChartView = lazy(() => import('./components/ChartView'));
-const SongHub = lazy(() => import('./components/SongHub'));
-const Editor = lazy(() => import('./components/Editor'));
-const SetlistBuilder = lazy(() => import('./components/SetlistBuilder'));
-const SetlistPlayer = lazy(() => import('./components/SetlistPlayer'));
-const SetlistOverview = lazy(() => import('./components/SetlistOverview'));
-const SharedSetlistViewer = lazy(() => import('./components/SharedSetlistViewer'));
-const PerformanceView = lazy(() => import('./components/PerformanceView'));
-const PracticeView = lazy(() => import('./components/PracticeView'));
-const LegalPage = lazy(() => import('./components/LegalPage'));
-const GoogleDriveCallback = lazy(() => import('./components/auth/GoogleDriveCallback'));
-const PracticeFinale = lazy(() => import('./components/PracticeFinale'));
-const LiveFinale = lazy(() => import('./components/LiveFinale'));
-const LydianShowcase = lazy(() => import('./components/LydianShowcase'));
-const NewSongModal = lazy(() => import('./components/NewSongModal'));
-const HelpPage = lazy(() => import('./components/HelpPage'));
-const AuthScreen = lazy(() => import('./components/auth/AuthScreen'));
-const AuthCallback = lazy(() => import('./components/auth/AuthCallback'));
-const RecoveryScreen = lazy(() => import('./components/auth/RecoveryScreen'));
-const PricingScreen = lazy(() => import('./components/PricingScreen'));
-const TeamScreen = lazy(() => import('./components/TeamScreen'));
-const Schedule = lazy(() => import('./components/Schedule'));
-const SchedulingGrid = lazy(() => import('./components/SchedulingGrid'));
-const WakeLockExplainer = lazy(() => import('./components/WakeLockExplainer'));
-const AccountWall = lazy(() => import('./components/AccountWall'));
-const FounderNote = lazy(() => import('./components/FounderNote'));
-const IOSInstallHint = lazy(() => import('./components/IOSInstallHint'));
-
-// Subset of local settings that gets mirrored to the user's cloud profile
-// (profiles.preferences). Device-local flags like onboardingComplete,
-// helpPageSeen, and the notification inbox are intentionally excluded.
-const PORTABLE_PREF_KEYS = [
-  'theme',
-  'defaultColumns',
-  'defaultFontSize',
-  'chordFontSize',
-  'nashville',
-  'notation',
-  'showChords',
-  'showDiagrams',
-  'pedalNext',
-  'pedalPrev',
-  'showInlineNotes',
-  'inlineNoteStyle',
-  'displayRole',
-  'duplicateSections',
-  'chartLayout',
-  'chartTheme',
-  'chartBg',
-  'chartText',
-  'chartChordColor',
-  'chartLyricColor',
-  'chartChordFont',
-  'chartLyricFont',
-  'sectionColors',
-  'sectionLabels',
-  'customSectionTypes',
-  'customChartThemes',
-  'accentColor',
-  'stageMode',
-  'lyricLineHeight',
-  'sectionSpacing',
-  'firstDayOfWeek',
-  'clockFormat',
-  'userName',
-  'lastChangelogVersion',
-  'performanceRail',
-  'navStyle',
-  'displayMode',
-  'autoHideHeader',
-  'ribbonStyle',
-  'structurePosition',
-  'mockupPalette',
-  'setlistCards',
-  'keepAwake',
-  'lockOrientation',
-  'accidentals',
-  'dashboardWidgetOrder',
-  'dashboardHidden',
-  'landingView',
-  'language',
-  'confirmBeforeDelete',
-  'defaultSpaceId',
-  'tabSubdivision',
-  'tabSize',
-  'tabStringColor',
-  'tabNumberColor',
-  'tabBg',
-  'rosterOverscheduleWarning',
-  'rosterStreakLimit',
-  'tableColumns',
-  'serviceReminders',
-  'rehearsalReminders',
-];
-
-function extractPortablePrefs(s) {
-  const out = {};
-  if (!s) return out;
-  for (const k of PORTABLE_PREF_KEYS) {
-    if (s[k] !== undefined) out[k] = s[k];
-  }
-  return out;
-}
+const SongHub = lazy(() => import('@/features/song/SongHub'));
+const Editor = lazy(() => import('@/features/editor/Editor'));
+const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
+const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
+const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
+// THE reader. One viewer for the whole set, in place of SetlistPlayer,
+// PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
+// 2026-08-11 and the three old surfaces are no longer referenced from anywhere.
+// They stay in the tree for one more cycle; see docs/PLAN.md §1.1.
+//
+// ⚠ A lazy import of `ChartView` also lived here, referenced by nothing. It was
+// the LAST non-legacy call site keeping the old renderer in the graph, and it
+// would have quietly outlived the graduation it was supposed to end — the same
+// dead import `Library.jsx` was carrying. Sixth of the family.
+const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
+const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
+const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
+// Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
+// ~80% the same file). Both are unreferenced as of the graduation.
+const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
+// Shown once per ACCOUNT, the first time someone goes live — the fold in the
+// corner is deliberately cheap rather than self-explanatory, and this is where
+// it gets explained. See `LiveIntro`.
+const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
+const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
+// The add-a-song surface: search over the catalog, with Import and Blank
+// underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
+// replaced is deleted). Lazy — only fetched when the user adds a song.
+const AddSongModal = lazy(() => import('@/features/import/AddSongModal'));
+const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
+const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
+const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
+const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
+const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
+const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
+const Schedule = lazy(() => import('@/features/scheduling/Schedule'));
+const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
+const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
+const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
+const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint'));
 
 // Which view to open on launch, from the user's "Default landing page" setting.
 const LANDING_VIEWS = ['home', 'library', 'setlists'];
@@ -170,12 +113,6 @@ function resolveLandingView(v) {
   return LANDING_VIEWS.includes(v) ? v : 'home';
 }
 
-function prefsEqual(a, b) {
-  for (const k of PORTABLE_PREF_KEYS) {
-    if ((a?.[k] ?? null) !== (b?.[k] ?? null)) return false;
-  }
-  return true;
-}
 
 // Team libraries sync directly against the Supabase tables
 // (server-authoritative team engine); the file-manifest engine remains for
@@ -188,10 +125,11 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
-  const { team, teams, members, setActiveTeam, isAdmin, isEditor, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
+  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
-  const canEdit = !team || isAdmin || isEditor;
+  // Who may change the shared library — answered once, in `lib/teamRoles.js`.
+  const canEdit = canWriteLibrary;
   const isTeamAdmin = isAdmin;
   const confirm = useConfirm();
   // Workspace move/copy picker: null, or { action: 'move'|'copy', songId }.
@@ -229,6 +167,7 @@ export default function App() {
   // Arrangement to open in the editor (the one the user was viewing). Reset
   // whenever we enter the editor unless an explicit id is passed.
   const [editArrangementId, setEditArrangementId] = useState(null);
+  const [editNewTitle, setEditNewTitle] = useState('');
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -245,8 +184,15 @@ export default function App() {
       && (sl.id === scheduleSetlistId || teamSetlistMap[sl.id] === scheduleSetlistId),
     [teamSetlistMap]
   );
-  const [previewSongId, setPreviewSongId] = useState(null);
-  const [previewSetlistId, setPreviewSetlistId] = useState(null);
+  // Element 9 of the reader: what YOU play this service, so everyone else's
+  // tabs collapse. Null (guest, no team, ambiguous) means show them all.
+  const myInstrument = useMemo(() => resolveMyInstrument({
+    userId: user?.id,
+    setlistId: currentSetlist?.id,
+    schedules,
+    members,
+    setlistMap: teamSetlistMap,
+  }), [user?.id, currentSetlist?.id, schedules, members, teamSetlistMap]);
   // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
   // toggle it (alongside the desktop header switch). Defaults to list on phones.
   const [scheduleView, setScheduleView] = useState(() =>
@@ -258,8 +204,33 @@ export default function App() {
   const markSetlistDirty = useCallback((dirty) => { setlistDirtyRef.current = dirty; }, []);
   const editorDirtyRef = useRef(false);
   const markEditorDirty = useCallback((dirty) => { editorDirtyRef.current = dirty; }, []);
-  // Which item to open in setlist practice (tapping a song in the overview).
-  const [practiceStartIndex, setPracticeStartIndex] = useState(0);
+  // Which item the reader opens on (tapping a song in the overview means
+  // "start HERE").
+  const [readerStartIndex, setReaderStartIndex] = useState(0);
+  // ── The reader's mode: 'live' | 'practice' ────────────────────────────────
+  // STATE, not a route. Until 2026-08-11 this was three route names for one
+  // screen (`setlist-play`, `setlist-performance`, `setlist-practice`) whose
+  // only difference was which finale they landed on — so the reader could not
+  // tell which one it was in, every per-mode decision had nowhere to attach,
+  // and the user had no way to change their mind without leaving the set.
+  //
+  // It lives in App (not in `SetlistReader`) because the finale needs it after
+  // the reader has unmounted, and because it belongs in the history snapshot:
+  // backing into a session must restore the mode you were reading in.
+  const [readerMode, setReaderMode] = useState('live');
+  // The teaching sheet for `LiveFold`. Not in the history snapshot: it is a
+  // one-shot acknowledgement, not a screen you can be "back" to.
+  const [showLiveIntro, setShowLiveIntro] = useState(false);
+  // ⚠ Fires on the TRANSITION into live, not on `readerMode === 'live'`.
+  // Reading the state would fire it for anyone whose reader happens to open
+  // live — including the shared-link viewer, which is permanently live and has
+  // no account to remember an acknowledgement with.
+  const enterReaderMode = useCallback((next) => {
+    setReaderMode(prev => {
+      if (next === 'live' && prev !== 'live' && !settings?.seenLiveIntro) setShowLiveIntro(true);
+      return next;
+    });
+  }, [settings?.seenLiveIntro]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
   const [newSongModal, setNewSongModal] = useState(null);
@@ -283,12 +254,14 @@ export default function App() {
   const [settingsPanel, setSettingsPanel] = useState('hub');
   // Wake-lock explainer is now state-driven (was render-condition-driven) so
   // it can participate in the history stack.
-  const [showWakeLockExplainer, setShowWakeLockExplainer] = useState(false);
-  // Session metrics handed off from Practice / Live views to their finale
-  // screens. `sessionSource` records which Live view started the session
-  // ('play' | 'performance') so "Run it again" returns to the right one.
+  // Session metrics handed off from the reader to the finale.
+  //
+  // ⚠ `sessionSource` used to live beside this, recording which of the two Live
+  // routes started the session ('play' | 'performance') so "Run it again" could
+  // return to the right one. Both routes rendered the same component with the
+  // same props, so it was a three-value state distinguishing two identical
+  // things. `readerMode` replaces it and means something.
   const [sessionStats, setSessionStats] = useState(null);
-  const [sessionSource, setSessionSource] = useState(null);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
@@ -311,8 +284,6 @@ export default function App() {
   const syncEngineRef = useRef(null);
   const historyRef = useRef([]);
   const quotaWarnedRef = useRef(false);
-  const prefsHydratedForUserRef = useRef(null);
-  const prefsPushTimerRef = useRef(null);
   const isSwitchingLibraryRef = useRef(false);
   // Tracks which user we've already applied the "home Space" default for, so we
   // do it once per sign-in and never override a later manual switch.
@@ -325,7 +296,7 @@ export default function App() {
   useEffect(() => {
     if (activeLibrary === 'personal') {
       // In the Personal space there is NO active team — clear it so team-only
-      // surfaces (Band, roster, church members, team activity) don't leak in.
+      // surfaces (Band, schedule, church members, team activity) don't leak in.
       // (TeamProvider otherwise defaults activeTeamId to the first team on load.)
       setActiveTeam(null);
       return;
@@ -445,7 +416,11 @@ export default function App() {
   }, [enqueueConflicts]);
 
   // Initialize sync engine for the active library
-  const isTeamReadOnly = activeLibrary !== 'personal' && !isAdmin && !isEditor;
+  // ⚠ Must agree with the DB. RLS decides the same question in
+  // `get_user_editable_teams()` (admin · editor · leader); if these two ever
+  // disagree the write lands in local state, looks saved, and is silently
+  // reverted by the next pull — the worst failure mode this app has.
+  const isTeamReadOnly = activeLibrary !== 'personal' && !canWriteLibrary;
   useEffect(() => {
     if (syncEngineRef.current) {
       syncEngineRef.current.cancelDebounce();
@@ -456,7 +431,12 @@ export default function App() {
     }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts });
   }, [activeLibrary, isTeamReadOnly, enqueueConflicts]);
 
-  const triggerSync = useCallback(async () => {
+  // `silent` is the default because most syncs are automatic (realtime echo,
+  // tab focus, reconnect). A success toast for background work the user didn't
+  // ask for is noise at best — and if the library ever re-uploads in a loop it
+  // reads as one "Synced" panel that never goes away. Failures always toast;
+  // only user-initiated syncs ("Sync now") report success.
+  const triggerSync = useCallback(async ({ silent = true } = {}) => {
     if (isSwitchingLibraryRef.current) return;
     const state = await getSyncState(activeLibrary);
     const providerId = activeLibrary !== 'personal' ? `supabase-team:${activeLibrary}` : state?.activeProvider;
@@ -476,11 +456,14 @@ export default function App() {
         description: `${first.kind}${where}: ${first.message}${more}`,
         variant: 'error',
       });
-    } else if (result.uploaded && (result.uploaded.songs > 0 || result.uploaded.setlists > 0)) {
+    } else if (!silent) {
       const parts = [];
-      if (result.uploaded.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
-      if (result.uploaded.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
-      toast({ title: 'Synced', description: `Uploaded ${parts.join(', ')}.` });
+      if (result.uploaded?.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
+      if (result.uploaded?.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
+      toast({
+        title: 'Synced',
+        description: parts.length ? `Uploaded ${parts.join(', ')}.` : 'Everything is up to date.',
+      });
     }
   }, [songs, setlists, tombstones, activeLibrary, adoptSyncResult]);
 
@@ -503,8 +486,6 @@ export default function App() {
     // Clear stale data immediately to avoid "ghost" content during load
     setSongs([]);
     setSetlists([]);
-    setPreviewSongId(null);
-    setPreviewSetlistId(null);
 
     (async () => {
       let savedSongs = await loadSongs(activeLibrary);
@@ -687,62 +668,8 @@ export default function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // Surface the result of a Stripe Checkout / billing-portal redirect, then
-  // strip the `?billing=` param. The workspace's subscription_status is written
-  // by the stripe-webhook function; TeamProvider re-fetches on this fresh load,
-  // so the new status is already reflected.
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const billing = params.get('billing');
-    if (!billing) return;
-    if (billing === 'success') {
-      toast({ title: 'Subscription active', description: 'Your Space is all set.' });
-    } else if (billing === 'cancel') {
-      toast({ title: 'Checkout canceled', description: 'No changes were made.' });
-    }
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }, []);
-
-  // Hydrate local settings from the user's cloud preferences on sign-in —
-  // once per user id. Cloud is treated as source of truth for the portable
-  // subset; device-local fields stay untouched.
-  useEffect(() => {
-    if (!loaded || !settings || !user?.id || !profile) return;
-    if (prefsHydratedForUserRef.current === user.id) return;
-    prefsHydratedForUserRef.current = user.id;
-    const cloud = profile.preferences;
-    if (cloud && typeof cloud === 'object' && Object.keys(cloud).length > 0) {
-      setSettings(prev => ({ ...prev, ...cloud }));
-    }
-  }, [loaded, user?.id, profile, settings]);
-
-  // Forget hydration marker on sign-out so a later sign-in re-hydrates.
-  useEffect(() => {
-    if (!user?.id) prefsHydratedForUserRef.current = null;
-  }, [user?.id]);
-
-  // Snapshot of all portable prefs — used as a single stable dep so the push
-  // effect fires whenever *any* of the 30 keys changes, not just the 15 that
-  // were previously listed in the deps array.
-  const portablePrefsSnapshot = settings ? JSON.stringify(extractPortablePrefs(settings)) : null;
-
-  // Push portable preference changes to the cloud (debounced, only after
-  // hydration so we don't clobber server state with local defaults).
-  useEffect(() => {
-    if (!loaded || !settings || !user?.id) return;
-    if (prefsHydratedForUserRef.current !== user.id) return;
-    const portable = extractPortablePrefs(settings);
-    if (prefsEqual(portable, profile?.preferences || {})) return;
-    clearTimeout(prefsPushTimerRef.current);
-    prefsPushTimerRef.current = setTimeout(() => {
-      updateProfile({ preferences: portable }).catch(err => {
-        console.warn('[prefs] cloud sync failed:', err?.message || err);
-      });
-    }, 800);
-    return () => clearTimeout(prefsPushTimerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, user?.id, portablePrefsSnapshot]);
+  // Account-level preference sync (hydrate once per user, then debounced push).
+  usePreferenceSync({ loaded, settings, setSettings, user, profile, updateProfile });
 
   // Sync on tab focus
   useEffect(() => {
@@ -789,59 +716,8 @@ export default function App() {
     };
   }, [loaded, songs, setlists, tombstones]);
 
-  // Apply theme to document — 'default' follows system preference.
-  // Also keeps the active <meta name="theme-color"> in sync so Android's system
-  // bars (status bar + navigation pill) tint to match the current theme.
-  useEffect(() => {
-    if (!settings) return;
-    const theme = settings.theme;
-
-    const setThemeColor = (mode) => {
-      const color = mode === 'light' ? '#f6f4ef' : mode === 'midnight' ? '#14161e' : '#0a0807';
-      // Remove the media-scoped tags so the single active tag wins everywhere.
-      document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
-      let tag = document.querySelector('meta[name="theme-color"]:not([media])');
-      if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('name', 'theme-color');
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute('content', color);
-    };
-
-    if (theme === 'default') {
-      const mq = window.matchMedia('(prefers-color-scheme: light)');
-      const apply = () => {
-        const mode = mq.matches ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', mode);
-        setThemeColor(mode);
-      };
-      apply();
-      mq.addEventListener('change', apply);
-      return () => mq.removeEventListener('change', apply);
-    }
-    document.documentElement.setAttribute('data-theme', theme);
-    setThemeColor(theme);
-  }, [settings?.theme]);
-
-  // Labs: preview the Song Hub V2 neutral palette app-wide (overrides the dark
-  // theme tokens — see [data-palette="neutral"] in styles/index.css).
-  useEffect(() => {
-    const el = document.documentElement;
-    if (settings?.mockupPalette) el.setAttribute('data-palette', 'neutral');
-    else el.removeAttribute('data-palette');
-  }, [settings?.mockupPalette]);
-
-  // Settings → General → "Lock orientation". Best-effort: the Screen Orientation
-  // lock API only resolves in full screen / an installed PWA on most engines and
-  // throws on iOS Safari — swallow failures so it's a no-op where unsupported.
-  useEffect(() => {
-    if (!settings?.lockOrientation) return undefined;
-    const o = typeof screen !== 'undefined' ? screen.orientation : null;
-    if (!o?.lock) return undefined;
-    o.lock(o.type).catch(() => {});
-    return () => { try { o.unlock?.(); } catch { /* unsupported */ } };
-  }, [settings?.lockOrientation]);
+  // Document-level appearance: theme, Labs palette, orientation lock.
+  useAppearance(settings);
 
   // Snapshot of every state field that participates in back/forward.
   // Centralised so navigate / goToMainView / goSettingsPanel / openModal all
@@ -854,10 +730,11 @@ export default function App() {
     accountWall: accountWallTrigger,
     founderNote: showFounderNote,
     iosHint: showIOSHint,
-    wakeLockExplainer: showWakeLockExplainer,
     isFullscreen,
     sessionStats,
-    sessionSource,
+    // The mode you were reading in. Without this, backing out of the finale
+    // into the reader would restore the screen but not the mode it was in.
+    readerMode,
   });
 
   const pushHistory = (snap) => {
@@ -870,14 +747,14 @@ export default function App() {
     if (!isTeamReadOnly) return false;
     toast({
       title: 'Read-only library',
-      description: 'Only team admins and editors can change songs here. Ask a team admin for the editor role.',
+      description: 'Only admins, leaders and editors can change songs here. Ask a team admin to change your role.',
     });
     return true;
   };
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace, arrangementId } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle } = {}) => {
     // Central gate for read-only team members (audit D-1): every editor entry
     // point funnels through here, so members can't reach the editor and lose
     // work to the server-authoritative sync (RLS already blocks their writes).
@@ -885,7 +762,11 @@ export default function App() {
     if (!replace) pushHistory(snapshot());
     if (song !== undefined) setCurrentSong(song);
     if (setlist !== undefined) setCurrentSetlist(setlist);
-    if (nextView === 'editor') setEditArrangementId(arrangementId ?? null);
+    if (nextView === 'editor') {
+      setEditArrangementId(arrangementId ?? null);
+      // Seed title for a brand-new song, carried from the Add-a-song search box.
+      setEditNewTitle(newTitle || '');
+    }
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
     if (nextView === 'settings') setSettingsPanel('hub');
@@ -901,10 +782,9 @@ export default function App() {
       setAccountWallTrigger(prev.accountWall ?? null);
       setShowFounderNote(!!prev.founderNote);
       setShowIOSHint(!!prev.iosHint);
-      setShowWakeLockExplainer(!!prev.wakeLockExplainer);
       if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
       setSessionStats(prev.sessionStats ?? null);
-      setSessionSource(prev.sessionSource ?? null);
+      setReaderMode(prev.readerMode || 'live');
     } else {
       setView('home');
       setCurrentSong(null);
@@ -913,10 +793,9 @@ export default function App() {
       setAccountWallTrigger(null);
       setShowFounderNote(false);
       setShowIOSHint(false);
-      setShowWakeLockExplainer(false);
       setIsFullscreen(false);
       setSessionStats(null);
-      setSessionSource(null);
+      setReaderMode('live');
     }
   }, []);
 
@@ -1012,17 +891,15 @@ export default function App() {
     }
   }, [isIOS, isStandalone, view, settings?.onboardingComplete, settings?.seenIOSInstallHint, showIOSHint]);
 
-  // Auto-fire: wake-lock explainer the first time the user enters a stage
-  // view. The hook itself acquires silently — this just tells them why.
-  useEffect(() => {
-    if (
-      (view === 'setlist-performance' || view === 'setlist-play') &&
-      !settings?.seenWakeLockExplainer &&
-      !showWakeLockExplainer
-    ) {
-      openWakeLockExplainer();
-    }
-  }, [view, settings?.seenWakeLockExplainer, showWakeLockExplainer]);
+  // ⚠ The wake-lock sheet is GONE (2026-08-11), and with it the whole
+  // `seenWakeLockExplainer` / `showWakeLockExplainer` apparatus.
+  //
+  // It existed to explain that stage mode kept your screen on. Going LIVE now
+  // acquires the wake lock by meaning rather than by setting (see `Reader`),
+  // and the user's own switch moved into the ☰ beside the other decisions
+  // about the screen you read from — so the sheet was left interrupting
+  // someone about to start a service to explain a thing that handles itself.
+  // Owner: *"the keep awake was a bit intrusive anyway."*
 
   // Switch a top-level page (Home / Library / Setlists / Settings / Account /
   // Help / Design). Now pushes history so hardware Back navigates within the
@@ -1036,10 +913,8 @@ export default function App() {
       setView(viewName);
       setCurrentSong(null);
       setCurrentSetlist(null);
-      // Clear any open side-peek selection so it doesn't auto-reopen when
-      // returning to the library/setlists view after navigating away.
-      setPreviewSongId(null);
-      setPreviewSetlistId(null);
+      // Clear the docked pane's selection so it doesn't auto-reopen when
+      // returning to the setlists view after navigating away.
       setIsFullscreen(false);
       if (viewName === 'settings') {
         setSettingsPanel(targetPanel || 'hub');
@@ -1074,10 +949,9 @@ export default function App() {
         setAccountWallTrigger(prev.accountWall ?? null);
         setShowFounderNote(!!prev.founderNote);
         setShowIOSHint(!!prev.iosHint);
-        setShowWakeLockExplainer(!!prev.wakeLockExplainer);
         if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
         setSessionStats(prev.sessionStats ?? null);
-        setSessionSource(prev.sessionSource ?? null);
+        setReaderMode(prev.readerMode || 'live');
         return;
       }
     }
@@ -1108,11 +982,6 @@ export default function App() {
     pushHistory(snapshot());
     setShowIOSHint(true);
   };
-  const openWakeLockExplainer = () => {
-    if (showWakeLockExplainer) return;
-    pushHistory(snapshot());
-    setShowWakeLockExplainer(true);
-  };
   // All modal close paths route through window.history.back() — this keeps
   // the browser history aligned whether the user tapped X, the primary CTA,
   // or the hardware Back button.
@@ -1122,162 +991,19 @@ export default function App() {
 
   const toggleFullscreen = useCallback(() => setIsFullscreen(f => !f), []);
 
-  // Notification system
-  const handleMarkNotificationRead = useCallback((notifId) => {
-    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
-      markTeamNotifRead(notifId.slice(3));
-      return;
-    }
-    setSettings(prev => ({
-      ...prev,
-      notifications: (prev.notifications || []).map(n =>
-        n.id === notifId ? { ...n, read: true } : n
-      ),
-    }));
-  }, [markTeamNotifRead]);
-
-  const handleNotificationAction = () => {
-    // Actions are usually strings like "view_setlist_123" or similar
-    // Actually the action might not have been implemented in previous iterations.
-    // If we have an actionable notification, we can handle it here if it's not handled internally by the tray
-  };
-
-  // Dismiss a single notification: drop it from the stored list and remember
-  // its id so derived (virtual) notifications stay dismissed too. The dismissed
-  // set is device-local (not a PORTABLE_PREF_KEY) like `notifications` itself.
-  const handleDismissNotification = useCallback((notifId) => {
-    if (typeof notifId === 'string' && notifId.startsWith('tn-')) {
-      dismissTeamNotif(notifId.slice(3));
-      return;
-    }
-    setSettings(prev => ({
-      ...prev,
-      notifications: (prev.notifications || []).filter(n => n.id !== notifId),
-      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), notifId])],
-    }));
-  }, [dismissTeamNotif]);
-
-  // --- Compute Virtual Notifications ---
-  // Pending schedules for the current user → "you've been scheduled" prompts.
-  const pendingSchedules = schedules?.filter(s => s.user_id === user?.id && s.availability === 'pending') || [];
-  const virtualNotifications = pendingSchedules.map(s => {
-    const setlist = setlists.find(sl => matchesSetlistId(sl, s.setlist_id)) || { name: 'a setlist' };
-    return {
-      id: `schedule-${s.id}`,
-      type: 'schedule_request',
-      title: 'You have been scheduled!',
-      message: `You are scheduled for "${setlist.name}"${s.role ? ` as ${s.role}` : ''}.`,
-      read: false,
-      scheduleId: s.id,
-      setlistId: s.setlist_id,
-    };
+  // Notification feed — virtual schedule prompts + server rows + local rows.
+  const {
+    notifications: mergedNotifications,
+    hasUnread: hasUnreadNotifications,
+    markRead: handleMarkNotificationRead,
+    dismiss: handleDismissNotification,
+    clearAll: handleClearAllNotifications,
+    markAllRead: handleMarkAllNotificationsRead,
+    onAction: handleNotificationAction,
+  } = useNotificationFeed({
+    schedules, setlists, members, teamNotifications, user, settings, setSettings,
+    matchesSetlistId, markTeamNotifRead, dismissTeamNotif, dismissAllTeamNotifs,
   });
-
-  // Admins get notified when a member declines an UPCOMING setlist. Derived
-  // client-side (no schema change): any 'unavailable' schedule for a future
-  // setlist we can resolve locally. Dismissible; stays dismissed via the set.
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const memberDisplayName = (uid) => {
-    const m = (members || []).find(mm => mm.user_id === uid);
-    return m?.profile?.display_name || m?.profile?.email || 'A member';
-  };
-  // Decline alerts are now server-authoritative: the DB trigger fans a row out
-  // to every roster manager (see 20260616_team_notifications.sql), so they land
-  // even if this client never loaded that setlist, and read/dismiss persists
-  // across devices. We enrich the generic server copy with locally-resolvable
-  // names where possible, falling back to the row's stored body.
-  const resolveSetlistName = (setlistId) =>
-    setlists.find(sl => matchesSetlistId(sl, setlistId))?.name;
-
-  // Nudge: a "maybe" on a setlist coming up within ~2 weeks → ask the user to
-  // commit. Reuses the schedule_request Accept/Decline UI (Accept→available,
-  // Decline→unavailable), so resolving it clears the maybe.
-  const MAYBE_NUDGE_DAYS = 14;
-  const maybeNudges = (schedules || [])
-    .filter(s => s.user_id === user?.id && s.availability === 'maybe')
-    .map(s => ({ s, setlist: setlists.find(sl => matchesSetlistId(sl, s.setlist_id)) }))
-    .filter(({ setlist }) => {
-      if (!setlist?.date) return false;
-      const days = (new Date(`${setlist.date}T00:00:00`) - new Date(`${todayStr}T00:00:00`)) / 86400000;
-      return days >= 0 && days <= MAYBE_NUDGE_DAYS;
-    })
-    .map(({ s, setlist }) => ({
-      id: `maybe-${s.id}`,
-      type: 'schedule_request',
-      title: 'Still a maybe?',
-      message: `"${setlist.name}" is coming up — confirm whether you can make it.`,
-      read: false,
-      scheduleId: s.id,
-      setlistId: s.setlist_id,
-    }));
-
-  // Server schedule rows (schedule_request from the roster trigger,
-  // schedule_maybe_nudge from the notify-worker) exist to reach LOCK SCREENS
-  // via web push and to carry cross-device read state. In the tray, the
-  // interactive virtual prompt above is the better rendering of the same fact
-  // — so a server row is suppressed while a live prompt covers its schedule,
-  // and once the schedule is resolved (stale request/nudge).
-  const scheduleById = new Map((schedules || []).map(s => [s.id, s]));
-  const virtualScheduleIds = new Set([
-    ...pendingSchedules.map(s => s.id),
-    ...maybeNudges.map(n => n.scheduleId),
-  ]);
-  const serverNotifications = (teamNotifications || [])
-    .filter(n => {
-      const sid = n.metadata?.schedule_id;
-      if (!sid) return true;
-      if (virtualScheduleIds.has(sid)) return false; // interactive prompt shown instead
-      const sch = scheduleById.get(sid);
-      if (n.type === 'schedule_request') return !(sch && sch.availability !== 'pending');
-      if (n.type === 'schedule_maybe_nudge') return !(sch && sch.availability !== 'maybe');
-      return true;
-    })
-    .map(n => {
-      const meta = n.metadata || {};
-      let message = n.body;
-      if (n.type === 'schedule_decline') {
-        const who = meta.declined_by ? memberDisplayName(meta.declined_by) : 'A team member';
-        const name = resolveSetlistName(meta.setlist_id);
-        message = name
-          ? `${who} can't make "${name}"${meta.role ? ` (${meta.role})` : ''}.`
-          : `${who} can't make a service${meta.role ? ` (${meta.role})` : ''}.`;
-      }
-      return {
-        id: `tn-${n.id}`,
-        type: n.type === 'schedule_request' || n.type === 'schedule_maybe_nudge' ? 'server_schedule_info' : n.type,
-        title: n.title || 'Notification',
-        message,
-        read: !!n.read_at,
-        scheduleId: meta.schedule_id,
-        setlistId: meta.setlist_id,
-      };
-    });
-
-  const dismissedNotifs = settings?.dismissedNotifications || [];
-  const mergedNotifications = [
-    ...virtualNotifications,
-    ...maybeNudges,
-    ...serverNotifications,
-    ...(settings?.notifications || []),
-  ].filter(n => !dismissedNotifs.includes(n.id));
-
-  // Clear all dismissible notifications (schedule_request prompts stay — they
-  // still need an Accept/Decline).
-  const handleClearAllNotifications = () => {
-    const ids = mergedNotifications.filter(n => n.type !== 'schedule_request').map(n => n.id);
-    // Server-backed rows clear via the hook (persists across devices); the rest
-    // go onto the device-local dismissed set.
-    dismissAllTeamNotifs();
-    const localIds = ids.filter(id => !id.startsWith('tn-'));
-    if (localIds.length === 0) return;
-    setSettings(prev => ({
-      ...prev,
-      notifications: (prev.notifications || []).filter(n => !localIds.includes(n.id)),
-      dismissedNotifications: [...new Set([...(prev.dismissedNotifications || []), ...localIds])],
-    }));
-  };
-
-  const hasUnreadNotifications = mergedNotifications.some(n => !n.read);
 
   // Switch between Personal and a team/church workspace. Always lands on the
   // Dashboard so the user gets a consistent "home" for the workspace they
@@ -1286,6 +1012,12 @@ export default function App() {
     if (libId !== activeLibrary) setActiveLibrary(libId);
     goToMainView('home');
   };
+
+  // Workspace list shared by the mobile top bar and the account panel.
+  const workspaces = [
+    { id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null },
+    ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
+  ];
 
   const goLibrary = () => goToMainView('library');
   const goSetlists = () => goToMainView('setlists');
@@ -1312,9 +1044,9 @@ export default function App() {
   // Persist a table's visible columns (Songs / Setlists) — synced via prefs.
   const setTableColumns = (table, ids) =>
     setSettings(prev => ({ ...prev, tableColumns: { ...(prev?.tableColumns || {}), [table]: ids } }));
-  const goEditor = (song = null, arrangementId = null) => {
+  const goEditor = (song = null, arrangementId = null, newTitle = '') => {
     if (isTeamReadOnly) return;
-    navigate('editor', { song, arrangementId });
+    navigate('editor', { song, arrangementId, newTitle });
   };
   const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
@@ -1340,53 +1072,42 @@ export default function App() {
   const goSetlistView = (sl) => {
     // Opening the full overview supersedes any side-peek preview — clear it so
     // returning to the list doesn't re-open the pane for this setlist.
-    setPreviewSetlistId(null);
     navigate('setlist-view', { setlist: sl });
   };
-  const goSetlistPerformance = (sl) => {
+  // ── ONE way into the reader ───────────────────────────────────────────────
+  // There were three (`goSetlistPerformance`, an unreachable `setlist-play`,
+  // and `goSetlistPractice`). The owner, 2026-08-11: *"Why do we need the 2
+  // buttons? Wasn't the whole idea so we have one single entry point?"*
+  //
+  // `mode` is the reader's OPENING mode, not a destination — the chip in the
+  // top bar switches it from inside, so a wrong guess here costs one tap
+  // instead of leaving the set.
+  // `mode` omitted → the CLOCK decides: near the service it opens live, near
+  // the rehearsal (or any other day) it opens in practice. See
+  // `lib/openingMode.js` for the rule and why a fixed default could not work.
+  const goSetlistRead = (sl, { mode, startIndex = 0 } = {}) => {
+    const opening = mode || resolveOpeningMode(sl);
     if (!settings?.firstStageMode) {
       setSettings(prev => ({ ...prev, firstStageMode: true }));
     }
-    navigate('setlist-performance', { setlist: sl });
+    setReaderStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
+    setReaderMode(opening === 'live' ? 'live' : 'practice');
+    navigate('setlist-read', { setlist: sl });
   };
-  // Casual "campfire" play: open a single song in Live via an ephemeral,
-  // unsaved one-item setlist (no setlist needed). Suggestions can append to it.
+  // Casual "campfire" play: open a single song via an ephemeral, unsaved
+  // one-item setlist (no setlist needed). Suggestions can append to it.
   const playSongCasually = (song, arrangementId) => {
     if (!song) return;
-    goSetlistPerformance({
+    goSetlistRead({
       id: `campfire-${song.id}`,
       name: song.title || 'Song',
       _campfire: true,
       items: [{ type: 'song', songId: song.id, ...(arrangementId ? { arrangementId } : {}) }],
     });
   };
-  const goSetlistPractice = (sl, startIndex = 0) => {
-    setPracticeStartIndex(Number.isInteger(startIndex) ? startIndex : 0);
-    navigate('setlist-practice', { setlist: sl });
-  };
-  const goPracticeFinale = (sl, stats) => {
+  const goSetlistFinale = (sl, stats) => {
     setSessionStats(stats || null);
-    setSessionSource('practice');
-    navigate('practice-finale', { setlist: sl });
-  };
-  const goLiveFinale = (sl, stats, source) => {
-    setSessionStats(stats || null);
-    setSessionSource(source || 'play');
-    navigate('live-finale', { setlist: sl });
-  };
-  // From a finale "Run it again" — re-enter the originating session view
-  // with replace, so the back stack stays at the entry point that opened
-  // the original session rather than nesting another finale below it.
-  const handleRunSessionAgain = () => {
-    if (!currentSetlist) return;
-    const dest = sessionSource === 'performance'
-      ? 'setlist-performance'
-      : sessionSource === 'play'
-        ? 'setlist-play'
-        : 'setlist-practice';
-    setSessionStats(null);
-    setSessionSource(null);
-    navigate(dest, { setlist: currentSetlist, replace: true });
+    navigate('setlist-finale', { setlist: sl });
   };
   // From a finale "Back to setlist" / "View setlist" — replace the finale
   // with the setlist overview so back from there returns to the original
@@ -1394,12 +1115,10 @@ export default function App() {
   const handleFinaleViewOverview = () => {
     if (!currentSetlist) return;
     setSessionStats(null);
-    setSessionSource(null);
     navigate('setlist-view', { setlist: currentSetlist, replace: true });
   };
   const handleFinaleGoHome = () => {
     setSessionStats(null);
-    setSessionSource(null);
     goToMainView('home');
   };
   const goTeam = () => goToMainView('team');
@@ -1649,6 +1368,16 @@ export default function App() {
   };
 
   const handleDeleteSong = (id) => {
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     const removed = songs.find((s) => s.id === id);
     const nextSongs = songs.filter((s) => s.id !== id);
     setSongs(nextSongs);
@@ -1683,6 +1412,16 @@ export default function App() {
   // ----- Bulk song actions (Library selection toolbar) -----
   const handleDeleteSongs = async (ids) => {
     if (!ids || ids.length === 0) return;
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     if (settings?.confirmBeforeDelete !== false) {
       const ok = await confirm({
         title: `Delete ${ids.length} song${ids.length === 1 ? '' : 's'}?`,
@@ -1783,36 +1522,35 @@ export default function App() {
     });
   };
 
+  // Bulk add/remove tags across a selection (songsLibraryPlus). Reference-
+  // preserving: only touched songs get a new object + bumped updatedAt so sync
+  // re-uploads exactly them.
+  const handleTagSongs = (ids, { add = [], remove = [] } = {}) => {
+    const idSet = new Set(ids);
+    const addList = add.map(t => t.trim()).filter(Boolean);
+    const removeSet = new Set(remove.map(t => t.trim()).filter(Boolean));
+    let changed = 0;
+    setSongs(prev => prev.map(s => {
+      if (!idSet.has(s.id)) return s;
+      const cur = Array.isArray(s.tags) ? s.tags : [];
+      let next = cur.filter(t => !removeSet.has(t));
+      for (const t of addList) if (!next.includes(t)) next.push(t);
+      // No-op if the tag set is unchanged (avoids a pointless re-sync).
+      if (next.length === cur.length && next.every((t, i) => t === cur[i])) return s;
+      changed++;
+      return { ...s, tags: next, updatedAt: Date.now() };
+    }));
+    if (changed > 0) {
+      const label = addList.length ? `Tagged ${changed} song${changed === 1 ? '' : 's'}` : `Untagged ${changed} song${changed === 1 ? '' : 's'}`;
+      toast({ title: label });
+    }
+  };
+
   const handleMoveSongs = async (ids, target) => {
     for (const id of ids) await handleMoveSongToLibrary(id, target);
   };
   const handleCopySongs = async (ids, target) => {
     for (const id of ids) await handleCopySongToLibrary(id, target);
-  };
-
-  const handleSmartImport = (mdText) => {
-    if (guardTeamReadOnly()) return; // adds to songs before navigate()'s gate
-    try {
-      const parsed = parseSongMd(mdText);
-      // Stable identity across re-imports: if a song with this title already
-      // exists, adopt its id so the import UPDATES it in place (keeping every
-      // setlist reference intact) instead of minting a new id that orphans
-      // past setlists. The editor still opens for review before Save.
-      const existing = matchSongByTitle(songs, parsed.title);
-      if (existing) {
-        const adopted = { ...songFromFlat({ ...parsed, id: existing.id }), id: existing.id, keyHistory: existing.keyHistory };
-        toast({ title: `Updating "${existing.title}"`, description: 'This song already exists — your import updates it and keeps setlist links.' });
-        setNewSongModal(null);
-        navigate('editor', { song: adopted });
-        return;
-      }
-      const song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
-      setSongs(prev => [...prev, song]);
-      setNewSongModal(null);
-      navigate('editor', { song });
-    } catch {
-      toast({ title: 'Import failed', description: 'Could not parse converted chord sheet.', variant: 'error' });
-    }
   };
 
   const handleImportParsedSongs = (parsedSongs) => {
@@ -1842,7 +1580,32 @@ export default function App() {
     await handleImportSetlist(file);
   };
 
-  const openNewSongModal = (initialTab = 'import') => {
+  // A catalog song is the one import path whose chart is already known-good —
+  // we shipped it. So it skips the editor: saved straight to the library and
+  // opened in the hub, with an Undo toast instead of a review step.
+  const handleAddCatalogSong = (mdText, entry) => {
+    if (guardTeamReadOnly()) return;
+    let song;
+    try {
+      const parsed = parseSongMd(mdText);
+      song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
+    } catch {
+      toast({ title: 'Could not add song', description: 'That chart failed to parse.', variant: 'error' });
+      return;
+    }
+    setSongs(prev => [...prev, song]);
+    setNewSongModal(null);
+    toast({
+      title: `Added "${song.title}"`,
+      description: entry?.license === 'public-domain' ? 'Public domain — yours to edit and transpose.' : undefined,
+    });
+    goChart(song);
+  };
+
+  // No default: opening the modal from a + button must not presume the user
+  // wants a file. Only an explicit 'import' request (the editor's empty-state
+  // Import button) pops the OS picker on open.
+  const openNewSongModal = (initialTab) => {
     setNewSongModal({ initialTab });
   };
 
@@ -1898,9 +1661,6 @@ export default function App() {
     if (!settings?.firstSetlistBuilt) {
       setSettings(prev => ({ ...prev, firstSetlistBuilt: true }));
     }
-    // Keep the desktop split-view selection in sync so the new/updated
-    // setlist is preselected if the user navigates back to the list.
-    setPreviewSetlistId(sl.id);
     if (isNew) {
       // Land on the new setlist's overview so the user can immediately see
       // (and play) what they built. `replace` keeps the history stack at
@@ -1928,6 +1688,16 @@ export default function App() {
   // preserving the song's other arrangements.
   const handleUpdateSong = useCallback((updatedSong) => {
     if (!updatedSong || !updatedSong.id) return;
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     setSongs(prev => {
       const i = prev.findIndex(s => s.id === updatedSong.id);
       if (i < 0) return prev;
@@ -1961,7 +1731,38 @@ export default function App() {
       arr[i] = { ...next, updatedAt: Date.now() };
       return arr;
     });
-  }, []);
+  }, [isTeamReadOnly]);
+
+  // Edit mode's fork (`docs/READER.md` — the edit element). Lives here because
+  // it needs the REAL v2 song: the reader only ever holds a resolved
+  // single-arrangement view, and rebuilding a whole song from that view is how
+  // a song-level field gets dropped on the floor.
+  //
+  // The shape follows from the owner's two calls: edits CHANGE THE SONG as they
+  // are made, and forking is a BUTTON you press afterwards. So by the time this
+  // runs, the current arrangement already holds the edits — the fork copies it
+  // into a new arrangement and puts the original back to its pre-edit snapshot.
+  const handleSaveAsArrangement = useCallback(({ songId, arrangementId, restore }) => {
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
+    setSongs(prev => {
+      const i = prev.findIndex(s => s.id === songId);
+      if (i < 0 || !Array.isArray(prev[i].arrangements)) return prev;
+      const existing = prev[i];
+      const edited = existing.arrangements.find(a => a.id === arrangementId);
+      if (!edited) return prev;
+      // `addArrangement` deep-clones its seed, so the new arrangement does not
+      // share `sections` with the one we are about to revert.
+      const { song: withNew } = addArrangement(existing, null, edited);
+      const next = withArrangement(withNew, arrangementId, (a) => ({ ...a, ...restore }));
+      const arr = [...prev];
+      arr[i] = { ...next, updatedAt: Date.now() };
+      return arr;
+    });
+    toast({ title: 'Saved as a new arrangement', description: 'The original is back the way it was.' });
+  }, [isTeamReadOnly]);
 
   // Manual trigger for the Settings → Sync "Setlist links" panel. Same heal the
   // load path runs; useful right after re-importing a missing song.
@@ -1970,6 +1771,16 @@ export default function App() {
   }, [songs]);
 
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
+    // A member's library is READ-ONLY, and the sync engine already refuses to
+    // push their writes. Without this guard the write still lands in local
+    // state, looks saved, and is then silently reverted by the next pull —
+    // silent data loss for the person least able to predict it. The buttons are
+    // hidden for members, but these handlers are reachable from several
+    // surfaces, so the refusal belongs here rather than only in the UI.
+    if (isTeamReadOnly) {
+      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      return;
+    }
     setSetlists(prev => {
       const i = prev.findIndex(s => s.id === updatedSetlist.id);
       if (i < 0) return prev;
@@ -1977,7 +1788,7 @@ export default function App() {
       next[i] = updatedSetlist;
       return next;
     });
-  }, []);
+  }, [isTeamReadOnly]);
 
   const handleDeleteSetlist = (id) => {
     const removed = setlists.find(s => s.id === id);
@@ -2024,8 +1835,77 @@ export default function App() {
       ...prev,
       setlists: [...prev.setlists.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: Date.now() }))],
     }));
-    setPreviewSetlistId(null);
     toast({ title: `Deleted ${ids.length} setlist${ids.length === 1 ? '' : 's'}` });
+  };
+
+  // --- setlistsLibraryPlus: duplicate / templates / bulk tags ---------------
+  const handleDuplicateSetlist = (id) => {
+    const src = setlists.find(s => s.id === id);
+    if (!src) return;
+    const copy = {
+      ...src,
+      id: generateId(),
+      name: `${src.name || 'Untitled Setlist'} (copy)`,
+      isTemplate: false,
+      updatedAt: Date.now(),
+      items: (src.items || []).map(it => ({ ...it })),
+    };
+    setSetlists(prev => [...prev, copy]);
+    toast({ title: 'Setlist duplicated', description: copy.name });
+  };
+
+  const handleSaveSetlistAsTemplate = (id) => {
+    const src = setlists.find(s => s.id === id);
+    if (!src) return;
+    const tpl = {
+      ...src,
+      id: generateId(),
+      name: `${(src.name || 'Untitled').replace(/\s*template$/i, '')} template`,
+      isTemplate: true,
+      updatedAt: Date.now(),
+      items: (src.items || []).map(it => ({ ...it })),
+    };
+    // Templates are date-less + band-less (those are per-service).
+    delete tpl.date; delete tpl.time; delete tpl.endTime; delete tpl.rehearsal;
+    setSetlists(prev => [...prev, tpl]);
+    toast({ title: 'Saved as template', description: tpl.name });
+  };
+
+  const handleNewFromTemplate = (id) => {
+    const tpl = setlists.find(s => s.id === id);
+    if (!tpl) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const fresh = {
+      ...tpl,
+      id: generateId(),
+      name: tpl.templateName || (tpl.name || 'Setlist').replace(/\s*template$/i, '') || 'New setlist',
+      isTemplate: false,
+      date: today,
+      status: 'draft',
+      updatedAt: Date.now(),
+      items: (tpl.items || []).map(it => ({ ...it })),
+    };
+    setSetlists(prev => [...prev, fresh]);
+    goSetlistBuild(fresh);
+  };
+
+  const handleTagSetlists = (ids, { add = [], remove = [] } = {}) => {
+    const idSet = new Set(ids);
+    const addList = add.map(t => t.trim()).filter(Boolean);
+    const removeSet = new Set(remove.map(t => t.trim()).filter(Boolean));
+    let changed = 0;
+    setSetlists(prev => prev.map(s => {
+      if (!idSet.has(s.id)) return s;
+      const cur = Array.isArray(s.tags) ? s.tags : [];
+      let next = cur.filter(t => !removeSet.has(t));
+      for (const t of addList) if (!next.includes(t)) next.push(t);
+      if (next.length === cur.length && next.every((t, i) => t === cur[i])) return s;
+      changed++;
+      return { ...s, tags: next, updatedAt: Date.now() };
+    }));
+    if (changed > 0) {
+      toast({ title: `${addList.length ? 'Tagged' : 'Untagged'} ${changed} setlist${changed === 1 ? '' : 's'}` });
+    }
   };
 
   const handleClearAll = async () => {
@@ -2087,6 +1967,7 @@ export default function App() {
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
           <SharedSetlistViewer
             token={shareToken}
+            settings={settings}
             onExit={() => {
               window.history.replaceState({}, document.title, '/');
               goToMainView('home');
@@ -2200,7 +2081,11 @@ export default function App() {
     <Suspense fallback={lazyFallback}>
       <Toaster />
       <OfflineBanner />
-      <UpdatePrompt suppress={view === 'setlist-play' || view === 'setlist-performance'} />
+      {/* Suppressed for the WHOLE reader route, both modes. It used to name the
+          two live routes and leave practice out — an artifact of the fork, not
+          a decision: the reason is "do not cover a chart somebody is playing
+          from", which is equally true at a rehearsal. */}
+      <UpdatePrompt suppress={view === 'setlist-read'} />
       <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen
@@ -2211,7 +2096,7 @@ export default function App() {
         />
       )}
       {view === 'onboarding' && (
-        <div style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
         <OnboardingFlow
           onComplete={(quiz) => {
             // Inject demos if not already present (covers the first-run path).
@@ -2250,13 +2135,14 @@ export default function App() {
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
           onNavigate={goToMainView} 
-          isFullscreen={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
-          hideBanner={view === 'setlist-performance' || view === 'setlist-play' || view === 'setlist-practice'}
+          isFullscreen={view === 'setlist-read' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
+          hideBanner={view === 'setlist-read'}
           hasUnreadNotifications={hasUnreadNotifications} 
           notifications={mergedNotifications} 
           onMarkRead={handleMarkNotificationRead} 
           onNotificationAction={handleNotificationAction} 
-          drawerOpen={drawerOpen} 
+          drawerOpen={drawerOpen}
+          drawerPresentation={settings?.accountPanel ? 'sheet' : 'drawer'} 
           displayName={displayName}
           plan={plan}
           avatarUrl={profile?.avatar_url}
@@ -2270,7 +2156,7 @@ export default function App() {
           newWorkspaceLocked={newWorkspaceLocked}
           supportContact={SUPPORT_CONTACT}
           syncState={syncState}
-          onSyncNow={triggerSync}
+          onSyncNow={() => triggerSync({ silent: false })}
           isOnline={isOnline}
           songs={songs}
           setlists={setlists}
@@ -2281,13 +2167,13 @@ export default function App() {
           // builder (its library picker). Fullscreen views don't render the
           // header at all.
           showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
-          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view'].includes(view)}
+          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
             <MobileTopBar
               key={view}
               view={view}
-              songs={songs}
+            songs={songs}
               setlists={setlists}
               onOpenDrawer={openDrawer}
               onOpenNotifications={user ? () => navigate('notifications') : undefined}
@@ -2295,26 +2181,30 @@ export default function App() {
               onSelectSong={goChart}
               onSelectSetlist={goSetlistView}
               activeLibrary={activeLibrary}
-              workspaces={[
-                { id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null },
-                ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
-              ]}
+              workspaces={workspaces}
               setActiveLibrary={switchWorkspace}
               onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
               newWorkspaceLocked={newWorkspaceLocked}
               supportContact={SUPPORT_CONTACT}
+              searchScope={
+                view === 'library' && settings?.songsLibraryPlus ? 'songs'
+                : view === 'setlists' && settings?.setlistsLibraryPlus ? 'setlists'
+                : 'all'
+              }
+              hmMenu={!!settings?.hmMenu}
+              accountPanel={!!settings?.accountPanel}
             />
           )}
           {view === 'home' && (
             <Dashboard
-              songs={songs}
+            songs={songs}
               setlists={setlists}
               settings={settings}
               onSelectSong={goChart}
               onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onViewSetlist={goSetlistView}
-              onPlaySetlist={goSetlistPerformance}
+              onPlaySetlist={(sl) => goSetlistRead(sl)}
               onGoLibrary={goLibrary}
               onGoSetlists={goSetlists}
               onOpenSchedule={goSchedule}
@@ -2337,14 +2227,10 @@ export default function App() {
           )}
           {view === 'library' && (
             <Library
-              songs={songs}
+            songs={songs}
               loaded={loaded}
               onSelectSong={goChart}
               onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-              previewSongId={previewSongId}
-              onSelectPreview={setPreviewSongId}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={toggleFullscreen}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
               readOnly={isTeamReadOnly}
               setlists={setlists}
@@ -2352,11 +2238,12 @@ export default function App() {
               workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
               onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
+              onTagSongs={isTeamReadOnly ? null : handleTagSongs}
+              plus={!!settings?.songsLibraryPlus}
               tableColumns={settings?.tableColumns}
               onSetTableColumns={setTableColumns}
               onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
               onCopySongs={teams.length > 0 ? handleCopySongs : null}
-              chartMoveCopy={buildChartMoveCopy}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -2375,16 +2262,13 @@ export default function App() {
           )}
           {view === 'setlists' && (
             <Setlists
-              songs={songs}
+            songs={songs}
               setlists={setlists}
               loaded={loaded}
               onViewSetlist={goSetlistView}
-              onPlaySetlist={goSetlistPerformance}
-              onPracticeSetlist={(sl, startIndex) => goSetlistPractice(sl, startIndex)}
+              onPlaySetlist={(sl) => goSetlistRead(sl)}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onImportSetlist={isTeamReadOnly ? null : handleImportSetlist}
-              previewSetlistId={previewSetlistId}
-              onSelectPreview={setPreviewSetlistId}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
               onEditSetlist={isTeamReadOnly ? null : (sl) => goSetlistBuild(sl)}
@@ -2404,9 +2288,13 @@ export default function App() {
                   ...prev,
                   setlists: [...prev.setlists.filter(t => t.id !== id), { id, deletedAt: Date.now() }],
                 }));
-                setPreviewSetlistId(null);
               }}
               onDeleteSetlists={isTeamReadOnly ? null : handleDeleteSetlists}
+              plus={!!settings?.setlistsLibraryPlus}
+              onDuplicateSetlist={isTeamReadOnly ? null : handleDuplicateSetlist}
+              onSaveAsTemplate={isTeamReadOnly ? null : handleSaveSetlistAsTemplate}
+              onNewFromTemplate={isTeamReadOnly ? null : handleNewFromTemplate}
+              onTagSetlists={isTeamReadOnly ? null : handleTagSetlists}
               canEdit={canEdit}
             />
           )}
@@ -2426,15 +2314,12 @@ export default function App() {
               {...buildChartMoveCopy(currentSong.id)}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              showInlineNotes={settings?.showInlineNotes !== false}
-              inlineNoteStyle={settings?.inlineNoteStyle || 'dashes'}
-              duplicateSections={settings?.duplicateSections || 'full'}
-              chartLayout={settings?.chartLayout || 'columns'}
-              isFullscreen={isFullscreen}
-              onToggleFullscreen={() => setIsFullscreen(v => !v)}
+              onUpgrade={() => navigate('upgrade')}
+              // ⚠ Nine props were threaded here into a component that stopped
+              // declaring them: the seven that fed `chartProps` (which fed the
+              // ChartView the hub no longer mounts), plus `isFullscreen` and
+              // `onToggleFullscreen`, which SongHub has NEVER declared — the
+              // hub's full screen is its own `fsMode` state and always was.
               onTransposed={() => {
                 if (!settings?.firstTransposed) {
                   setSettings(prev => ({ ...prev, firstTransposed: true }));
@@ -2448,9 +2333,10 @@ export default function App() {
           )}
           {view === 'editor' && (
             <Editor
-              key={currentSong?.id || 'new'}
+              key={currentSong?.id || `new:${editNewTitle}`}
               song={currentSong}
               initialArrangementId={editArrangementId}
+              newTitle={editNewTitle}
               onSave={isTeamReadOnly ? null : handleSaveSong}
               onBack={importQueue ? handleSkipQueueSong : goBack}
               onDirtyChange={markEditorDirty}
@@ -2462,7 +2348,6 @@ export default function App() {
                 onSkip: handleSkipQueueSong,
               } : null}
               readOnly={isTeamReadOnly}
-              onOpenNewSong={isTeamReadOnly ? null : openNewSongModal}
               chartDefaults={{
                 defaultColumns: settings?.defaultColumns,
                 defaultFontSize: settings?.defaultFontSize,
@@ -2482,7 +2367,7 @@ export default function App() {
             <SetlistOverview
               key={currentSetlist.id}
               setlist={currentSetlist}
-              songs={songs}
+            songs={songs}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : () => goSetlistBuild(currentSetlist)}
               onExportZip={() => handleExportSetlist(currentSetlist)}
@@ -2493,17 +2378,15 @@ export default function App() {
               setlists={setlists}
               overscheduleWarn={settings?.rosterOverscheduleWarning}
               streakLimit={settings?.rosterStreakLimit || 3}
-              onPlay={() => goSetlistPerformance(currentSetlist)}
-              onPractice={(startIndex) => goSetlistPractice(currentSetlist, startIndex)}
+              onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
               onOpenSong={(song) => goChart(song)}
               onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
               canEdit={canEdit}
-              cards={!!settings?.setlistCards}
             />
           )}
           {view === 'setlist-build' && (
             <SetlistBuilder
-              songs={songs}
+            songs={songs}
               setlist={currentSetlist}
               onSave={handleSaveSetlist}
               onBack={goBack}
@@ -2515,85 +2398,61 @@ export default function App() {
               onUpdateSong={handleUpdateSong}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
               clockFormat={settings?.clockFormat || '12h'}
-              cards={!!settings?.setlistCards}
             />
           )}
-          {view === 'setlist-play' && currentSetlist && (
-            <SetlistPlayer
+          {/* ── THE reader ────────────────────────────────────────────────────
+              One route, one component. It replaced three route names that
+              rendered the same screen and differed only in which finale they
+              landed on, and the Labs fork that sat above them. `readerMode` is
+              state now, switchable from the chip in the reader's own top bar —
+              which is why nothing here forks any more. */}
+          {currentSetlist && view === 'setlist-read' && (
+            <SetlistReader
               setlist={currentSetlist}
               songs={songs}
-              onBack={goBack}
-              onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'play')}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              showInlineNotes={settings?.showInlineNotes !== false}
-              inlineNoteStyle={settings?.inlineNoteStyle || 'dashes'}
-              displayRole={settings?.displayRole || 'leader'}
-              duplicateSections={settings?.duplicateSections || 'full'}
-            />
-          )}
-          {view === 'setlist-performance' && currentSetlist && (
-            <PerformanceView
-              setlist={currentSetlist}
-              songs={songs}
-              onBack={goBack}
-              onFinish={(stats) => goLiveFinale(currentSetlist, stats, 'performance')}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              railEnabled={settings?.performanceRail !== false}
-              navStyle={settings?.navStyle || 'pill'}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
-              userId={user?.id}
-              onAppendSong={(songId, arrangementId) => setCurrentSetlist(prev => (
-                prev ? { ...prev, items: [...prev.items, { type: 'song', songId, ...(arrangementId ? { arrangementId } : {}) }] } : prev
-              ))}
-            />
-          )}
-          {view === 'setlist-practice' && currentSetlist && (
-            <PracticeView
-              setlist={currentSetlist}
-              songs={songs}
-              startIndex={practiceStartIndex}
+              myInstrument={myInstrument}
+              mode={readerMode}
+              onModeChange={enterReaderMode}
+              startIndex={readerStartIndex}
+              onUpdateSong={isTeamReadOnly ? null : handleUpdateSong}
+              // A key chosen in PRACTICE sticks onto the setlist item.
+              onUpdateSetlist={isTeamReadOnly ? null : handleUpdateSetlist}
+              onSaveAsArrangement={isTeamReadOnly ? null : handleSaveAsArrangement}
+              trash={trash}
+              onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
+              onUpgrade={() => navigate('upgrade')}
               onBack={goBack}
-              onFinish={(stats) => goPracticeFinale(currentSetlist, stats)}
-              onUpdateSong={handleUpdateSong}
-              onUpdateSetlist={handleUpdateSetlist}
-              defaultColumns={settings?.defaultColumns}
-              defaultFontSize={settings?.defaultFontSize}
-              railEnabled={settings?.performanceRail !== false}
-              navStyle={settings?.navStyle || 'pill'}
-              settings={settings}
-              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              onOpenAdvancedStyle={() => goToMainView('settings', { settingsPanel: 'chart-style' })}
-              teamId={activeLibrary !== 'personal' ? activeLibrary : null}
-              userId={user?.id}
-              canEditShared={canEdit}
+              onFinish={(stats) => goSetlistFinale(currentSetlist, stats)}
             />
           )}
-          {view === 'practice-finale' && currentSetlist && (
-            <PracticeFinale
+          {/* Element 13 — ONE finale, whose only fork is its flavour (the badge
+              and the phrase). It reads `readerMode`, so a session that STARTED
+              in practice and was switched to live mid-run finishes as live —
+              which is the honest answer: the finale describes the run that just
+              happened, and the mode is the last thing that was true of it. */}
+          {currentSetlist && view === 'setlist-finale' && (
+            <ReaderFinale
               setlist={currentSetlist}
-              songs={songs}
-              sessionStats={sessionStats}
-              onRunAgain={handleRunSessionAgain}
-              onUpdateSetlist={handleUpdateSetlist}
+              mode={readerMode}
+              session={sessionStats}
               onGoOverview={handleFinaleViewOverview}
               onGoHome={handleFinaleGoHome}
             />
           )}
-          {view === 'live-finale' && currentSetlist && (
-            <LiveFinale
-              setlist={currentSetlist}
-              sessionStats={sessionStats}
-              onRunAgain={handleRunSessionAgain}
-              onUpdateSetlist={handleUpdateSetlist}
-              onGoOverview={handleFinaleViewOverview}
-              onGoHome={handleFinaleGoHome}
-            />
-          )}
-          {view === 'upgrade' && (
+          {showLiveIntro && (
+        <Suspense fallback={null}>
+          <LiveIntro onClose={() => {
+            // Both ends: the sheet closes AND the fact is remembered, per
+            // account. Writing only one of the two is the bug family this
+            // element keeps finding.
+            setSettings(prev => ({ ...prev, seenLiveIntro: true }));
+            setShowLiveIntro(false);
+          }} />
+        </Suspense>
+      )}
+      {view === 'upgrade' && (
             <PricingScreen
               onBack={goBack}
               settings={settings}
@@ -2684,7 +2543,7 @@ export default function App() {
               setlistCount={setlists.length}
               syncState={syncState}
               onSyncStateChange={setSyncState}
-              onSyncNow={triggerSync}
+              onSyncNow={() => triggerSync({ silent: false })}
               onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onUpgrade={() => navigate('upgrade')}
               onShowLegal={(doc) => navigate(`legal-${doc}`)}
@@ -2698,7 +2557,7 @@ export default function App() {
               activeLibrary={activeLibrary}
               team={team}
               setlists={setlists}
-              songs={songs}
+            songs={songs}
               onRepairSetlistLinks={handleRepairSetlistLinks}
               onRemapService={handleRemapService}
               trash={trash}
@@ -2757,7 +2616,7 @@ export default function App() {
       {/* Mobile glass nav lives at the App root (not inside <main>) so the
           drawer's transform/will-change doesn't capture its fixed positioning
           or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling'].includes(view) && !drawerOpen && (
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'notifications'].includes(view) && !drawerOpen && (
         <BottomNav
           activeView={view}
           onNavigate={goToMainView}
@@ -2767,15 +2626,15 @@ export default function App() {
           onImportSetlist={isTeamReadOnly ? null : pickAndImportSetlist}
           scheduleView={scheduleView}
           onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
+          onMarkAllRead={hasUnreadNotifications ? handleMarkAllNotificationsRead : null}
+          onClearAllNotifications={view === 'notifications' && mergedNotifications.some(n => n.type !== 'schedule_request') ? handleClearAllNotifications : null}
+          // The Setlists branch is gone with the docked pane: it fired off the
+          // pane's selection, and with no pane nothing can select a setlist
+          // from the list any more — the row opens the setlist instead.
           onPlay={
             view === 'setlist-view' && currentSetlist
-              ? () => goSetlistPerformance(currentSetlist)
-              : view === 'setlists' && previewSetlistId
-                ? () => {
-                    const sl = setlists.find(s => s.id === previewSetlistId);
-                    if (sl) goSetlistPerformance(sl);
-                  }
-                : null
+              ? () => goSetlistRead(currentSetlist)
+              : null
           }
         />
       )}
@@ -2792,6 +2651,13 @@ export default function App() {
           plan={plan}
           isSignedIn={isSignedIn}
           hasUnreadNotifications={hasUnreadNotifications}
+          hmMenu={!!settings?.hmMenu}
+          accountPanel={!!settings?.accountPanel}
+          workspaces={workspaces}
+          setActiveLibrary={switchWorkspace}
+          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
+          avatarUrl={profile?.avatar_url || null}
+          onOpenAccount={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'account' }); }}
           onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
           onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
           onOpenNotifications={() => { setDrawerOpen(false); navigate('notifications'); }}
@@ -2808,7 +2674,6 @@ export default function App() {
           onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
           teams={teams}
           activeLibrary={activeLibrary}
-          setActiveLibrary={switchWorkspace}
           canInstall={canInstall}
           isIOS={isIOS}
           isStandalone={isStandalone}
@@ -2839,13 +2704,15 @@ export default function App() {
       )}
       {newSongModal && (
         <Suspense fallback={null}>
-          <NewSongModal
-            initialTab={newSongModal.initialTab}
+          <AddSongModal
+            autoOpenPicker={newSongModal.initialTab === 'import'}
+            songs={songs}
             onClose={() => setNewSongModal(null)}
-            onStartBlank={() => { setNewSongModal(null); goEditor(); }}
+            onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
+            onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
             onImportSongs={handleImportParsedSongs}
             onImportSetlistFile={handleImportSetlistFile}
-            onSmartImport={handleSmartImport}
+            onAddCatalogSong={handleAddCatalogSong}
           />
         </Suspense>
       )}
@@ -2870,14 +2737,6 @@ export default function App() {
 
       {/* One-time pre-permission explainer for stage mode — render is
           state-driven now so the modal participates in the back stack. */}
-      {showWakeLockExplainer && (
-        <WakeLockExplainer
-          onContinue={() => {
-            setSettings(prev => ({ ...prev, seenWakeLockExplainer: true }));
-            dismissTopModal();
-          }}
-        />
-      )}
 
       {/* Account wall — fired by handleSaveSong / handleSaveSetlist on
           first NEW save when the user is not signed in. All three actions
@@ -2964,7 +2823,7 @@ function EdgeSwipeHotspot({ onOpen }) {
       className="fixed top-0 left-0 z-[150] sm:hidden"
       style={{
         width: '24px',
-        height: '100dvh',
+        height: APP_HEIGHT,
         // Keep the strip transparent but touch-reachable
         background: 'transparent',
         touchAction: 'pan-y',

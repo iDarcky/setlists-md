@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { importChartText, isChordToken } from '../lib/importChords';
+import { importChartText, isChordToken } from '@/lib/importChords';
 
 describe('isChordToken', () => {
   it('accepts common chords', () => {
@@ -59,5 +59,23 @@ describe('importChartText — ChordPro', () => {
     expect(body).toContain('{tab}');
     expect(body).toContain('e|--0--|');
     expect(body).toContain('{/tab}');
+  });
+
+  // Owner, 2026-08-06: *"I add a new section and select it as Pre-Chorus but
+  // after I write something in it it goes automatically to verse."*
+  // `ensureSections` invents `## Verse 1` for unlabelled text so a paste can
+  // never vanish — and `ArrangeTabV2.commitLyricComposer` then rebuilt the
+  // section from that invented heading, throwing away the type the user had
+  // just picked. `inferred` is how a caller tells a guess from a marker.
+  it('flags an invented heading as inferred, and a real one as not', () => {
+    const guessed = importChartText('Lift it up now');
+    expect(guessed.body).toContain('## Verse 1');
+    expect(guessed.inferred).toBe(true);
+
+    for (const marker of ['[Chorus]', 'Chorus:', '## Chorus']) {
+      const real = importChartText(`${marker}\nLift it up now`);
+      expect(real.body).toContain('## Chorus');
+      expect(real.inferred).toBe(false);
+    }
   });
 });

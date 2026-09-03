@@ -1,5 +1,3 @@
-import { STAGE_MODE_MAP } from '../data/stageModes';
-
 // Named lyric-size buckets (legacy 'S'/'M'/'L' values stored in settings).
 export const FONT_SIZES = { S: 14, M: 18, L: 22 };
 
@@ -19,8 +17,18 @@ function asNumber(v) {
  * decides how to apply width-adaptive behaviour for the non-explicit cases.
  */
 export function resolveChartDisplay(settings, { fallbackLyric = 16 } = {}) {
-  const stage = STAGE_MODE_MAP[settings?.stageMode || 'leader']?.settings
-    || STAGE_MODE_MAP.leader.settings;
+  // Baseline chart display. This used to resolve through a per-instrument
+  // "stage mode" preset (Leader / Vocalist / Bassist …), which quietly rewrote
+  // half a dozen settings behind the user's back; it has been removed and will
+  // be rethought. These are the values that preset's default carried.
+  const stage = {
+    lyricFontSize: 18,
+    chordFontSize: 17,
+    nashville: false,
+    notation: 'letters',
+    showChords: true,
+    showDiagrams: false,
+  };
   const lyric = asNumber(settings?.defaultFontSize) ?? stage.lyricFontSize ?? fallbackLyric;
   const nashville = settings?.nashville ?? !!stage.nashville;
   // `notation` is the three-way successor to the legacy `nashville` boolean.

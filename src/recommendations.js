@@ -17,10 +17,10 @@
 // layer is free to honour or override it. Each recommendation also carries a
 // short human `reason` string the panel can show ("Shared theme: grace", …).
 
-import { keyCompatibilityScore, tempoProximityScore, transposeKey } from './music.js';
-import { getArrangement } from './arrangements.js';
-import { mostPlayedKey, totalPlays } from './keyHistory.js';
-import { splitMulti } from './lib/songFacets.js';
+import { keyCompatibilityScore, tempoProximityScore, transposeKey } from './music';
+import { getArrangement } from './arrangements';
+import { mostPlayedKey, totalPlays } from './keyHistory';
+import { splitMulti } from '@/lib/songFacets';
 
 const DEFAULT_WEIGHTS = { key: 0.4, tempo: 0.2, theme: 0.2, freshness: 0.2 };
 

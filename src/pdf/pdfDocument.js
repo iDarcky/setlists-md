@@ -17,8 +17,14 @@ const PREFS_KEY = 'setlists-md:pdf-prefs';
 // pref value can't break out of the JSON block.
 export function buildPrintControls({ defaults = {}, initialPrefs = {} } = {}) {
   const json = JSON.stringify({ defaults, initialPrefs }).replace(/</g, '\\u003c');
+  // ABSOLUTE src, built from the parent origin. The export renders inside an
+  // `<iframe srcdoc>`, whose document URL is `about:srcdoc`; relying on relative
+  // resolution against the parent's base URL is engine-dependent, and when it
+  // fails the script simply never loads and every control in the preview is
+  // dead while the app-side buttons keep working.
+  const origin = (typeof location !== 'undefined' && location.origin) || '';
   return `<script type="application/json" id="pdf-print-config">${json}</script>
-  <script src="/pdf-print.js"></script>`;
+  <script src="${origin}/pdf-print.js"></script>`;
 }
 
 // Read the user's last-used PDF prefs from the parent app's localStorage so

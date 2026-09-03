@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidSong, isValidSetlist, migrateSongShape } from '../storage';
+import { isValidSong, isValidSetlist, migrateSongShape } from '@/storage';
 
 const validArrangement = (overrides = {}) => ({
   id: 'arr_1', name: 'Main Arrangement', sections: [], ...overrides,

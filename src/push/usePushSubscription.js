@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../auth/supabase';
-import { useAuth } from '../auth/useAuth';
+import { supabase } from '@/auth/supabase';
+import { useAuth } from '@/auth/useAuth';
 import { VAPID_PUBLIC_KEY, vapidKeyBytes } from './vapid';
 
 // Per-device Web Push registration. `enable()` runs the full flow —

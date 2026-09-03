@@ -17,7 +17,7 @@ vi.mock('idb-keyval', () => ({
   keys: async () => [...store.keys()],
 }));
 
-const { loadSongs, saveSongs, clearAll } = await import('../storage');
+const { loadSongs, saveSongs, clearAll } = await import('@/storage');
 
 let seq = 0;
 function song(overrides = {}) {

@@ -9,8 +9,8 @@
 // in the desktop preview pane). A dedicated window guarantees the output is
 // just the song, regardless of where it was triggered from.
 
-import { transposeChord, transposeKey, sectionStyle, normalizeSectionName } from '../music';
-import { parseLine, serializeTabBlock } from '../parser';
+import { transposeChord, transposeKey, sectionStyle, normalizeSectionName } from '@/music';
+import { parseLine, serializeTabBlock } from '@/parser';
 import { openPrintWindow, readInitialPrefs, buildPrintControls } from './pdfDocument';
 
 // Print-friendly section accent colors (CMYK-safe approximations of the Geist
@@ -767,8 +767,7 @@ function buildDocument(song, transpose, initialPrefs = {}) {
           <span class="check"></span>Repeats
         </button>
         <div class="action-group">
-          <button class="action primary" type="button" data-action="print">Print / Save as PDF</button>
-          <button class="action" type="button" data-action="close">Close</button>
+
         </div>
       </div>
     </div>

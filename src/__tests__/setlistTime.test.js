@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { setlistStartMs, setlistEndMs, isSetlistUpcoming, SETLIST_GRACE_MS } from '../lib/setlistTime';
+import { setlistStartMs, setlistEndMs, isSetlistUpcoming, SETLIST_GRACE_MS } from '@/lib/setlistTime';
 
 const at = (date, time) => new Date(`${date}T${time}:00`).getTime();
 const date = '2026-06-29';

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { withRetry, isTransient } from '../sync/retry';
+import { withRetry, isTransient } from '@/sync/retry';
 
 describe('isTransient', () => {
   it('treats network failures (no status) as transient', () => {

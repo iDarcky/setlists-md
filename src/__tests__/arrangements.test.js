@@ -8,8 +8,8 @@ import {
   renameArrangement,
   setDefaultArrangement,
   songFromFlat,
-} from '../arrangements';
-import { parseSongMd, songToMd } from '../parser';
+} from '@/arrangements';
+import { parseSongMd, songToMd } from '@/parser';
 
 // ─── fixtures ────────────────────────────────────────────────────────────────
 

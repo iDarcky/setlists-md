@@ -32,19 +32,27 @@
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Roboto Mono, Menlo, Monaco, Libration Mono, Courier New, monospace;
 
   /* Page Backgrounds (Dark Mode fallback) */
-  --ds-background-100: #0a0807;
-  --ds-background-200: #050403;
+  --ds-background-100: hsl(240, 4%, 9%);
+  --ds-background-200: hsl(0, 0%, 4%);
 
-    /* Geist Gray Scale (Dark Mode) */
-  --ds-gray-100-value: 0, 0%, 10%;
-  --ds-gray-200-value: 0, 0%, 12%;
-  --ds-gray-300-value: 0, 0%, 16%;
-  --ds-gray-400-value: 0, 0%, 18%;
-  --ds-gray-500-value: 0, 0%, 27%;
-  --ds-gray-600-value: 0, 0%, 53%;
-  --ds-gray-700-value: 0, 0%, 56%;
-  --ds-gray-800-value: 0, 0%, 49%;
-  --ds-gray-900-value: 0, 0%, 63%;
+  /* Geist Gray Scale (Dark Mode).
+     Promoted from the Labs "neutral palette" on 2026-08-01. The old dark ramp
+     was PURE neutral (0,0% at every step) sitting on a WARM near-black ground
+     (#0a0807), so every hairline was a cold grey line on brown-black — which is
+     what "I don't like the outline colour in dark mode" was seeing. It was not
+     the line's lightness, it was its hue disagreeing with the page underneath.
+     This ramp carries a consistent 240° bias at low saturation, and the ground
+     is lifted from 3% to 9% so a 17% border reads as a hairline rather than a
+     hard edge. Text steps (700–1000) keep their contrast. */
+  --ds-gray-100-value: 240, 5%, 12%;
+  --ds-gray-200-value: 240, 6%, 13%;
+  --ds-gray-300-value: 240, 6%, 16%;
+  --ds-gray-400-value: 240, 5%, 17%;
+  --ds-gray-500-value: 240, 5%, 24%;
+  --ds-gray-600-value: 240, 5%, 31%;
+  --ds-gray-700-value: 240, 3%, 45%;
+  --ds-gray-800-value: 240, 3%, 55%;
+  --ds-gray-900-value: 240, 3%, 64%;
   --ds-gray-1000-value: 0, 0%, 93%;
 
   --ds-blue-100-value: 216, 50%, 12%;
@@ -271,18 +279,64 @@
   --header-bg-blur: rgba(0, 0, 0, 0.45);
   /* Solid header tone for the chart view — opaque so the lyric area
      scrolling underneath never bleeds through. Default = dark. */
-  --chart-header-bg: #0a0807;
+  --chart-header-bg: hsl(240, 4%, 9%);
   --chart-header-border: rgba(255, 255, 255, 0.06);
   --fm: var(--font-mono);
 
   /* Shared Dashboard Surfaces (Dark Default) */
-  --dashboard-hero-bg: hsl(0, 0%, 4%);
-  --dashboard-hero-hover: hsl(0, 0%, 6%);
-  --dashboard-row-odd-bg: hsl(0, 0%, 4%);
-  --dashboard-row-even-bg: hsl(0, 0%, 0%);
+  --dashboard-hero-bg: hsl(240, 4%, 9%);
+  --dashboard-hero-hover: hsl(240, 5%, 12%);
+  --dashboard-row-odd-bg: hsl(240, 4%, 8%);
+  --dashboard-row-even-bg: hsl(240, 4%, 5%);
+
 }
 
 @layer base {
+  /* ── Firefox's inner focus border ─────────────────────────────────────────
+     Owner's screenshot, 2026-08-06: a dashed circle painted INSIDE a 14px
+     structure dot, in Zen (Firefox). Chromium never draws it, which is why
+     four measurement passes there found nothing.
+
+     Firefox has TWO focus artifacts and they need different answers:
+       · `:-moz-focusring { outline: auto }` — the preflight's, drawn on the
+         border box. `outline-offset` moves it clear (see `TAP_AREA` in
+         StructureRibbon).
+       · `::-moz-focus-inner` — a legacy dotted border drawn INSIDE the button,
+         which no offset can reach. modern-normalize zeroes it; Tailwind v4's
+         preflight dropped the rule, so it came back.
+     This is the second one. It is the standard normalize reset, app-wide,
+     because every small round control in the app has the same exposure. */
+  button::-moz-focus-inner,
+  [type='button']::-moz-focus-inner,
+  [type='reset']::-moz-focus-inner,
+  [type='submit']::-moz-focus-inner {
+    border-style: none;
+    padding: 0;
+  }
+
+  /* ── The brand's derived tones ─────────────────────────────────────────────
+     `--color-brand` is overridden at runtime by the Accent colour setting
+     (`useChartTheme` writes it as an inline style on :root). Its three
+     companions were hard-coded teal in @theme, so setting an accent recoloured
+     buttons and focus rings and left every soft fill, brand text and hairline
+     the original teal — the app half-changed. Deriving them with `color-mix`
+     means one setting moves all four.
+
+     Declared here rather than in @theme so Tailwind never tries to build
+     colour utilities out of a `color-mix()` expression; every call site uses
+     the arbitrary form `[var(--color-brand-soft)]` anyway. `@layer base` also
+     wins over `@layer theme` regardless of source order. */
+  :root {
+    --color-brand-soft: color-mix(in srgb, var(--color-brand) 15%, transparent);
+    --color-brand-border: color-mix(in srgb, var(--color-brand) 34%, transparent);
+    --color-brand-text: var(--color-brand);
+    /* The reader's one brand-coloured line — element 1's divider. Stronger than
+       --color-brand-border on purpose: at 34% on a dark ground the teal reads
+       as grey ("is that hairline the same brand color? I don't feel like"), and
+       this line exists precisely to be recognised as the end of the bar. */
+    --chart-divider: color-mix(in srgb, var(--color-brand) 60%, transparent);
+  }
+
   /* "Midnight" — legacy navy dark surface, kept as an opt-in flavor of the
      dark theme. Overrides page surfaces and tints the low-end gray ramp
      (100–400, used for card fills, hovers, input borders, dividers)
@@ -290,42 +344,31 @@
      reading as cold neutral gray. Text-weight grays (500–1000) stay
      neutral to preserve contrast. The modes-variant wash is themed
      separately via --modes-bg further down. */
+  /* Refreshed 2026-08-01, alongside the dark ramp. The old one tinted only
+     100–400 and left 500–600 neutral, so a card border was navy and the input
+     border one step up was grey — the seam showed on every form. The hue now
+     runs the whole chrome range, and the borders were pulled DOWN (26% → 21%):
+     they were brighter than the dark theme's, which made Midnight read as the
+     outlined theme rather than the blue one. */
   [data-theme="midnight"] {
-    --ds-background-100: #14161e;
-    --ds-background-200: #0e1017;
+    --ds-background-100: hsl(228, 20%, 11%);
+    --ds-background-200: hsl(228, 22%, 8%);
 
-    --ds-gray-100-value: 228, 16%, 14%;
-    --ds-gray-200-value: 228, 16%, 17%;
-    --ds-gray-300-value: 228, 15%, 22%;
-    --ds-gray-400-value: 228, 13%, 26%;
+    --ds-gray-100-value: 228, 19%, 14%;
+    --ds-gray-200-value: 228, 18%, 17%;
+    --ds-gray-300-value: 228, 17%, 19%;
+    --ds-gray-400-value: 228, 16%, 21%;
+    --ds-gray-500-value: 228, 14%, 28%;
+    --ds-gray-600-value: 228, 11%, 36%;
+    --ds-gray-700-value: 226, 9%, 48%;
 
-    --chart-header-bg: #0e1017;
-    --chart-header-border: rgba(255, 255, 255, 0.08);
-  }
+    --dashboard-hero-bg: hsl(228, 20%, 11%);
+    --dashboard-hero-hover: hsl(228, 19%, 14%);
+    --dashboard-row-odd-bg: hsl(228, 21%, 10%);
+    --dashboard-row-even-bg: hsl(228, 22%, 8%);
 
-  /* Labs: "Neutral palette" — preview of the Song Hub V2 mockup colours
-     app-wide (Settings → Labs). Forces a neutral-dark surface set on top of
-     whatever theme is active; higher specificity than [data-theme] so it wins
-     regardless of source order. */
-  :root[data-palette="neutral"] {
-    --ds-background-100: #161618;
-    --ds-background-200: #0a0a0a;
-    --ds-gray-100: #1c1c1f;
-    --ds-gray-200: #202024;
-    --ds-gray-300: #26262b;
-    --ds-gray-400: #2a2a2e;
-    --ds-gray-500: #3a3a40;
-    --ds-gray-600: #4a4a52;
-    --ds-gray-700: #6f6f76;
-    --ds-gray-800: #8a8a90;
-    --ds-gray-900: #a1a1a6;
-    --ds-gray-1000: #ededed;
-    --chord: #e0b341;
-    --chart-header-bg: #0a0a0a;
-    --dashboard-hero-bg: #161618;
-    --dashboard-hero-hover: #1c1c1f;
-    --dashboard-row-odd-bg: #141416;
-    --dashboard-row-even-bg: #0e0e10;
+    --chart-header-bg: hsl(228, 22%, 8%);
+    --chart-header-border: rgba(255, 255, 255, 0.07);
   }
 
   [data-theme="light"] {
@@ -550,25 +593,55 @@
   }
 
   body {
-    background: var(--ds-background-200);
+    /* ⚠ The SAME ground as `<main>`, not a darker one. Owner, 2026-08-24, on an
+       iPad: *"All 3 pages, dashboard, setlists, and songs have like a black bar
+       at the bottom of the page."* `<main>` paints `--ds-background-100`
+       (hsl 240 4% 9%) and this was `--ds-background-200` (hsl 0 0% 4%, near
+       black), and body's background is what propagates to the CANVAS — so the
+       moment the shell came up even slightly short of the screen, the gap
+       underneath it read as a black bar across the bottom of every page.
+       Reproduced by shortening the shell 44px: a 44px band of rgb(10,10,10)
+       under rgb(22,22,23).
+       The height itself is fixed (`lib/appViewport.js` — the same iOS fault
+       that left the reader's bottom bar hanging above the screen). This is the
+       second lock: with one ground, a residual pixel of gap is invisible
+       instead of being a bar. html/body are `overflow: hidden` and the shell
+       fills them, so this colour is seen only during first paint and in that
+       gap — and in both, the page's own ground is the right answer. */
+    background: var(--ds-background-100);
     color: var(--ds-gray-900);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
-    height: 100dvh;
+    /* `--app-vh` with `100dvh` as the FALLBACK — see `lib/appViewport.js`.
+       iOS resolved `100dvh` short on an installed app's first layout, and the
+       shell being shorter than the screen is what left the reader's bottom bar
+       hanging above it. Nothing changes where `dvh` is right: the variable is
+       set to the same number. */
+    height: var(--app-vh, 100dvh);
     overflow: hidden;
   }
 
   html {
     scroll-behavior: smooth;
-    height: 100dvh;
+    height: var(--app-vh, 100dvh);
     overflow: hidden;
   }
 
   button {
     min-height: 36px;
     font-family: var(--font-sans);
+  }
+
+  /* The reader sets `user-select: none` on its whole surface so a long press is
+     a drag and not a text selection (see `readerSurface.js`). Fields have to opt
+     back IN, or you cannot place a caret in the tempo box or the chord bar. */
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   input {
@@ -634,11 +707,37 @@
     color: var(--ds-gray-700);
   }
 
-  .hide-scrollbar {
+  .hide-scrollbar,
+  .no-scrollbar {
     scrollbar-width: none;
   }
-  .hide-scrollbar::-webkit-scrollbar {
+  .hide-scrollbar::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Subtle app-wide scrollbar — thin, translucent, themed, out of the way.
+     The .no-scrollbar / .hide-scrollbar utilities still win (higher specificity). */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--ds-gray-500) 55%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--ds-gray-500) 55%, transparent);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--ds-gray-600) 70%, transparent);
+    background-clip: padding-box;
   }
 
   .chart-auto-cols {
@@ -662,6 +761,23 @@
     padding-right: 32px;
   }
 
+  /* ⚠ The chrome and the chart must share ONE margin, at every width.
+     Measured at 1280 on 2026-08-21: the ☰ sat at x=32 and the ✕ 32 from the
+     right, while the section heading AND the lyrics both started at x=12 —
+     the sections bleed 20px outside `wide-container`'s padding so a tint frame
+     can reach edge to edge, and the chrome does not bleed with them. So the two
+     controls you aim at were inset 20px further than every word on the page.
+     Owner, 2026-08-21: *"the ☰ and the X are not in the margin they should
+     be."*
+
+     12px, matching where the text actually lands, rather than `wide-container`'s
+     32. This overrides the shared container for the reader's chrome only — the
+     Editor and the other surfaces that use `wide-container` are untouched. */
+  .reader-head .wide-container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
   /* Wide Layout for Editor and Performers */
   .wide-container {
     width: 100%;
@@ -673,10 +789,18 @@
   }
 }
 
-/* Responsive: phone — larger touch targets */
-@media (max-width: 639px) {
-  button {
-    min-height: 44px;
+/* Responsive: phone — larger touch targets.
+   MUST stay inside `@layer base`. Unlayered CSS beats *every* layered rule
+   regardless of specificity, so when this lived outside a layer it overrode
+   Tailwind utilities: a `w-[22px] h-[22px] min-h-0` button still measured
+   22x44 on phones (the select circle rendered as a grey capsule). Inside the
+   base layer, utilities can opt out where a square/round control needs to
+   stay square. */
+@layer base {
+  @media (max-width: 639px) {
+    button {
+      min-height: 44px;
+    }
   }
 }
 @utility text-heading-72 { font-size: 80px; line-height: 88px; letter-spacing: -0.05em; font-weight: 600; }
@@ -808,6 +932,34 @@
   100% { opacity: 1; }
 }
 
+/* The reader's ☰ as a phone sheet. Travel, not just fade: a panel that rises
+   from the edge it is anchored to reads as attached to the screen bottom. */
+@keyframes sheet-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes sheet-up {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}
+
+/* The reader's ☰ as a desktop side panel — it slides out from the left edge
+   rather than the layout jumping 320px sideways. `width`, not a transform: the
+   chart beside it really is being pushed, and a transform would slide the panel
+   over a chart that never moved. */
+@keyframes reader-side-in {
+  0% { width: 0; opacity: 0.4; }
+  100% { width: min(320px, 30vw); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @keyframes reader-side-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+}
+
 /* Light-mode override for modes variant */
 [data-theme="light"] [data-theme-variant="modes"] {
   --modes-surface: rgba(0, 0, 0, 0.035);
@@ -879,3 +1031,120 @@ html.dialog-open main {
 
 .slrow-v-soft { background: rgba(255,255,255,0.055); border-color: rgba(255,255,255,0.09); box-shadow: 0 1px 2px rgba(0,0,0,0.18), 0 8px 22px rgba(0,0,0,0.13); }
 [data-theme="light"] .slrow-v-soft { background: rgba(0,0,0,0.038); border-color: rgba(0,0,0,0.06); box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 10px 24px rgba(0,0,0,0.08); }
+
+/* ── Section identity ────────────────────────────────────────────────────────
+   Eleven section types, and SATURATION SAYS WHO IS SINGING.
+
+   Eleven hues on one wheel is more than hue alone can separate — the first cut
+   put Pre Chorus at 42° beside Instrumental at 26°, and Refrain at 288° beside
+   Interlude at 254°, all four fully saturated, and the owner could not tell
+   them apart (2026-08-06). Hue is now only half the signal:
+
+     VIVID — the five sections the room SINGS:
+             Verse · Pre Chorus · Chorus · Refrain · Bridge
+     DEEPER — the six the band only PLAYS:
+             Intro · Tag · Instrumental · Interlude · Vamp · Outro
+
+   ⚠ "Muted" is not "pale". The first cut flattened all six played hues to one
+   saturation and one lightness, and six colours separated by hue alone at low
+   saturation read as six pastels — everything looked the same. They sit back by
+   being DEEPER and a little less saturated, each on its own rung of a lightness
+   ladder, so a muted blue is still a blue.
+
+   So a vivid amber Pre Chorus sits next to a muted tan Instrumental, and a
+   vivid violet Refrain next to a muted lavender Interlude: two dimensions of
+   difference, not one. It also makes the page's shape mean something at a
+   glance — the colour tells you where the congregation comes in.
+
+   ⚠ NOT in `@theme`. Tailwind v4 tree-shakes theme variables nothing in the
+   CSS references, and these are read only from JS (`music.js` builds
+   `var(--section-…)` inline). Declared there they were dropped from the build
+   and every heading fell back to the chart's ink — a page of grey headings that
+   looked fine in review and wrong in Chromium.
+
+   These are CHART INK, not UI chrome, so they are their own tokens rather than
+   steps of the Geist ramps: the ramps carry seven chromatic hues, the chart
+   needs eleven, and a change to the UI's blue should not repaint anybody's
+   Intro. Every value is CONTRAST-CHECKED against the real chart backgrounds:
+   each clears 4.6:1 on Midnight AND Stage Black (dark) or white AND the warm
+   paper themes (light). Lightness is solved toward the middle of the passing
+   band, not the first value that passes — the first pass walks straight to the
+   pastel end of the ramp.
+
+   Fills and borders are mixed off the accent in `music.js`, the same way a
+   user's custom colour is: one token per hue, correct on any ground. */
+:root {
+  /* Sung — vivid */
+  --section-verse: hsl(130, 88%, 60%);
+  --section-prechorus: hsl(42, 88%, 60%);
+  --section-chorus: hsl(330, 88%, 62%);
+  --section-refrain: hsl(288, 88%, 66%);
+  --section-bridge: hsl(168, 88%, 58%);
+  /* Played — DEEPER, not paler, and each on its own rung of the lightness
+     ladder. The first cut put all six at 40% saturation and 68% lightness, and
+     six colours that differ only in hue at low saturation are six pastels:
+     owner, 2026-08-06, *"I don't know what you did with the saturations but now
+     everything looks the same"*. Muting by lightness-and-a-little-saturation
+     keeps each one its own colour (a real blue, a real orange, a real olive)
+     while still sitting back from the five the room sings. */
+  --section-intro: hsl(222, 62%, 64%);
+  --section-tag: hsl(196, 55%, 52%);
+  --section-instrumental: hsl(26, 62%, 56%);
+  --section-interlude: hsl(262, 55%, 70%);
+  --section-vamp: hsl(85, 50%, 48%);
+  --section-outro: hsl(356, 58%, 60%);
+}
+
+/* The same eleven on paper, darkened until each clears 4.6:1 against white and
+   the warm paper themes. A Geist ramp's 700 step is one value for both themes,
+   which is why the old palette read washed-out on light charts. */
+[data-theme="light"] {
+  --section-verse: hsl(130, 90%, 27%);
+  --section-prechorus: hsl(42, 90%, 30%);
+  --section-chorus: hsl(330, 90%, 32%);
+  --section-refrain: hsl(288, 90%, 32%);
+  --section-bridge: hsl(168, 90%, 26%);
+  --section-intro: hsl(222, 70%, 38%);
+  --section-tag: hsl(196, 63%, 36%);
+  --section-instrumental: hsl(26, 70%, 38%);
+  --section-interlude: hsl(262, 63%, 38%);
+  --section-vamp: hsl(85, 58%, 30%);
+  --section-outro: hsl(356, 66%, 38%);
+}
+
+/* ── Element 5's floating action ──────────────────────────────────────────
+   The stack rises out of the button rather than appearing around it: each
+   pill starts low and slightly small, and they are staggered from the one
+   nearest the thumb outwards (`animationDelay`, set inline per pill).
+   Keyframes rather than a transition because the pills MOUNT — there is no
+   previous state for a transition to run from. */
+@keyframes reader-fab-pill-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+.reader-fab-pill {
+  opacity: 0;
+  animation: reader-fab-pill-in 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-fab-pill { animation: none; opacity: 1; }
+}
+
+/* The practice row MOUNTS into the sticky bottom block, so there is no previous
+   state for a transition to run from — keyframes, like the FAB pills. It rises
+   from behind the block it lands in rather than appearing on top of it, which
+   is what makes it read as one bar arriving instead of a layout jump.
+
+   ⚠ Its partner is `ReaderActions`, whose `bottom` TRANSITIONS over a similar
+   duration. Two things moving the same distance on the same cue have to move
+   together; change one of these and change the other. */
+@keyframes reader-row-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.reader-row-in {
+  animation: reader-row-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reader-row-in { animation: none; }
+}

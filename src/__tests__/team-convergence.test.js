@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createTeamSyncEngine } from '../sync/team-engine';
-import { songToMd } from '../parser';
-import { createFakeClient, mkSong, mkSetlist, noTombstones } from './helpers/fakeSupabase';
+import { createTeamSyncEngine } from '@/sync/team-engine';
+import { songToMd } from '@/parser';
+import { createFakeClient, mkSong, mkSetlist, noTombstones } from '@/__tests__/helpers/fakeSupabase';
 
 // ── Two-device harness ────────────────────────────────────────────────────────
 // Each simulated device runs its own engine against ONE shared fake server,
@@ -32,7 +32,7 @@ vi.mock('../sync/tokens', () => {
   };
 });
 
-import { __setDevice, __resetSyncStates } from '../sync/tokens';
+import { __setDevice, __resetSyncStates } from '@/sync/tokens';
 
 const TEAM = 'team-1';
 

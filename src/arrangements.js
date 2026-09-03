@@ -7,8 +7,8 @@
 // shape so most consumers (ChartView, PerformanceView, PDF exporters) keep
 // working unchanged when their callers wrap the song with this helper.
 
-import { generateId, EXTRA_META_FIELDS } from './parser.js';
-import { inferStructureMode } from './music.js';
+import { generateId, EXTRA_META_FIELDS } from './parser';
+import { inferStructureMode } from './music';
 
 const EXTRA_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
 
@@ -45,6 +45,8 @@ export function resolveSongView(song, arrangementId) {
     youtube: song.youtube || '',
     keyHistory: song.keyHistory || {},
     ...Object.fromEntries(EXTRA_KEYS.map(k => [k, song[k] ?? ''])),
+    // Frontmatter the build does not model — carried, never dropped.
+    ...(song.extraFrontmatter ? { extraFrontmatter: song.extraFrontmatter } : null),
     key: arr.key,
     tempo: arr.tempo,
     time: arr.time,
@@ -52,6 +54,10 @@ export function resolveSongView(song, arrangementId) {
     capo: arr.capo || 0,
     notes: arr.notes || '',
     structure: arr.structure || [],
+    // Element 8's overlay travels WITH the arrangement, because its anchors
+    // index that arrangement's play order. A different arrangement is a
+    // different order and its key changes are its own.
+    keyChanges: Array.isArray(arr.keyChanges) ? arr.keyChanges : [],
     // Honour an explicit stored mode; otherwise infer it (migrates older
     // stored arrangements at read time: custom only if order already differs).
     structureMode: arr.structureMode || inferStructureMode(arr.structure, arr.sections),
@@ -149,6 +155,7 @@ export function songFromFlat(flat) {
     youtube: flat.youtube || '',
     keyHistory: flat.keyHistory || {},
     ...Object.fromEntries(EXTRA_KEYS.map(k => [k, flat[k] ?? ''])),
+    ...(flat.extraFrontmatter ? { extraFrontmatter: flat.extraFrontmatter } : null),
     defaultArrangementId: arrId,
     arrangements: [{
       id: arrId,
@@ -160,6 +167,7 @@ export function songFromFlat(flat) {
       capo: flat.capo || 0,
       notes: flat.notes || '',
       structure: Array.isArray(flat.structure) ? flat.structure : [],
+      keyChanges: Array.isArray(flat.keyChanges) ? flat.keyChanges : [],
       // Carry an explicit mode when the flat source (parsed .md) already has
       // one; otherwise infer it so existing songs migrate to custom only when
       // their saved order already differs from document order.

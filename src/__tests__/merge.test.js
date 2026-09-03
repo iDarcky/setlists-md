@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { threeWayMergeSong, threeWayMergeSetlist } from '../sync/merge';
+import { threeWayMergeSong, threeWayMergeSetlist } from '@/sync/merge';
 
 // Minimal v2-ish song. `arr` lets a test mutate the chart (arrangements) as one unit.
 function song(over = {}) {

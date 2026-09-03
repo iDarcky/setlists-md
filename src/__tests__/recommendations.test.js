@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { recommendNextSongs } from '../recommendations';
-import { songFromFlat } from '../arrangements';
+import { recommendNextSongs } from '@/recommendations';
+import { songFromFlat } from '@/arrangements';
 
 function v2Song({ id, key = 'G', tempo = 120, keyHistory = {}, tags, themes }) {
   const s = songFromFlat({ id, title: id, artist: 'A', key, tempo, time: '4/4', sections: [] });

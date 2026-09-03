@@ -1,0 +1,273 @@
+import { useState, useRef, useEffect } from 'react';
+import { Input } from '@/ui/Input';
+import { Button } from '@/ui/Button';
+import { DatePicker } from '@/ui/DatePicker';
+import { TimePicker } from '@/ui/TimePicker';
+import { useEntitlement } from '@/hooks/useEntitlement';
+
+const MAX_TAGS = 3;
+
+// Colour-coded Draft/Ready toggle — the active side lights up (amber for Draft,
+// brand-green for Ready) so the status reads at a glance.
+function StatusToggle({ status, onChange }) {
+  const opts = [
+    { value: 'draft', label: 'Draft', activeBg: 'var(--ds-amber-100)', activeText: 'var(--ds-amber-900)' },
+    { value: 'ready', label: 'Ready', activeBg: 'var(--color-brand-soft)', activeText: 'var(--color-brand-text)' },
+  ];
+  return (
+    <div className="inline-flex p-0.5 rounded-lg border border-[var(--border-1)] bg-[var(--ds-background-100)]" role="tablist" aria-label="Setlist status">
+      {opts.map(o => {
+        const active = status === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(o.value)}
+            className="inline-flex items-center h-7 px-3 rounded-md text-label-12 font-semibold transition-colors cursor-pointer"
+            style={active ? { background: o.activeBg, color: o.activeText } : { background: 'transparent', color: 'var(--ds-gray-600)' }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const FieldLabel = ({ children }) => (
+  <span className="text-label-11 font-semibold text-[var(--ds-gray-600)] shrink-0">{children}</span>
+);
+
+// A labelled field with a fixed-height header row so every field's label and
+// control line up on a shared baseline, whether or not the field carries a
+// trailing action (like a "clear" link). `action` sits at the right of the row.
+const Field = ({ label, action, className = '', children }) => (
+  <div className={`flex flex-col gap-1 ${className}`}>
+    <div className="h-4 flex items-center justify-between gap-2">
+      <FieldLabel>{label}</FieldLabel>
+      {action}
+    </div>
+    {children}
+  </div>
+);
+
+// Opt these plain text fields out of password managers (Dashlane/1Password/
+// LastPass) — they're setlist metadata, not credentials.
+const NO_AUTOFILL = { autoComplete: 'off', 'data-1p-ignore': true, 'data-lpignore': 'true', 'data-form-type': 'other' };
+
+// Service picker: choose an existing service or type a new one. A chevron
+// opens the list of previously-used services; typing filters it and any free
+// text becomes a new service (nothing to "confirm" — the value is live).
+function ServiceCombobox({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (!wrapRef.current?.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const q = (value || '').trim().toLowerCase();
+  const filtered = options.filter(o => o.toLowerCase().includes(q));
+  const showAdd = !!q && !options.some(o => o.toLowerCase() === q);
+  return (
+    <div ref={wrapRef} className="relative">
+      <Input
+        {...NO_AUTOFILL}
+        value={value}
+        onChange={e => { onChange(e.target.value.slice(0, 40)); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="e.g. Sunday AM"
+        maxLength={40}
+        className="w-full"
+        suffix={
+          <button type="button" onClick={() => setOpen(o => !o)} aria-label="Show services" className="-mr-1 w-5 h-5 grid place-items-center text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
+        }
+      />
+      {open && (filtered.length > 0 || showAdd) && (
+        <div className="absolute z-[60] mt-1 left-0 right-0 max-h-56 overflow-y-auto rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] shadow-xl py-1">
+          {filtered.map(o => (
+            <button key={o} type="button" onClick={() => { onChange(o); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-copy-14 text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer border-none bg-transparent">{o}</button>
+          ))}
+          {showAdd && (
+            <button type="button" onClick={() => setOpen(false)} className="w-full text-left px-3 py-1.5 text-copy-13 text-[var(--color-brand-text)] hover:bg-[var(--ds-gray-100)] cursor-pointer border-none bg-transparent">Use “{value.trim()}”</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Identity card for the card-language setlist editor. Compact inline-label
+ * fields keep Date · Start · End · Location on one line (wrapping gracefully,
+ * always aligned), with Rehearsal, then Tags + Notes below. The Draft/Ready
+ * toggle sits in the header; Save/Cancel live in the sticky bottom bar.
+ */
+export default function SetlistIdentityCard({
+  name, date, time, endTime, location, tags, service,
+  rehearsalDate, rehearsalTime, rehearsalLocation, notes, status,
+  knownServices = [], firstDayOfWeek, clockFormat,
+  onNameChange, onDateChange, onTimeChange, onEndTimeChange, onLocationChange,
+  onTagsChange, onServiceChange, onRehearsalDateChange, onRehearsalTimeChange,
+  onRehearsalLocationChange, onNotesChange, onStatusChange,
+}) {
+  const [tagInput, setTagInput] = useState('');
+  const [noteOpen, setNoteOpen] = useState(!!notes);
+  const [tagsOpen, setTagsOpen] = useState(tags.length > 0);
+  const canService = useEntitlement('multi-service').allowed && onServiceChange;
+  const showTags = tagsOpen || tags.length > 0;
+  const showNote = noteOpen || !!notes;
+
+  const addTag = () => {
+    const value = tagInput.trim().slice(0, 10);
+    if (!value || tags.length >= MAX_TAGS || tags.some(t => t.toLowerCase() === value.toLowerCase())) { setTagInput(''); return; }
+    onTagsChange([...tags, value]);
+    setTagInput('');
+  };
+  const removeTag = (idx) => onTagsChange(tags.filter((_, i) => i !== idx));
+  const onTagKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { if (!tagInput.trim()) return; e.preventDefault(); addTag(); }
+    if (e.key === 'Backspace' && !tagInput && tags.length > 0) removeTag(tags.length - 1);
+  };
+
+  return (
+    <div
+      className="rounded-2xl border border-[var(--border-1)] p-3 sm:p-4 flex flex-col gap-3"
+      style={{ background: 'linear-gradient(180deg, var(--ds-background-100), var(--ds-background-200))' }}
+    >
+      {/* Header: title + status */}
+      <div className="flex items-start gap-3">
+        <input
+          {...NO_AUTOFILL}
+          name="setlist-title"
+          value={name}
+          onChange={e => onNameChange(e.target.value)}
+          placeholder="Untitled setlist"
+          aria-label="Setlist title"
+          maxLength={50}
+          className="flex-1 min-w-0 bg-transparent border-0 outline-none text-heading-24 font-semibold text-[var(--text-1)] placeholder:text-[var(--ds-gray-500)] focus:bg-[var(--ds-gray-100)] rounded px-1 -mx-1"
+        />
+        <StatusToggle status={status} onChange={onStatusChange} />
+      </div>
+
+      {/* Date · Start · End · Location on a uniform grid (2-up on phones, one
+          row on desktop) so every field shares the same gap. Label on top. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start">
+        <Field label="Date" className="col-span-2 sm:col-span-1">
+          <DatePicker value={date} onChange={onDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-full" />
+        </Field>
+        <Field label="Start">
+          <TimePicker value={time} onChange={onTimeChange} clockFormat={clockFormat} hideIcon className="w-full" />
+        </Field>
+        {endTime ? (
+          <Field
+            label="End"
+            action={<button type="button" onClick={() => onEndTimeChange?.('')} className="text-label-11 text-[var(--ds-red-600)] hover:text-[var(--ds-red-700)] cursor-pointer" aria-label="Remove end time">remove</button>}
+          >
+            <TimePicker value={endTime} onChange={onEndTimeChange} clockFormat={clockFormat} hideIcon className="w-full" />
+          </Field>
+        ) : (
+          <Field label={<span className="invisible" aria-hidden="true">End</span>}>
+            <Button size="sm" variant="secondary" onClick={() => onEndTimeChange?.('12:00')} className="w-full h-10 justify-center text-[var(--ds-gray-700)]">+ End time</Button>
+          </Field>
+        )}
+        <Field label="Location" className="col-span-2 sm:col-span-1">
+          <Input {...NO_AUTOFILL} value={location} onChange={e => onLocationChange(e.target.value)} placeholder="e.g. The Blue Note" maxLength={120} className="w-full" />
+        </Field>
+      </div>
+
+      {/* Rehearsal — expands into its own labelled grid row (same shape as the
+          Date row above), collapses to a "+ Add rehearsal" chip below. */}
+      {rehearsalDate && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-start">
+          <Field
+            label="Rehearsal"
+            action={<button type="button" onClick={() => onRehearsalDateChange('')} className="text-label-11 text-[var(--ds-red-600)] hover:text-[var(--ds-red-700)] cursor-pointer" aria-label="Remove rehearsal">remove</button>}
+          >
+            <DatePicker value={rehearsalDate} onChange={onRehearsalDateChange} firstDayOfWeek={firstDayOfWeek} hideIcon className="w-full" />
+          </Field>
+          <Field label="Time">
+            <TimePicker value={rehearsalTime || '19:00'} onChange={onRehearsalTimeChange} clockFormat={clockFormat} hideIcon className="w-full" />
+          </Field>
+          <Field label="Location" className="col-span-2 sm:col-span-2">
+            <Input {...NO_AUTOFILL} value={rehearsalLocation || ''} onChange={e => onRehearsalLocationChange?.(e.target.value)} placeholder="If different from the setlist" maxLength={120} className="w-full" />
+          </Field>
+        </div>
+      )}
+
+      {/* Optional Service field (church tier). */}
+      {canService && (
+        <Field label="Service" className="sm:max-w-[240px]">
+          <ServiceCombobox value={service} onChange={onServiceChange} options={knownServices} />
+        </Field>
+      )}
+
+      {/* Hairline splitting the scheduling fields (when & where) from the
+          descriptive ones (tags, note) so the card reads as two calm zones. */}
+      <div className="h-px bg-[var(--border-1)] -mx-3 sm:-mx-4" aria-hidden="true" />
+
+      {/* Tags — expands into a labelled chip box, collapses to a "+ Add tags"
+          chip below. */}
+      {showTags && (
+        <Field
+          label={<>Tags {tags.length > 0 && <span className="font-normal">({tags.length}/{MAX_TAGS})</span>}</>}
+          action={tags.length === 0 ? <button type="button" onClick={() => setTagsOpen(false)} className="text-label-11 text-[var(--ds-gray-500)] hover:text-[var(--ds-gray-900)] cursor-pointer">remove</button> : null}
+        >
+          <div className="flex flex-wrap items-center gap-1.5 px-2.5 min-h-10 py-1 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] focus-within:border-[var(--ds-gray-600)]">
+            {tags.map((tag, idx) => (
+              <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--ds-gray-200)] text-label-12 text-[var(--ds-gray-1000)]">
+                {tag}
+                <span role="button" tabIndex={0} onClick={() => removeTag(idx)} onKeyDown={e => e.key === 'Enter' && removeTag(idx)} className="text-[var(--ds-red-600)] hover:text-[var(--ds-red-700)] cursor-pointer text-[10px] leading-none">✕</span>
+              </span>
+            ))}
+            {tags.length < MAX_TAGS && (
+              <input {...NO_AUTOFILL} name="setlist-tag" autoFocus={tagsOpen && tags.length === 0} value={tagInput} onChange={e => setTagInput(e.target.value.slice(0, 10))} onKeyDown={onTagKey} onBlur={addTag} maxLength={10} placeholder={tags.length === 0 ? 'Type, then Enter…' : ''} className="flex-1 min-w-[80px] bg-transparent border-none outline-none text-copy-14 text-[var(--ds-gray-1000)] placeholder:text-[var(--ds-gray-600)]" />
+            )}
+          </div>
+        </Field>
+      )}
+
+      {/* Setlist note — expands into a textarea, collapses to a "+ Add note"
+          chip below. */}
+      {showNote && (
+        <Field
+          label="Setlist note"
+          action={!notes ? <button type="button" onClick={() => setNoteOpen(false)} className="text-label-11 text-[var(--ds-red-600)] hover:text-[var(--ds-red-700)] cursor-pointer" aria-label="Remove note">remove</button> : null}
+        >
+          <textarea
+            {...NO_AUTOFILL}
+            autoFocus={noteOpen && !notes}
+            value={notes || ''}
+            onChange={e => onNotesChange(e.target.value.slice(0, 500))}
+            maxLength={500}
+            placeholder="One note for the whole set — e.g. capo 2 on the acoustic, confirm keys by Friday…"
+            rows={2}
+            className="w-full px-3 py-2 rounded-xl border border-[var(--ds-gray-400)] bg-[var(--ds-background-100)] text-copy-14 text-[var(--ds-gray-1000)] outline-none focus:border-[var(--ds-gray-600)] resize-y placeholder:text-[var(--ds-gray-500)]"
+          />
+        </Field>
+      )}
+
+      {/* Adders for whatever optional fields are still collapsed. */}
+      {(!rehearsalDate || !showTags || !showNote) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {!rehearsalDate && (
+            <Button size="sm" variant="secondary" onClick={() => onRehearsalDateChange(date || new Date().toISOString().slice(0, 10))} className="text-[var(--ds-gray-700)]">+ Add rehearsal</Button>
+          )}
+          {!showTags && (
+            <Button size="sm" variant="secondary" onClick={() => setTagsOpen(true)} className="text-[var(--ds-gray-700)]">+ Add tags</Button>
+          )}
+          {!showNote && (
+            <Button size="sm" variant="secondary" onClick={() => setNoteOpen(true)} className="text-[var(--ds-gray-700)]">+ Add note</Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

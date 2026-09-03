@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createTeamSyncEngine, stableStringify } from '../sync/team-engine';
-import { parseSongMd, songToMd } from '../parser';
-import { songFromFlat } from '../arrangements';
-import { SYNC_DEBOUNCE_MS } from '../sync/constants';
+import { createTeamSyncEngine, stableStringify } from '@/sync/team-engine';
+import { parseSongMd, songToMd } from '@/parser';
+import { songFromFlat } from '@/arrangements';
+import { SYNC_DEBOUNCE_MS } from '@/sync/constants';
 
 // In-memory sync-state store standing in for the IndexedDB-backed tokens module.
 vi.mock('../sync/tokens', () => {
@@ -25,10 +25,10 @@ vi.mock('../sync/tokens', () => {
   };
 });
 
-import { __resetSyncStates, getSyncState, updateSyncManifest } from '../sync/tokens';
+import { __resetSyncStates, getSyncState, updateSyncManifest } from '@/sync/tokens';
 
 // Fake Supabase client + fixture helpers shared with the convergence suite.
-import { createFakeClient, mkSong, mkSetlist, makeRowHelpers, noTombstones } from './helpers/fakeSupabase';
+import { createFakeClient, mkSong, mkSetlist, makeRowHelpers, noTombstones } from '@/__tests__/helpers/fakeSupabase';
 
 const TEAM = 'team-1';
 const { songRow, setlistRow } = makeRowHelpers(TEAM);

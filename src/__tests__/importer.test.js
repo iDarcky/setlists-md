@@ -12,8 +12,8 @@ import {
   convertPlain,
   convertOpenSong,
   smartImport,
-} from '../importer';
-import { parseSongMd } from '../parser';
+} from '@/importer';
+import { parseSongMd } from '@/parser';
 
 describe('isChordToken', () => {
   it('accepts common major / minor / 7 shapes', () => {

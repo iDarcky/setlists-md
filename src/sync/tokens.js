@@ -1,4 +1,4 @@
-import { loadSyncState, saveSyncState } from '../storage';
+import { loadSyncState, saveSyncState } from '@/storage';
 
 const SYNC_DEFAULTS = {
   activeProvider: null,

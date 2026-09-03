@@ -161,91 +161,122 @@ protection. The PR is the only door.
 
 ## Project Structure
 
+**The app is grouped by feature.** `src/features/<feature>/` owns everything for
+one surface; `src/ui/` is the shared design system; `src/app/` is the shell
+chrome. There is no `src/components/` — it was a flat dump of 63 files beside
+half-populated subfolders, and it's gone. The folders map 1:1 onto the component
+map in **`docs/COMPONENTS.md`**, which is the authoritative per-component
+reference (job, owner files, state, status, debt).
+
+**Imports use the `@/` alias** (= `src/`, configured in `vite.config.js` +
+`jsconfig.json`). Anything outside a file's own folder goes through `@/`; only
+same-folder siblings stay relative. Don't reintroduce `../../` chains — they're
+what made the old layout expensive to change.
+
 ```
 src/
 ├── main.jsx              # Entry point
-├── App.jsx               # Root component, view routing, data management,
-│                         #   preference cloud-sync, auth-URL cleanup
+├── App.jsx               # Root: view routing, data management, sync orchestration,
+│                         #   notification merge, preference cloud-sync, auth-URL cleanup.
+│                         #   3.1k lines — the split is COMPONENTS.md §1.1.
+├── parser.js             # .md parser/serializer: parseSongMd, songToMd, parseLine,
+│                         #   generateId, parseTabBlock, serializeTabBlock, parseTabPositions
 ├── music.js              # Transpose engine (transposeChord, transposeKey, sectionStyle)
-├── parser.js             # .md song format parser/serializer
-│                         #   exports: parseSongMd, songToMd, parseLine, generateId,
-│                         #            parseTabBlock, serializeTabBlock, parseTabPositions
-├── storage.js            # IndexedDB layer (loadSongs, saveSongs, loadSetlists, saveSetlists, clearAll,
-│                         #   loadVersions/pushVersion — per-song saved-markdown version history)
-├── styles/index.css      # Global styles, CSS variables, fonts
-├── auth/
+├── arrangements.js       # v2 multi-arrangement schema
+├── storage.js            # IndexedDB layer (loadSongs/saveSongs, loadSetlists/saveSetlists,
+│                         #   clearAll, loadVersions/pushVersion)
+├── importer.js           # smartImport() — ChordPro/OpenSong/UG/text detection
+│
+├── app/                  # Shell chrome (COMPONENTS.md §1.2)
+│   ├── DesktopLayout.jsx · Sidebar.jsx · TopHeader.jsx
+│   ├── MobileTopBar.jsx · BottomNav.jsx · MobileDrawer.jsx
+│   └── SidePeek.jsx · ErrorBoundary.jsx
+│
+├── ui/                   # Design system — 57 primitives (COMPONENTS.md §0.5)
+│   ├── Button.jsx · Card.jsx · Tabs.jsx · Dialog.jsx · Input.jsx …
+│   └── (see COMPONENTS.md §0.5 for the duplicate-primitive debt)
+│
+├── features/
+│   ├── library/          # Library.jsx, SongCard, LibraryFilters
+│   ├── song/             # SongHub (song-open target), SongDetails, SongPlayerBar,
+│   │                     #   FullscreenChartViewer (WIP)
+│   ├── chart/            # ChartView (reader), SectionBlock, TabBlock, ChordDiagram,
+│   │                     #   StructureRibbon, SongMap, AaMenu, ChartStyleControls
+│   ├── editor/           # Editor.jsx shell + ArrangeTabV2 (canvas), WriteTab, TabsTab,
+│   │                     #   MetadataPanel, PreviewPanel, ChordPicker, TabGridEditorV2,
+│   │                     #   PasteReview, StructureControl …
+│   ├── import/           # AddSongModal (Labs) · NewSongModal (legacy) · BrowseTab · ImportTab
+│   ├── dashboard/        # Dashboard.jsx
+│   ├── setlists/         # Setlists.jsx (library), SetlistCard, SetlistFilters, SetlistCardRow
+│   ├── setlist-editor/   # SetlistBuilder + SetlistItemRow, SetlistIdentityCard,
+│   │                     #   SetlistMetaForm, SetlistSongPicker, RecommendedNextPanel,
+│   │                     #   BandPanel, BandReadCard
+│   ├── setlist-viewer/   # SetlistOverview (2 render sites!), SetlistOverviewV2 (legacy),
+│   │                     #   SetlistViewerCards
+│   ├── performance/      # ⚠ ALL UNREFERENCED since 2026-08-21 — SetlistPlayer,
+│   │                     #   PerformanceView, PracticeView, LiveFinale,
+│   │                     #   PracticeFinale, PerformanceLayoutSheet/SetlistSheet, WakeLockExplainer
+│   ├── sharing/          # ShareSetlistDialog, SharedSetlistViewer, ExportSetlistDialog
+│   ├── settings/         # Settings.jsx, Account.jsx, AccountWall, AccountPanel,
+│   │                     #   SyncSettings, SyncDoctor, ChartStylePanel, WhatsNewPanel …
+│   ├── team/             # TeamScreen, TeamBanner, ActivityFeed
+│   ├── scheduling/       # Schedule, SchedulingGrid, ScheduleCalendarView/ListView,
+│   │                     #   DateStatusModal, RecurringPicker
+│   ├── notifications/    # NotificationTray, NotificationsPage, NotificationItems
+│   ├── billing/          # PricingScreen
+│   ├── legal/            # LegalPage, HelpPage, FeedbackButton
+│   ├── onboarding/       # OnboardingFlow + screens/, ProgressChecklist, ChordLine,
+│   │                     #   FounderNote, IOSInstallHint
+│   ├── auth/             # AuthScreen, AuthCallback, RecoveryScreen, GoogleDriveCallback
+│   ├── sync/             # SyncStatus, ConflictResolver (the sync engine's UI)
+│   └── design/           # LydianShowcase + the primitives only it uses (Button2,
+│                         #   PageHeaderLegacy) — showcase only, not app code
+│
+├── auth/                 # Providers, not screens
 │   ├── supabase.js       # Supabase client (null when env vars missing)
-│   ├── AuthContext.js    # React context for the auth value bag
-│   ├── useAuth.js        # Hook: { user, profile, signIn*, signUp*, resetPassword,
-│   │                     #         updatePassword, resendVerification, updateProfile, signOut }
-│   └── AuthProvider.jsx  # Session bootstrap, profile fetch w/ preferences fallback
+│   ├── AuthContext.js · useAuth.js · AuthProvider.jsx
+│   └── TeamContext.js · useTeam.js · TeamProvider.jsx
+├── sync/                 # Two engines + adopt/lock/merge/providers (COMPONENTS.md §0.3)
+├── lib/ · hooks/ · contexts/   # Shared logic, hooks, workspace context
+├── pdf/ · import/ · share/ · setlist/ · notes/ · push/ · billing/
 ├── data/
 │   ├── demos.js          # 3 demo songs loaded on first run
-│   └── chordShapes.js    # ~50 worship chord fingering shapes for svguitar
-└── components/
-    ├── SectionBlock.jsx      # Renders a single section block (chords above lyrics, tab blocks)
-    ├── TabBlock.jsx          # SVG guitar tab renderer (fret numbers, string lines, bar lines, techniques)
-    ├── ChordDiagram.jsx      # svguitar wrapper — renders chord fingering diagrams
-    ├── StructureRibbon.jsx   # Section flow bar + MetaPill component
-    ├── SongHub.jsx           # Song-open target: media "hub card" (art · title + gold key · meta · ⋯ · Edit · Campfire) over a "reader card" whose tab header (Chart/Lyrics/Details, brand pills) carries the chart-only Aa + full-screen controls; backing-track player is a card pinned to the bottom
-    ├── FullscreenChartViewer.jsx # WIP distraction-free fullscreen reader (opened from the chart/lyrics full-screen button) wrapping an embedded ChartView
-    ├── SongDetails.jsx       # Hub "Details" tab: grouped read view + inline edit form with a card-bottom Save/Cancel bar
-    ├── SongPlayerBar.jsx     # YouTube backing-track transport (own play/scrub controls; hidden IFrame-API player); `compact` variant for the mobile media card
-    ├── ChartView.jsx         # Chord chart reader (transpose, 1/2-col, sizes). `embedded` mode + controlled props let SongHub drive it; the Aa popover + centered "Advanced" Dialog render here
-    ├── AaMenu.jsx            # Single chart display popover (Page/Lyrics/Chords tabs; per-element size·font·colour; per-tab Reset)
-    ├── Editor.jsx            # Editor shell. Legacy: Arrange / Advanced / Tabs + split-screen preview.
-    │                         #   Cards (Labs `songEditorCards`): identity card (collapsible on mobile;
-    │                         #   Key chip vs Transpose) + left editor card (Arrange/Tabs/Details tabs,
-    │                         #   undo·redo + ⋮ overflow → Source dialog / Version history) + live preview
-    │                         #   card (own Aa → global display). Session md-history undo/redo; pre-save
-    │                         #   validation chip; version history via storage loadVersions/pushVersion.
-    ├── Library.jsx           # Song library with search + setlists tab
-    ├── SetlistBuilder.jsx    # Build setlists: pick songs, reorder, per-song transpose & notes
-    ├── SetlistPlayer.jsx     # Live mode: progress bar, song strip, prev/next navigation
-    ├── SetlistOverview.jsx   # Read-only setlist overview with song list and duration
-    ├── PerformanceView.jsx   # Fullscreen live view (sidebar hidden on desktop/tablet)
-    ├── Account.jsx           # Account page — edits display name (local + profile), sign-in/out
-    ├── Welcome.jsx           # Onboarding welcome with optional "Already have an account?" link
-    ├── auth/
-    │   ├── AuthScreen.jsx    # Sign-in/up form (magic link + password), loading states,
-    │   │                     #   password reveal, last-email prefill, friendly errors
-    │   ├── AuthCallback.jsx  # Handles OAuth /auth/callback (PKCE exchange)
-    │   └── RecoveryScreen.jsx# Set-new-password screen for type=recovery links
-    ├── account/
-    │   └── AccountPanel.jsx  # Shared account bits: StageGreeting, PlanLabel, SignInButton,
-    │                         #   CreateAccountButton, StatCards
-    ├── editor/
-    │   ├── ArrangeTabV2.jsx  # Visual chord-chart canvas (primary editing surface; shared by legacy +
-    │   │                     #   cards editors). Drag-to-reorder sections (grip handle; HTML5 + native
-    │   │                     #   touch, collapse-on-drag + edge autoscroll + insertion line); drag a
-    │   │                     #   chord chip to move it; inline lyric composer w/ smart chord-sheet paste
-    │   │                     #   on empty sections; Play order row (Auto/Custom, chips always visible;
-    │   │                     #   PlayOrderEditor = inline drag/×/+ chips, no modal). SectionTypePicker +
-    │   │                     #   menus built on the portaled PopMenu (flip up near screen bottom).
-    │   ├── WriteTab.jsx      # Advanced raw-markdown editor: toolbar (chord/section/cue/note/key-change/tab), find/replace, paste-import
-    │   ├── TabsTab.jsx       # Per-song reusable tab library (instrument picker, create/edit/delete)
-    │   ├── MetadataPanel.jsx # Song Details form (title, artist, capo, CCLI, tags, …); the legacy collapsible panel + the card-header "Details" tab
-    │   ├── PreviewPanel.jsx  # Live preview of parsed song (used in split-screen)
-    │   ├── ChordPicker.jsx   # Popup: root (A-G), accidental (#/b), suffix, slash chord
-    │   └── TabGridEditor.jsx # Interactive tab grid: duration picker, auto-advance, technique buttons
-    └── ui/
-        ├── Button.jsx        # Standard Geist buttons implementation
-        ├── Card.jsx          # Geist 16px radius cards
-        ├── Tabs.jsx          # Underline style tabs
-        └── ...               # Avatar, Badge, Input, SegmentedControl, etc.
+│   ├── chordShapes.js    # ~50 worship chord fingering shapes for svguitar
+│   └── chartThemes.js
+├── styles/index.css      # Global styles, CSS variables, fonts
+└── __tests__/            # 40 suites, 619 tests — all pure logic (no render tests yet)
 
 supabase/
-└── migrations/           # SQL applied manually (or via supabase db push).
-                          # See "Supabase Schema" below.
+├── migrations/           # SQL applied manually (or via supabase db push).
+│                         #   See "Supabase Schema" below.
+└── functions/            # Edge functions: notify-worker, stripe-*, cover-art
 ```
+
+**Two rules, both enforced by ESLint (`no-restricted-imports`):**
+
+1. **Never `../`.** Anything outside a file's own folder goes through `@/`;
+   same-folder siblings stay `./x`. A file move then never rewrites an
+   unrelated import.
+2. **No `@/components/*`.** That tree is gone. Code belongs to a feature
+   (`@/features/<x>`), the design system (`@/ui`), or the shell (`@/app`).
+
+**Where a shared module goes.** Used by one feature → live in that feature's
+folder. Used by several → `lib/` (pure logic) or `hooks/` (React hooks). Only
+`auth/`, `sync/`, `pdf/`, `push/`, `data/`, `contexts/` keep their own
+top-level folders — they're subsystems, not helpers. `auth/` and `sync/` each
+have a matching `features/` folder: **`src/<x>/` is the engine, `features/<x>/`
+is its UI** (`sync/team-engine.js` vs `features/sync/SyncStatus.jsx`).
 
 ## Architecture
 
-- **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-play`, `setlist-performance`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.
+- **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-read`, `setlist-finale`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.
+- **ONE reading route.** `setlist-play`, `setlist-performance` and `setlist-practice` collapsed into **`setlist-read`**, and `practice-finale` + `live-finale` into **`setlist-finale`** (2026-08-21). The three old names rendered the same component with the same props and differed only in which finale they landed on. Live vs practice is now `readerMode` STATE, carried in the history snapshot.
+- **The `unifiedReader` Labs flag is GONE.** `Reader` is the only reader on every surface. ⚠ Flipping a flag's default graduates nobody — `loadSettings` merges defaults under stored settings and `saveSettings` persists the merged object, so every profile already had `unifiedReader: false` written down. Graduation means deleting the READ sites. `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`, `PracticeFinale` and `FullscreenChartViewer` are still in the tree and are now a closed dead island — no live code imports any of them.
+- **Which mode a setlist opens in is decided by the CLOCK** — `src/lib/openingMode.js`, not a preference. Live from 30 min before the service to `endTime` (or +3h); a rehearsal recorded that same day pushes live back to the service start; everything else, including no date/time and campfire, is practice. `READER_DEFAULT_MODE` is only that leftover. There is deliberately **no manual way into live** — the ☰'s Live row exists only while live, as the way out.
 - **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds `ChartView` as **just the reader** (`embedded` + controlled `selectedKey`/`displayMode`/`aaAnchor`/`arrangementId` props). Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
 - **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
 - **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; multi-arrangement state is app-internal.
-- **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). There is **no per-setlist or per-user note scope yet** (planned).
+- **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). One scoped layer sits beside them: `team_notes` (per-**user** private, via `usePrivateNotes`). A per-setlist **leaders-only** layer was built and then removed — see `docs/PLAN.md` → Team, "Post-service feedback".
 - **The .md format** is the interchange format — YAML frontmatter + `## Section` headers + `[Chord]lyrics` inline chords + `> notes` for band cues + `{tab}...{/tab}` for guitar tabs
 - **Section types** each have a color scheme defined in `music.js` (Intro, Verse, Chorus, Bridge, etc.)
 - **Transpose** is applied at render time via `transposeChord()` — stored data is always in the original key
@@ -286,7 +317,7 @@ supabase/
 - **Password recovery** — `type=recovery` in the URL hash routes to `RecoveryScreen.jsx`. Navigating Back before completion calls `signOut` so the interim recovery session doesn't linger.
 - **Preferences cloud-sync** — defined in `App.jsx` via `PORTABLE_PREF_KEYS`. On sign-in, App hydrates once from `profile.preferences` (cloud wins). After hydration, local changes are pushed to `updateProfile({ preferences })` debounced 800 ms. Device-local fields (`onboardingComplete`, `helpPageSeen`, `notifications`) never sync.
 - **Display name** — `profile?.display_name || settings?.userName || 'Guest'`. Editing in `Account.jsx` writes to both the local settings and `updateProfile({ display_name })` when signed in. When signed in, the account name replaces the "Setlists.md" label in the drawer footer and Settings about header.
-- **Fullscreen performance** — `setlist-performance` and `setlist-play` always pass `isFullscreen={true}` to `DesktopLayout` so the sidebar collapses on desktop/tablet; the existing mobile layout already hides chrome for these views.
+- **Fullscreen performance** — `setlist-read` always passes `isFullscreen={true}` to `DesktopLayout` so the sidebar collapses on desktop/tablet; the existing mobile layout already hides chrome for it.
 
 ## .md Format Quick Reference
 
@@ -327,12 +358,40 @@ E|-----------|
 
 ## Modulate Format
 
-Modulate markers shift all subsequent chords by N semitones. Parsed into `{ type: 'modulate', semitones: N }` in `section.lines[]`.
+Modulate markers shift all subsequent chords by N semitones. Parsed into
+`{ type: 'modulate', semitones: N }` — plus `every: true` when the marker says so
+— in `section.lines[]`. `modulateMarker()` / `serializeModulate()` in `parser.js`
+keep the regex, the object and the text together.
 
+```
+{modulate: +2}          fires the FIRST time this section is played
+{modulate: +2, every}   fires on every repeat (a chorus that climbs)
+```
+
+- **A marker lives in the section BODY, so a repeated section replays it.** That
+  is why `every` exists: without it a chorus containing "+2" climbed a step every
+  single time it was played, and "modulate, then repeat in the new key" — the
+  commoner intention — was unsayable.
+- `sectionModPlan()` (`lib/songFlow.js`) decides per SLOT and returns
+  `{ offsets, fires }`. "First time" is per section BY IDENTITY, which works
+  because `orderSections` resolves a repeat to the same object reference.
+  `SectionBlock` takes `modFires` and must agree with it exactly — the incoming
+  offset and the in-section offsets otherwise describe two different songs.
+- An inert marker draws **no chip**: "↗ A" over a chorus that does not change key
+  is the chart telling a story the chords do not support.
+- `every` is **absent** rather than `false` on a bare marker. The sync engines
+  hash these objects; a new always-present key would make every stored song look
+  changed on the first load after it ships.
 - Cumulative: multiple `{modulate}` markers stack across sections
 - Applied at render time on top of user transpose and capo
-- Visual "Key Change: +N" badge rendered at marker position
-- Round-trip: serialized back to `{modulate: +N}` in `songToMd()`
+- A solid `--chord` chip names the **arrival key**, not the interval
+- Round-trip: serialized back through `serializeModulate()` in `songToMd()`
+
+⚠ **A key change still cannot belong to a SLOT.** "Chorus in C, Verse 2, Chorus
+in D" is unrepresentable: `once` gives you C then C, `every` climbs Verse 2 and
+everything after, and the only workaround is duplicating the chorus into two
+sections that differ solely by key. The fix is to let `structure` entries carry
+the change — an `.md` format change, and a MAJOR-version conversation like bars.
 
 ## Tab Block Format
 
@@ -462,7 +521,7 @@ The Teams/Church tier adds these additional tables:
   `(team_id, user_id, date)`. Standalone date-based availability,
   independent of any setlist. Members write only their own row; any team
   member can read everyone's. Used by `CalendarWidget` (member opts in by
-  tapping empty days) and by `RosterPanel` (leader sorts/filters candidates
+  tapping empty days) and by `BandPanel` (leader sorts/filters candidates
   by who's available on the setlist's date).
 
 RLS policies:
@@ -618,6 +677,28 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
 - `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
+- **The reader's live state is a FOLD, not a chip, and the ✕ is phone-conditional.**
+  `LiveFold` paints into the chrome's top-right corner OUTSIDE the layout, so the
+  song title is the same width live and off-live. On a phone (`!wide`) live drops
+  the ✕ entirely and a pull-down exits; on tablet/desktop the ✕ stays, because
+  the pull is touch-only and removing both left the hub's full screen with no way
+  out at all. The condition is `onModeChange` exists — "someone else can let me
+  out" — never "am I live".
+- **Firefox draws two focus artifacts that Chromium does not.**
+  `:-moz-focusring { outline: auto }` follows `border-radius` and lands *on* a
+  small round control (move it with `outline-offset`), and `::-moz-focus-inner`
+  paints a dotted border *inside* the button — reset app-wide in
+  `styles/index.css`, because Tailwind v4's preflight dropped modern-normalize's
+  rule. Test small round controls in Firefox.
+- **`flex-1` on the cross axis of a scroller.** A flex ITEM with no `flex-1` is
+  shrink-to-fit: the reader's chart row had none, so on a 1280px screen the
+  chart laid out 840px wide with 400px of dead window beside it. The vertical
+  twin (`flex-1 min-h-0` capping a wrapper *inside* a scroller) is the opposite
+  mistake — see `docs/READER.md`'s trap list for both.
+- **Paint order is hit-test order.** Putting an overlay *under* content to keep
+  that content readable also puts it under for pointer events — including the
+  content's padding, which is empty space. It makes the overlay silently
+  untappable. Separate them by geometry instead.
 - **Realtime only fires for tables in the `supabase_realtime` publication.** A `postgres_changes` subscription to an unpublished table connects successfully and then receives nothing, forever — no error anywhere. `20260701_realtime_publication.sql` added `team_schedules`/`team_availability`/`team_notifications`/`team_activity`; any NEW realtime-subscribed table needs a matching `alter publication` migration (plus `replica identity full` if delete events must pass a `team_id=eq.` filter — default identity only carries the PK).
 - **`team_schedules.setlist_id` (and `team_notifications` metadata `setlist_id`) is the `team_setlists` ROW UUID, not the local setlist id.** Never match it against `setlist.id` directly — bridge through `useTeamSetlistMap` (localId→remoteId from the sync manifest; takes a `refreshKey`, App passes `syncState.lastSync`). Wrong matching is invisible: lookups just miss and fall back ("a setlist", empty calendars).
 - **`applyKeyHistories` is reference-preserving on purpose** — unchanged songs keep object identity. Per-song IndexedDB writes, both engines' hash caches, and `sync/adopt.js` mid-sync-edit detection all treat a new reference as "this song changed"; a map that re-mints every object reintroduces whole-library rewrites on launch.
@@ -725,11 +806,30 @@ directly:
 
 ## Current Focus & Roadmap
 
-**Planning lives in `docs/PLAN.md`** — the single source of truth for the launch
-plan, polish backlog, known issues, and the longer-horizon roadmap (it replaces
-the old `docs/ROADMAP.md` + `docs/BACKLOG.md`). Keep this file (`CLAUDE.md`) for
-dev/agent memory only: stack, architecture, schema, the finish/release
-workflows, and gotchas.
+**Planning lives in `docs/PLAN.md`** — the single **sequenced** roadmap: what to
+do, in what order, and why. It separates the two streams that were previously
+tangled (**A** ship-the-beta ops vs **B** build-the-product engineering), carries
+the component-pass order, and collects every open decision in one table (§7).
+The per-area detail is §6, explicitly *not* sequenced — read a section when you
+start that component's pass. Keep this file (`CLAUDE.md`) for dev/agent memory
+only: stack, architecture, schema, the finish/release workflows, and gotchas.
+
+**Starting a fresh session?** If `docs/NEXT-SESSION.md` exists, read it first —
+it's the short-lived handoff for whatever pass is in flight, and it links
+everything else in the right order.
+
+**`docs/READER.md` is the Reader's decision log** — the one viewer that replaces
+the four reading surfaces, element by element, with the reason behind each
+choice. Read it before touching anything under `src/features/reader/`,
+`SectionBlock`, `TabBlock`, `StructureRibbon` or `AaMenu`; the decisions there
+were expensive to reach and are not to be re-opened.
+
+**`docs/COMPONENTS.md` is the definitive component map** — the app decomposed
+into 25 named components, each with its owner files, state, status and debt,
+plus the dependency order to work them in and a per-component definition of
+done. Work proceeds **component by component** against that list. Three docs,
+three jobs: `CLAUDE.md` = how it works · `PLAN.md` = what's next ·
+`COMPONENTS.md` = what the pieces are.
 
 TypeScript migration is deferred and done incrementally per touched file, not as
 a phase.

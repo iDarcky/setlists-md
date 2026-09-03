@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../auth/supabase';
-import { useAuth } from '../auth/useAuth';
+import { supabase } from '@/auth/supabase';
+import { useAuth } from '@/auth/useAuth';
 
 // Server-authoritative team notifications (decline alerts today; extensible).
 // Read/dismiss state persists in the DB, so it follows the user across devices.

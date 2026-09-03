@@ -4,7 +4,9 @@ import {
   resolveVisibleColumns,
   toggleColumn,
   defaultVisibleColumns,
-} from '../lib/tableColumns';
+  orderedVisibleColumns,
+  reorderColumns,
+} from '@/lib/tableColumns';
 
 describe('availableColumns', () => {
   it('drops entitlement-gated columns when the context flag is off', () => {
@@ -36,13 +38,32 @@ describe('resolveVisibleColumns', () => {
 });
 
 describe('toggleColumn', () => {
-  it('turns a column off and returns canonical order', () => {
+  it('turns a column off, preserving the remaining order', () => {
     const next = toggleColumn('library', { library: ['artist', 'key', 'tags'] }, {}, 'key');
     expect(next).toEqual(['artist', 'tags']);
   });
-  it('turns a new column on in canonical position', () => {
+  it('appends a newly-shown column at the end (order is user-controlled)', () => {
     const next = toggleColumn('library', { library: ['artist', 'key', 'tags'] }, {}, 'tempo');
-    expect(next).toEqual(['artist', 'key', 'tempo', 'tags']); // tempo sits before tags
+    expect(next).toEqual(['artist', 'key', 'tags', 'tempo']);
+  });
+});
+
+describe('plus-gated columns + ordering', () => {
+  it('unlocks extra library columns only when the plus context flag is set', () => {
+    const off = availableColumns('library', {}).map(c => c.id);
+    expect(off).not.toContain('ccli');
+    const on = availableColumns('library', { plus: true }).map(c => c.id);
+    expect(on).toContain('ccli');
+    expect(on).toContain('duration');
+    expect(on).toContain('usage');
+  });
+  it('orderedVisibleColumns honors the saved order', () => {
+    const cols = orderedVisibleColumns('library', { library: ['tags', 'key', 'artist'] }, {});
+    expect(cols.map(c => c.id)).toEqual(['tags', 'key', 'artist']);
+  });
+  it('reorderColumns moves a column to a new index', () => {
+    const next = reorderColumns('library', { library: ['artist', 'key', 'tags'] }, {}, 'tags', 0);
+    expect(next).toEqual(['tags', 'artist', 'key']);
   });
 });
 

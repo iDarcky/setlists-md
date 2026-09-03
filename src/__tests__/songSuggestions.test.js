@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { suggestNextSongs } from '../lib/songSuggestions';
+import { suggestNextSongs } from '@/lib/songSuggestions';
 
 const mk = (id, title, key, tempo, tags = []) => ({ id, title, key, tempo, tags });
 

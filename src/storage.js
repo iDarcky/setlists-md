@@ -95,6 +95,7 @@ export function migrateSongShape(s) {
       capo: s.capo || 0,
       notes: s.notes || '',
       structure: Array.isArray(s.structure) ? s.structure : [],
+      keyChanges: Array.isArray(s.keyChanges) ? s.keyChanges : [],
       sections: Array.isArray(s.sections) ? s.sections : [],
       updatedAt: s.updatedAt || Date.now(),
     }],
@@ -275,14 +276,25 @@ export const DEFAULT_SETTINGS = {
   onboardingComplete: false,
   showInlineNotes: true,
   inlineNoteStyle: 'dashes',
-  displayRole: 'leader',
+  // ⚠ These two are the REAL defaults for a new profile — `readerConfig`'s own
+  // DEFAULTS never fire, because `loadSettings` merges this object into every
+  // settings load, so `pick()` always sees a stored value. For two days the
+  // docs, the ☰'s Reset and `readerConfig` all said Plain + Tag while every
+  // user got Bar + Full. Keep the three in step: `storage.js DEFAULT_SETTINGS`
+  // = `lib/readerConfig.js DEFAULTS` = `ReaderMenu MENU_DEFAULTS`.
   duplicateSections: 'full',
-  chartLayout: 'columns',
   // Accidental spelling for chords/keys: 'auto' (follow the key), 'sharps', 'flats'.
   accidentals: 'auto',
   // Where the structure (section flow) ribbon sits in reading views:
-  // 'top' (default, in the header), 'bottom', 'left', or 'right'.
+  // 'top' (default, in the header), 'bottom', 'left', 'right', or 'off'.
   structurePosition: 'top',
+  // Reader display — see lib/readerConfig.js.
+  readerHeading: 'name',
+  // 'plain' — no frame. A chart is paper, and paper has no frames on it
+  // (owner, 2026-08-04; corrected here 2026-08-06, where it had always been).
+  readerSectionStyle: 'plain',
+  readerSticky: 'on',
+  readerNotes: 'on',
   firstDayOfWeek: 'sunday',
   clockFormat: '12h',
   helpPageSeen: false,

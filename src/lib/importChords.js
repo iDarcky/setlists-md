@@ -8,6 +8,9 @@
 // the source declared them (ChordPro directives); the caller decides whether to
 // apply them to the song's frontmatter.
 
+import { cleanPastedText } from './cleanPastedText';
+import { ensureSections } from './detectSections';
+
 const SECTION_WORDS = /^(intro|verses?|pre[\s-]?chorus|chorus|bridge|instrumental|interlude|tag|vamp|outro|ending|refrain|solo|breakdown|hook|coda|turnaround|chant)\b/i;
 
 // A single chord token: root, optional accidental, quality, extensions, slash.
@@ -66,7 +69,9 @@ const DIRECTIVE = /^\{(\w+)(?::\s*(.*))?\}$/;
 export function importChartText(text) {
   const meta = {};
   if (!text) return { body: '', meta };
-  const src = text.replace(/\r\n?/g, '\n').split('\n');
+  // Strip the layout-only characters a web page drags along before anything
+  // tries to read chords: a zero-width space inside "G" makes it a lyric.
+  const src = cleanPastedText(text).split('\n');
   const out = [];
   let inTab = false;
 
@@ -119,6 +124,16 @@ export function importChartText(text) {
     out.push(line);
   }
 
-  const body = out.join('\n').replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
-  return { body, meta };
+  const raw = out.join('\n').replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  // A body with lyrics but no "## " heading parses to ZERO sections — every
+  // line before the first heading is dropped — so an unlabelled paste used to
+  // vanish entirely on save. Nothing leaves here without a section.
+  const body = ensureSections(raw);
+  // `inferred` = the headings in `body` are OURS, guessed from the shape of the
+  // text; the writer never wrote a section marker. Callers that already know
+  // which section they are filling must not let a guess overwrite that — see
+  // `ArrangeTabV2.commitLyricComposer`, where typing the first line into an
+  // empty Pre-Chorus turned it into "Verse 1" because `## Verse 1` had been
+  // invented here and the section was then rebuilt from it.
+  return { body, meta, inferred: body !== raw };
 }

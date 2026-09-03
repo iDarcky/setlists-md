@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseSongMd,
   songToMd,
+  KNOWN_FRONTMATTER_KEYS,
   parseLine,
   lineToPlacement,
   placementToLine,
@@ -13,7 +14,7 @@ import {
   parseFrontmatterFields,
   serializeFrontmatterFields,
   generateId,
-} from '../parser';
+} from '@/parser';
 
 const SAMPLE = `---
 title: Amazing Grace
@@ -78,6 +79,24 @@ describe('parseSongMd', () => {
   it('captures band cues (lines starting with >)', () => {
     const song = parseSongMd(SAMPLE);
     expect(song.sections[0].note).toBe('Gently');
+  });
+
+  // PLAN §1.2 #3c, prio 1, reported 2026-08-04 and fixed 2026-08-06.
+  // The editor's cue field round-trips through songToMd → parse on EVERY
+  // keystroke, so a `.trim()` here deleted the space before it could become a
+  // word boundary: you could type one word into a band cue and no more.
+  it('keeps the space you just typed at the end of a band cue', () => {
+    const song = parseSongMd('---\ntitle: T\n---\n## Verse 1\n> Start soft \nla la');
+    expect(song.sections[0].note).toBe('Start soft ');
+  });
+
+  it('round-trips a cue with a trailing space byte-exact', () => {
+    const src = { title: 'T', key: 'C', sections: [{ type: 'Verse 1', note: 'Start ', lines: ['la'] }] };
+    const back = parseSongMd(songToMd(src));
+    expect(back.sections[0].note).toBe('Start ');
+    // …and exactly one space is eaten, the one the serializer writes.
+    expect(parseSongMd(songToMd({ ...src, sections: [{ ...src.sections[0], note: ' odd ' }] }))
+      .sections[0].note).toBe(' odd ');
   });
 
   it('parses modulate markers into objects', () => {
@@ -266,7 +285,7 @@ describe('named tab library + references', () => {
   });
 
   it('survives the v2 arrangement round-trip (editor save path)', async () => {
-    const { songFromFlat, resolveSongView } = await import('../arrangements.js');
+    const { songFromFlat, resolveSongView } = await import('@/arrangements');
     const flat = parseSongMd(md);
     const v2 = songFromFlat(flat);                 // Editor working song
     expect(v2.arrangements[0].tabLibrary).toHaveLength(1);
@@ -444,5 +463,109 @@ describe('edge cases', () => {
       expect(fields.structuremode).toBe('custom');
       expect(serializeFrontmatterFields(fields)).toContain('structureMode: custom');
     });
+  });
+});
+
+// ── The round trip is a FIXED POINT, and unknown keys survive it ─────────────
+//
+// PLAN §1.2 #6, root-caused against production 2026-08-07. `team_activity` had
+// reached 27,628 rows, 93% of them `song_edited`, because two clients on one
+// account disagreed about the extended-metadata frontmatter: the fields entered
+// the format on 2026-06-06, an older build stripped them on parse and deleted
+// them on its next push, and the current build re-added them. One song had its
+// `language` line added 15 times and removed 14 times in 14 days.
+//
+// A key this build does not model is now carried verbatim, so a build that
+// predates a field can never delete it.
+describe('frontmatter round trip', () => {
+  const md = (front, body = '## Verse 1\n[G]la la\n') => `---\n${front}\n---\n\n${body}`;
+
+  it('carries a key it does not model, byte-exact', () => {
+    const src = md('title: T\nartist: A\nkey: G\nmood: reflective\nbpmSource: tapped');
+    const song = parseSongMd(src);
+    expect(song.extraFrontmatter).toEqual([['mood', 'reflective'], ['bpmSource', 'tapped']]);
+    const out = songToMd(song);
+    expect(out).toContain('mood: reflective');
+    expect(out).toContain('bpmSource: tapped');
+  });
+
+  it('does not double-emit a key it DOES model', () => {
+    const src = md('title: T\nartist: A\nkey: G\nlanguage: ro\nwriters: Ann, Bo');
+    const out = songToMd(parseSongMd(src));
+    expect(out.match(/^language:/gm)).toHaveLength(1);
+    expect(out.match(/^writers:/gm)).toHaveLength(1);
+  });
+
+  it('settles: serialising twice changes nothing the second time', () => {
+    // The property that matters to sync. Anything that fails here is a song
+    // that looks edited on every pass, forever.
+    const cases = [
+      'title: T\nartist: A\nkey: G',
+      'title: T\nartist: A\nkey: G\nmood: reflective',
+      'title: T\nartist: A\nkey: G\nlanguage: ro\nyear: 2019\nwriters: Ann, Bo',
+      'title: T\nartist: A\nkey: G\ntags: [fast, easy]\nccli: "1234567"',
+      'title: T\nartist: A\nkey: G\nstructure: [Verse 1, Verse 1]\nstructureMode: custom',
+      'songId: s1\narrangementId: a1\narrangementName: Main\ntitle: T\nartist: A\nkey: G\nmood: x',
+    ];
+    for (const front of cases) {
+      const once = songToMd(parseSongMd(md(front)));
+      const twice = songToMd(parseSongMd(once));
+      expect(twice, `did not settle for: ${front}`).toBe(once);
+    }
+  });
+
+  it('survives the v2 arrangement shape', () => {
+    const song = parseSongMd(md('title: T\nartist: A\nkey: G\nmood: reflective'));
+    const v2 = {
+      id: 'v2', title: 'T', artist: 'A', defaultArrangementId: 'a1',
+      extraFrontmatter: song.extraFrontmatter,
+      arrangements: [{ id: 'a1', name: 'Main', key: 'G', sections: song.sections }],
+    };
+    expect(songToMd(v2)).toContain('mood: reflective');
+  });
+
+  // The exact shape the production loop happened in: a synced v2 song carrying
+  // the four fields that were flipping, plus one the build does not model.
+  it('settles through the v2 pipeline, keeping every field', async () => {
+    const { songFromFlat } = await import('@/arrangements');
+    const real = [
+      '---', 'songId: mq9c63c4qk4sbd', 'arrangementId: arr_x1',
+      'arrangementName: Main Arrangement', 'title: Cat de mare esti',
+      'artist: Necunoscut', 'key: G', 'tempo: 72', 'time: 4/4',
+      'originalTitle: How Great Thou Art', 'language: ro',
+      'writers: Stuart K. Hine', 'year: 1949',
+      'structure: [Verse 1, Chorus, Verse 1]', 'mood: reflective', '---', '',
+      '## Verse 1', '> incet', '[G]Doamne, cand privesc', '',
+      '## Chorus', '[C]Cat de [G]mare esti', '',
+    ].join('\n');
+    const once = songToMd(songFromFlat(parseSongMd(real)));
+    const twice = songToMd(songFromFlat(parseSongMd(once)));
+    expect(twice).toBe(once);
+    for (const k of ['originalTitle:', 'language:', 'writers:', 'year:', 'mood:']) {
+      expect(once, `${k} was lost`).toContain(k);
+    }
+  });
+
+  // The guard that keeps `KNOWN_FRONTMATTER_KEYS` honest. Add a key to the
+  // serializer and forget the list, and the key parses as "unknown" — so the
+  // next save writes it TWICE. This fails instead.
+  it('every key the serializer can emit is a known key', () => {
+    const everything = {
+      id: 'x', title: 'T', artist: 'A', key: 'G', tempo: 90, time: '4/4',
+      duration: '4:20', ccli: '1234567', tags: ['a'], spotify: 'https://s',
+      youtube: 'https://y', capo: 2, notes: 'n',
+      originaltitle: 'O', language: 'ro', translator: 'Tr', writers: 'W',
+      publishers: 'P', copyright: 'C', album: 'Al', label: 'L', year: '2019',
+      themes: 'Th', genres: 'Ge', scripture: 'Sc', vocalrange: 'VR',
+      moment: 'M', story: 'St',
+      structure: ['Verse 1', 'Verse 1'], structureMode: 'custom',
+      sections: [{ type: 'Verse 1', note: '', lines: ['[G]la'] }],
+    };
+    const front = songToMd(everything).split('---')[1];
+    const emitted = front.split('\n').filter(l => l.includes(':')).map(l => l.split(':')[0].trim().toLowerCase());
+    expect(emitted.length).toBeGreaterThan(20);
+    for (const k of emitted) {
+      expect(KNOWN_FRONTMATTER_KEYS.has(k), `songToMd emits "${k}" but KNOWN_FRONTMATTER_KEYS does not list it`).toBe(true);
+    }
   });
 });

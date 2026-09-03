@@ -1,6 +1,6 @@
-import { useAuth } from '../auth/useAuth';
-import { useWorkspace } from '../contexts/workspace';
-import { useTeam } from '../auth/useTeam';
+import { useAuth } from '@/auth/useAuth';
+import { useWorkspace } from '@/contexts/workspace';
+import { useTeam } from '@/auth/useTeam';
 
 // Plan hierarchy — higher rank = more access.
 //
@@ -21,6 +21,7 @@ const FEATURE_GATES = {
   'cloud-sync':    'sync',
   'smart-import':  'sync',
   'chart-style':   'sync',   // advanced layout: themes, colours, custom fonts
+  'chord-diagrams':'sync',   // element 11: tap a chord for its shape
 
   // Band tier (internal key `team`, $15/mo, up to 10 seats)
   'team-create':   'team',

@@ -2,7 +2,7 @@
 // All cloud-token-exchange traffic goes through here so providers don't
 // each have to duplicate the auth dance.
 
-import { supabase } from '../auth/supabase';
+import { supabase } from '@/auth/supabase';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 

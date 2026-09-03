@@ -1,4 +1,31 @@
-import { inferStructureMode, structureFollowsSections } from './music.js';
+import { inferStructureMode, structureFollowsSections } from './music';
+
+// ── The `{modulate}` marker ────────────────────────────────────────────────
+// One shape, two writers, two readers — kept together so the regex, the object
+// and the serialised text can never drift apart. They did not drift before
+// because there was nothing to drift; `every` is the first optional part this
+// marker has ever had.
+//
+//   {modulate: +2}          fire the FIRST time this section is played
+//   {modulate: +2, every}   fire on every repeat (a chorus that climbs)
+//
+// Why the distinction exists at all: a marker lives in the section BODY, and a
+// repeated section replays its body — so a chorus containing "+2" climbed a
+// step every time it was played, with no way to say "modulate, then repeat in
+// the new key". See `sectionModPlan` in `lib/songFlow.js`.
+export function modulateMarker(m) {
+  const marker = { type: 'modulate', semitones: parseInt(m[1], 10) };
+  // Absent, not `false` — the object goes through hashing and equality checks
+  // in the sync engines, and a new always-present key would make every existing
+  // song look changed on the first load after this ships.
+  if (m[2]) marker.every = true;
+  return marker;
+}
+
+export function serializeModulate(l) {
+  const n = `${l.semitones > 0 ? '+' : ''}${l.semitones}`;
+  return `{modulate: ${n}${l.every ? ', every' : ''}}`;
+}
 
 // Parse a .md song file into a structured object
 export function parseSongMd(text) {
@@ -20,6 +47,20 @@ export function parseSongMd(text) {
 
   // Parse YAML frontmatter (simple key: value)
   const meta = {};
+  // ── Keys this build does not model, kept verbatim ───────────────────────────
+  // A dropped key is not a cosmetic loss. Measured in production 2026-08-07:
+  // the extended-metadata fields entered the format on 2026-06-06, and a client
+  // still running the older build stripped them on parse and deleted them on
+  // its next push — while the current build re-added them. One song had its
+  // `language` line added 15 times and removed 14 times in 14 days, and
+  // `team_activity` reached 27,628 rows, 93% of it that ping-pong.
+  //
+  // So an unrecognised key rides through untouched, RAW — the exact source
+  // text, not a re-serialisation of a guessed type — so the round trip is
+  // byte-exact and a future field can never be destroyed by a build that
+  // predates it. (This cannot repair the current loop: the old client's parser
+  // has already dropped them. It stops the NEXT one.)
+  const extraFrontmatter = [];
   for (const fl of frontLines) {
     const m = fl.match(/^(\w[\w\s]*?):\s*(.+)$/);
     if (m) {
@@ -31,7 +72,11 @@ export function parseSongMd(text) {
       } else if (!isNaN(val) && val !== '') {
         val = Number(val);
       }
-      meta[m[1].trim().toLowerCase()] = val;
+      const rawKey = m[1].trim();
+      meta[rawKey.toLowerCase()] = val;
+      if (!KNOWN_FRONTMATTER_KEYS.has(rawKey.toLowerCase())) {
+        extraFrontmatter.push([rawKey, m[2].trim()]);
+      }
     }
   }
 
@@ -93,7 +138,14 @@ export function parseSongMd(text) {
     }
     // Lines starting with > are band/performance notes
     if (line.match(/^>\s*(.*)/)) {
-      if (current) current.note = line.replace(/^>\s*/, '').trim();
+      // ⚠ Strip exactly the ONE space the serializer writes (`> ${note}`) — do
+      // NOT trim. The cue field in the editor round-trips through
+      // songToMd → parse on every keystroke, so a `.trim()` here deleted the
+      // trailing space before it could become a word boundary: you could type
+      // one word into a band cue and no more (PLAN §1.2 #3c, prio 1, reported
+      // 2026-08-04). Trimming is right for a file and wrong for a keystroke,
+      // and this line is both. `\r` is dropped for CRLF files.
+      if (current) current.note = line.replace(/^>[ \t]?/, '').replace(/\r$/, '');
       continue;
     }
 
@@ -126,9 +178,11 @@ export function parseSongMd(text) {
     }
 
     // Modulate marker detection
-    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)\}$/);
+    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)(\s*,\s*every)?\}$/);
     if (modMatch) {
-      if (current) current.lines.push({ type: 'modulate', semitones: parseInt(modMatch[1], 10) });
+      // `every` = climb on every repeat; bare = fire the first time only.
+      // See `sectionModPlan` for why a repeated section needed the distinction.
+      if (current) current.lines.push(modulateMarker(modMatch));
       continue;
     }
 
@@ -186,6 +240,11 @@ export function parseSongMd(text) {
       : (typeof meta.structure === 'string'
         ? meta.structure.split(',').map(s => s.trim()).filter(Boolean)
         : sections.map(s => s.type)),
+    // Element 8 — key changes as an overlay on the play order. See
+    // `lib/keyChanges.js` for why they are not in the section bodies and not
+    // in `structure`. Wire format is `slot:line:semitones`, one triple per
+    // entry: `keyChanges: [3:0:+2, 5:4:-1]`.
+    keyChanges: parseKeyChangeList(meta.keychanges ?? meta.keyChanges),
     // Whether the play order is a hand-tuned custom slide order or just follows
     // the section (document) order. Honour an explicit frontmatter value;
     // otherwise infer from whether the saved structure already differs.
@@ -201,6 +260,10 @@ export function parseSongMd(text) {
     tabLibrary,
     // Extended descriptive metadata (song-level).
     ...Object.fromEntries(EXTRA_META_FIELDS.map(([k]) => [k, meta[k] != null ? String(meta[k]) : ''])),
+    // Frontmatter this build does not model, verbatim, in source order.
+    // Absent (not an empty array) when there is none, so the common song shape
+    // is unchanged and no existing song's hash moves.
+    ...(extraFrontmatter.length ? { extraFrontmatter } : null),
     // Arrangement linkage — null when the file is a standalone (single-arrangement) song.
     songId: meta.songid || null,
     arrangementId: meta.arrangementid || null,
@@ -227,6 +290,58 @@ export const EXTRA_META_FIELDS = [
   ['story', 'story'],
 ];
 export const EXTRA_META_KEYS = EXTRA_META_FIELDS.map(([k]) => k);
+
+/**
+ * Every frontmatter key this version of the format understands, lower-cased.
+ *
+ * Anything NOT in here is carried through parse → serialize untouched (see
+ * `extraFrontmatter`). That is the whole point: a build that predates a field
+ * must not be able to DELETE it.
+ *
+ * ⚠ Keep it in step with `songToMd`'s frontmatter block. `parser.test.js`
+ * asserts it, by serializing a song with every field populated and checking
+ * that every key it emits is listed here — so adding a key to the serializer
+ * and forgetting this list fails the suite rather than silently duplicating
+ * the key on the next save.
+ */
+export const KNOWN_FRONTMATTER_KEYS = new Set([
+  'id', 'title', 'artist', 'key', 'tempo', 'time', 'duration', 'ccli', 'tags',
+  'spotify', 'youtube', 'capo', 'notes', 'structure', 'structuremode',
+  'songid', 'arrangementid', 'arrangementname', 'keychanges',
+  ...EXTRA_META_KEYS,
+]);
+
+/**
+ * `[3:0:+2, 5:4:-1]` → `[{slot,line,semitones}]`.
+ *
+ * Deliberately forgiving: anything that is not three integers is dropped
+ * rather than thrown, because a hand-edited `.md` is a text file people mistype
+ * and half a key change is worse than none. `normalizeKeyChanges` (in
+ * `lib/keyChanges.js`) does the same job on the way out of the app; this is the
+ * same contract at the file boundary.
+ */
+export function parseKeyChangeList(raw) {
+  const parts = Array.isArray(raw)
+    ? raw
+    : (typeof raw === 'string' ? raw.split(',') : []);
+  const out = [];
+  for (const part of parts) {
+    const m = String(part).trim().match(/^(\d+):(\d+):([+-]?\d+)$/);
+    if (!m) continue;
+    const semitones = parseInt(m[3], 10);
+    if (!semitones) continue;
+    out.push({ slot: parseInt(m[1], 10), line: parseInt(m[2], 10), semitones });
+  }
+  return out;
+}
+
+/** The inverse. Empty in → nothing emitted, so untouched songs round-trip. */
+export function serializeKeyChangeList(list) {
+  return (list || [])
+    .filter(e => e && Number.isFinite(e.slot) && Number.isFinite(e.line) && e.semitones)
+    .map(e => `${e.slot}:${e.line}:${e.semitones > 0 ? '+' : ''}${e.semitones}`)
+    .join(', ');
+}
 
 // Frontmatter is one line per field. Strip newlines/tabs that would break the
 // parse (or inject stray keys) and trim. Internal single spaces are preserved.
@@ -259,6 +374,7 @@ export function songToMd(song, arrangement) {
         spotify: song.spotify,
         youtube: song.youtube,
         ...Object.fromEntries(EXTRA_META_FIELDS.map(([k]) => [k, song[k]])),
+        extraFrontmatter: song.extraFrontmatter,
         key: arr?.key,
         tempo: arr?.tempo,
         time: arr?.time,
@@ -303,6 +419,11 @@ export function songToMd(song, arrangement) {
   if (view.structure && view.structure.length > 0) {
     md += `structure: [${sv(view.structure.join(', '))}]\n`;
   }
+  // Element 8's overlay. Anchored to the PLAY ORDER, so it is emitted next to
+  // the play order and read with it — an anchor without its structure is an
+  // index into nothing.
+  const kc = serializeKeyChangeList(view.keyChanges);
+  if (kc) md += `keyChanges: [${sv(kc)}]\n`;
   // Flag a hand-tuned custom slide order so the reader (and the editor toggle)
   // honour it. Auto stays implicit. Older custom songs with no flag are
   // detected by their order already differing from document order.
@@ -311,6 +432,12 @@ export function songToMd(song, arrangement) {
         && !structureFollowsSections(view.structure, view.sections));
   if (isCustomStructure) {
     md += `structureMode: custom\n`;
+  }
+  // Unmodelled keys, last and verbatim. Order among themselves is the source
+  // file's; position after the known block is arbitrary but STABLE, which is
+  // all the round trip needs.
+  for (const [k, raw] of view.extraFrontmatter || []) {
+    md += `${k}: ${raw}\n`;
   }
   if (useArrangementIdentity) {
     md += `songId: ${view._songId}\n`;
@@ -326,7 +453,7 @@ export function songToMd(song, arrangement) {
       if (typeof l === 'string') return l;
       if (l && l.type === 'tab') return serializeTabBlock(l);
       if (l && l.type === 'tabref') return `{tabref: ${l.name}}`;
-      if (l && l.type === 'modulate') return `{modulate: ${l.semitones > 0 ? '+' : ''}${l.semitones}}`;
+      if (l && l.type === 'modulate') return serializeModulate(l);
       return '';
     }).join('\n') + '\n\n';
   }
@@ -516,9 +643,9 @@ export function parseSectionLines(rawText) {
       tabAccum.raw.push(line);
       continue;
     }
-    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)\}$/);
+    const modMatch = line.match(/^\{modulate:\s*([+-]?\d+)(\s*,\s*every)?\}$/);
     if (modMatch) {
-      out.push({ type: 'modulate', semitones: parseInt(modMatch[1], 10) });
+      out.push(modulateMarker(modMatch));
       continue;
     }
     const refMatch = line.match(/^\{tabref:\s*(.+?)\}$/);
@@ -537,11 +664,31 @@ export function parseSectionLines(rawText) {
 export function extractInlineNotes(line) {
   const notes = [];
   const clean = line.replace(/\{!([^}]*)\}/g, (_, text) => {
-    notes.push(text.trim());
+    // Same rule as the band cue above: the space the writer typed is theirs.
+    // This one runs at RENDER, not at parse (the `{!…}` marker stays in the
+    // line), which is why the inline note never actually ate a keystroke the
+    // way the cue did — but a deliberate space still vanished from the page.
+    notes.push(text);
     return '';
   });
   return { clean, notes };
 }
+
+/**
+ * How long a cue and an inline note may be.
+ *
+ * Measured, not guessed (2026-08-06, Chromium, the reader's own heading row):
+ * a band cue wraps to **2 rows at 70 characters on a 360px phone** and to 3 at
+ * 80. Two rows is the ceiling the owner set — the heading pins with its cue, so
+ * every row beyond that is a row of the song the pin is covering.
+ *
+ * Enforced at the INPUT (the editor's cue field and inline-note field), because
+ * a cap applied at render is a truncation the writer never sees coming. A
+ * longer cue arriving from an imported file is still shown, clipped, by the
+ * reader — a file is not a keystroke.
+ */
+export const CUE_MAX_CHARS = 70;
+export const INLINE_NOTE_MAX_CHARS = 40;
 
 // Generate a unique ID for songs and setlists
 export function generateId() {

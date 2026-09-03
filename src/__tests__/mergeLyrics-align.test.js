@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeLyrics, alignChords, lyricsOnly } from '../components/editor/arrangeHelpers.js';
+import { mergeLyrics, alignChords, lyricsOnly } from '@/features/editor/arrangeHelpers';
 
 describe('mergeLyrics chord preservation (edit-lyrics)', () => {
   const original = ['[F]Are we weak and[Bb] heavy laden,[F]'];

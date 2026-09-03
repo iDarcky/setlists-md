@@ -14,8 +14,8 @@
 // if either file's print styles change meaningfully.
 
 
-import { transposeKey } from '../music';
-import { resolveSongView } from '../arrangements';
+import { transposeKey } from '@/music';
+import { resolveSongView } from '@/arrangements';
 import {
   escapeHtml,
   buildSongBody,
@@ -977,8 +977,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
         ${chartControlsHtml}
         ${overviewControlsHtml}
         <div class="action-group">
-          <button class="action primary" type="button" data-action="print">Print / Save as PDF</button>
-          <button class="action" type="button" data-action="close">Close</button>
+
         </div>
       </div>
     </div>

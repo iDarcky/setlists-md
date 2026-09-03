@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getSyncState } from '../sync/tokens';
+import { getSyncState } from '@/sync/tokens';
 
 /**
  * Reads the sync manifest for the given library and returns a Map from

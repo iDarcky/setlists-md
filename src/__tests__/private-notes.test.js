@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scopeKey } from '../notes/usePrivateNotes';
+import { scopeKey } from '@/hooks/usePrivateNotes';
 
 // The scope key is the identity of a private note. These cases pin down the
 // three scopes (song / setlist-item / section) so they never collide and stay

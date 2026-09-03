@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
-import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '../billing/checkout';
+import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
+import { canPlanServices, canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -162,7 +163,7 @@ export function TeamProvider({ children }) {
         if (ignore) return;
         setInvites(inviteRows || []);
       } catch (err) {
-        if (!ignore) console.error('[team] Failed to load team roster:', err);
+        if (!ignore) console.error('[team] Failed to load team members:', err);
       }
     })();
 
@@ -200,11 +201,26 @@ export function TeamProvider({ children }) {
       ? members.some(m => m.user_id === user?.id && m.role === 'leader')
       : false;
 
-    // Who may run the schedule/roster: admins (full power) and leaders (worship
+    // My administrative role in the active Space, and what it may do. The
+    // capability answers come from `lib/teamRoles.js` — the one place the role
+    // model is written — rather than from `isAdmin || isEditor || …` chains
+    // spelled out at each call site, which is how `leader` ended up able to plan
+    // a service but not change a song in it.
+    const myRole = team
+      ? (members.find(m => m.user_id === user?.id)?.role || 'member')
+      : null;
+
+    // Who may run the schedule/band: admins (full power) and leaders (worship
     // leaders — manage availability + assignments, but not billing/team config).
-    const canManageRoster = isAdmin || isLeader;
+    const canManageBand = canPlanServices(myRole);
+
+    // Who may change songs and setlists in this Space. ⚠ Must agree with RLS
+    // (`get_user_editable_teams()`); see the warning in `lib/teamRoles.js`.
+    const canWriteLibrary = !team || roleCanWriteLibrary(myRole);
 
     return {
+      myRole,
+      canWriteLibrary,
       teams,
       activeTeamId,
       setActiveTeam,
@@ -216,7 +232,7 @@ export function TeamProvider({ children }) {
       isEditor,
       isMember,
       isLeader,
-      canManageRoster,
+      canManageBand,
       hasTeamPlan,
       ownedWorkspaceCount,
       atWorkspaceLimit,

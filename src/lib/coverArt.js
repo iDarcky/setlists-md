@@ -1,4 +1,4 @@
-import { supabase } from '../auth/supabase';
+import { supabase } from '@/auth/supabase';
 
 // Cover art resolution for a song, in priority order: Spotify → YouTube →
 // (caller falls back to the gradient placeholder).
