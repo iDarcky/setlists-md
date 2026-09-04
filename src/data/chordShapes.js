@@ -85,12 +85,44 @@ export const CHORD_SHAPES = {
   'F/A':  { fingers: [[1,1],[2,1],[3,2],[4,3],[5,0],[6,-1]], barres: [], position: 1 },
 };
 
-// Aliases (enharmonic equivalents)
-CHORD_SHAPES['F#m'] = CHORD_SHAPES['Gbm'];
-CHORD_SHAPES['C#m'] = CHORD_SHAPES['Dbm'];
-CHORD_SHAPES['G#m'] = CHORD_SHAPES['Abm'];
-CHORD_SHAPES['F#']  = CHORD_SHAPES['Gb'];
-CHORD_SHAPES['C#']  = CHORD_SHAPES['Db'];
-CHORD_SHAPES['G#']  = CHORD_SHAPES['Ab'];
-CHORD_SHAPES['A#m'] = CHORD_SHAPES['Bbm'];
-CHORD_SHAPES['D#m'] = CHORD_SHAPES['Ebm'];
+// ── Enharmonic aliases ──────────────────────────────────────────────────────
+//
+// Which spelling the chart shows is not the shape table's business: the same
+// chord reads `Gbm` or `F#m` depending on the key and the reader's own
+// `accidentals` setting, and element 11 looks the shape up by whatever is
+// PRINTED. So both spellings have to answer, or a chord that has a shape says
+// "No shape for this one yet" on half the app's settings.
+//
+// ⚠ This was eight hand-written lines and it was already incomplete — `A#`
+// and `D#` were missing while `Bb` and `Eb` were right there. A list of
+// exceptions maintained by hand is wrong the first time somebody adds a
+// shape and does not think of its twin, and nothing anywhere would say so.
+// Derived instead: every root that has an accidental gets its other spelling,
+// whatever suffix follows it (`m`, `7`, `maj7`, `sus4`, a slash bass…), and
+// the same for the bass note of a slash chord. Custom shapes (PLAN §1.2b #2)
+// will land in this same table and inherit the rule for free.
+const ENHARMONIC = {
+  'A#': 'Bb', 'Bb': 'A#',
+  'C#': 'Db', 'Db': 'C#',
+  'D#': 'Eb', 'Eb': 'D#',
+  'F#': 'Gb', 'Gb': 'F#',
+  'G#': 'Ab', 'Ab': 'G#',
+};
+
+// `Gbm` → `F#m`; `D/F#` → `D/Gb`; `Eb` → `D#`. Null when neither the root nor
+// the bass has an accidental to respell.
+export function enharmonicName(name) {
+  const [body, bass] = String(name).split('/');
+  const root = body.slice(0, 2);
+  const swappedBody = ENHARMONIC[root] ? ENHARMONIC[root] + body.slice(2) : body;
+  const swappedBass = bass && ENHARMONIC[bass] ? ENHARMONIC[bass] : bass;
+  const out = swappedBass ? `${swappedBody}/${swappedBass}` : swappedBody;
+  return out === name ? null : out;
+}
+
+for (const name of Object.keys(CHORD_SHAPES)) {
+  const twin = enharmonicName(name);
+  // An explicitly written shape always wins over a derived alias — this only
+  // fills gaps, it never overwrites a voicing somebody chose on purpose.
+  if (twin && !CHORD_SHAPES[twin]) CHORD_SHAPES[twin] = CHORD_SHAPES[name];
+}

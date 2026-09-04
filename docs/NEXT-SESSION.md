@@ -1,13 +1,13 @@
-# Next session — element 11, then the tablet/Romanian-dot list
+# Next session — element 12, then the tablet/Romanian-dot list
 
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
 > _Rewritten 2026-08-21; corrected 2026-09-03 (element 8 was closed and three
 > docs still said it was open). State: `0.17.0` released on `main`; the tempo
-> history and the element-9 and element-10 passes sit on
+> history and the element-9, -10 and -11 passes sit on
 > `claude/next-roadmap-feature-d9eazw`, NOT yet finished or promoted to `beta`.
-> 1218 tests, 0 lint errors (7 pre-existing warnings), build clean._
+> 1232 tests, 0 lint errors (7 pre-existing warnings), build clean._
 >
 > ⚠ **`git checkout beta` may land you on a stale LOCAL branch.** It happened on
 > 2026-08-07 and silently reverted a whole element's work in the tree. Always
@@ -22,19 +22,29 @@ heading · **5/5a** notes and the band cue · **6/7** chords and lyrics · **19*
 capo. Closed this session, and not numbered elements: the **`unifiedReader`
 graduation** and the **Practice/Live union**.
 
-**8** key change, **9** tabs and **10** getting to the next song are closed too
-— see below and `READER.md` → "The element-9 pass" / "The element-10 pass".
+**8** key change, **9** tabs, **10** getting to the next song and **11** chord
+diagrams are closed too — see below and `READER.md`, passes 9 / 10 / 11.
 
-**You are on element 11 — chord diagrams.** After it: **12** practice tools
-(⚠ carries a known correction — the metronome must not start on tap) · **13**
-the finale. Then 29, then the 14–27 table.
+**You are on element 12 — practice tools.** ⚠ It carries a known correction
+already agreed: **the metronome must not start on tap** — the icon opens the
+practice row, and the row's own play button starts the click. Shipped wrong in
+`0.17.0-beta.21` because two owner answers conflicted and the conflict was
+resolved the wrong way (PLAN §1.1 #1). After it: **13** the finale. Then 29,
+then the 14–27 table.
 
-⚠ **Both recent passes found the same shape of bug and it is worth expecting a
-third time:** a rule or an answer that reaches the code paths someone was
-looking at and not the ones they were not — a prop read once (**trap 25**), a
-lock applied to the visible controls only (**trap 26**). Element 11 is gated by
-`useEntitlement('chord-diagrams')` and by a tap handler, which is exactly that
-shape again.
+⚠ **Three passes running have found the same shape of bug — expect a fourth.**
+A rule or an answer that reaches the paths someone was looking at and not the
+ones they were not: a prop read once (**trap 25**), a lock on the visible
+controls only (**trap 26**), an overlay that owns every tap while it is up
+(**trap 27**). Element 12 is an `AudioContext`, a `playbackRate` and a bar that
+appears and disappears — all state that outlives the control that started it.
+**The cheap check that found two of the three: for each promise the element
+makes, name every path that can reach it, then look at each path.**
+
+⚠ **And measure in a browser when the question is about hit-testing or
+layout.** Trap 27 was invisible in jsdom and invisible in the JSX; one
+`elementFromPoint` call in Chromium answered it. The harness is three files in
+a scratch dir — see below.
 
 ---
 
@@ -79,6 +89,14 @@ the real app. `npm install` first — `vite` is not in the image.
   ☰ itself (on desktop the menu lives inside that scroller). Both produced false
   results this session — one "confirmed broken" that was not.
 - The SETLIST reader is a ROUTE, not a `[role=dialog]`.
+- ⚠ **For a HIT-TEST or stacking question you do not need the app at all.**
+  Trap 27 (element 11's backdrop eating the next chord) was settled by a
+  20-line static HTML page reproducing the stack — the content in normal flow,
+  the overlay `fixed inset-0 z-[200]` — and one `document.elementFromPoint` at
+  the content's own centre. jsdom cannot answer this (it does not hit-test) and
+  neither can reading the JSX. Three files in a scratch dir, under a minute:
+  `page.html`, a `run.mjs` that launches Chromium via the symlinked global
+  playwright, `node run.mjs`.
 
 ---
 

@@ -962,6 +962,39 @@ is open.
   literal `0` — guard with `> 0`.)
 
 ### 11 — Chord diagrams
+
+> **The element-11 pass.** The design held — no strip, capo ignored, Nashville
+> looked up by letter, guitar only, Pro-gated. What it did not do is answer the
+> **second** question you ask it.
+>
+> 1. ⚠ **The backdrop ate the next chord.** `ChordPopover` puts a
+>    `fixed inset-0 z-[200]` sheet over the chart to catch a dismissing tap; the
+>    chords are in normal flow underneath it. **Measured in Chromium:**
+>    `document.elementFromPoint` at a chord's own centre returns the BACKDROP
+>    while the popover is open. So the tap meant to ask about the next chord
+>    only dismissed the last one, and every chord after the first cost two taps
+>    — mid-song, on a stage, which is the one moment this element exists for.
+>    Nothing looked broken: the popover closed, exactly as a tap outside should.
+>    The backdrop **stays** (it is also what stops a dismissing tap pressing the
+>    chrome beneath it, ✕ included) and now *re-targets*: it lifts itself out
+>    for one synchronous `elementFromPoint`, and forwards only a tap that landed
+>    on a `[data-chord-tap]`. Re-measured in Chromium: chord tap → the chord,
+>    empty space → dismiss.
+> 2. ⚠ **The toggle was keyed on the chord NAME.** Tapping the chorus's G while
+>    the verse's G was open read as "the same chord again" and closed — a tap on
+>    a chord you had not asked about yet answering by showing nothing. A song
+>    repeats its chords by nature; two G's on one screen is the normal case. It
+>    is keyed on the OCCURRENCE now (the rect), so the same chord tapped twice
+>    still closes.
+> 3. ⚠ **The enharmonic aliases were eight hand-written lines, already
+>    incomplete** — `A#` and `D#` were missing while `Bb` and `Eb` sat in the
+>    table. Which spelling the chart prints is not the shape table's business
+>    (the key and the reader's `accidentals` setting decide it), so both have to
+>    answer or a chord that HAS a shape reads "No shape for this one yet" on
+>    half the settings. Derived now, root and slash-bass alike, and a written
+>    shape always beats a derived alias. Custom shapes (PLAN §1.2b #2) inherit
+>    the rule for free.
+
 - **Tap a chord, see that chord.** No strip. A strip is a permanent tax paid
   for the one chord you didn't know, which is why nobody left diagrams on.
 - **Capo is deliberately ignored.** Chart says G, tap G, get the G shape.
@@ -3116,6 +3149,17 @@ being routes into `live`.
    ways INTO the forbidden state, not the buttons you happen to be looking at**,
    and check each one has the guard rather than checking each guard has a
    button.
+27. **A full-screen backdrop is a hit-test decision, not just a dismiss
+   affordance.** `fixed inset-0` over the content means every tap while it is
+   up belongs to it — including taps on the very thing the panel is about, so
+   asking a second question costs two taps and the first one looks like it did
+   nothing. jsdom cannot see this (it does not hit-test), and reading the JSX
+   does not show it either; `document.elementFromPoint` at the target's own
+   centre, in a real browser, answers in one line. **Whenever an overlay sits
+   over content the user may want to act on next, measure what is on top at
+   that content's coordinates.** The fix is usually to re-target rather than to
+   remove the backdrop — removing it hands the dismissing tap to whatever is
+   underneath, which here is the reader's chrome and its ✕.
 19. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed

@@ -86,6 +86,14 @@ const EMPTY = [];
  * like it can be annoying"* — so the arithmetic is offered and the choice is
  * the player's, which also means it survives the leader moving the key.
  */
+// Two DOMRects describing the same chord on screen. Compared to the pixel
+// rather than by identity: the rect is measured fresh on every tap, so the
+// same chord tapped twice produces two different objects with the same box.
+function sameBox(a, b) {
+  if (!a || !b) return false;
+  return Math.abs(a.left - b.left) < 1 && Math.abs(a.top - b.top) < 1;
+}
+
 function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
   const suggestion = suggestCapo(soundingKey, writtenCapo);
   return (
@@ -421,8 +429,16 @@ export default function Reader({
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
   const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
+  // ⚠ The toggle is on the OCCURRENCE, not the chord name. Keyed on the name,
+  // tapping the G in the chorus while the G from verse 1 was open read as
+  // "same chord again" and closed — so a tap on a chord you had not asked
+  // about yet answered by showing nothing. A song repeats its chords by
+  // nature; two G's on one screen is the normal case, not an edge one. The
+  // rect is the occurrence: the same chord tapped twice reports the same box.
   const onChordTap = useCallback((chord, rect) => {
-    setTappedChord(prev => (prev?.chord === chord ? null : { chord, rect }));
+    setTappedChord(prev => (
+      prev && prev.chord === chord && sameBox(prev.rect, rect) ? null : { chord, rect }
+    ));
   }, []);
   const wide = useMediaQuery('(min-width: 768px)');
   // ⚠ ONE source for "does the bar still carry tempo and time". It was a bare
