@@ -32,14 +32,30 @@ export default function SetlistRail({ open, onClose, wide, title, items, idx, on
   // Nothing until asked, at every width. There is no resting state any more.
   if (!open) return null;
 
+  // ⚠ THE GUARD WAS ON THE WRONG BUTTON. `locked` disabled the COLLAPSE
+  // chevron — which strands nothing; closing the rail is the safe act — and
+  // left every ROW live, so one tap on any song jumped straight out of the
+  // edit with the change applied and Cancel gone. That is the exact thing the
+  // note beside the chevron describes, and the rail was the way to do it.
+  //
+  // The rail cannot be OPENED while locked (the footer counter and the counter
+  // chip are both hidden then), but it is remembered per device, so on any
+  // tablet that left it open it is already on screen when edit mode starts.
+  const select = locked ? () => {} : onSelect;
+  const listProps = locked
+    ? { 'aria-disabled': true, className: 'pointer-events-none', style: { opacity: 0.45 } }
+    : {};
+
   if (!wide) {
     return (
       <BottomSheet open onClose={onClose} title={title || 'Setlist'}>
-        <SetlistList
-          resolved={items}
-          idx={idx}
-          onSelect={(i) => { onSelect(i); onClose?.(); }}
-        />
+        <div {...listProps}>
+          <SetlistList
+            resolved={items}
+            idx={idx}
+            onSelect={(i) => { select(i); if (!locked) onClose?.(); }}
+          />
+        </div>
       </BottomSheet>
     );
   }
@@ -70,10 +86,9 @@ export default function SetlistRail({ open, onClose, wide, title, items, idx, on
           className={BAR_BUTTON}
           aria-label="Collapse setlist"
           aria-expanded={open}
-          // Inert while the song is being edited — opening the rail is one tap
-          // from leaving the song with the change applied and Cancel out of
-          // reach. Same reason the reader holds its ✕.
-          disabled={locked}
+          // NOT disabled while editing. Closing the rail leaves the song you
+          // are on; it is the rows that walk away from it, and they are the
+          // ones held above.
           onClick={onClose}
         >
           <RailChevrons open={open} />
@@ -81,7 +96,9 @@ export default function SetlistRail({ open, onClose, wide, title, items, idx, on
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-2 pb-2">
-        <SetlistList resolved={items} idx={idx} onSelect={onSelect} />
+        <div {...listProps}>
+          <SetlistList resolved={items} idx={idx} onSelect={select} />
+        </div>
       </div>
     </aside>
   );

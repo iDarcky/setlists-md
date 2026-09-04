@@ -59,9 +59,17 @@ export default function SetlistReader({
     const n = (setlist?.items || []).length;
     return Number.isInteger(startIndex) && startIndex > 0 && startIndex < n ? startIndex : 0;
   });
-  // The key you are reading in. Session-only in LIVE; in PRACTICE it is also
-  // written onto the setlist item (`saveKey`), because practice is where
-  // changing a key is a DECISION rather than a scramble.
+  // The key you are reading in, **keyed by SLOT** — `{ [idx]: 'A' }`.
+  //
+  // ⚠ It was keyed by SONG ID, and the persisted half right below it is keyed
+  // by slot ("keeps it a decision about THIS set"). Those two disagree the
+  // moment a service plays a song twice, which is a reprise — an ordinary
+  // thing to put in a set. Slot 0 in C and slot 2 saved at D: change slot 0 to
+  // A on the fly, walk to the reprise, and it opened in A, silently
+  // overriding the key the leader had actually saved for that slot. The slot
+  // is the identity everything else here already uses — `idx`, `go`,
+  // `items[idx].transpose` — and the session map is the one thing that was
+  // using a different one.
   //
   // ⚠ `saveKey` was the second capability declared in `readerConfig` and read
   // by NOTHING — the same shape as `writeNotes`. So a key changed in practice
@@ -84,8 +92,16 @@ export default function SetlistReader({
   // navigating away would otherwise leave it hanging over the next song still
   // holding the break's anchor rect. Same shape as `Reader`'s `tempoSet`.
   const [menu, setMenu] = useState(null);
-  // Set by `Reader` while its edit mode is open — see `locked` below.
+  // Set by `Reader` while its edit mode is open.
   const [editingSong, setEditingSong] = useState(false);
+  // The reader reports when it is mid-edit, and every way to the next song goes
+  // inert — moving song would strand an applied change with no way back to
+  // Cancel it. The reader holds the ✕ for the same reason.
+  //
+  // ⚠ Declared UP HERE, with the state it reads, because the keyboard effect
+  // below lists it as a dependency: a `const` used in a dep array evaluated
+  // earlier in the render is a temporal-dead-zone crash, not a stale value.
+  const locked = editingSong;
   const wide = useMediaQuery('(min-width: 768px)');
   // Element 28: below 700 the ☰ DOCKS under the reader rather than opening a
   // popover. Declared up here with the other hooks — there is an early return
@@ -129,7 +145,16 @@ export default function SetlistReader({
 
   // Keyboard and Bluetooth pedals are NOT one of the nav choices — a pedal
   // user has no other hands, so they work whatever else is on screen.
+  //
+  // ⚠ "Whatever else is on screen" is not "whatever else is going on".
+  // `locked` used to guard the footer, the pill and the edge arrows — the three
+  // navs you can SEE — and neither of the two you cannot. So a pedal tap or a
+  // → mid-edit walked to the next song and stranded the change, which is the
+  // one thing `locked` exists to prevent, reachable by exactly the paths that
+  // give no sign navigation is supposed to be off. A hidden control is not a
+  // disabled one.
   useEffect(() => {
+    if (locked) return;
     const handler = (e) => {
       const el = document.activeElement;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
@@ -138,7 +163,7 @@ export default function SetlistReader({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, locked]);
 
   const cfg = resolveReaderConfig(settings, { wide, mode });
   // ── Is live on the table at all right now ────────────────────────────────
@@ -159,7 +184,7 @@ export default function SetlistReader({
   const pickKey = useCallback((k) => {
     const it = items[idx];
     if (!it?.song) return;
-    setKeys(prev => ({ ...prev, [it.song.id]: k }));
+    setKeys(prev => ({ ...prev, [idx]: k }));
     if (!cfg.can.saveKey || !onUpdateSetlist || !setlist) return;
     // ⚠ Write a TRANSPOSE, not a key — see `slotKey`. Writing `key` here is
     // what the builder and the overview would then fail to read, which is the
@@ -169,16 +194,11 @@ export default function SetlistReader({
     onUpdateSetlist({ ...setlist, items: nextItems });
   }, [items, idx, cfg.can.saveKey, onUpdateSetlist, setlist]);
 
-  // The reader reports when it is mid-edit, and the setlist's own controls go
-  // inert — moving song, or opening the rail, would strand an applied change
-  // with no way back to Cancel it. The reader holds the ✕ for the same reason.
-  const locked = editingSong;
-
   // `SetlistList` keys each row off the song's own key plus a transpose, so
   // give it the key actually being read rather than the one on the song.
-  const railItems = useMemo(() => items.map(it => {
+  const railItems = useMemo(() => items.map((it, i) => {
     if (it.isBreak || it.isMissing || !it.song) return it;
-    const shown = keys[it.song.id] || slotKey(it);
+    const shown = keys[i] || slotKey(it);
     return { ...it, shownKey: shown, transpose: semitonesBetween(it.song.key, shown) };
   }), [items, keys]);
 
@@ -199,7 +219,7 @@ export default function SetlistReader({
     ? (items[idx - 1].isBreak ? (items[idx - 1].label || 'Break') : (items[idx - 1].song?.title || 'Song'))
     : null;
   const nextKey = nxt && !nxt.isBreak && nxt.song
-    ? (keys[nxt.song.id] || slotKey(nxt) || null)
+    ? (keys[idx + 1] || slotKey(nxt) || null)
     : null;
 
   // Element 13. The finale takes ONE thing: when the session started. An
@@ -322,7 +342,9 @@ export default function SetlistReader({
   const railButton = null;
 
 
-  const swipe = cfg.nav === 'swipe'
+  // The second invisible nav, locked for the same reason as the keyboard: a
+  // horizontal drag mid-edit is even easier to do by accident than a → is.
+  const swipe = cfg.nav === 'swipe' && !locked
     ? { onSwipeLeft: goNext, onSwipeRight: goPrev }
     : {};
 
@@ -406,7 +428,7 @@ export default function SetlistReader({
       onSaveAsArrangement={onSaveAsArrangement}
       onUpgrade={onUpgrade}
       onExit={onBack}
-      selectedKey={keys[cur.song.id] || slotKey(cur)}
+      selectedKey={keys[idx] || slotKey(cur)}
       onSelectKey={pickKey}
       footer={footer}
       aboveBar={aboveBar}

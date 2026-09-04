@@ -1,13 +1,13 @@
-# Next session — element 10, then the tablet/Romanian-dot list
+# Next session — element 11, then the tablet/Romanian-dot list
 
 > **Short-lived handoff.** It exists because a new chat session starts with **no
 > memory of previous conversations** — only this repo.
 >
 > _Rewritten 2026-08-21; corrected 2026-09-03 (element 8 was closed and three
 > docs still said it was open). State: `0.17.0` released on `main`; the tempo
-> history and the element-9 pass sit on `claude/next-roadmap-feature-d9eazw`,
-> NOT yet finished or promoted to `beta`. 1209 tests, 0 lint errors (7
-> pre-existing warnings), build clean._
+> history and the element-9 and element-10 passes sit on
+> `claude/next-roadmap-feature-d9eazw`, NOT yet finished or promoted to `beta`.
+> 1218 tests, 0 lint errors (7 pre-existing warnings), build clean._
 >
 > ⚠ **`git checkout beta` may land you on a stale LOCAL branch.** It happened on
 > 2026-08-07 and silently reverted a whole element's work in the tree. Always
@@ -22,12 +22,19 @@ heading · **5/5a** notes and the band cue · **6/7** chords and lyrics · **19*
 capo. Closed this session, and not numbered elements: the **`unifiedReader`
 graduation** and the **Practice/Live union**.
 
-**8** key change and **9** tabs are closed too — see below and
-`READER.md` → "The element-9 pass".
+**8** key change, **9** tabs and **10** getting to the next song are closed too
+— see below and `READER.md` → "The element-9 pass" / "The element-10 pass".
 
-**You are on element 10 — getting to the next song.** After it: **11** chord
-diagrams · **12** practice tools (⚠ carries a known correction — the metronome
-must not start on tap) · **13** the finale. Then 29, then the 14–27 table.
+**You are on element 11 — chord diagrams.** After it: **12** practice tools
+(⚠ carries a known correction — the metronome must not start on tap) · **13**
+the finale. Then 29, then the 14–27 table.
+
+⚠ **Both recent passes found the same shape of bug and it is worth expecting a
+third time:** a rule or an answer that reaches the code paths someone was
+looking at and not the ones they were not — a prop read once (**trap 25**), a
+lock applied to the visible controls only (**trap 26**). Element 11 is gated by
+`useEntitlement('chord-diagrams')` and by a tap handler, which is exactly that
+shape again.
 
 ---
 

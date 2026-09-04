@@ -909,6 +909,38 @@ is open.
   transposes but flags a large shift. Half a transposed tab is worse than none.
 
 ### 10 — Getting to the next song
+
+> **The element-10 pass.** The four navs, the footer, the rail and the break
+> were all built right. What the pass found is that the element's one rule that
+> is *not* about getting somewhere — **while a song is being edited, nothing may
+> leave it** — was enforced on the halves of the element you can see and on
+> neither half you cannot.
+>
+> 1. ⚠ **A hidden control is not a disabled one.** The footer, the floating pill
+>    and the edge arrows all carry `!locked`. The **keyboard/pedal handler and
+>    the swipe carried nothing**, so a `→`, a Bluetooth pedal tap or a
+>    horizontal drag mid-edit walked to the next song and stranded the change —
+>    applied, with Cancel gone. Those are precisely the paths that give no sign
+>    navigation is meant to be off, so there was nothing to notice. Both are
+>    locked now. ⚠ `locked` had to move UP to the state it reads: a `const` used
+>    in a dep array evaluated earlier in the render is a TDZ crash, not a stale
+>    value.
+> 2. ⚠ **The rail's guard was on the wrong button.** `locked` disabled the
+>    **Collapse** chevron — which strands nothing, since closing the rail leaves
+>    you on the song — and left every **row** live, so one tap jumped straight
+>    out of the edit. The rail cannot be *opened* while locked, but its open
+>    state is remembered per device, so on any tablet that left it open it is
+>    already on screen when edit mode starts. Rows are inert now; Collapse works.
+> 3. ⚠ **The key you are reading was kept under two identities.** The persisted
+>    half is per-SLOT and says so (`items[idx].transpose`, "a decision about THIS
+>    set"); the session map was keyed by **song id**. They agree until a service
+>    plays a song twice — a **reprise**, which is an ordinary thing to put in a
+>    set and usually the whole reason the second slot is saved a tone up. Change
+>    the opener's key on the fly, walk to the reprise, and it opened in the
+>    opener's key, silently overriding what the leader had saved for that slot.
+>    The slot is the identity `idx`, `go` and the persisted write already use;
+>    the session map was the one thing using a different one.
+
 - **Four nav styles** — `readerNav`: bottom bar (default) / floating pill /
   edge arrows / swipe.
 - **Keyboard and Bluetooth pedals are unconditional**, not one of the four —
@@ -3074,6 +3106,16 @@ being routes into `live`.
    beside it, and decide explicitly what a NEW answer does to an old override.
    A rerender test is the only thing that catches it; nothing throws when a
    component quietly stops listening.
+26. **When a mode forbids something, enumerate every way to do it — the
+   invisible ones first.** Edit mode locks song navigation, and `locked` reached
+   the footer, the pill and the edge arrows, all of which you can SEE. It did
+   not reach the keyboard/pedal handler or the swipe, which you cannot, so the
+   rule held only against the users who could tell it was there. The rail then
+   had the same mistake inverted: the guard sat on the one control that was
+   safe (Collapse) while the dangerous ones (the rows) stayed live. **List the
+   ways INTO the forbidden state, not the buttons you happen to be looking at**,
+   and check each one has the guard rather than checking each guard has a
+   button.
 19. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed
