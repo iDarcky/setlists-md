@@ -284,6 +284,12 @@ describe('element 12 — leaving a song', () => {
       <Reader
         song={makeSong({ id: 'song-2', title: 'Goodness of God', tempo: 130 })}
         settings={{}}
+        // ⚠ `mode` MUST be repeated. It was omitted here, and `Reader` defaults
+        // to LIVE — so this rerender was changing the song AND the mode, and
+        // once live started closing the practice row (it has no tools at all)
+        // the row vanished for a reason that has nothing to do with the subject
+        // of this test. A rerender drops every prop you do not restate.
+        mode="practice"
         onExit={() => {}}
       />,
     );
@@ -294,3 +300,83 @@ describe('element 12 — leaving a song', () => {
   });
 });
 
+
+// ── Live takes the tools away, and the row is state ─────────────────────────
+//
+// ⚠ `practiceOpen` OUTLIVED the mode that allowed it. The icon is gated
+// (`can.practiceTools ? togglePractice : null`) and live sets that false — but
+// gating the way IN says nothing about a row already open. The ☰'s Live switch
+// appears during the live window and turns live ON, so: open the tools twenty
+// minutes before the service, start the click, flip the switch — and the row
+// stayed on screen with the click still running, in the one mode whose
+// capability table says these tools do not exist.
+describe('element 12 — when the service starts', () => {
+  it('takes the row away when the reader goes live, and the click with it', () => {
+    const { rerender } = render(
+      <Reader song={makeSong()} settings={{}} mode="practice" onExit={() => {}} />
+    );
+    openTools();
+    startClick();
+    expect(screen.getByRole('button', { name: 'Stop the click' })).toBeTruthy();
+
+    // What App does when the ☰'s Live switch is flipped.
+    rerender(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
+
+    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Stop the click' })).toBeNull();
+  });
+
+  it('does not re-open the row by itself on the way back to practice', () => {
+    const { rerender } = render(
+      <Reader song={makeSong()} settings={{}} mode="practice" onExit={() => {}} />
+    );
+    openTools();
+    rerender(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
+    rerender(<Reader song={makeSong()} settings={{}} mode="practice" onExit={() => {}} />);
+    // Closed, not remembered: live closed it, and coming back is a fresh ask.
+    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+  });
+});
+
+// ── Save writes a number somebody CHOSE ─────────────────────────────────────
+describe('element 12 — saving a tempo', () => {
+  it('offers nothing to save on an untimed song until a tempo is chosen', () => {
+    // ⚠ The test used to be "different from the song's tempo", and
+    // `Number(undefined)` is NaN, which differs from everything. So opening
+    // the row on a song with no tempo offered to save **100** — the fallback
+    // constant, not a decision anybody made — before the user had done a thing.
+    render(<Reader song={makeSong({ tempo: '' })} settings={{}} mode="practice"
+      onExit={() => {}} onUpdateSong={() => {}} />);
+    openTools();
+    expect(screen.getByText('100')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
+
+    // …and it appears the moment one is.
+    fireEvent.pointerDown(screen.getByLabelText('Click tempo up'));
+    expect(screen.getByRole('button', { name: /^Save/ })).toBeTruthy();
+  });
+
+  it('offers nothing to save on a timed song nobody has touched', () => {
+    render(<Reader song={makeSong()} settings={{}} mode="practice"
+      onExit={() => {}} onUpdateSong={() => {}} />);
+    openTools();
+    expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
+  });
+
+  it('writes the chosen tempo onto the song', () => {
+    const onUpdateSong = vi.fn();
+    render(<Reader song={makeSong()} settings={{}} mode="practice"
+      onExit={() => {}} onUpdateSong={onUpdateSong} />);
+    openTools();
+    fireEvent.pointerDown(screen.getByLabelText('Click tempo down'));
+    fireEvent.click(screen.getByRole('button', { name: /^Save/ }));
+    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({ tempo: 89 }));
+  });
+
+  it('has no Save at all in a library you cannot write to', () => {
+    render(<Reader song={makeSong()} settings={{}} mode="practice" onExit={() => {}} />);
+    openTools();
+    fireEvent.pointerDown(screen.getByLabelText('Click tempo down'));
+    expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
+  });
+});

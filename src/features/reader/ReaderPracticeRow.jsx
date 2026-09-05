@@ -28,6 +28,10 @@ export default function ReaderPracticeRow({
   // Writes the tempo back onto the song. Absent (a read-only library, or a
   // host that doesn't own the song) → the tempo stays session-only.
   onSaveTempo = null,
+  // Has a tempo been CHOSEN for this song in this session — tapped, typed or
+  // stepped? See the Save button below for why "different from the song's" is
+  // not the same question.
+  tempoChosen = false,
   clickRunning,
   onToggleClick,
   canClick = true,
@@ -140,8 +144,17 @@ export default function ReaderPracticeRow({
         {/* Save to the song (owner, 2026-08-01). Only shows when there is
             something to save — a tempo that already matches the song is not an
             action, and element 12's rule is still that nothing persists by
-            itself. */}
-        {onSaveTempo && Number(song?.tempo) !== bpm && (
+            itself.
+            ⚠ "Different from the song's tempo" was the wrong test for a song
+            that HAS no tempo. `Number(undefined)` is NaN, which differs from
+            everything, so opening the row on an untimed song offered to save
+            **100** — the fallback constant, not a decision anybody made. One
+            tap and a number nobody chose is the song's tempo forever, and the
+            button was there before the user had done a thing. `tempoChosen`
+            is the real question: has a tempo been tapped, typed or stepped
+            for THIS song. Both conditions stay, because stepping away and
+            back leaves nothing to save either. */}
+        {onSaveTempo && tempoChosen && Number(song?.tempo) !== bpm && (
           <button
             type="button"
             onClick={() => onSaveTempo(bpm)}

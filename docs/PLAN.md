@@ -76,7 +76,8 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 > | **Closed** | **4 — the section heading, and 4b the band cue** ✅ 2026-08-06, five rounds. Sizes you can read, eleven section types in eleven colours, four frames that take no width from the words, the left edge on a phone, a note gutter down the right, pinning tied to the column count, `↩ BRIDGE ×3`, and a tag that closes again. It also turned up **seven bugs older than the element** — the band-cue space bug (§1.2 #3c), a new section reverting to Verse, hyphenated `Pre-Chorus` falling off the colour table, `?` for every unknown type, a one-line section hidden behind its own heading, and two documented defaults nobody has ever had. `READER.md` → "The element-4 pass". |
 > | **Closed** | **10 — getting to the next song** ✅ 2026-09-03. The four navs, the footer, the rail and the break were all built right; the pass found that the element's one rule that is NOT about getting somewhere — **nothing leaves a song mid-edit** — was enforced on the three navs you can see and neither of the two you cannot, so a `→`, a pedal tap or a swipe stranded an applied edit with Cancel gone (**trap 26**). The rail had it inverted: `locked` disabled the safe Collapse chevron and left every jump-to-song row live. And the key you are reading was kept under two identities — persisted per SLOT, session per SONG — so a **reprise** opened in the opener's key, overriding what the leader saved for that slot. `READER.md` → "The element-10 pass". |
 > | **Closed** | **11 — chord diagrams** ✅ 2026-09-03. The design held; what it did not do is answer the SECOND question. The dismissing backdrop (`fixed inset-0 z-[200]`) sat over the chords, so — measured in Chromium — `elementFromPoint` at a chord's own centre returned the backdrop and every chord after the first cost two taps (**trap 27**). The backdrop stays (it is what keeps a dismissing tap off the ✕) and re-targets. The open/close toggle was keyed on the chord NAME, so the chorus's G closed the verse's G instead of moving — occurrence now. And the enharmonic aliases were eight hand-written lines, already missing `A#` and `D#`; derived now, so a chart in a sharp key stops saying "No shape for this one yet" for shapes that are right there. `READER.md` → "The element-11 pass". |
-> | **Then** | **12 → 13** — the practice tools, and 13. All BUILT and shipping; none has had its element pass. ⚠ Element 12 carries a known correction: **the metronome must not start on tap** (item 1 below). |
+> | **Closed** | **12 — practice tools** ✅ 2026-09-03. The engine holds up — the lookahead scheduler, the derived tempo, the track teardown, the held stepper (a predicted runaway interval when a button disables mid-hold was **measured in Chromium and does not exist**: pointer events still bubble from a disabled button). Two things did not. The practice row **outlived the mode that allowed it** — the icon is capability-gated but `practiceOpen` is state, so flipping the ☰'s Live switch with the row open left the click running in live, the one mode whose table says these tools do not exist. And **Save offered to persist a number nobody chose**: its test was "different from the song's tempo", and `Number(undefined)` is NaN, so an untimed song offered to save the 100 fallback before the user had touched anything. `READER.md` → "The element-12 pass". |
+> | **Then** | **13** — the finale. All BUILT and shipping; none has had its element pass. ⚠ Element 12 carries a known correction: **the metronome must not start on tap** (item 1 below). |
 > | **New** | **31 arrangements · 32 bars in the `.md` · 33 the hub's tabs** — all three named on 2026-08-10, all three out of scope for the element they surfaced in. 31 is the big one: the v2 schema has carried `arrangements[]` from the start and almost nothing uses it. |
 > | **Then** | **29 — the setlist rail.** Its permanent strip was removed in element 4's pass (owner pulled it forward: *"remove the rail on ipad to win more space"*); the rest of it is still open. Then the 14–27 table. |
 >
@@ -86,10 +87,14 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 The four items below predate the element pass. None is a new design round; each
 is a correction or a promise already made.
 
-1. 🔴 **The metronome must not start on tap** (element 12). The icon should open
-   the practice row; the row's own play button starts the click. Shipped wrong in
-   `0.17.0-beta.21` — two owner answers conflicted ("icon opens it" vs "the row
-   appears once the click starts") and the conflict was resolved the wrong way.
+1. ✅ **The metronome must not start on tap** (element 12) — **already fixed in
+   the code**, and confirmed by test during element 12's pass. The icon opens
+   the practice row; the row's own play button starts the click. It shipped
+   wrong in `0.17.0-beta.21` (two owner answers conflicted — "icon opens it" vs
+   "the row appears once the click starts" — and the conflict was resolved the
+   wrong way), was corrected soon after, and this list plus `READER.md`'s own
+   bullet went on describing the broken behaviour. Trap 19 at document scale,
+   for the second time this session.
 2. 🔴 **The practice row is too long on a phone.** ❓ Needs a decision first —
    §7 #10.
 3. 🟡 **A divider between the top bar and the structure ribbon** — a hairline,

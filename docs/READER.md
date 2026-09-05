@@ -1006,6 +1006,38 @@ is open.
 
 ### 12 — Practice tools
 
+> **The element-12 pass.** The engine is in good shape — the lookahead
+> scheduler, the derived tempo, the track teardown on a song change, the
+> stepper's held repeat (I predicted a runaway interval when a button disables
+> mid-hold and **measured it in Chromium: pointer events still bubble from a
+> disabled button**, so there is none) all hold up. Two things did not.
+>
+> 1. ⚠ **The practice row outlived the mode that allowed it.** The icon is
+>    gated on the capability — `can.practiceTools ? togglePractice : null`, and
+>    live sets it false — but `practiceOpen` is STATE, and gating the way in
+>    says nothing about a row already open. The ☰'s Live switch appears during
+>    the live window and turns live ON, so: open the tools twenty minutes
+>    before the service, start the click, flip the switch — and the row stayed
+>    on screen **with the click running, in live**, the one mode whose
+>    capability table says these tools do not exist. Trap 26's shape in state
+>    rather than in a lock: the guard was on the control, not on the thing it
+>    controls. The row now closes with the capability (a render-phase
+>    adjustment, not an effect — the compiler lint is right to reject
+>    `setState` in one) and the click stops with it.
+> 2. ⚠ **Save offered to persist a number nobody chose.** The button's test was
+>    "different from the song's tempo", and `Number(undefined)` is NaN, which
+>    differs from everything — so opening the row on a song with **no** tempo
+>    offered to save **100**, the fallback constant, before the user had done a
+>    thing. One tap and that is the song's tempo forever. It now asks the real
+>    question: has a tempo been tapped, typed or stepped for THIS song
+>    (`tempoChosen`, the same stamp `bpm` is derived from).
+>
+> Also: the "stops a click rather than carrying it into the next song" test was
+> omitting `mode` on its rerender, so it changed the SONG and the MODE at once
+> and only passed because nothing yet noticed the mode. A rerender drops every
+> prop you do not restate.
+
+
 **Round 1 is the metronome and slow-down. Nothing else.** Count-in and section
 loop were both considered and **cut**: a loop has nothing to loop against — the
 `.md` format carries no bar count or timestamp per section — and that is a format
@@ -1017,10 +1049,16 @@ loop and no autoscroll. The old Practice screen was a chart viewer with differen
 chrome. So "the reason a separate Practice screen exists" was aspirational, and
 deleting the old surfaces costs nothing but the finale stats (element 13).
 
-- **One icon beside ☰ is the switch**, and **the icon IS the switch** — tapping it
-  starts the click *and* opens the row; tapping it again stops and closes. The
-  row keeps its own stop/start so silencing the click doesn't take the track
-  controls with it. Nothing was added near the ✕.
+- **One icon is the switch, and it only OPENS.** ⚠ This bullet used to say "the
+  icon IS the switch — tapping it starts the click *and* opens the row", and
+  that was the wrong resolution of two conflicting owner answers ("icon opens
+  it" vs "the row appears once the click starts"). It shipped in
+  `0.17.0-beta.21` and meant a tap to *see* the tempo filled a quiet room with
+  a click — the tool announcing itself before being asked. **Corrected in the
+  code well before this doc was**: the icon opens the row, the row's own play
+  button starts the click, closing still stops it (a click with no visible
+  control is worse than no click). The row keeps its own stop/start so silencing
+  the click doesn't take the track controls with it. Nothing was added near the ✕.
 - **ONE row, two halves, above element 10's nav bar** — click on the left, track
   on the right. Two bars at the bottom edge, **never three**: the alternative was
   a player, a tools bar *and* the nav bar, ~150px of chrome eating the chart on a
@@ -3160,6 +3198,15 @@ being routes into `live`.
    that content's coordinates.** The fix is usually to re-target rather than to
    remove the backdrop — removing it hands the dismissing tap to whatever is
    underneath, which here is the reader's chrome and its ✕.
+28. **Gating the control that OPENS a thing is not gating the thing.** Element
+   12's practice icon is capability-gated (`can.practiceTools ? … : null`) and
+   live sets that false — but `practiceOpen` is STATE, so a row opened in
+   practice stayed on screen, click running, after the ☰'s Live switch flipped
+   the mode. Same lesson as trap 26 arriving through state instead of through a
+   lock. **When a capability can go away underneath an open thing, the open
+   thing has to read the capability too** — and the closing half is a
+   render-phase adjustment, not an effect: the compiler lint rejects `setState`
+   in an effect, and it is right to.
 19. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed
