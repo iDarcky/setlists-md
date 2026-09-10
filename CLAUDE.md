@@ -276,7 +276,7 @@ is its UI** (`sync/replica-engine.js` vs `features/sync/SyncStatus.jsx`).
 - **Which mode a setlist opens in is decided by the CLOCK** — `src/lib/openingMode.js`, not a preference. Live from 30 min before the service to `endTime` (or +3h); a rehearsal recorded that same day pushes live back to the service start; everything else, including no date/time and campfire, is practice. `READER_DEFAULT_MODE` is only that leftover. There is deliberately **no manual way into live** — the ☰'s Live row exists only while live, as the way out.
 - **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds `ChartView` as **just the reader** (`embedded` + controlled `selectedKey`/`displayMode`/`aaAnchor`/`arrangementId` props). Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
 - **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
-- **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `tempoHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; multi-arrangement state is app-internal.
+- **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `tempoHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; **sync carries the whole object** as a JSON document (`src/sync/songDoc.js`, `team_songs.doc`), so every arrangement follows the song across devices since 2026-09-10.
 - **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). One scoped layer sits beside them: `team_notes` (per-**user** private, via `usePrivateNotes`). A per-setlist **leaders-only** layer was built and then removed — see `docs/PLAN.md` → Team, "Post-service feedback".
 - **The .md format** is the interchange format — YAML frontmatter + `## Section` headers + `[Chord]lyrics` inline chords + `> notes` for band cues + `{tab}...{/tab}` for guitar tabs
 - **Section types** each have a color scheme defined in `music.js` (Intro, Verse, Chorus, Bridge, etc.)
@@ -626,6 +626,15 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   owner clauses in RLS, `apply_ops`, `sync_changes`, realtime and the version
   history already accept it, and the switcher (memberships-driven) never
   lists it. Applied to production 2026-09-10. Client: `hooks/usePersonalWorkspace.js`.
+- `20260911_json_wire.sql` — **JSON on the wire** (`docs/SYNC-REDESIGN.md`,
+  step 5). Adds `team_songs.doc jsonb` (the whole v2 song, every arrangement)
+  and `team_song_versions.doc`; `apply_ops` takes `doc` on a song put and
+  returns it in conflicts; `sync_changes` returns it; `trg_guard_song_doc`
+  (BEFORE UPDATE) nulls the document when `content` changes without it, so a
+  stale document never outlives its markdown; the snapshot trigger stores it;
+  the activity guard logs a document-only edit but not a row gaining its
+  first document with the markdown unchanged. `content`/`content_hash` stay
+  and are still written (older builds read them). Applied 2026-09-10.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -771,10 +780,24 @@ on purpose as an opt-in alternative (SYNC-REDESIGN §4.3).
   with demos union to duplicates on first sync; folder-era edits reach the
   workspace only on that fresh run.
 
+- **The wire is a JSON document** (step 5, `sync/songDoc.js`): a song row's
+  `doc` is the whole v2 object — every arrangement, `keyChanges`, `duration`,
+  the tab library, unknown frontmatter — minus play histories and `updatedAt`
+  stamps, NORMALIZED (empty/zero/default fields dropped at the song and
+  arrangement level) so a legacy object and a fresh parse are the same bytes.
+  `content` (markdown, one arrangement) is written beside it for older
+  builds; a row WITHOUT a document was written by such a build and is read
+  from its markdown (`mergeRemote`, which keeps local extra arrangements).
+  Row stamps carry `fmt: 'doc' | 'md'`; a writer holding an `'md'` row (or a
+  stamp without `fmt`, persisted before step 5) pushes its document once —
+  the "upgrade" — with the markdown as base, on its first pass. A dirty base
+  may be a document string or markdown; `fromBase` tells them apart. Never
+  put a device-derived or default-valued field into the document without
+  normalizing it: two devices would then disagree about an unchanged song.
 - **Pull** = `sync_changes(team, since)` in pages of 500: songs, setlists and
   deletions after the cursor, in feed order. The device persists
   `{ since, rows, dirty, writer }` under `sync:<team>.replica`; `rows` is the
-  server set as this device knows it (version, seq, row id). A local item
+  server set as this device knows it (version, seq, row id, wire format). A local item
   neither in `rows` nor dirty is not on the server and is dropped (App's trash
   keeps it 30 days). A version the device already holds is skipped — its own
   pushes echo back for free. A clean row whose bytes equal the local copy keeps
@@ -813,10 +836,11 @@ on purpose as an opt-in alternative (SYNC-REDESIGN §4.3).
 - **`sync/merge.js` compares arrangements without `updatedAt`/`id`.** A base
   rebuilt from markdown carries a fresh stamp; with the stamp in the compare,
   every disjoint edit was a conflict.
-- **Pull adoption is WHOLESALE** (`sync/mergeRemote.js`, both engines): a
-  pulled song replaces the local copy via `songFromFlat(parsed)`; only the
-  play histories and local-only extra arrangements survive from the local
-  object. Never patch a hand-written field list there — the six-field patch
+- **Pull adoption is WHOLESALE** (`songFromDoc` for a document row;
+  `sync/mergeRemote.js` for a markdown row and the file engine): a pulled
+  song replaces the local copy; only the play histories (and, for a markdown
+  row, local-only extra arrangements) survive from the local object. Never
+  patch a hand-written field list there — the six-field patch
   it replaced kept every newer field stale after a pull, and the re-push of
   those stale values was the `language`/`year` ping-pong (PLAN §1.2 #6).
 - **Every sync pass holds a Web Lock** (`sync/lock.js`,

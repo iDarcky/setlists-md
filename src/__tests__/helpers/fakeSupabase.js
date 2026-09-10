@@ -17,6 +17,7 @@
 import { parseSongMd, songToMd } from '@/parser';
 import { songFromFlat } from '@/arrangements';
 import { stableStringify } from '@/sync/canonical';
+import { songDoc } from '@/sync/songDoc';
 
 let rowSeq = 0;
 let lastTs = 0;
@@ -32,10 +33,14 @@ function nextTs() {
 }
 
 // public.apply_ops(team, ops) — the validated semantics of 20260910_sync_versions
-// (+ row_id in applied puts, 20260910_apply_ops_row_id): put/delete per op,
-// guarded by base_version; identical content on a stale base counts as applied;
-// a real change bumps version + seq (trg_sync_stamp); a delete leaves a
-// tombstone (trg_record_deletion). `db.__writerDenied` refuses like RLS would.
+// (+ row_id in applied puts, 20260910_apply_ops_row_id; + `doc` on song rows,
+// 20260911_json_wire): put/delete per op, guarded by base_version; identical
+// content on a stale base counts as applied; a real change bumps version + seq
+// (trg_sync_stamp); a delete leaves a tombstone (trg_record_deletion). A song
+// put without a `doc` (an older build) keeps the row's document only when the
+// markdown is unchanged, else the document is dropped (trg_guard_song_doc) —
+// a stale document must never outlive the markdown it disagrees with.
+// `db.__writerDenied` refuses like RLS would.
 function applyOps(db, { p_team_id, p_ops }) {
   if (db.__writerDenied) return { data: null, error: { code: '42501', message: 'apply_ops: not a writer of this workspace' } };
   const applied = [];
@@ -50,8 +55,11 @@ function applyOps(db, { p_team_id, p_ops }) {
     const idx = rows.findIndex(r => r.team_id === p_team_id && r[keyCol] === op.id);
     const r = idx >= 0 ? rows[idx] : null;
     const base = op.base_version ?? null;
-    const serverOf = (row) => ({ row_id: row.id, version: row.version, seq: row.seq, content: clone(row.content), title: row[nameCol], updated_at: row.updated_at });
-    const same = r && (kind === 'song' ? r.content === op.content : stableStringify(r.content) === stableStringify(op.content));
+    const serverOf = (row) => ({ row_id: row.id, version: row.version, seq: row.seq, content: clone(row.content), title: row[nameCol], updated_at: row.updated_at, ...(kind === 'song' ? { doc: row.doc == null ? null : clone(row.doc) } : null) });
+    const sameDoc = (row) => op.doc == null || stableStringify(row.doc ?? null) === stableStringify(op.doc);
+    const same = r && (kind === 'song' ? (r.content === op.content && sameDoc(r)) : stableStringify(r.content) === stableStringify(op.content));
+    // The document the row ends up with after this put.
+    const nextDoc = (row) => (op.doc != null ? clone(op.doc) : (row && row.content === op.content ? (row.doc ?? null) : null));
     const ack = (row) => ({ kind, id: op.id, op: 'put', row_id: row.id, version: row.version, seq: row.seq, updated_at: row.updated_at });
     if (op.op === 'delete') {
       if (!r) applied.push({ kind, id: op.id, op: 'delete', version: null });
@@ -64,12 +72,15 @@ function applyOps(db, { p_team_id, p_ops }) {
     }
     if (!r) {
       if (base != null) { conflicts.push({ kind, id: op.id, op: 'put', reason: 'missing' }); continue; }
-      const row = { id: `row_${++rowSeq}`, team_id: p_team_id, [keyCol]: op.id, [nameCol]: op.title, content: clone(op.content), content_hash: op.content_hash ?? null, updated_at: nextTs(), version: 1, seq: nextSeq(), updated_by: db.__uid ?? null };
+      const row = { id: `row_${++rowSeq}`, team_id: p_team_id, [keyCol]: op.id, [nameCol]: op.title, content: clone(op.content), content_hash: op.content_hash ?? null, updated_at: nextTs(), version: 1, seq: nextSeq(), updated_by: db.__uid ?? null, ...(kind === 'song' ? { doc: nextDoc(null) } : null) };
       rows.push(row);
       applied.push(ack(row));
     } else if (base != null && r.version === base) {
-      if (!same || r[nameCol] !== op.title) {
+      const doc = kind === 'song' ? nextDoc(r) : undefined;
+      const docChanged = kind === 'song' && stableStringify(doc) !== stableStringify(r.doc ?? null);
+      if (!same || r[nameCol] !== op.title || docChanged) {
         r.content = clone(op.content); r[nameCol] = op.title; r.content_hash = op.content_hash ?? null;
+        if (kind === 'song') r.doc = doc;
         r.version += 1; r.seq = nextSeq(); r.updated_at = nextTs(); r.updated_by = db.__uid ?? null;
       }
       applied.push(ack(r));
@@ -102,7 +113,7 @@ export function createFakeClient(db) {
       const feed = [];
       for (const r of db.team_songs || []) {
         backfill(r);
-        if (r.team_id === p_team_id && r.seq > p_since) feed.push({ seq: r.seq, kind: 'song', key: r.song_key, row: { row_id: r.id, title: r.title, content: r.content, content_hash: r.content_hash ?? null, version: r.version, updated_at: r.updated_at, updated_by: r.updated_by ?? null } });
+        if (r.team_id === p_team_id && r.seq > p_since) feed.push({ seq: r.seq, kind: 'song', key: r.song_key, row: { row_id: r.id, title: r.title, content: r.content, content_hash: r.content_hash ?? null, doc: r.doc == null ? null : JSON.parse(JSON.stringify(r.doc)), version: r.version, updated_at: r.updated_at, updated_by: r.updated_by ?? null } });
       }
       for (const r of db.team_setlists || []) {
         backfill(r);
@@ -199,9 +210,12 @@ export function createFakeClient(db) {
                 if (idx < 0) return { data: null, error: null };
                 const next = { ...rows[idx], ...payload };
                 if (payload.updated_at) next.updated_at = nextTs();
-                // trg_sync_stamp: a real change bumps version + seq; a no-op does not.
                 const before = rows[idx];
-                const changed = ['content', 'title', 'name'].some(c => c in payload && stableStringify(payload[c]) !== stableStringify(before[c]));
+                // trg_guard_song_doc: a markdown write that does not carry the
+                // document drops the row's document.
+                if (table === 'team_songs' && 'content' in payload && payload.content !== before.content && !('doc' in payload)) next.doc = null;
+                // trg_sync_stamp: a real change bumps version + seq; a no-op does not.
+                const changed = ['content', 'title', 'name', 'doc'].some(c => c in next && stableStringify(next[c] ?? null) !== stableStringify(before[c] ?? null));
                 if (changed) {
                   next.version = (before.version ?? 1) + 1;
                   next.seq = nextSeq();
@@ -256,8 +270,13 @@ export function mkSetlist(id, name) {
 
 export function makeRowHelpers(teamId) {
   return {
+    // A row as an older build wrote it: markdown only, no document.
     songRow(song, updatedAt = '2026-06-01T00:00:00.000Z') {
-      return { id: `row_${++rowSeq}`, team_id: teamId, title: song.title, content: songToMd(song), song_key: song.id, updated_at: updatedAt, version: 1, seq: nextSeq() };
+      return { id: `row_${++rowSeq}`, team_id: teamId, title: song.title, content: songToMd(song), song_key: song.id, updated_at: updatedAt, version: 1, seq: nextSeq(), doc: null };
+    },
+    // A row as this build writes it: the document beside its markdown.
+    songRowDoc(song, updatedAt = '2026-06-01T00:00:00.000Z') {
+      return { id: `row_${++rowSeq}`, team_id: teamId, title: song.title, content: songToMd(song), doc: songDoc(song), song_key: song.id, updated_at: updatedAt, version: 1, seq: nextSeq() };
     },
     setlistRow(sl, updatedAt = '2026-06-01T00:00:00.000Z') {
       return { id: `row_${++rowSeq}`, team_id: teamId, name: sl.name, content: JSON.parse(JSON.stringify(sl)), setlist_key: sl.id, updated_at: updatedAt, version: 1, seq: nextSeq() };

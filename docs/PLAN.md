@@ -340,8 +340,13 @@ were queued before this batch, still in order:
    on Supabase (`20260911_personal_workspaces.sql`, applied), synced by the
    same replica; the Drive/Dropbox/OneDrive providers **stay** as an opt-in
    folder sync on the owner's word (SYNC-REDESIGN §4.3 has the trade-off and
-   the "one-way backup mirror" recommendation). Next: step 5 (JSON on the
-   wire, client id as PK), plus §6 #4–5 there (BYOC's shape, demo-song ids).
+   the "one-way backup mirror" recommendation). **Step 5 shipped the same
+   day**: the wire is the whole JSON song (`20260911_json_wire.sql`, applied;
+   `sync/songDoc.js`) with the markdown dual-written for older builds, so
+   multi-arrangement songs, key changes and lengths finally sync; the client-
+   id-as-primary-key half is deferred as 5b (SYNC-REDESIGN §4.3). Next: the
+   open questions in SYNC-REDESIGN §6 #4–5 (BYOC's shape, demo-song ids) and
+   the DB hygiene migration.
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.
@@ -404,15 +409,14 @@ Ordered by what hurts most if it goes wrong in front of real churches.
       Note `createAmplificationGuard` isn't tripping, so it runs below that threshold.
       **Probably the same bug as §1.2 #6** (the six-field pull merge) — confirm
       with SyncDoctor once that fix is deployed before digging further.
-- [ ] **Key changes and song length never leave the device.** Found
+- [x] **Key changes and song length never leave the device.** ~~Found
       2026-09-09 while pinning the pull-merge fix: `songToMd`'s v2 view copies
       `key/tempo/time/capo/notes/structure/structureMode/sections/tabLibrary`
-      from the arrangement but not `keyChanges` or `duration`, so
-      `serializeKeyChangeList` and the `duration:` line see `undefined` for
-      every stored song. Element 8's overlay and the editor's Length field are
-      written to IndexedDB and lost on sync, export and import (0 of 359
-      server rows carry a `keyChanges` line). Two view fields + a round-trip
-      test; songs that already hold either locally will re-upload once.
+      from the arrangement but not `keyChanges` or `duration`.~~ Fixed
+      2026-09-10 with sync step 5: both ride the JSON document on the wire,
+      and the two view fields were added to `songToMd` so `.md` export and
+      the markdown written beside the document carry them too (round-trip
+      test in `song-doc.test.js`). Songs holding either re-upload once.
 - [ ] **Dashboard global search returns nothing (desktop/tablet).** The home
       top-bar / ⌘K search yields no results where the same query works elsewhere.
       Likely a wiring gap between the dashboard input and `lib/search.js`.

@@ -22,11 +22,20 @@
 //
 // Persisted (`sync:<teamId>`.replica):
 //   { since, writer,
-//     rows:  { song: { [key]: { version, seq, rowId } }, setlist: {…} },
-//     dirty: { song: { [key]: <base md | null> },        setlist: { [key]: <base json | null> } } }
+//     rows:  { song: { [key]: { version, seq, rowId, fmt } }, setlist: {…} },
+//     dirty: { song: { [key]: <base: doc json | md | null> }, setlist: { [key]: <base json | null> } } }
 // `rows` is the server set as this device knows it; a local item neither in
 // `rows` nor dirty is not on the server and is dropped (App's trash keeps it
 // 30 days). `rowId` is what `team_schedules.setlist_id` points at.
+//
+// THE WIRE IS JSON (step 5, `./songDoc`): a song row carries `doc` — the whole
+// v2 object, every arrangement — beside the markdown `content` older builds
+// still read and this build still writes. A row without a `doc` was written
+// by such a build (or before step 5): it is read from its markdown, and a
+// writer that holds it marks it for one "upgrade" push (`fmt: 'md'` →
+// 'doc') that gives the server the full document without changing the
+// markdown. The base of a dirty entry is whichever form the server had —
+// `fromBase` tells them apart.
 //
 // First run of a writer (no replica state yet): the old manifest engine's
 // baseline hashes decide, once, which local items carry unpushed edits — the
@@ -49,6 +58,7 @@ import { getSyncState, updateReplicaState } from './tokens';
 import { parseSongMd, songToMd } from '@/parser';
 import { songFromFlat } from '@/arrangements';
 import { mergeRemoteSong } from './mergeRemote';
+import { songDoc, docString, songFromDoc, isSongDoc } from './songDoc';
 import { threeWayMergeSong, threeWayMergeSetlist } from './merge';
 import { canonicalSongHash, canonicalSetlistHash, stableStringify } from './canonical';
 import { withRetry } from './retry';
@@ -84,18 +94,28 @@ function normalizeReplica(raw) {
   };
 }
 
-// ── Serialized forms (the wire is markdown for songs, JSON for setlists) ─────
+// ── Serialized forms (JSON documents for both kinds; markdown is legacy) ─────
 function serialize(kind, obj) {
   try {
-    return kind === 'song' ? songToMd(obj) : stableStringify(obj);
+    return kind === 'song' ? docString(obj) : stableStringify(obj);
   } catch {
     return null;
   }
 }
+const hasDoc = (row) => isSongDoc(row?.doc);
+const rowTs = (row) => (row?.updated_at ? new Date(row.updated_at).getTime() : Date.now());
+// The server's copy as an object: the document when the row has one, else
+// the markdown — the one arrangement it carries replaces the matching local
+// one and any other local arrangement survives (`mergeRemote`), because a
+// markdown row cannot say whether those exist on the server.
 function remoteSong(key, row, local) {
+  const ts = rowTs(row);
+  if (hasDoc(row)) {
+    const song = songFromDoc(row.doc, key, ts, local || null);
+    if (song) return song;
+  }
   let parsed;
   try { parsed = parseSongMd(row?.content); } catch { return null; }
-  const ts = row?.updated_at ? new Date(row.updated_at).getTime() : Date.now();
   return mergeRemoteSong(local || null, { ...parsed, id: key }, ts);
 }
 function remoteSetlist(key, row) {
@@ -106,19 +126,42 @@ function remoteSetlist(key, row) {
 function fromBase(kind, key, base) {
   if (base == null) return null;
   try {
-    if (kind === 'song') return songFromFlat({ ...parseSongMd(base), id: key });
+    if (kind === 'song') {
+      // A JSON document (this build), or markdown (a base persisted by the
+      // build before step 5, or a row the server only had as markdown).
+      const trimmed = typeof base === 'string' ? base.trimStart() : '';
+      if (trimmed.startsWith('{')) return songFromDoc(safeParse(base), key, 1) || null;
+      return songFromFlat({ ...parseSongMd(base), id: key });
+    }
     const obj = typeof base === 'string' ? safeParse(base) : base;
     return obj && typeof obj === 'object' ? { ...obj, id: key } : null;
   } catch {
     return null;
   }
 }
-function sameBytes(kind, local, content) {
+// Same bytes as the server row: the document when it has one, else the
+// markdown. Keeping identity for an unchanged song is what stops a pull from
+// rewriting the whole library to IndexedDB.
+function sameBytes(kind, local, row) {
   if (!local) return false;
-  const ser = serialize(kind, local);
-  if (ser == null) return false;
-  return kind === 'song' ? ser === content : ser === stableStringify(content);
+  if (kind === 'setlist') return serialize('setlist', local) === stableStringify(row?.content);
+  if (hasDoc(row)) return docString(local) === stableStringify(row.doc);
+  try { return songToMd(local) === row?.content; } catch { return false; }
 }
+// A markdown-only row a WRITER holds is marked for one upgrade push: the
+// document, with the markdown as base. Only the wire form changes; an old
+// build reading the row sees the same markdown.
+function markUpgrade(ctx, kind, key, row) {
+  if (ctx.readOnly || kind !== 'song' || hasDoc(row) || typeof row?.content !== 'string') return;
+  if (key in ctx.dirty.song) return;
+  ctx.dirty.song[key] = row.content;
+}
+const stampOf = (kind, row, seq, prev) => ({
+  version: row.version ?? null,
+  seq,
+  rowId: row.row_id ?? prev?.rowId ?? null,
+  ...(kind === 'song' ? { fmt: hasDoc(row) ? 'doc' : 'md' } : null),
+});
 const titleOf = (kind, obj) => (kind === 'song' ? obj?.title : obj?.name);
 
 // ── Reconcile one feed change into the maps ─────────────────────────────────
@@ -148,7 +191,7 @@ export function reconcileChange(ch, ctx) {
   const row = ch.row || {};
   const map = kind === 'song' ? ctx.songsById : ctx.setlistsById;
   const prev = ctx.rows[kind][key];
-  const stamp = { version: row.version ?? null, seq: ch.seq, rowId: row.row_id ?? prev?.rowId ?? null };
+  const stamp = stampOf(kind, row, ch.seq, prev);
   const local = map.get(key);
 
   // A version we already hold — our own push echoing back, or a row an earlier
@@ -199,16 +242,29 @@ export function reconcileChange(ch, ctx) {
 
   // Clean: the server copy wins; keep identity when the bytes are equal so an
   // unchanged song is not rewritten to IndexedDB or reported as edited.
-  const adopted = sameBytes(kind, local, row.content) ? local : remote;
+  const adopted = sameBytes(kind, local, row) ? local : remote;
   map.set(key, adopted);
   ctx.known[kind].set(key, adopted);
   ctx.rows[kind][key] = stamp;
+  markUpgrade(ctx, kind, key, row);
 }
 
 // Back-compat for the member tests: a read-only fold of changes into maps.
 export function applyChanges(changes, songsById, setlistsById, rows) {
   const ctx = { songsById, setlistsById, rows, dirty: emptyDirty(), known: emptyKnown(), conflicts: [], readOnly: true };
   for (const ch of changes || []) reconcileChange(ch, ctx);
+}
+
+function mdOf(song) {
+  try { return songToMd(song); } catch { return null; }
+}
+// The server's song plus every local arrangement it lacks (by id). Used only
+// where neither side has a base to say which of them added what.
+function unionArrangements(remote, local) {
+  const have = new Set((remote.arrangements || []).map(a => a.id));
+  const extra = (local?.arrangements || []).filter(a => a?.id && !have.has(a.id));
+  if (extra.length === 0) return remote;
+  return { ...remote, arrangements: [...remote.arrangements, ...extra] };
 }
 
 // ── First run of a WRITER: hand over from the manifest engine ───────────────
@@ -237,33 +293,51 @@ function freshWriterReconcile(changes, ctx, state) {
     const manifest = manifests[kind];
     for (const [key, ch] of server[kind]) {
       const row = ch.row || {};
-      ctx.rows[kind][key] = { version: row.version ?? null, seq: ch.seq, rowId: row.row_id ?? null };
+      ctx.rows[kind][key] = stampOf(kind, row, ch.seq, null);
       const local = map.get(key);
       const remote = kind === 'song' ? remoteSong(key, row, local) : remoteSetlist(key, row);
       if (!remote) continue;
       if (!local) {
         map.set(key, remote);
         ctx.known[kind].set(key, remote);
+        markUpgrade(ctx, kind, key, row);
         continue;
       }
-      const localSer = serialize(kind, local);
-      const serverSer = kind === 'song' ? row.content : stableStringify(row.content);
-      if (localSer === serverSer) {
+      const docRow = kind === 'song' && hasDoc(row);
+      const localSer = kind === 'song' ? (docRow ? docString(local) : mdOf(local)) : serialize('setlist', local);
+      const serverSer = kind === 'song' ? (docRow ? stableStringify(row.doc) : row.content) : stableStringify(row.content);
+      if (localSer != null && localSer === serverSer) {
         ctx.known[kind].set(key, local);
+        markUpgrade(ctx, kind, key, row);
         continue;
       }
       const entry = manifest[key];
-      const localHash = localSer == null ? null : hashOf(kind, kind === 'song' ? localSer : local);
-      const serverHash = hashOf(kind, kind === 'song' ? row.content : row.content);
+      // The manifest's baselines are markdown hashes, so the arithmetic below
+      // is on the markdown for both kinds of row.
+      const localMd = kind === 'song' ? mdOf(local) : null;
+      const localHash = kind === 'song' ? (localMd == null ? null : hashOf(kind, localMd)) : hashOf(kind, local);
+      const serverHash = hashOf(kind, row.content);
       if (localHash != null && localHash === serverHash) {
+        if (docRow) {
+          // Same markdown, different documents: what the markdown cannot carry
+          // differs. Neither side has a base, so keep both — the server's copy
+          // plus any arrangement only this device has — and push the union.
+          const union = unionArrangements(remote, local);
+          map.set(key, union);
+          ctx.known[kind].set(key, remote);
+          if (union !== remote) ctx.dirty[kind][key] = serverSer;
+          continue;
+        }
         // Same song, different bytes (another build's serialization): nothing to push.
         ctx.known[kind].set(key, local);
+        markUpgrade(ctx, kind, key, row);
         continue;
       }
       if (entry?.lastSyncedHash != null && localHash === entry.lastSyncedHash) {
         // Only the server moved since this device last synced.
         map.set(key, remote);
         ctx.known[kind].set(key, remote);
+        markUpgrade(ctx, kind, key, row);
         continue;
       }
       if (entry?.lastSyncedHash != null && serverHash === entry.lastSyncedHash) {
@@ -284,8 +358,8 @@ function freshWriterReconcile(changes, ctx, state) {
         ctx.dirty[kind][key] = null; // never synced: a create
         continue;
       }
-      const localSer = serialize(kind, local);
-      const localHash = localSer == null ? null : hashOf(kind, kind === 'song' ? localSer : local);
+      const localMd = kind === 'song' ? mdOf(local) : null;
+      const localHash = kind === 'song' ? (localMd == null ? null : hashOf(kind, localMd)) : hashOf(kind, local);
       if (localHash != null && localHash !== entry.lastSyncedHash) {
         ctx.dirty[kind][key] = null; // edited here, deleted elsewhere: the edit wins
       } else {
@@ -377,8 +451,21 @@ export function createReplicaEngine(onStatusChange, teamId, {
 
   // `known` ← the local objects, for keys that are not dirty. After this,
   // "a different reference" means "edited here".
+  // A writer also marks every song row the server holds as markdown only
+  // (`fmt` 'md', or unknown — persisted before step 5) for its one upgrade
+  // push, with our own rendering of the markdown as the base: it is what the
+  // server has, give or take serialization, and a base is only read when
+  // someone else writes the row first.
   function seed(songs, setlists) {
-    for (const s of songs) if (s?.id && !(s.id in mem.dirty.song)) mem.known.song.set(s.id, s);
+    for (const s of songs) {
+      if (!s?.id || s.id in mem.dirty.song) continue;
+      mem.known.song.set(s.id, s);
+      const row = mem.rows.song[s.id];
+      if (!readOnly && row && row.fmt !== 'doc') {
+        const md = mdOf(s);
+        if (md != null) mem.dirty.song[s.id] = md;
+      }
+    }
     for (const sl of setlists) if (sl?.id && !(sl.id in mem.dirty.setlist)) mem.known.setlist.set(sl.id, sl);
     mem.seeded = true;
   }
@@ -422,8 +509,10 @@ export function createReplicaEngine(onStatusChange, teamId, {
 
   function opFor(kind, obj) {
     if (kind === 'song') {
+      // `doc` is the song; `content` is its markdown for the builds that still
+      // read it (and for the activity feed's no-op guard, via content_hash).
       const md = songToMd(obj);
-      return { kind, op: 'put', id: obj.id, title: obj.title || 'Untitled', content: md, content_hash: canonicalSongHash(md) };
+      return { kind, op: 'put', id: obj.id, title: obj.title || 'Untitled', content: md, content_hash: canonicalSongHash(md), doc: songDoc(obj) };
     }
     return { kind, op: 'put', id: obj.id, title: obj.name || 'Untitled Setlist', content: obj, content_hash: canonicalSetlistHash(obj) };
   }
@@ -467,7 +556,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
       for (const a of res?.applied || []) {
         if (!KINDS.includes(a.kind)) continue;
         if (a.op === 'put') {
-          mem.rows[a.kind][a.id] = { version: a.version ?? null, seq: a.seq ?? null, rowId: a.row_id ?? mem.rows[a.kind][a.id]?.rowId ?? null };
+          mem.rows[a.kind][a.id] = { version: a.version ?? null, seq: a.seq ?? null, rowId: a.row_id ?? mem.rows[a.kind][a.id]?.rowId ?? null, ...(a.kind === 'song' ? { fmt: 'doc' } : null) };
           const obj = objects.get(`${a.kind}:${a.id}`);
           if (obj) mem.known[a.kind].set(a.id, obj);
           delete mem.dirty[a.kind][a.id];

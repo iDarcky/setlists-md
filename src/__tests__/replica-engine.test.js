@@ -122,9 +122,11 @@ describe('replica engine — a member device mirrors the feed', () => {
 
     expect(db.__rpcs).toHaveLength(1);
     expect(db.__rpcs[0].args.p_since).toBe(cursor);
-    expect(r.replica.applied).toBe(1);
+    // Two changes: s1's edit, and s2's one-time upgrade to a JSON document by
+    // the leader's device (step 5) — same song, new bytes on the server.
+    expect(r.replica.applied).toBe(2);
     expect(songToMd(B.songs.find(s => s.id === 's1'))).toContain('a2 from the leader');
-    expect(B.songs.find(s => s.id === 's2')).toBe(untouched); // reference preserved → no IndexedDB rewrite, no "edited" churn
+    expect(B.songs.find(s => s.id === 's2')).toBe(untouched); // the document equals what we hold → reference preserved → no IndexedDB rewrite, no "edited" churn
     expect((await B.state()).replica.since).toBeGreaterThan(cursor);
   });
 

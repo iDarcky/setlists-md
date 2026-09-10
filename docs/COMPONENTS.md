@@ -120,7 +120,8 @@ The team manifest engine (`team-engine.js`) was deleted 2026-09-10.
 `{ since, rows, dirty, writer }`; the file engine still keeps manifests under
 `sync:personal`.
 
-**Status.** 🟢 Replaced 2026-09-10 (`docs/SYNC-REDESIGN.md` steps 1–3c): the
+**Status.** 🟢 Replaced 2026-09-10 (`docs/SYNC-REDESIGN.md` steps 1–5): the
+wire is the whole JSON song (`sync/songDoc.js`), markdown dual-written; the
 server stamps versions and a change feed; devices hold a cursor and, for
 writers, a dirty set; conflicts merge three-way. Two seeded fuzz suites.
 
@@ -131,7 +132,9 @@ writers, a dirty set; conflicts merge three-way. Two seeded fuzz suites.
   The recommended end state is a one-way backup mirror, not a merge engine.
 - `canonical.js` survives for the one-time team handover, for `content_hash`
   on writes and for the file engine.
-- `keyChanges`/`duration` never serialize for v2 songs (PLAN §2.3).
+- `content`/`content_hash` are still written beside the document for older
+  builds; dropping them (and deciding on the client id as primary key) is
+  SYNC-REDESIGN step 5b, a release cycle out.
 
 ---
 

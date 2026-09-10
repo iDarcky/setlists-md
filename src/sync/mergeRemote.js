@@ -3,7 +3,9 @@
 // THE RULE: the server's copy wins WHOLESALE. The only things the local copy
 // contributes are what the wire cannot carry — the device-derived play
 // histories (never serialized) and any extra arrangements the `.md` flattening
-// left behind (the wire carries ONE arrangement per song).
+// left behind (markdown carries ONE arrangement per song). Since step 5 the
+// replica reads a row's JSON document when it has one (`./songDoc`) and comes
+// here only for a markdown-only row — one written by an older build.
 //
 // WHY WHOLESALE: this used to be a field-by-field patch that copied title,
 // artist, ccli, tags, spotify and youtube and nothing else. Every field added

@@ -41,9 +41,10 @@ Findings, in severity order:
    (PLAN §1.2 #6). The stale-client half is operational.
 2. **Multi-arrangement songs never sync.** The wire format is the markdown of
    the default arrangement; a second arrangement never leaves the device.
+   **Fixed** in step 5 (§5.6): the wire is the whole JSON document.
 3. **`keyChanges` and `duration` never leave the device** — `songToMd`'s v2
-   view omits both (PLAN §2.3). Separate two-line fix, one re-upload per
-   affected song.
+   view omits both (PLAN §2.3). **Fixed** twice in step 5: they ride the JSON
+   document, and the two view fields were added so `.md` export carries them.
 4. **The personal library is not in Supabase at all.** BYOC sync (file engine +
    three providers + `cloud-token-exchange`, ~1,400 lines) serves no one, and
    two devices on one account do not share personal songs. **Fixed** in step 4
@@ -100,9 +101,11 @@ Findings, in severity order:
   `next_seq` and `more`.
 - **Ordering.** `seq` is assigned under a per-workspace advisory lock held to
   commit, so a cursor can never skip a row that commits late.
-- **Later** (step 5): `doc jsonb` as the wire format — the full v2 song with all
-  arrangements. Markdown becomes import/export only. Format changes stop being
-  sync-breaking.
+- **`doc jsonb`** (step 5, shipped): the full v2 song with all arrangements is
+  the wire format. `content` (markdown) stays beside it for the builds that
+  still read it; a markdown write that does not bring a document drops the
+  row's document (`trg_guard_song_doc`), so a stale document never outlives
+  the markdown it disagrees with. Format changes stop being sync-breaking.
 
 ### 4.2 Client
 
@@ -131,7 +134,8 @@ Findings, in severity order:
 | Decision | Choice | Why |
 | :-- | :-- | :-- |
 | Soft delete vs. tombstone table | **Tombstone table** | Soft delete makes every reader filter `deleted_at` (schedules, calendars, maps), breaks FK cascades, and old clients would keep showing deleted songs during the rollout. The tombstone keeps hard deletes and gives the feed its delete row. Shared server-side trash can come later from `team_song_versions`. |
-| Markdown vs. JSON on the wire | **Markdown now, JSON in step 5** | The replica does not depend on the payload shape; changing it is a MAJOR-flavoured conversation on its own. |
+| Markdown vs. JSON on the wire | **JSON (`doc`), with markdown dual-written** — step 5, 2026-09-10 | The document carries what markdown flattens away (every arrangement, the overlay, the length, the tab library). Dual-writing the markdown kept it additive: no client had to move first, and the MAJOR was avoided. Dropping `content`/`content_hash` waits until no build reads them. |
+| Client id as primary key | **Deferred** (step 5b) | It would retire the row-UUID bridge (`useTeamSetlistMap`), but it re-keys `team_schedules.setlist_id`, the version history, the activity feed's `entity_id` and every FK — a migration on its own, for a bridge that now costs one map lookup. Not worth a MAJOR-sized risk while the replica is a day old. |
 | Hand-rolled vs. PowerSync | **Hand-rolled** | PowerSync fits Supabase but adds a hosted service and a SQLite runtime for 180 KB of data. |
 | Personal library | **A workspace in the same tables** (`teams.kind = 'personal'`, no members) | One engine, one code path. Shipped in step 4 (§5.5). |
 | BYOC folders (Drive/Dropbox/OneDrive) | **Kept, as an alternative the user opts into** — revised 2026-09-10 on the owner's word | The owner's product reason: not everyone wants a subscription, and "your songs in your own Drive" is a real pitch. As *sync infrastructure* it stays the weak option (per-file last-writer-wins, three provider APIs, OAuth token upkeep, no change feed, no realtime) and it is not what makes two devices of one account converge. Rule: a connected folder **wins** over the personal workspace on that device; the two never run together on one library. Recommendation for later: turn BYOC into a **one-way backup/export mirror** of the Supabase library (a folder of `.md` files the user owns, written after each sync) rather than a second sync engine — that keeps the pitch and deletes the merge problem. Note that today BYOC is gated only by being signed in; the `cloud-sync` entitlement (sync tier / one-time Pro) gates the personal workspace instead. |
@@ -147,9 +151,10 @@ Findings, in severity order:
 | 3b | The replica for **writers**: the outbox over `apply_ops`, `merge.js` for conflicts | ✅ 2026-09-10 — see §5.3; the manifest engine is now only the replica's fallback |
 | 3c | Delete the team manifest engine (`team-engine.js`, `supabase-team.js`, their two suites) and the replica's fallback to it | ✅ 2026-09-10, on the owner's word — see §5.4 |
 | 4 | Personal workspace on Supabase (`20260911_personal_workspaces.sql`, `usePersonalWorkspace`, the replica pointed at the account's own `teams` row) — the file engine and providers **stay** as an opt-in folder sync (§4.3) | ✅ 2026-09-10, migration **applied to production** — see §5.5 |
-| 5 | `doc jsonb` as the wire format; client id as primary key; drop `content`, `content_hash`, the manifest, the old sync tree | ⬜ |
+| 5 | `doc jsonb` as the wire format (`20260911_json_wire.sql`, `sync/songDoc.js`, the replica reads/writes documents, markdown dual-written; `keyChanges`/`duration` also added to the `.md` export) | ✅ 2026-09-10, migration **applied to production** — see §5.6 |
+| 5b | Client id as primary key; drop `content`, `content_hash`; retire `canonical.js` for the replica | ⬜ deferred (§4.3) — prerequisites: no build reads `content` (a release cycle after 5 ships), and a decision on whether the PK change is worth its own migration |
 | — | DB hygiene: `(select auth.uid())` in policies, drop the duplicate "Admins can …" write policies, add `leader` to `team_invites.role` | ⬜ separate migration |
-| — | `keyChanges` / `duration` serialization (PLAN §2.3) | ⬜ two lines + a round-trip test |
+| — | `keyChanges` / `duration` serialization (PLAN §2.3) | ✅ with step 5 — two view fields in `songToMd`, round-trip test in `song-doc.test.js` |
 
 ### 5.1 How step 2 was validated
 
@@ -310,6 +315,54 @@ broken; the RPC's writer check accepts the owner either way).
 - `canonical.js`, `amplification-guard.js` and the manifest functions in
   `tokens.js` therefore stay (the file engine is still shipped).
 
+### 5.6 Step 5 — what shipped
+
+- **Server.** `supabase/migrations/20260911_json_wire.sql`: `team_songs.doc
+  jsonb` and `team_song_versions.doc jsonb`; `apply_ops` accepts `doc` on a
+  song put (stored beside `content`; a put without one — an older build —
+  keeps the row's document only when the markdown is unchanged; conflict
+  payloads carry the server's `doc`; "identical on a stale base" means
+  markdown AND document); `sync_changes` returns `doc`; `trg_guard_song_doc`
+  (BEFORE UPDATE, first in name order) nulls the document when `content`
+  changes without it; the snapshot trigger stores the document and fires on a
+  document-only change; the activity guard logs a document-only edit and
+  stays silent for a row gaining its FIRST document with the markdown
+  unchanged (the upgrade below). Validated in a rolled-back probe (ten
+  scenarios, existing rows untouched) and applied the same day.
+- **The document** (`src/sync/songDoc.js`): the v2 song with every
+  arrangement, minus play histories and `updatedAt` stamps, **normalized** —
+  empty strings, nulls, empty arrays, zeros and `structureMode: 'auto'` are
+  dropped at the song and arrangement level — so a legacy object and a fresh
+  parse of the same song are the same bytes and a build difference never
+  reads as a conflict. `songFromDoc` restores the in-app shape (the one
+  `songFromFlat` builds) and stamps `updatedAt` from the server.
+- **The engine.** `serialize('song')` is the document; `sameBytes` compares
+  documents when the row has one and markdown otherwise; a row without a
+  document is read from its markdown through `mergeRemote` (which keeps local
+  extra arrangements, because a markdown row cannot say they are gone). Each
+  row stamp carries `fmt: 'doc' | 'md'`. **The upgrade:** a writer that holds
+  a markdown-only row marks it dirty with the markdown as base and pushes the
+  document once — on its first pass after the build (rows persisted without
+  `fmt`), on every pull that yields a markdown-only row, and on a fresh
+  writer's first run. The markdown does not move, the version does; other
+  devices pull the row once and keep object identity when the document
+  equals what they hold. A dirty base persisted as markdown by the previous
+  build still parses (`fromBase` tells the two apart). The handover from the
+  manifest engine compares markdown hashes as before and, for a document row
+  whose markdown matches but whose document differs, keeps the union of
+  arrangements and pushes it — neither side has a base to say who added what.
+- **Not done, on purpose.** `content`/`content_hash` stay and are still
+  written; the client id is not the primary key (§4.3). The activity feed
+  will show "edited" once for songs whose markdown gained the `duration:` /
+  `keyChanges:` lines the export used to drop — the markdown really changed.
+- Tests: `song-doc.test.js` (the document, normalization, the demo songs
+  round-tripping through markdown without loss) and seven wire cases in
+  `replica-writer.test.js` (a push carries the whole song; a member never
+  upgrades; the upgrade on a device that synced before step 5; an older
+  build's markdown write drops the document and the extra arrangement is
+  restored; two writers upgrading one row without a prompt; a markdown base
+  from the previous build; the conflict payload carrying the document).
+
 Step 2 is additive and safe on live data; step 3a is the first one the owner can
 see: a member's device now mirrors the feed; 3b puts every writer on the same
 engine; 3c leaves the replica as the only team engine. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
@@ -321,9 +374,11 @@ migration into the SQL editor; the old engines keep working unchanged after it.
 2. **Retention for `team_deletions`.** Tombstones are tiny; a 90-day prune in
    `prune_team_history()` is the obvious home once a replica exists to consume
    them.
-3. **Step 5's MAJOR.** Moving the wire format to JSON is the moment multi-
-   arrangement songs start syncing. It is also the one step that changes what an
-   old client can read. Decide whether it rides the 1.0 conversation.
+3. ~~**Step 5's MAJOR.**~~ Avoided: the markdown is dual-written, so an old
+   client reads what it always read. Multi-arrangement songs sync as of step 5.
+   What remains for later is the cleanup (5b: drop `content`/`content_hash`,
+   decide on the primary key) — do it a release cycle after every build reads
+   the document.
 4. **BYOC's future shape.** Keep it as a second sync engine (today), or turn
    it into a one-way backup mirror of the Supabase library (§4.3's
    recommendation)? The mirror keeps "your songs in your Drive" and the

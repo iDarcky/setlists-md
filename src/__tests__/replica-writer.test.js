@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createReplicaEngine, MIGRATION_MISSING } from '@/sync/replica-engine';
 import { parseSongMd, songToMd } from '@/parser';
-import { songFromFlat } from '@/arrangements';
+import { songFromFlat, addArrangement, withArrangement } from '@/arrangements';
 import { canonicalSongHash } from '@/sync/canonical';
+import { docString } from '@/sync/songDoc';
 import { createFakeClient, mkSong, mkSetlist, makeRowHelpers, noTombstones } from '@/__tests__/helpers/fakeSupabase';
 
 // ── Device-namespaced sync state (each device has its own IndexedDB) ─────────
@@ -30,7 +31,7 @@ vi.mock('../sync/tokens', () => {
   };
 });
 
-import { __setDevice, __resetSyncStates, getSyncState, updateSyncManifest } from '@/sync/tokens';
+import { __setDevice, __resetSyncStates, getSyncState, updateSyncManifest, updateReplicaState } from '@/sync/tokens';
 
 const TEAM = 'team-1';
 const { songRow, setlistRow } = makeRowHelpers(TEAM);
@@ -401,8 +402,12 @@ describe('writer replica — handover from the manifest engine', () => {
     expect(r.conflicts.map(c => c.id)).toEqual(['both']);                                       // both moved → one prompt
     expect(md(A.songs.find(s => s.id === 'both'))).toContain('server changed this');            // server adopted meanwhile
     expect(db.team_songs.find(x => x.song_key === 'both').content).toContain('server changed this'); // never overwritten
+    // Step 5: the two markdown-only rows this device holds clean get an
+    // "upgrade" put too — the document lands, the markdown does not move.
     const puts = db.__rpcs.filter(c => c.name === 'apply_ops').flatMap(c => c.args.p_ops).map(op => op.id).sort();
-    expect(puts).toEqual(['brand-new', 'gone-edited', 'pending']);
+    expect(puts).toEqual(['brand-new', 'clean', 'gone-edited', 'moved', 'pending']);
+    expect(db.team_songs.find(x => x.song_key === 'clean').content).toBe(md(clean));
+    expect(db.team_songs.find(x => x.song_key === 'clean').doc).toBeTruthy();
 
     const st = await A.state();
     expect(st.replica.writer).toBe(true);
@@ -410,7 +415,7 @@ describe('writer replica — handover from the manifest engine', () => {
     expect(st.replica.dirty.song).toEqual({});
   });
 
-  it('a device coming from the manifest engine with no pending edits uploads nothing', async () => {
+  it('a device coming from the manifest engine with no pending edits uploads nothing — except the documents the rows lack', async () => {
     const s1 = mkSong('s1', 'One', 'a');
     const s2 = mkSong('s2', 'Two', 'b');
     const db = { team_songs: [songRow(s1), songRow(s2)], team_setlists: [], __rpcs: [] };
@@ -422,9 +427,16 @@ describe('writer replica — handover from the manifest engine', () => {
     const A = makeDevice('A', db);
     A.songs = [s1, s2];
     await A.sync();
-    expect(db.__rpcs.filter(c => c.name === 'apply_ops')).toHaveLength(0);
+    // One batch, two upgrade puts: the markdown is byte-for-byte what it was.
+    expect(db.__rpcs.filter(c => c.name === 'apply_ops')).toHaveLength(1);
+    expect(db.team_songs.map(x => x.content)).toEqual([md(s1), md(s2)]);
+    expect(db.team_songs.every(x => x.doc)).toBe(true);
     expect(A.songs[0]).toBe(s1);
     expect(A.songs[1]).toBe(s2);
+    // Nothing on the second pass.
+    db.__rpcs.length = 0;
+    await A.sync();
+    expect(db.__rpcs.filter(c => c.name === 'apply_ops')).toHaveLength(0);
   });
 });
 
@@ -600,6 +612,175 @@ describe('writer replica — the personal workspace (step 4)', () => {
     expect(md(A.songs.find(s => s.id === 'a'))).toContain('edited on B');
     expect(A.conflicts).toEqual([]);
     expect(B.conflicts).toEqual([]);
+  });
+});
+
+// ── JSON on the wire (step 5) ───────────────────────────────────────────────
+// A song travels as its whole v2 document beside the markdown older builds
+// still read. Everything markdown flattens away — other arrangements, the
+// key-change overlay, the length — now reaches every device.
+function withExtras(song) {
+  const { song: two, arrangementId: secondId } = addArrangement(song, 'Acoustic');
+  return withArrangement(
+    withArrangement(two, song.defaultArrangementId, a => ({ ...a, duration: '3:45', keyChanges: [{ slot: 1, line: 0, semitones: 2 }] })),
+    secondId, a => ({ ...a, key: 'D', capo: 2 }),
+  );
+}
+// A second arrangement only — the default one, and so the markdown, untouched.
+function withSecondArrangement(song) {
+  const { song: two, arrangementId } = addArrangement(song, 'Acoustic');
+  return withArrangement(two, arrangementId, a => ({ ...a, key: 'D' }));
+}
+// Change the lyric of the default arrangement without touching the others
+// (`editSong` rebuilds a one-arrangement song, which is not what we want here).
+const relyric = (song, lyric) => withArrangement(song, song.defaultArrangementId, a => ({ ...a, sections: [{ ...a.sections[0], lines: [`[C]${lyric}`] }] }));
+// An older build writing straight to the table: markdown only, no document.
+async function oldBuildWrites(db, rowId, song) {
+  const client = createFakeClient(db);
+  await client.from('team_songs').update({ title: song.title, content: md(song), updated_at: new Date().toISOString() }).eq('id', rowId).select().maybeSingle();
+}
+
+describe('JSON on the wire (step 5)', () => {
+  it('a push carries the whole song: every arrangement, the key-change overlay and the length reach the other device', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = makeDevice('A', db);
+    const B = makeDevice('B', db);
+    A.addSong(withExtras(mkSong('x', 'Two ways', 'lyric')));
+    await A.sync();
+    const row = db.team_songs[0];
+    expect(row.doc.arrangements).toHaveLength(2);
+    expect(row.doc.arrangements[0].keyChanges).toEqual([{ slot: 1, line: 0, semitones: 2 }]);
+    expect(row.doc.arrangements[0].duration).toBe('3:45');
+    // The markdown beside it is what an older build reads: ONE arrangement, and
+    // now with the overlay and the length it used to drop (PLAN §2.3).
+    expect(parseSongMd(row.content).arrangementId).toBe(A.songs[0].defaultArrangementId);
+    expect(row.content).toContain('duration: 3:45');
+    expect(row.content).toContain('keyChanges: [1:0:+2]');
+    await B.sync();
+    expect(docString(B.songs[0])).toBe(docString(A.songs[0]));
+    expect(B.songs[0].arrangements.map(a => a.name)).toEqual(['Main Arrangement', 'Acoustic']);
+    expect(B.songs[0].arrangements[1]).toMatchObject({ key: 'D', capo: 2 });
+    // Play histories are per device, never on the wire.
+    expect(row.doc.keyHistory).toBeUndefined();
+    expect(B.songs[0].keyHistory).toEqual({});
+  });
+
+  it('a markdown-only row is read from its markdown and upgraded once: the document lands, the markdown does not move', async () => {
+    const s1 = mkSong('s1', 'One', 'a');
+    const s2 = mkSong('s2', 'Two', 'b');
+    const db = { team_songs: [songRow(s1), songRow(s2)], team_setlists: [], __rpcs: [] };
+    const M = makeDevice('M', db, { readOnly: true });
+    await M.sync();
+    expect(db.team_songs.every(x => x.doc == null)).toBe(true);     // a member never upgrades anything
+    const A = makeDevice('A', db);
+    await A.sync();
+    expect(db.team_songs.map(x => x.content)).toEqual([md(s1), md(s2)]);
+    expect(db.team_songs.map(x => x.version)).toEqual([2, 2]);
+    expect(db.team_songs.every(x => x.doc?.arrangements?.length === 1)).toBe(true);
+    const st = await A.state();
+    expect(Object.values(st.replica.rows.song).map(r => r.fmt)).toEqual(['doc', 'doc']);
+    expect(st.replica.dirty.song).toEqual({});
+    // The member pulls the upgraded rows; identical songs, new bytes.
+    const before = M.songs;
+    await M.sync();
+    expect(fingerprint(M.songs)).toEqual(fingerprint(before));
+  });
+
+  it('a device that synced before step 5 upgrades the rows it holds on its next pass (no fmt in its persisted rows)', async () => {
+    const s1 = mkSong('s1', 'One', 'a');
+    const db = { team_songs: [songRow(s1)], team_setlists: [], __rpcs: [] };
+    const row = db.team_songs[0];
+    __setDevice('A');
+    // The replica state the previous build left: a row stamp without `fmt`.
+    await updateReplicaState({ since: row.seq, rows: { song: { s1: { version: 1, seq: row.seq, rowId: row.id } }, setlist: {} }, dirty: { song: {}, setlist: {} }, writer: true }, TEAM);
+    const A = makeDevice('A', db);
+    A.songs = [s1];
+    await A.sync();
+    expect(row.doc).toBeTruthy();
+    expect(row.content).toBe(md(s1));
+    expect((await A.state()).replica.rows.song.s1.fmt).toBe('doc');
+  });
+
+  it("an older build's markdown write drops the document; this build reads the markdown, keeps its extra arrangement, and restores the document", async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = makeDevice('A', db);
+    A.addSong(withExtras(mkSong('x', 'Two ways', 'lyric')));
+    await A.sync();
+    const row = () => db.team_songs[0];
+    expect(row().doc.arrangements).toHaveLength(2);
+    // The older build edits the title: markdown only.
+    await oldBuildWrites(db, row().id, mkSong('x', 'Renamed', 'lyric'));
+    expect(row().doc).toBeNull();
+    expect(row().version).toBe(2);
+    await A.sync();
+    expect(A.songs[0].title).toBe('Renamed');
+    expect(A.songs[0].arrangements.map(a => a.name)).toEqual(['Main Arrangement', 'Acoustic']);
+    expect(A.conflicts).toEqual([]);
+    // …and the server has the whole song again.
+    expect(row().doc.arrangements).toHaveLength(2);
+    expect(row().doc.title).toBe('Renamed');
+    expect(row().version).toBe(3);
+  });
+
+  it('two writers upgrading the same row do not conflict; the one holding an extra arrangement wins the union', async () => {
+    const base = mkSong('x', 'Shared', 'lyric');
+    const db = { team_songs: [songRow(base)], team_setlists: [], __rpcs: [] };
+    const A = makeDevice('A', db);
+    const B = makeDevice('B', db);
+    A.songs = [base];
+    B.songs = [withSecondArrangement(base)]; // an arrangement that never left this device
+    await A.sync();
+    expect(db.team_songs[0].doc.arrangements).toHaveLength(1);
+    // B sees A's document on its first run: same markdown, different documents,
+    // no base to say who added what → keep both and push the union.
+    await B.sync();
+    await B.sync();
+    expect(B.conflicts).toEqual([]);
+    expect(A.conflicts).toEqual([]);
+    expect(db.team_songs[0].doc.arrangements).toHaveLength(2);
+    await A.sync();
+    expect(fingerprint(A.songs)).toEqual(fingerprint(B.songs));
+    expect(A.songs[0].arrangements).toHaveLength(2);
+  });
+
+  it('a dirty base the previous build persisted as markdown still merges three-way', async () => {
+    const orig = mkSong('x', 'Title', 'lyric');
+    const db = { team_songs: [songRow(orig)], team_setlists: [], __rpcs: [] };
+    const row = db.team_songs[0];
+    // Someone else changed the lyric on the server since (this build: a document).
+    const Other = makeDevice('O', db);
+    Other.songs = [orig];
+    await Other.sync();
+    Other.editSong('x', 'their lyric');
+    await Other.save();
+    // This device: a title edit pending from before the upgrade, base = markdown.
+    __setDevice('A');
+    await updateReplicaState({ since: row.seq - 2, rows: { song: { x: { version: 1, seq: 1, rowId: row.id } }, setlist: {} }, dirty: { song: { x: md(orig) } }, writer: true }, TEAM);
+    const A = makeDevice('A', db);
+    A.songs = [{ ...orig, title: 'My title' }];
+    await A.sync();
+    expect(A.conflicts).toEqual([]);
+    expect(A.songs[0].title).toBe('My title');
+    expect(md(A.songs[0])).toContain('their lyric');
+    expect(row.doc.title).toBe('My title');
+    expect(row.content).toContain('their lyric');
+  });
+
+  it('the conflict payload carries the document, so keep-theirs restores every arrangement', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = makeDevice('A', db);
+    const B = makeDevice('B', db);
+    A.addSong(withExtras(mkSong('x', 'Two ways', 'lyric')));
+    await A.sync();
+    await B.sync();
+    A.songs = [relyric(A.songs[0], 'A lyric')];
+    B.songs = [relyric(B.songs[0], 'B lyric')];
+    await A.save();
+    await B.save();
+    await B.sync();
+    expect(B.conflicts).toHaveLength(1);
+    expect(B.conflicts[0].remote.arrangements).toHaveLength(2); // the server copy, whole
+    expect(B.songs[0].arrangements).toHaveLength(2);
   });
 });
 

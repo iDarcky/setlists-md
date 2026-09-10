@@ -3,6 +3,7 @@ import { Button } from '@/ui/Button';
 import { supabase } from '@/auth/supabase';
 import { getSyncState } from '@/sync/tokens';
 import { canonicalSongHash, stableStringify } from '@/sync/canonical';
+import { songDoc, docString, isSongDoc } from '@/sync/songDoc';
 import { parseSongMd, songToMd } from '@/parser';
 
 // Sync doctor — on-device diagnostic for a team library. For every song it
@@ -27,8 +28,26 @@ function hashableShape(md) {
 // Top-level fields whose canonical form differs between two markdown bodies;
 // sections get a per-section drill so "sections" alone isn't the answer.
 function diffFields(localMd, serverMd) {
-  const a = hashableShape(localMd);
-  const b = hashableShape(serverMd);
+  return diffShapes(hashableShape(localMd), hashableShape(serverMd));
+}
+// The same for two JSON documents (step 5): arrangements get a per-arrangement
+// drill, and inside one arrangement the differing fields are named.
+function diffDocs(localDoc, serverDoc) {
+  const out = [];
+  const a = { ...localDoc }; const b = { ...serverDoc };
+  const arrsA = a.arrangements || []; const arrsB = b.arrangements || [];
+  delete a.arrangements; delete b.arrangements;
+  out.push(...diffShapes(a, b));
+  const max = Math.max(arrsA.length, arrsB.length);
+  for (let i = 0; i < max; i++) {
+    if (stableStringify(arrsA[i]) === stableStringify(arrsB[i])) continue;
+    const name = arrsA[i]?.name || arrsB[i]?.name || `#${i + 1}`;
+    const inner = arrsA[i] && arrsB[i] ? diffShapes(arrsA[i], arrsB[i]) : ['missing'];
+    out.push(`arrangement "${name}": ${inner.join(', ')}`);
+  }
+  return out;
+}
+function diffShapes(a, b) {
   const out = [];
   for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
     if (stableStringify(a[key]) === stableStringify(b[key])) continue;
@@ -57,12 +76,22 @@ async function runDiagnosis(teamId, songs) {
   const dirty = replica?.dirty?.song || {};
   const mirror = !!replica && !replica.writer;
 
-  const { data: rows, error } = await supabase
+  // `doc` (step 5) may not exist on a project without 20260911_json_wire;
+  // fall back to the markdown columns so the doctor still runs there.
+  let { data: rows, error } = await supabase
     .from('team_songs')
-    .select('id, song_key, content, updated_at, version')
+    .select('id, song_key, content, doc, updated_at, version')
     .eq('team_id', teamId)
     .order('id')
     .limit(1000);
+  if (error) {
+    ({ data: rows, error } = await supabase
+      .from('team_songs')
+      .select('id, song_key, content, updated_at, version')
+      .eq('team_id', teamId)
+      .order('id')
+      .limit(1000));
+  }
   if (error) throw new Error(error.message);
 
   const serverById = new Map();
@@ -92,29 +121,34 @@ async function runDiagnosis(teamId, songs) {
     const localHash = canonicalSongHash(localMd);
     const serverHash = canonicalSongHash(row.content);
     const baseline = manifest[song.id]?.lastSyncedHash ?? null;
-    if (localHash === serverHash) {
+    // A row with a document (step 5) is compared as a document — that is what
+    // the engine compares; a markdown-only row by its canonical markdown.
+    const docRow = isSongDoc(row.doc);
+    const same = docRow ? docString(song) === stableStringify(row.doc) : localHash === serverHash;
+    if (same) {
       counts.inSync += 1;
       continue;
     }
+    const fields = docRow ? diffDocs(songDoc(song), row.doc) : diffFields(localMd, row.content);
     if (replica) {
       const isDirty = song.id in dirty;
       const serverMoved = (replica.rows.song[song.id]?.version ?? null) !== (row.version ?? null);
       const status = isDirty ? (serverMoved ? 'diverged' : 'pendingPush') : 'pendingPull';
       counts[status] += 1;
-      items.push({ id: song.id, title: song.title, status, fields: diffFields(localMd, row.content) });
+      items.push({ id: song.id, title: song.title, status, fields });
       continue;
     }
     const localDirty = baseline == null || localHash !== baseline;
     const serverDirty = baseline == null || serverHash !== baseline;
     const status = localDirty && serverDirty ? 'diverged' : localDirty ? 'pendingPush' : 'pendingPull';
     counts[status] += 1;
-    items.push({ id: song.id, title: song.title, status, fields: diffFields(localMd, row.content) });
+    items.push({ id: song.id, title: song.title, status, fields });
   }
 
   for (const [itemId, row] of serverById) {
     if (seen.has(itemId)) continue;
     counts.serverOnly += 1;
-    items.push({ id: itemId, title: row.content?.match?.(/\ntitle:\s*([^\n]+)/)?.[1] || 'Untitled', status: 'serverOnly' });
+    items.push({ id: itemId, title: row.doc?.title || row.content?.match?.(/\ntitle:\s*([^\n]+)/)?.[1] || 'Untitled', status: 'serverOnly' });
   }
 
   return { counts, items, truncated: (rows || []).length === 1000, mirror, since: state?.replica?.since ?? null };
