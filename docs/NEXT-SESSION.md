@@ -30,10 +30,18 @@ set and push through `apply_ops` with `base_version`; conflicts merge
 three-way via `sync/merge.js` or reach the existing `ConflictResolver`). **3c
 deleted the manifest engine** (`team-engine.js`, `supabase-team.js`, their two
 suites); the replica is the only team engine, and a project without the RPCs
-gets `MIGRATION_MISSING` instead of another engine. `canonical.js` and
-`amplification-guard.js` survive for the handover and the file engine until
-step 4. **Next is step 4** — the personal workspace on Supabase, retiring
-`engine.js` and the three providers. ⚠ The owner tests first, on a WRITER device: edit a song, see it on a
+gets `MIGRATION_MISSING` instead of another engine. **Step 4 shipped the same
+day**: the personal library is a workspace on Supabase (`teams.kind =
+'personal'`, `20260911_personal_workspaces.sql` applied; `hooks/
+usePersonalWorkspace.js`; the replica with `libraryId: 'personal'` and
+`handoverFromManifest: false`). The file engine and the three folder
+providers **stay** as an opt-in alternative on the owner's word — a connected
+folder wins on that device (SYNC-REDESIGN §4.3, §5.5). `canonical.js` and
+`amplification-guard.js` therefore survive. **Next is step 5** (JSON on the
+wire, client id as PK) and the open questions in SYNC-REDESIGN §6 #4–5. ⚠ The
+owner tests first, on a WRITER device, and now also the personal library: sign
+in on two devices with a Pro/sync account, edit a song on one, see it on the
+other (Settings → Sync shows "Setlists.md cloud — On"). Then a team library: edit a song, see it on a
 second device; edit the same song on two devices (one gets the conflict
 prompt, "keep mine" wins); fix a title on one and a lyric on the other (no
 prompt, both land); delete on one while editing on the other (the edit wins);

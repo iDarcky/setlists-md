@@ -46,7 +46,9 @@ Findings, in severity order:
    affected song.
 4. **The personal library is not in Supabase at all.** BYOC sync (file engine +
    three providers + `cloud-token-exchange`, ~1,400 lines) serves no one, and
-   two devices on one account do not share personal songs.
+   two devices on one account do not share personal songs. **Fixed** in step 4
+   (§5.5): the personal library is a workspace on Supabase; the providers stay
+   as an opt-in folder sync (owner's call, §4.3).
 5. **Identity is split.** Local base-36 id ↔ server UUID, bridged by a manifest
    in IndexedDB (`useTeamSetlistMap`). `team_schedules.setlist_id` points at
    the UUID. Lose the manifest and the bridge is gone.
@@ -131,7 +133,8 @@ Findings, in severity order:
 | Soft delete vs. tombstone table | **Tombstone table** | Soft delete makes every reader filter `deleted_at` (schedules, calendars, maps), breaks FK cascades, and old clients would keep showing deleted songs during the rollout. The tombstone keeps hard deletes and gives the feed its delete row. Shared server-side trash can come later from `team_song_versions`. |
 | Markdown vs. JSON on the wire | **Markdown now, JSON in step 5** | The replica does not depend on the payload shape; changing it is a MAJOR-flavoured conversation on its own. |
 | Hand-rolled vs. PowerSync | **Hand-rolled** | PowerSync fits Supabase but adds a hosted service and a SQLite runtime for 180 KB of data. |
-| Personal library | **A workspace in the same tables** | One engine, one code path; retires the file engine and three OAuth providers. |
+| Personal library | **A workspace in the same tables** (`teams.kind = 'personal'`, no members) | One engine, one code path. Shipped in step 4 (§5.5). |
+| BYOC folders (Drive/Dropbox/OneDrive) | **Kept, as an alternative the user opts into** — revised 2026-09-10 on the owner's word | The owner's product reason: not everyone wants a subscription, and "your songs in your own Drive" is a real pitch. As *sync infrastructure* it stays the weak option (per-file last-writer-wins, three provider APIs, OAuth token upkeep, no change feed, no realtime) and it is not what makes two devices of one account converge. Rule: a connected folder **wins** over the personal workspace on that device; the two never run together on one library. Recommendation for later: turn BYOC into a **one-way backup/export mirror** of the Supabase library (a folder of `.md` files the user owns, written after each sync) rather than a second sync engine — that keeps the pitch and deletes the merge problem. Note that today BYOC is gated only by being signed in; the `cloud-sync` entitlement (sync tier / one-time Pro) gates the personal workspace instead. |
 | Who may write | **admin · leader · editor**, RLS decides | Unchanged. The client mirrors it in `lib/teamRoles.js`; the two must agree. |
 
 ## 5. Agenda
@@ -143,7 +146,7 @@ Findings, in severity order:
 | 3a | The replica for **members** (15 of 21 users, lowest risk), behind the `createEngineForLibrary` seam | ✅ `src/sync/replica-engine.js`, 2026-09-10 — see §5.2 |
 | 3b | The replica for **writers**: the outbox over `apply_ops`, `merge.js` for conflicts | ✅ 2026-09-10 — see §5.3; the manifest engine is now only the replica's fallback |
 | 3c | Delete the team manifest engine (`team-engine.js`, `supabase-team.js`, their two suites) and the replica's fallback to it | ✅ 2026-09-10, on the owner's word — see §5.4 |
-| 4 | Personal workspace on Supabase; retire the file engine, the three providers and `cloud-token-exchange` | ⬜ |
+| 4 | Personal workspace on Supabase (`20260911_personal_workspaces.sql`, `usePersonalWorkspace`, the replica pointed at the account's own `teams` row) — the file engine and providers **stay** as an opt-in folder sync (§4.3) | ✅ 2026-09-10, migration **applied to production** — see §5.5 |
 | 5 | `doc jsonb` as the wire format; client id as primary key; drop `content`, `content_hash`, the manifest, the old sync tree | ⬜ |
 | — | DB hygiene: `(select auth.uid())` in policies, drop the duplicate "Admins can …" write policies, add `leader` to `team_invites.role` | ⬜ separate migration |
 | — | `keyChanges` / `duration` serialization (PLAN §2.3) | ⬜ two lines + a round-trip test |
@@ -267,6 +270,46 @@ broken; the RPC's writer check accepts the owner either way).
   writer; the "stale build still writing" case is simulated with a direct
   table write, which is what a stale PWA build actually does.
 
+### 5.5 Step 4 — what shipped
+
+- **Server.** `supabase/migrations/20260911_personal_workspaces.sql`:
+  `teams.kind` (`personal | team | church`, default `team`), `plan` may now be
+  `personal`, a partial unique index (one personal row per owner), and
+  `ensure_personal_workspace()` (security definer, authenticated only,
+  idempotent, race-safe). A personal workspace is a `teams` row with **no
+  `team_members` row**: every `owner_id = auth.uid()` clause in RLS, both
+  RPCs, realtime and the version history already accept it; the switcher
+  loads workspaces through memberships so it never appears there and never
+  counts toward the owned-workspace limit; account deletion cascades through
+  `owner_id`. Validated in a rolled-back probe (idempotent RPC; owner writes
+  through `apply_ops`, reads through `sync_changes`, history captured; a
+  stranger gets an empty feed, `42501`, and cannot see the row) and applied to
+  production the same day. Existing rows read `kind = 'team'`.
+- **Client.** `hooks/usePersonalWorkspace.js` calls the RPC once per sign-in
+  when the profile is entitled to `cloud-sync` (its own tier or one-time Pro —
+  the profile's, never the active team's) and caches the id per user in
+  localStorage, so the engine choice at mount is synchronous.
+  `createEngineForLibrary('personal')` now returns the **replica** pointed at
+  that workspace, with `libraryId: 'personal'` (the same IndexedDB slot and
+  Web Lock the file engine used), `providerId: supabase-personal:<id>`, and
+  `handoverFromManifest: false` — the personal manifest describes a cloud
+  *folder*, and reading it as this server's history would have dropped every
+  folder-synced song as "deleted elsewhere" (pinned by a test). A connected
+  folder (`syncState.provider` naming a non-`supabase-` provider) wins: the
+  file engine is created instead, also at load time when the stored sync
+  state says a folder is connected. Realtime subscribes to the personal
+  workspace like a team's. Settings → Sync shows a "Setlists.md cloud — On"
+  card above the folder providers; disconnecting a folder clears the personal
+  replica so its next run reconciles from scratch.
+- **Not solved, on purpose.** Two devices each seeded with the demo songs
+  (different generated ids) union to duplicates on their first personal sync.
+  Edits made while a folder was connected are not pushed to the workspace
+  until the folder is disconnected (then the fresh run reconciles: local-only
+  → create, diverged → conflict prompt). Both are consequences of keeping BYOC
+  as a second engine — see the §4.3 recommendation.
+- `canonical.js`, `amplification-guard.js` and the manifest functions in
+  `tokens.js` therefore stay (the file engine is still shipped).
+
 Step 2 is additive and safe on live data; step 3a is the first one the owner can
 see: a member's device now mirrors the feed; 3b puts every writer on the same
 engine; 3c leaves the replica as the only team engine. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
@@ -281,3 +324,11 @@ migration into the SQL editor; the old engines keep working unchanged after it.
 3. **Step 5's MAJOR.** Moving the wire format to JSON is the moment multi-
    arrangement songs start syncing. It is also the one step that changes what an
    old client can read. Decide whether it rides the 1.0 conversation.
+4. **BYOC's future shape.** Keep it as a second sync engine (today), or turn
+   it into a one-way backup mirror of the Supabase library (§4.3's
+   recommendation)? The mirror keeps "your songs in your Drive" and the
+   no-subscription pitch only if the personal workspace itself is free or
+   one-time — which is a pricing decision, not a sync one.
+5. **Demo songs on a second device.** Seed demos only when the workspace is
+   empty after the first pull (or give them fixed ids) so two devices do not
+   union to six demo songs.

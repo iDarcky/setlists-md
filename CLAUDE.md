@@ -498,7 +498,9 @@ The signed-in experience depends on a `profiles` table with columns:
 
 The Teams/Church tier adds these additional tables:
 
-- **`teams`** — `id`, `name`, `location`, `owner_id`, `plan` (team|church),
+- **`teams`** — `id`, `name`, `location`, `owner_id`, `kind`
+  (personal|team|church — `personal` is the owner's private library, no
+  members, never in the switcher), `plan` (personal|team|church),
   `max_seats` (10 for team, 30 for church), `logo_url`, `created_at`,
   `updated_at`, plus **per-workspace subscription** columns:
   `subscription_status` (trialing|active|past_due|canceled|unpaid, default
@@ -615,6 +617,15 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   applied put (and in conflict payloads), so a writer that just created a
   setlist can point `team_schedules` at it without waiting for the feed echo.
   Applied 2026-09-10.
+- `20260911_personal_workspaces.sql` — **the personal library as a workspace**
+  (`docs/SYNC-REDESIGN.md`, step 4). Adds `teams.kind`
+  (`personal | team | church`, default `team`), lets `plan` be `personal`, a
+  partial unique index (one personal row per owner) and
+  `ensure_personal_workspace()` (security definer, authenticated only,
+  idempotent). A personal workspace has **no `team_members` row** — the
+  owner clauses in RLS, `apply_ops`, `sync_changes`, realtime and the version
+  history already accept it, and the switcher (memberships-driven) never
+  lists it. Applied to production 2026-09-10. Client: `hooks/usePersonalWorkspace.js`.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -740,8 +751,25 @@ decision log and agenda. The server half is `20260910_sync_versions.sql`
 The manifest engine that preceded it (`team-engine.js`: canonical hashing of
 the whole library, CAS on `updated_at`, identity healing, circuit breakers,
 an amplification guard) was **deleted in step 3c, 2026-09-10**. `sync/engine.js`
-is the file-manifest engine for personal Drive/Dropbox/OneDrive folders and is
-unrelated (step 4 retires it).
+is the file-manifest engine for personal Drive/Dropbox/OneDrive folders — kept
+on purpose as an opt-in alternative (SYNC-REDESIGN §4.3).
+
+- **The personal library is a workspace too** (step 4, 2026-09-10): a `teams`
+  row with `kind = 'personal'` and no members, created by
+  `ensure_personal_workspace()` through `hooks/usePersonalWorkspace.js` when
+  the **profile** is entitled to `cloud-sync` (never the active team's plan).
+  `createEngineForLibrary('personal')` returns the replica pointed at that
+  row with `libraryId: 'personal'` (the same IndexedDB slot + Web Lock the
+  file engine uses), `providerId: supabase-personal:<id>` and
+  **`handoverFromManifest: false`** — the personal manifest describes a cloud
+  FOLDER, and reading it as this server's history drops every folder-synced
+  song as "deleted elsewhere" (a test pins this). **A connected folder wins**:
+  when `syncState.provider` names a non-`supabase-` provider (or the stored
+  sync state says so at load), the file engine runs instead; the two never
+  run together on one library. Disconnecting the folder clears the personal
+  replica so the next run reconciles from scratch. Known: two devices seeded
+  with demos union to duplicates on first sync; folder-era edits reach the
+  workspace only on that fresh run.
 
 - **Pull** = `sync_changes(team, since)` in pages of 500: songs, setlists and
   deletions after the cursor, in feed order. The device persists

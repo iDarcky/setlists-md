@@ -7,6 +7,7 @@ import {
   disconnectProvider,
   getAvailableProviders,
 } from '@/sync/provider';
+import { updateReplicaState } from '@/sync/tokens';
 
 function isStandaloneMode() {
   return (
@@ -46,6 +47,10 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
     setBusy('__disconnect');
     try {
       await disconnectProvider();
+      // The personal workspace's replica (if the account has one) was frozen
+      // while the folder was connected; drop it so its next run reconciles
+      // the library from scratch instead of trusting a stale cursor.
+      await updateReplicaState(null, 'personal');
       onSyncStateChange({ ...syncState, provider: null, state: 'idle' });
       toast({ title: 'Disconnected' });
     } catch (err) {
@@ -79,6 +84,10 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
   }
 
   const activeName = syncState.provider;
+  // The account's own workspace on Supabase reports as `supabase-personal:<id>`.
+  // It is not a folder provider: nothing to connect, nothing to reconnect.
+  const personalCloud = !!activeName && activeName.startsWith('supabase-personal:');
+  const byocName = personalCloud ? null : activeName;
   const needsReconnect = syncState.state === 'needs-reconnect';
 
   return (
@@ -110,13 +119,13 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
           </div>
         </div>
 
-        {needsReconnect && activeName && (
+        {needsReconnect && byocName && (
           <div className="p-4 flex flex-col gap-2 bg-[var(--ds-amber-100)]" style={{ borderColor: 'var(--modes-border)' }}>
             <p className="text-copy-13 text-[var(--ds-amber-900)] m-0 font-semibold">
               Reconnect your cloud
             </p>
             <p className="text-copy-13 text-[var(--ds-amber-800)] m-0">
-              Your sign-in with {providers.find(p => p.name === activeName)?.displayName || 'your provider'} has expired
+              Your sign-in with {providers.find(p => p.name === byocName)?.displayName || 'your provider'} has expired
               (this happens after long periods of inactivity, or if you revoked access). Reconnect once and you're good for
               another six months.
             </p>
@@ -124,10 +133,10 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
               <Button
                 variant="brand"
                 size="sm"
-                onClick={() => handleConnect(activeName)}
-                loading={busy === activeName}
+                onClick={() => handleConnect(byocName)}
+                loading={busy === byocName}
               >
-                Reconnect {providers.find(p => p.name === activeName)?.displayName || activeName}
+                Reconnect {providers.find(p => p.name === byocName)?.displayName || byocName}
               </Button>
               <Button
                 variant="ghost"
@@ -141,7 +150,7 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
           </div>
         )}
 
-        {standalone && !activeName && (
+        {standalone && !byocName && (
           <div className="p-4 flex flex-col gap-2 bg-[var(--ds-amber-100)]" style={{ borderColor: 'var(--modes-border)' }}>
             <p className="text-copy-13 text-[var(--ds-amber-900)] m-0 font-medium">
               Cloud sync setup requires a browser window.
@@ -160,8 +169,23 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
           </div>
         )}
 
+        {personalCloud && (
+          <div className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col">
+              <span className="text-copy-14 text-[var(--modes-text)] font-medium flex items-center gap-2">
+                ☁️ Setlists.md cloud
+                <span className="text-label-11 uppercase tracking-wider text-[var(--color-brand)] font-semibold">Pro</span>
+              </span>
+              <span className="text-copy-13 text-[var(--modes-text-muted)]">
+                Your library lives in your account and follows you to every signed-in device. Connecting a folder below syncs to that folder instead.
+              </span>
+            </div>
+            <span className="text-copy-13 text-emerald-400 font-medium mt-2 sm:mt-0">On</span>
+          </div>
+        )}
+
         {providers.map(p => {
-          const isActive = activeName === p.name;
+          const isActive = byocName === p.name;
           const isBusy = busy === p.name;
           return (
             <div key={p.name} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -196,7 +220,7 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
                     variant="brand"
                     onClick={() => handleConnect(p.name)}
                     loading={isBusy}
-                    disabled={!p.configured || standalone || (activeName && activeName !== p.name) || busy != null}
+                    disabled={!p.configured || standalone || (byocName && byocName !== p.name) || busy != null}
                   >
                     Connect
                   </Button>
@@ -207,7 +231,7 @@ export default function SyncSettings({ syncState, onSyncStateChange, onSyncNow, 
         })}
       </div>
 
-      {activeName && (
+      {byocName && (
         <p className="text-copy-12 text-[var(--modes-text-dim)] px-2">
           Only one provider at a time. Disconnect to switch.
         </p>

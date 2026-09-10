@@ -300,6 +300,17 @@ export function createReplicaEngine(onStatusChange, teamId, {
   client = defaultClient,
   pageSize = REPLICA_PAGE,
   onPullNeeded,
+  // Where this engine keeps its replica + lock. A team library is keyed by
+  // its team id; the personal library keeps its 'personal' key (the same
+  // slot the file engine uses — the two never run together).
+  libraryId = teamId,
+  providerId = `supabase-team:${teamId}`,
+  // A writer's first run may read the old file-manifest to tell "synced
+  // once, deleted elsewhere" from "never synced". Only true for team
+  // libraries: the personal library's manifest belongs to a cloud FOLDER,
+  // so treating it as this server's history would drop every song the
+  // folder had synced and the server has not seen yet.
+  handoverFromManifest = true,
 } = {}) {
   let syncing = false;
   let debounceTimer = null;
@@ -343,7 +354,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
   // Read the persisted replica (inside the lock — another tab may have moved
   // it). In-memory dirty marks win: they are edits this tab saw happen.
   async function loadPersisted() {
-    const state = await getSyncState(teamId);
+    const state = await getSyncState(libraryId);
     const p = normalizeReplica(state.replica);
     if (p) {
       mem.initialized = true;
@@ -361,7 +372,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
   }
 
   async function persist() {
-    await updateReplicaState({ since: mem.since, rows: mem.rows, dirty: mem.dirty, writer: !readOnly }, teamId);
+    await updateReplicaState({ since: mem.since, rows: mem.rows, dirty: mem.dirty, writer: !readOnly }, libraryId);
   }
 
   // `known` ← the local objects, for keys that are not dirty. After this,
@@ -510,7 +521,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
           for (const key of [...map.keys()]) if (!ctx.rows[kind][key]) map.delete(key);
         }
       } else {
-        freshWriterReconcile(changes, ctx, state);
+        freshWriterReconcile(changes, ctx, handoverFromManifest ? state : null);
       }
       mem.seeded = true;
     } else {
@@ -553,7 +564,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
     if (syncing || readOnly || !client) return;
     syncing = true;
     try {
-      await withSyncLock(teamId, async () => {
+      await withSyncLock(libraryId, async () => {
         const state = await loadPersisted();
         let ctx;
         if (!mem.initialized) {
@@ -564,7 +575,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
           const { changes } = await fetchAll(0);
           ctx = buildCtx(songs, setlists);
           mem.rows = ctx.rows = emptyRows();
-          freshWriterReconcile(changes, ctx, state);
+          freshWriterReconcile(changes, ctx, handoverFromManifest ? state : null);
           for (const kind of KINDS) {
             for (const key of Object.keys(mem.dirty[kind])) {
               if (mem.dirty[kind][key] != null) delete mem.dirty[kind][key]; // only creates are ours to push here
@@ -575,7 +586,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
           const kept = keepTombstones(tombstones, push.pruned);
           if (kept.changed) onTombstonesPruned?.(kept.tombstones);
           if (push.uploaded.songs + push.uploaded.setlists > 0) {
-            setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+            setStatus('synced', { lastSync: new Date().toISOString(), provider: providerId });
           }
           return;
         }
@@ -587,7 +598,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
         const kept = keepTombstones(tombstones, push.pruned);
         if (kept.changed) onTombstonesPruned?.(kept.tombstones);
         if (push.uploaded.songs + push.uploaded.setlists > 0 || kept.changed) {
-          setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+          setStatus('synced', { lastSync: new Date().toISOString(), provider: providerId });
         }
         if (push.needsPull) onPullNeeded?.();
       });
@@ -609,8 +620,8 @@ export function createReplicaEngine(onStatusChange, teamId, {
       syncing = true;
       setStatus('syncing');
       try {
-        const result = await withSyncLock(teamId, () => runFullSync(songs, setlists, tombstones));
-        setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+        const result = await withSyncLock(libraryId, () => runFullSync(songs, setlists, tombstones));
+        setStatus('synced', { lastSync: new Date().toISOString(), provider: providerId });
         return result;
       } catch (err) {
         const missing = err?.code === 'replica_unavailable';

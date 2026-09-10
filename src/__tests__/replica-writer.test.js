@@ -40,14 +40,15 @@ const fingerprint = (songs) => new Map(songs.map(s => [s.id, md(s)]));
 // A device on the replica engine, with App's adoption contract mirrored:
 // fullSync results replace state; conflicts are queued; pushes go through the
 // same debouncedPush + flushPending pair App uses on pagehide.
-function makeDevice(name, db, { readOnly = false } = {}) {
+function makeDevice(name, db, { readOnly = false, teamId = TEAM, libraryId = teamId, engineOpts = {} } = {}) {
   const statuses = [];
+  const statusLog = [];
   const pulls = { requested: 0 };
-  const engine = createReplicaEngine((s) => statuses.push(s.state), TEAM, {
-    client: createFakeClient(db), readOnly, onPullNeeded: () => { pulls.requested += 1; },
+  const engine = createReplicaEngine((s) => { statuses.push(s.state); statusLog.push(s); }, teamId, {
+    client: createFakeClient(db), readOnly, onPullNeeded: () => { pulls.requested += 1; }, ...engineOpts,
   });
   const dev = {
-    name, engine, statuses, pulls,
+    name, engine, statuses, statusLog, pulls,
     songs: [], setlists: [], tombstones: noTombstones(), conflicts: [],
     async sync() {
       __setDevice(name);
@@ -70,7 +71,7 @@ function makeDevice(name, db, { readOnly = false } = {}) {
       dev.songs = dev.songs.filter(s => s.id !== id);
       dev.tombstones = { ...dev.tombstones, songs: [...dev.tombstones.songs, { id, deletedAt: Date.now() + 1 }] };
     },
-    async state() { __setDevice(name); return getSyncState(TEAM); },
+    async state() { __setDevice(name); return getSyncState(libraryId); },
   };
   return dev;
 }
@@ -526,6 +527,82 @@ describe('writer replica — edges', () => {
 });
 
 // Keep the fixture helpers honest about what they build.
+// ── The personal library as a workspace on Supabase (step 4) ───────────────
+// The same writer replica, pointed at the account's own `teams` row, keeping
+// the personal library's sync slot ('personal') and reporting as the account's
+// cloud rather than a team's.
+const WS = 'ws-personal-1';
+const personalOpts = { libraryId: 'personal', providerId: `supabase-personal:${WS}`, handoverFromManifest: false };
+const makePersonal = (name, db, extra = {}) => makeDevice(name, db, { teamId: WS, libraryId: 'personal', engineOpts: { ...personalOpts, ...extra } });
+
+describe('writer replica — the personal workspace (step 4)', () => {
+  it('keeps the personal sync slot, reports as the account cloud, and uploads the library on first run', async () => {
+    const { songRow: wsSongRow } = makeRowHelpers(WS);
+    const db = { team_songs: [wsSongRow(mkSong('cloud-only', 'From another device', 'x'))], team_setlists: [], __rpcs: [] };
+    const A = makePersonal('A', db);
+    A.songs = [mkSong('mine', 'Mine', 'created before the cloud existed')];
+    A.setlists = [mkSetlist('sl', 'Sunday')];
+    await A.sync();
+
+    expect(A.songs.map(s => s.id).sort()).toEqual(['cloud-only', 'mine']);
+    expect(db.team_songs.find(x => x.song_key === 'mine')?.team_id).toBe(WS);
+    expect(db.team_setlists.find(x => x.setlist_key === 'sl')?.team_id).toBe(WS);
+    expect(db.__rpcs.filter(c => c.name === 'apply_ops').every(c => c.args.p_team_id === WS)).toBe(true);
+    expect(A.statusLog.at(-1)).toMatchObject({ state: 'synced', provider: `supabase-personal:${WS}` });
+
+    __setDevice('A');
+    expect((await getSyncState('personal')).replica?.writer).toBe(true);     // its own slot…
+    expect((await getSyncState(WS)).replica).toBeNull();                     // …never the workspace id's
+  });
+
+  it('a cloud-folder manifest is not this server\'s history: every folder-synced song is uploaded, none dropped', async () => {
+    const s1 = mkSong('s1', 'One', 'a');
+    const s2 = mkSong('s2', 'Two', 'b');
+    // What the Drive engine left under 'personal': baselines for both songs.
+    __setDevice('A');
+    await updateSyncManifest({
+      s1: { remoteId: 'drive-file-1', lastSyncedHash: canonicalSongHash(md(s1)), lastSyncedTime: 't' },
+      s2: { remoteId: 'drive-file-2', lastSyncedHash: canonicalSongHash(md(s2)), lastSyncedTime: 't' },
+    }, 'personal');
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = makePersonal('A', db);
+    A.songs = [s1, s2];
+    await A.sync();
+    expect(A.songs.map(s => s.id).sort()).toEqual(['s1', 's2']);
+    expect(db.team_songs.map(x => x.song_key).sort()).toEqual(['s1', 's2']);
+  });
+
+  it('…which is exactly what the handover flag would get wrong (pins why it is off for the personal library)', async () => {
+    const s1 = mkSong('s1', 'One', 'a');
+    __setDevice('A');
+    await updateSyncManifest({ s1: { remoteId: 'drive-file-1', lastSyncedHash: canonicalSongHash(md(s1)), lastSyncedTime: 't' } }, 'personal');
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = makePersonal('A', db, { handoverFromManifest: true });
+    A.songs = [s1];
+    await A.sync();
+    expect(A.songs).toEqual([]);            // read as "synced once, deleted elsewhere" → dropped
+    expect(db.team_songs).toEqual([]);
+  });
+
+  it('two devices of one account converge through the workspace', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = makePersonal('A', db);
+    const B = makePersonal('B', db);
+    A.addSong(mkSong('a', 'From A', 'first'));
+    await A.sync();
+    await B.sync();
+    expect(B.songs.map(s => s.id)).toEqual(['a']);
+    B.editSong('a', 'edited on B');
+    B.addSong(mkSong('b', 'From B', 'second'));
+    await B.save();
+    await A.sync();
+    expect(fingerprint(A.songs)).toEqual(fingerprint(B.songs));
+    expect(md(A.songs.find(s => s.id === 'a'))).toContain('edited on B');
+    expect(A.conflicts).toEqual([]);
+    expect(B.conflicts).toEqual([]);
+  });
+});
+
 describe('fixtures', () => {
   it('mkSong round-trips through the parser', () => {
     const s = mkSong('x', 'T', 'lyric');

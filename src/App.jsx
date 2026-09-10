@@ -48,6 +48,8 @@ import { useTeamRealtime } from '@/hooks/useTeamRealtime';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
+import { usePersonalWorkspace } from '@/hooks/usePersonalWorkspace';
+import { checkEntitlement } from '@/hooks/useEntitlement';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
@@ -115,11 +117,27 @@ function resolveLandingView(v) {
 }
 
 
-// Team libraries sync directly against the Supabase tables
-// (server-authoritative team engine); the file-manifest engine remains for
-// the personal library's Drive/Dropbox/OneDrive providers.
+// Which engine syncs a library (docs/SYNC-REDESIGN.md):
+//   * a team library always runs the replica against its team's rows;
+//   * the personal library runs the SAME replica against the account's own
+//     workspace on Supabase (a `teams` row of kind 'personal', step 4) when the
+//     account has cloud sync — unless a cloud FOLDER (Drive/Dropbox/OneDrive)
+//     is connected, in which case the file-manifest engine keeps that folder.
+//     The two never run together on one library: a connected folder wins.
 function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
-  if (libraryId === 'personal') return createSyncEngine(onStatusChange, libraryId, opts);
+  if (libraryId === 'personal') {
+    const { personalCloudId, byocProvider, ...rest } = opts;
+    if (personalCloudId && !byocProvider) {
+      return createReplicaEngine(onStatusChange, personalCloudId, {
+        ...rest,
+        libraryId: 'personal',
+        providerId: `supabase-personal:${personalCloudId}`,
+        // The personal manifest describes a cloud folder, not this server.
+        handoverFromManifest: false,
+      });
+    }
+    return createSyncEngine(onStatusChange, libraryId, rest);
+  }
   // Every team library runs the replica (docs/SYNC-REDESIGN.md, step 3): a
   // member's device is a pure mirror of the change feed; a writer's device is
   // the same mirror plus an outbox of its own edits over apply_ops. A project
@@ -129,6 +147,14 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
+  // The personal library's workspace on Supabase (step 4). Entitled by the
+  // PROFILE's tier — never the active team's — so a free account inside a
+  // church workspace does not get a personal cloud it loses on switching back.
+  // The id is cached per user, so the engine choice below is synchronous.
+  const personalCloudAllowed = !!user && checkEntitlement(profile?.subscription_tier, 'cloud-sync', !!profile?.is_pro).allowed;
+  const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
+  const personalWorkspaceIdRef = useRef(null);
+  personalWorkspaceIdRef.current = personalWorkspaceId;
   const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
@@ -429,6 +455,10 @@ export default function App() {
   // disagree the write lands in local state, looks saved, and is silently
   // reverted by the next pull — the worst failure mode this app has.
   const isTeamReadOnly = activeLibrary !== 'personal' && !canWriteLibrary;
+  // A connected cloud folder is whatever `syncState.provider` names that is
+  // not one of ours; it wins over the personal workspace while connected.
+  const personalByoc = activeLibrary === 'personal' && !!syncState.provider && !syncState.provider.startsWith('supabase-') ? syncState.provider : null;
+  const personalCloudId = activeLibrary === 'personal' && personalWorkspaceId && !personalByoc ? personalWorkspaceId : null;
   useEffect(() => {
     if (syncEngineRef.current) {
       syncEngineRef.current.cancelDebounce();
@@ -436,8 +466,15 @@ export default function App() {
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts, onPullNeeded: () => triggerSyncRef.current?.() });
-  }, [activeLibrary, isTeamReadOnly, enqueueConflicts]);
+    }, {
+      readOnly: isTeamReadOnly,
+      onConflicts: enqueueConflicts,
+      onPullNeeded: () => triggerSyncRef.current?.(),
+      personalCloudId,
+      byocProvider: personalByoc,
+    });
+  }, [activeLibrary, isTeamReadOnly, enqueueConflicts, personalCloudId, personalByoc]);
+
 
   // `silent` is the default because most syncs are automatic (realtime echo,
   // tab focus, reconnect). A success toast for background work the user didn't
@@ -447,8 +484,13 @@ export default function App() {
   const triggerSync = useCallback(async ({ silent = true } = {}) => {
     if (isSwitchingLibraryRef.current) return;
     const state = await getSyncState(activeLibrary);
-    const providerId = activeLibrary !== 'personal' ? `supabase-team:${activeLibrary}` : state?.activeProvider;
+    const providerId = activeLibrary !== 'personal'
+      ? `supabase-team:${activeLibrary}`
+      : state?.activeProvider || (personalCloudId ? `supabase-personal:${personalCloudId}` : null);
     if (!providerId) return;
+    // A library switch may have started during the await above; this closure
+    // still holds the OLD library's songs.
+    if (isSwitchingLibraryRef.current) return;
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setSyncState(prev => ({ ...prev, state: 'offline', provider: providerId }));
       return;
@@ -473,7 +515,7 @@ export default function App() {
         description: parts.length ? `Uploaded ${parts.join(', ')}.` : 'Everything is up to date.',
       });
     }
-  }, [songs, setlists, tombstones, activeLibrary, adoptSyncResult]);
+  }, [songs, setlists, tombstones, activeLibrary, personalCloudId, adoptSyncResult]);
   triggerSyncRef.current = triggerSync;
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
@@ -483,7 +525,7 @@ export default function App() {
     triggerSync();
   }, [triggerSync]);
   useTeamRealtime(
-    activeLibrary !== 'personal' ? activeLibrary : null,
+    activeLibrary !== 'personal' ? activeLibrary : personalCloudId,
     handleRemoteChange
   );
 
@@ -592,8 +634,22 @@ export default function App() {
       // Initialize sync state from storage and trigger initial pull
       const storedSync = await getSyncState(activeLibrary);
       const isTeamLibrary = activeLibrary !== 'personal';
-      const providerId = isTeamLibrary ? `supabase-team:${activeLibrary}` : storedSync?.activeProvider;
-      
+      const byoc = !isTeamLibrary ? storedSync?.activeProvider || null : null;
+      const personalCloud = !isTeamLibrary && !byoc ? personalWorkspaceIdRef.current : null;
+      const providerId = isTeamLibrary
+        ? `supabase-team:${activeLibrary}`
+        : byoc || (personalCloud ? `supabase-personal:${personalCloud}` : null);
+
+      if (byoc && personalWorkspaceIdRef.current) {
+        // A connected folder wins over the personal workspace, but the engine
+        // effect only learns about the folder from `syncState` (set below) —
+        // swap the engine here so the startup sync goes to the folder.
+        syncEngineRef.current?.cancelDebounce();
+        syncEngineRef.current = createEngineForLibrary('personal', (status) => {
+          setSyncState(prev => ({ ...prev, ...status }));
+        }, { onConflicts: enqueueConflicts, onPullNeeded: () => triggerSyncRef.current?.(), byocProvider: byoc });
+      }
+
       if (isTeamLibrary && storedSync?.activeProvider !== providerId) {
         // Force the provider state for team libraries
         await setActiveProvider(providerId, { connected: true }, activeLibrary);
@@ -622,6 +678,19 @@ export default function App() {
     })();
     return () => { ignore = true; };
   }, [activeLibrary]);
+  // The personal workspace can appear after load (the profile arrives, the
+  // folder is disconnected, the account upgrades): pull as soon as it does.
+  // Declared AFTER the load effect on purpose: on a library switch the load
+  // effect has already raised `isSwitchingLibraryRef`, so this one stands
+  // down and the startup sync above handles it with the freshly loaded data.
+  const personalCloudWasActiveRef = useRef(false);
+  useEffect(() => {
+    const was = personalCloudWasActiveRef.current;
+    personalCloudWasActiveRef.current = !!personalCloudId;
+    if (!personalCloudId || was || !loaded || isSwitchingLibraryRef.current) return;
+    setSyncState(prev => (prev.provider ? prev : { ...prev, provider: `supabase-personal:${personalCloudId}` }));
+    triggerSyncRef.current?.();
+  }, [personalCloudId, loaded]);
 
   // Auto-save when data changes + debounced sync push
   useEffect(() => {
@@ -1272,6 +1341,17 @@ export default function App() {
     goToMainView('library');
   };
 
+  // A throwaway engine for a move/copy INTO another library: the same choice
+  // the main engine makes, from that library's stored sync state.
+  const createTempEngine = async (libraryId) => {
+    if (libraryId !== 'personal') return createEngineForLibrary(libraryId, () => {});
+    const stored = await getSyncState('personal');
+    return createEngineForLibrary('personal', () => {}, {
+      personalCloudId: personalWorkspaceIdRef.current,
+      byocProvider: stored?.activeProvider || null,
+    });
+  };
+
   const handleMoveSongToLibrary = async (songId, targetLibraryId) => {
     try {
       const song = songs.find(s => s.id === songId);
@@ -1300,7 +1380,7 @@ export default function App() {
       // Trigger a background sync on the target library so the cloud gets the file
       if (syncEngineRef.current) {
         // We can instantiate a temporary engine just to push to the target library
-        const tempEngine = createEngineForLibrary(targetLibraryId, () => {});
+        const tempEngine = await createTempEngine(targetLibraryId);
         // We need the tombstones of the target library to pass to push
         const targetTombstones = await loadTombstones(targetLibraryId);
         const targetSetlists = await loadSetlists(targetLibraryId);
@@ -1333,7 +1413,7 @@ export default function App() {
 
       // Trigger a background sync on the target library so the cloud gets the file
       if (syncEngineRef.current) {
-        const tempEngine = createEngineForLibrary(targetLibraryId, () => {});
+        const tempEngine = await createTempEngine(targetLibraryId);
         const targetTombstones = await loadTombstones(targetLibraryId);
         const targetSetlists = await loadSetlists(targetLibraryId);
         tempEngine.debouncedPush(targetSongs, targetSetlists, targetTombstones, () => {});

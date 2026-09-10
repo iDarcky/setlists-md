@@ -336,8 +336,12 @@ were queued before this batch, still in order:
    from the manifest)** shipped the same day — every team library runs
    `sync/replica-engine.js` — and **3c deleted the manifest engine** (the
    replica is the only team engine; a project without the RPCs gets a clear
-   error). Next: step 4 (personal workspace on Supabase, retire the file
-   engine + providers), then step 5 (JSON on the wire, client id as PK).
+   error). **Step 4 shipped 2026-09-10**: the personal library is a workspace
+   on Supabase (`20260911_personal_workspaces.sql`, applied), synced by the
+   same replica; the Drive/Dropbox/OneDrive providers **stay** as an opt-in
+   folder sync on the owner's word (SYNC-REDESIGN §4.3 has the trade-off and
+   the "one-way backup mirror" recommendation). Next: step 5 (JSON on the
+   wire, client id as PK), plus §6 #4–5 there (BYOC's shape, demo-song ids).
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.

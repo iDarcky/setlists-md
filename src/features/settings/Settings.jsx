@@ -1045,6 +1045,7 @@ function syncSummary(syncState) {
   if (!syncState?.provider) return 'Off';
   const provider = syncState.provider;
   if (provider.startsWith('supabase-team:')) return 'Team Cloud';
+  if (provider.startsWith('supabase-personal:')) return 'Setlists.md Cloud';
   return provider.charAt(0).toUpperCase() + provider.slice(1);
 }
 
