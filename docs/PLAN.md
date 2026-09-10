@@ -330,9 +330,11 @@ were queued before this batch, still in order:
    complete redesign"*, then *"do the next thing on the agenda"*). The design,
    the decision log and the sequenced agenda live in **`docs/SYNC-REDESIGN.md`**.
    Step 1 (the live loop) shipped in `96192ba`; step 2 (the server half:
-   `version`/`seq`/tombstones/`apply_ops`/`sync_changes`) is written and
-   validated but **not applied**; step 3 (the member replica behind the
-   `createEngineForLibrary` seam) is next and is the first step anyone can see.
+   `version`/`seq`/tombstones/`apply_ops`/`sync_changes`) is **applied to
+   production** (2026-09-10); step 3a (the member replica behind the
+   `createEngineForLibrary` seam, `sync/replica-engine.js`) shipped the same
+   day — every read-only member now mirrors the feed. Next: 3b, the writer
+   outbox over `apply_ops`, then the manifest engine goes.
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.

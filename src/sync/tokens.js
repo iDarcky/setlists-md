@@ -10,6 +10,9 @@ const SYNC_DEFAULTS = {
   // cloud — set when a debounced push starts, cleared when it succeeds. Persisted
   // so a push interrupted by an app close (or a failure) is retried next launch.
   pendingPush: false,
+  // The replica engine's cursor + server-set index (read-only members). See
+  // sync/replica-engine.js for the shape. null until that engine has run.
+  replica: null,
 };
 
 export async function getSyncState(libraryId = 'personal') {
@@ -50,6 +53,14 @@ export async function updateSyncManifest(manifest, libraryId = 'personal') {
 export async function updateSetlistManifest(manifest, libraryId = 'personal') {
   const state = await getSyncState(libraryId);
   state.setlistManifest = manifest;
+  state.lastSyncTime = new Date().toISOString();
+  await saveSyncState(state, libraryId);
+  return state;
+}
+
+export async function updateReplicaState(replica, libraryId = 'personal') {
+  const state = await getSyncState(libraryId);
+  state.replica = replica;
   state.lastSyncTime = new Date().toISOString();
   await saveSyncState(state, libraryId);
   return state;

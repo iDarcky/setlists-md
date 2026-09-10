@@ -3,9 +3,14 @@ import { supabase } from '@/auth/supabase';
 
 /**
  * Subscribes to Supabase Realtime changes on the team library tables
- * (`team_songs` and `team_setlists`) for the given team. When another
- * member inserts, updates, or deletes a row, `onRemoteChange` fires so
- * the caller can trigger a sync.
+ * (`team_songs`, `team_setlists`, and `team_deletions`) for the given team.
+ * When another member inserts, updates, or deletes a row, `onRemoteChange`
+ * fires so the caller can trigger a sync.
+ *
+ * `team_deletions` matters: a DELETE event on the song table carries only the
+ * primary key, so a `team_id=eq.` filter drops it and no device ever heard
+ * about a delete until its next full pull. The tombstone INSERT carries
+ * team_id, so it passes the filter (20260910_sync_versions).
  *
  * The hook debounces rapid-fire events (e.g. a bulk import pushing 20
  * songs) into a single callback.
@@ -58,6 +63,16 @@ export function useTeamRealtime(teamId, onRemoteChange) {
           event: '*',
           schema: 'public',
           table: 'team_setlists',
+          filter: `team_id=eq.${teamId}`,
+        },
+        handleChange,
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'team_deletions',
           filter: `team_id=eq.${teamId}`,
         },
         handleChange,

@@ -139,8 +139,9 @@ Findings, in severity order:
 | # | Step | Status |
 | :-- | :-- | :-- |
 | 1 | Hotfix the pull merge (the live loop) | ✅ `96192ba`, 2026-09-09 |
-| 2 | Server foundations: `version`, `seq`, `updated_by`, `team_deletions`, `apply_ops`, `sync_changes` | 📄 `supabase/migrations/20260910_sync_versions.sql`, 2026-09-10 — **validated, not yet applied** (see §5.1) |
-| 3 | The replica for **members** (15 of 21 users, lowest risk), behind the `createEngineForLibrary` seam; then for writers with the outbox | ⬜ |
+| 2 | Server foundations: `version`, `seq`, `updated_by`, `team_deletions`, `apply_ops`, `sync_changes` | ✅ `supabase/migrations/20260910_sync_versions.sql` — validated (§5.1) and **applied to production 2026-09-10** (0 null cursors, feed row counts match the tables, no new advisor findings) |
+| 3a | The replica for **members** (15 of 21 users, lowest risk), behind the `createEngineForLibrary` seam | ✅ `src/sync/replica-engine.js`, 2026-09-10 — see §5.2 |
+| 3b | The replica for **writers**: the outbox over `apply_ops`, `merge.js` for conflicts, then the old team engine goes | ⬜ next |
 | 4 | Personal workspace on Supabase; retire the file engine, the three providers and `cloud-token-exchange` | ⬜ |
 | 5 | `doc jsonb` as the wire format; client id as primary key; drop `content`, `content_hash`, the manifest, the old sync tree | ⬜ |
 | — | DB hygiene: `(select auth.uid())` in policies, drop the duplicate "Admins can …" write policies, add `leader` to `team_invites.role` | ⬜ separate migration |
@@ -172,14 +173,43 @@ One aside the probe surfaced: creating a team as the owner produced **no**
 present in production (the client inserts the admin row itself, so nothing is
 broken; the RPC's writer check accepts the owner either way).
 
-Step 2 is additive and safe on live data; step 3 is the first one the owner can
-see. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
+### 5.2 Step 3a — what shipped
+
+- `src/sync/replica-engine.js`: a member's device pulls `sync_changes(team,
+  since)` in pages of 500, folds songs / setlists / deletions into its local
+  maps in feed order, and persists `{ since, rows }` under `sync:<team>.replica`.
+  `rows` is the server set as the device knows it; a local item the feed never
+  named is dropped (App's trash keeps it 30 days). Untouched songs keep object
+  identity, so IndexedDB writes and "edited" churn stay at zero. Nothing ever
+  writes. If the RPC is missing (a project without the migration) it falls back
+  to the read-only manifest engine for the session.
+- `createEngineForLibrary` in `App.jsx` hands read-only team libraries to it;
+  writers stay on the manifest engine until 3b.
+- `useTeamSetlistMap` reads the local→row-UUID mapping from `replica.rows`
+  when present (schedules and calendars keep resolving for members).
+- `useTeamRealtime` also subscribes to `team_deletions` inserts, so a delete
+  reaches open devices — the DELETE event on the song table never passed the
+  `team_id=eq.` filter.
+- `SyncDoctor` knows a mirror: no baseline, nothing to push, a difference means
+  "the next pull adopts the server".
+- Tests: `replica-engine.test.js` (11) — first pull, delta pull with cursor and
+  reference preservation, deletions, leftovers dropped, play histories kept,
+  never writes, paging, RPC-missing fallback, feed-order semantics, and a
+  writer-on-manifest-engine + member-on-replica convergence run with a seeded
+  fuzz. The fake Supabase client now emulates `trg_sync_stamp`,
+  `trg_record_deletion` and `sync_changes`.
+- Known property (pinned by a test): a delta feed does not re-send unchanged
+  rows, so a local mutation of a member's copy lingers until that row next
+  changes on the server. The UI forbids member writes; the manifest engine had
+  the same property.
+
+Step 2 is additive and safe on live data; step 3a is the first one the owner can
+see: a member's device now mirrors the feed. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
 migration into the SQL editor; the old engines keep working unchanged after it.
 
 ## 6. Open questions for the owner
 
-1. **Apply step 2 to production now**, ahead of step 3, or together with it?
-   Additive either way; applying early lets the tombstone feed start recording.
+1. ~~Apply step 2 to production now?~~ Applied 2026-09-10 on the owner's word.
 2. **Retention for `team_deletions`.** Tombstones are tiny; a 90-day prune in
    `prune_team_history()` is the obvious home once a replica exists to consume
    them.

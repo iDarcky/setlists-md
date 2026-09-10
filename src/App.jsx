@@ -15,6 +15,7 @@ import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { DEMO_SONGS_MD } from '@/data/demos';
 import { createSyncEngine } from '@/sync/engine';
 import { createTeamSyncEngine } from '@/sync/team-engine';
+import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
@@ -119,9 +120,12 @@ function resolveLandingView(v) {
 // (server-authoritative team engine); the file-manifest engine remains for
 // the personal library's Drive/Dropbox/OneDrive providers.
 function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
-  return libraryId !== 'personal'
-    ? createTeamSyncEngine(onStatusChange, libraryId, opts)
-    : createSyncEngine(onStatusChange, libraryId, opts);
+  if (libraryId === 'personal') return createSyncEngine(onStatusChange, libraryId, opts);
+  // A member's device is a pure mirror: it reads the server's change feed and
+  // never writes (docs/SYNC-REDESIGN.md, step 3). Writers stay on the
+  // manifest engine until the outbox lands.
+  if (opts.readOnly) return createReplicaEngine(onStatusChange, libraryId, opts);
+  return createTeamSyncEngine(onStatusChange, libraryId, opts);
 }
 
 export default function App() {

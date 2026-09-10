@@ -22,10 +22,14 @@ before touching anything under `src/sync/`: it is the decision log and the
 sequenced agenda. State: step 1 (the live `language`/`year` ping-pong — the
 six-field pull merge) is fixed in `96192ba`; step 2, the server half
 (`supabase/migrations/20260910_sync_versions.sql`: `version`, `seq`,
-`updated_by`, `team_deletions`, `apply_ops`, `sync_changes`) is written and was
-validated in a rolled-back run against production, **not yet applied** — the
-owner decides when. Step 3 is next: the read-only member replica behind the
-`createEngineForLibrary` seam, then the writer outbox. Two small separate items
+`updated_by`, `team_deletions`, `apply_ops`, `sync_changes`) was validated in a
+rolled-back run and **applied to production on 2026-09-10**. Step 3a shipped the
+same day: read-only members run `src/sync/replica-engine.js` (feed cursor, no
+hashing, never writes; `useTeamSetlistMap` + `useTeamRealtime` + `SyncDoctor`
+know about it). **Next is 3b: the writer outbox over `apply_ops`**, conflicts
+through `sync/merge.js`, then delete the manifest engine. ⚠ The owner tests 3a
+first — a member's device should show the same library as before, pick up a
+leader's edit within a couple of seconds, and see a deleted song vanish. Two small separate items
 sit in PLAN §2.3: `keyChanges`/`duration` never serialize for v2 songs, and the
 DB hygiene list in SYNC-REDESIGN §2 #8.
 

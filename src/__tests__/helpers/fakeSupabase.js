@@ -15,9 +15,15 @@
 
 import { parseSongMd, songToMd } from '@/parser';
 import { songFromFlat } from '@/arrangements';
+import { stableStringify } from '@/sync/canonical';
 
 let rowSeq = 0;
 let lastTs = 0;
+// Emulates public.sync_seq + trg_sync_stamp (20260910_sync_versions): every
+// insert, every real change and every deletion gets the next feed position.
+let seqCounter = 0;
+const nextSeq = () => ++seqCounter;
+const tableKind = (table) => (table === 'team_songs' ? 'song' : table === 'team_setlists' ? 'setlist' : null);
 function nextTs() {
   const now = Math.max(Date.now(), lastTs + 1);
   lastTs = now;
@@ -26,6 +32,38 @@ function nextTs() {
 
 export function createFakeClient(db) {
   return {
+    // public.sync_changes(team, since, limit): songs + setlists + deletions
+    // after a cursor, ordered by seq. Rows seeded straight into `db` without
+    // a seq get one here — the migration's backfill. `db.__rpcMissing` makes
+    // the call fail like a project without the migration (PGRST202).
+    async rpc(name, args = {}) {
+      db.__rpcs?.push({ name, args: { ...args } });
+      if (db.__rpcMissing) {
+        return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name} in the schema cache` } };
+      }
+      if (name !== 'sync_changes') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name}` } };
+      const { p_team_id, p_since = 0, p_limit = 500 } = args;
+      const limit = Math.max(1, Math.min(p_limit ?? 500, 1000));
+      const backfill = (r) => { if (r.seq == null) r.seq = nextSeq(); if (r.version == null) r.version = 1; return r; };
+      const feed = [];
+      for (const r of db.team_songs || []) {
+        backfill(r);
+        if (r.team_id === p_team_id && r.seq > p_since) feed.push({ seq: r.seq, kind: 'song', key: r.song_key, row: { row_id: r.id, title: r.title, content: r.content, content_hash: r.content_hash ?? null, version: r.version, updated_at: r.updated_at, updated_by: r.updated_by ?? null } });
+      }
+      for (const r of db.team_setlists || []) {
+        backfill(r);
+        if (r.team_id === p_team_id && r.seq > p_since) feed.push({ seq: r.seq, kind: 'setlist', key: r.setlist_key, row: { row_id: r.id, name: r.name, content: r.content, content_hash: r.content_hash ?? null, version: r.version, updated_at: r.updated_at, updated_by: r.updated_by ?? null, created_by: r.created_by ?? null } });
+      }
+      for (const d of db.team_deletions || []) {
+        if (d.team_id === p_team_id && d.seq > p_since) feed.push({ seq: d.seq, kind: 'deletion', key: d.key, row: { kind: d.kind, row_id: d.row_id, deleted_at: d.deleted_at, deleted_by: d.deleted_by ?? null } });
+      }
+      feed.sort((a, b) => a.seq - b.seq);
+      const page = feed.slice(0, limit);
+      return {
+        data: { changes: page, next_seq: page.length ? page[page.length - 1].seq : p_since, more: page.length >= limit },
+        error: null,
+      };
+    },
     from(table) {
       const rows = db[table];
       return {
@@ -80,7 +118,7 @@ export function createFakeClient(db) {
               if (dupe) {
                 return { data: null, error: { message: `duplicate key value violates unique constraint "idx_${table}_team_key"` } };
               }
-              const row = { id: rowId, ...p, [keyCol]: key };
+              const row = { id: rowId, ...p, [keyCol]: key, version: 1, seq: nextSeq() };
               if (row.updated_at) row.updated_at = nextTs();
               staged.push(row);
             }
@@ -107,6 +145,13 @@ export function createFakeClient(db) {
                 if (idx < 0) return { data: null, error: null };
                 const next = { ...rows[idx], ...payload };
                 if (payload.updated_at) next.updated_at = nextTs();
+                // trg_sync_stamp: a real change bumps version + seq; a no-op does not.
+                const before = rows[idx];
+                const changed = ['content', 'title', 'name'].some(c => c in payload && stableStringify(payload[c]) !== stableStringify(before[c]));
+                if (changed) {
+                  next.version = (before.version ?? 1) + 1;
+                  next.seq = nextSeq();
+                }
                 rows[idx] = next;
                 return { data: { id: rows[idx].id, updated_at: rows[idx].updated_at }, error: null };
               },
@@ -120,7 +165,17 @@ export function createFakeClient(db) {
             eq: (col, val) => { filters.push([col, val]); return chain; },
             then: (resolve, reject) => {
               for (let i = rows.length - 1; i >= 0; i--) {
-                if (filters.every(([c, v]) => rows[i][c] === v)) rows.splice(i, 1);
+                if (!filters.every(([c, v]) => rows[i][c] === v)) continue;
+                const [gone] = rows.splice(i, 1);
+                // trg_record_deletion: a delete leaves a tombstone in the feed.
+                const kind = tableKind(table);
+                if (kind) {
+                  (db.team_deletions ||= []).push({
+                    id: `row_${++rowSeq}`, team_id: gone.team_id, kind,
+                    key: gone.song_key ?? gone.setlist_key ?? gone.id, row_id: gone.id,
+                    seq: nextSeq(), deleted_at: nextTs(),
+                  });
+                }
               }
               return Promise.resolve({ data: null, error: null }).then(resolve, reject);
             },
@@ -148,10 +203,10 @@ export function mkSetlist(id, name) {
 export function makeRowHelpers(teamId) {
   return {
     songRow(song, updatedAt = '2026-06-01T00:00:00.000Z') {
-      return { id: `row_${++rowSeq}`, team_id: teamId, title: song.title, content: songToMd(song), song_key: song.id, updated_at: updatedAt };
+      return { id: `row_${++rowSeq}`, team_id: teamId, title: song.title, content: songToMd(song), song_key: song.id, updated_at: updatedAt, version: 1, seq: nextSeq() };
     },
     setlistRow(sl, updatedAt = '2026-06-01T00:00:00.000Z') {
-      return { id: `row_${++rowSeq}`, team_id: teamId, name: sl.name, content: JSON.parse(JSON.stringify(sl)), setlist_key: sl.id, updated_at: updatedAt };
+      return { id: `row_${++rowSeq}`, team_id: teamId, name: sl.name, content: JSON.parse(JSON.stringify(sl)), setlist_key: sl.id, updated_at: updatedAt, version: 1, seq: nextSeq() };
     },
   };
 }

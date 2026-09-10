@@ -607,9 +607,9 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   server copy, identical-content retries count as applied) and
   `sync_changes(team, since, limit)` (songs + setlists + deletions after a
   cursor, one query). A no-op write is frozen to the old stamps. Additive; the
-  current engines never read the new columns. **Validated in a rolled-back run
-  against production on 2026-09-10; not applied yet; nothing in the client
-  calls the RPCs until step 3.**
+  current engines never read the new columns. Validated in a rolled-back run
+  and **applied to production on 2026-09-10**. `sync/replica-engine.js` reads
+  `sync_changes`; nothing calls `apply_ops` until step 3b.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -735,9 +735,20 @@ directly:
 - ⚠ **This engine is being replaced.** `docs/SYNC-REDESIGN.md` is the decision
   log and agenda: server-first with an offline replica, versions instead of
   hashes, deletes as feed rows, members as a pure read replica. The server
-  half is `20260910_sync_versions.sql`; the client half (step 3) lands behind
-  the `createEngineForLibrary` seam. Do not add new cleverness to the hash /
-  manifest machinery below — fix bugs, but build new behaviour on the replica.
+  half is `20260910_sync_versions.sql` (applied). **Read-only members already
+  run `sync/replica-engine.js`** — `createEngineForLibrary` in App.jsx hands
+  them the replica; writers stay here until the outbox (step 3b). Do not add
+  new cleverness to the hash / manifest machinery below — fix bugs, but build
+  new behaviour on the replica.
+- **The replica** (`sync/replica-engine.js`) pulls `sync_changes(team, since)`
+  in pages, folds songs/setlists/deletions in feed order, persists
+  `{ since, rows }` under `sync:<team>.replica`, and never writes. `rows` is
+  the server set: a local item the feed never named is dropped (trash keeps it
+  30 days). `useTeamSetlistMap` reads the row UUIDs from `replica.rows`;
+  `useTeamRealtime` also listens on `team_deletions`. A missing RPC falls back
+  to the read-only manifest engine for the session. Tests:
+  `src/__tests__/replica-engine.test.js`; the fake client emulates the stamp
+  and deletion triggers and the RPC.
 - **Pull = server wins.** Every row replaces the local copy; rows deleted on
   the server disappear locally (App adopts the result wholesale via the
   `replaced: true` flag in the sync result). Local-only never-synced items are

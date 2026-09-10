@@ -49,6 +49,9 @@ function diffFields(localMd, serverMd) {
 async function runDiagnosis(teamId, songs) {
   const state = await getSyncState(teamId);
   const manifest = state?.syncManifest || {};
+  // A read-only member's device runs the replica engine: no baseline, nothing
+  // ever pushes, and a difference simply means the next pull adopts the server.
+  const mirror = !!(state?.replica?.rows?.song);
 
   const { data: rows, error } = await supabase
     .from('team_songs')
@@ -87,6 +90,11 @@ async function runDiagnosis(teamId, songs) {
       counts.inSync += 1;
       continue;
     }
+    if (mirror) {
+      counts.pendingPull += 1;
+      items.push({ id: song.id, title: song.title, status: 'pendingPull', fields: diffFields(localMd, row.content) });
+      continue;
+    }
     const localDirty = baseline == null || localHash !== baseline;
     const serverDirty = baseline == null || serverHash !== baseline;
     const status = localDirty && serverDirty ? 'diverged' : localDirty ? 'pendingPush' : 'pendingPull';
@@ -100,8 +108,10 @@ async function runDiagnosis(teamId, songs) {
     items.push({ id: itemId, title: row.content?.match?.(/\ntitle:\s*([^\n]+)/)?.[1] || 'Untitled', status: 'serverOnly' });
   }
 
-  return { counts, items, truncated: (rows || []).length === 1000 };
+  return { counts, items, truncated: (rows || []).length === 1000, mirror, since: state?.replica?.since ?? null };
 }
+
+const MIRROR_LOCAL_ONLY = { label: 'Only on this device', tone: 'var(--ds-amber-800)', hint: 'Not on the server — the next pull removes it here (kept in the trash for 30 days).' };
 
 const STATUS_LABELS = {
   localOnly: { label: 'Only on this device', tone: 'var(--ds-amber-800)', hint: 'Uploads on the next sync.' },
@@ -196,6 +206,12 @@ export default function SyncDoctor({ teamId, songs = [] }) {
         <div className="text-copy-13 text-[var(--ds-red-800)]">Check failed: {error}</div>
       )}
 
+      {report?.mirror && (
+        <div className="text-copy-13 text-[var(--ds-gray-600)]">
+          This device is a read-only mirror of the team library{report.since != null ? ` (feed position ${report.since})` : ''}.
+        </div>
+      )}
+
       {allClear && (
         <div className="text-copy-13 text-[var(--ds-green-800)]">
           ✓ All {report.counts.inSync} songs match the team cloud exactly.
@@ -209,7 +225,9 @@ export default function SyncDoctor({ teamId, songs = [] }) {
             {report.truncated ? ' (first 1000 server rows checked)' : ''}
           </div>
           {problems.map((item) => {
-            const meta = STATUS_LABELS[item.status] || { label: item.status, tone: 'var(--ds-gray-700)' };
+            const meta = (report.mirror && item.status === 'localOnly')
+              ? MIRROR_LOCAL_ONLY
+              : (STATUS_LABELS[item.status] || { label: item.status, tone: 'var(--ds-gray-700)' });
             return (
               <div key={`${item.status}:${item.id}`} className="rounded-lg border border-[var(--ds-gray-300)] px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
