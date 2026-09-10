@@ -607,9 +607,13 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   server copy, identical-content retries count as applied) and
   `sync_changes(team, since, limit)` (songs + setlists + deletions after a
   cursor, one query). A no-op write is frozen to the old stamps. Additive; the
-  current engines never read the new columns. Validated in a rolled-back run
+  manifest engine never reads the new columns. Validated in a rolled-back run
   and **applied to production on 2026-09-10**. `sync/replica-engine.js` reads
-  `sync_changes`; nothing calls `apply_ops` until step 3b.
+  `sync_changes` and writes through `apply_ops`.
+- `20260910_apply_ops_row_id.sql` — `apply_ops` returns `row_id` in every
+  applied put (and in conflict payloads), so a writer that just created a
+  setlist can point `team_schedules` at it without waiting for the feed echo.
+  Applied 2026-09-10.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -732,23 +736,36 @@ Team libraries no longer go through the file-manifest engine
 **server-authoritative** engine that talks to `team_songs`/`team_setlists`
 directly:
 
-- ⚠ **This engine is being replaced.** `docs/SYNC-REDESIGN.md` is the decision
-  log and agenda: server-first with an offline replica, versions instead of
-  hashes, deletes as feed rows, members as a pure read replica. The server
-  half is `20260910_sync_versions.sql` (applied). **Read-only members already
-  run `sync/replica-engine.js`** — `createEngineForLibrary` in App.jsx hands
-  them the replica; writers stay here until the outbox (step 3b). Do not add
-  new cleverness to the hash / manifest machinery below — fix bugs, but build
-  new behaviour on the replica.
+- ⚠ **This engine is the FALLBACK now, not the engine.** Since step 3b
+  (2026-09-10) every team library — members and writers — runs
+  `sync/replica-engine.js` (`docs/SYNC-REDESIGN.md`); `createEngineForLibrary`
+  in App.jsx never constructs this engine directly. It is built only by the
+  replica when the sync RPCs are missing on a project. Do not add behaviour
+  here; step 3c deletes it.
 - **The replica** (`sync/replica-engine.js`) pulls `sync_changes(team, since)`
-  in pages, folds songs/setlists/deletions in feed order, persists
-  `{ since, rows }` under `sync:<team>.replica`, and never writes. `rows` is
-  the server set: a local item the feed never named is dropped (trash keeps it
-  30 days). `useTeamSetlistMap` reads the row UUIDs from `replica.rows`;
-  `useTeamRealtime` also listens on `team_deletions`. A missing RPC falls back
-  to the read-only manifest engine for the session. Tests:
-  `src/__tests__/replica-engine.test.js`; the fake client emulates the stamp
-  and deletion triggers and the RPC.
+  in pages, folds songs/setlists/deletions in feed order, and persists
+  `{ since, rows, dirty, writer }` under `sync:<team>.replica`. `rows` is the
+  server set as this device knows it (version, seq, row id); a local item
+  neither in `rows` nor dirty is dropped (trash keeps it 30 days). A writer
+  keeps a **dirty set** — keys whose object differs from the copy the server
+  last gave it (object identity is the change signal; the dirty set is
+  persisted with its serialized bases so a reload pushes exactly the unpushed
+  edits) — and sends only those, plus tombstones, to `apply_ops` with
+  `base_version`. A push conflict asks App for a pull (`onPullNeeded`); the
+  pull merges three-way through `sync/merge.js` (disjoint → silent, stays
+  dirty on the server copy; same field → server adopted, ours in the
+  `ConflictResolver`). An edit beats a concurrent delete; a stale delete loses
+  to a newer edit. A writer's FIRST run reads the old manifest once to decide
+  which local items carried unpushed edits, then never again. Temp engines
+  (move/copy into another library) push only what the server lacks and persist
+  nothing. `useTeamSetlistMap` reads row UUIDs from `replica.rows`;
+  `useTeamRealtime` also listens on `team_deletions`; `SyncDoctor` reports from
+  `rows` + `dirty`. Tests: `replica-engine.test.js` (members),
+  `replica-writer.test.js` (writers, handover, fuzz); the fake client emulates
+  the stamp and deletion triggers, `sync_changes` and `apply_ops`.
+- **`sync/merge.js` compares arrangements without `updatedAt`/`id`.** A base
+  rebuilt from markdown carries a fresh stamp; with the stamp in the compare,
+  every disjoint edit was a conflict.
 - **Pull = server wins.** Every row replaces the local copy; rows deleted on
   the server disappear locally (App adopts the result wholesale via the
   `replaced: true` flag in the sync result). Local-only never-synced items are

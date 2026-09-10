@@ -49,13 +49,17 @@ function diffFields(localMd, serverMd) {
 async function runDiagnosis(teamId, songs) {
   const state = await getSyncState(teamId);
   const manifest = state?.syncManifest || {};
-  // A read-only member's device runs the replica engine: no baseline, nothing
-  // ever pushes, and a difference simply means the next pull adopts the server.
-  const mirror = !!(state?.replica?.rows?.song);
+  // The replica engine (docs/SYNC-REDESIGN.md): `rows` is the server set as
+  // this device knows it (with the version it holds), `dirty` the keys with
+  // unpushed local edits. A member's device (`writer` false) is a pure mirror:
+  // no baseline, nothing ever pushes, a difference means the next pull adopts.
+  const replica = state?.replica?.rows?.song ? state.replica : null;
+  const dirty = replica?.dirty?.song || {};
+  const mirror = !!replica && !replica.writer;
 
   const { data: rows, error } = await supabase
     .from('team_songs')
-    .select('id, song_key, content, updated_at')
+    .select('id, song_key, content, updated_at, version')
     .eq('team_id', teamId)
     .order('id')
     .limit(1000);
@@ -79,7 +83,9 @@ async function runDiagnosis(teamId, songs) {
     const row = serverById.get(song.id);
     if (!row) {
       counts.localOnly += 1;
-      items.push({ id: song.id, title: song.title, status: 'localOnly' });
+      // Under the replica an item the server lacks uploads only if it is dirty
+      // (a create); otherwise it was deleted elsewhere and the next pull drops it.
+      items.push({ id: song.id, title: song.title, status: 'localOnly', stale: replica ? !(song.id in dirty) : false });
       continue;
     }
     const localMd = songToMd(song);
@@ -90,9 +96,12 @@ async function runDiagnosis(teamId, songs) {
       counts.inSync += 1;
       continue;
     }
-    if (mirror) {
-      counts.pendingPull += 1;
-      items.push({ id: song.id, title: song.title, status: 'pendingPull', fields: diffFields(localMd, row.content) });
+    if (replica) {
+      const isDirty = song.id in dirty;
+      const serverMoved = (replica.rows.song[song.id]?.version ?? null) !== (row.version ?? null);
+      const status = isDirty ? (serverMoved ? 'diverged' : 'pendingPush') : 'pendingPull';
+      counts[status] += 1;
+      items.push({ id: song.id, title: song.title, status, fields: diffFields(localMd, row.content) });
       continue;
     }
     const localDirty = baseline == null || localHash !== baseline;
@@ -225,7 +234,7 @@ export default function SyncDoctor({ teamId, songs = [] }) {
             {report.truncated ? ' (first 1000 server rows checked)' : ''}
           </div>
           {problems.map((item) => {
-            const meta = (report.mirror && item.status === 'localOnly')
+            const meta = (item.status === 'localOnly' && item.stale)
               ? MIRROR_LOCAL_ONLY
               : (STATUS_LABELS[item.status] || { label: item.status, tone: 'var(--ds-gray-700)' });
             return (

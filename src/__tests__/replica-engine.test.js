@@ -37,7 +37,7 @@ const { songRow, setlistRow } = makeRowHelpers(TEAM);
 // A read-only member's device.
 function makeMember(name, db) {
   const statuses = [];
-  const engine = createReplicaEngine((s) => statuses.push(s.state), TEAM, { client: createFakeClient(db) });
+  const engine = createReplicaEngine((s) => statuses.push(s.state), TEAM, { client: createFakeClient(db), readOnly: true });
   return {
     name, engine, statuses,
     songs: [], setlists: [], tombstones: noTombstones(),
@@ -202,7 +202,7 @@ describe('replica engine — a member device mirrors the feed', () => {
   it('pages through a large feed with the cursor', async () => {
     const db = { team_songs: [], team_setlists: [], __rpcs: [] };
     for (let i = 0; i < 7; i++) db.team_songs.push(songRow(mkSong(`s${i}`, `Song ${i}`, `l${i}`)));
-    const engine = createReplicaEngine(() => {}, TEAM, { client: createFakeClient(db), pageSize: 3 });
+    const engine = createReplicaEngine(() => {}, TEAM, { client: createFakeClient(db), pageSize: 3, readOnly: true });
     __setDevice('B');
 
     const r = await engine.fullSync([], [], noTombstones());
@@ -217,7 +217,7 @@ describe('replica engine — a member device mirrors the feed', () => {
   it('falls back to the read-only manifest engine when the RPC is missing', async () => {
     const db = { team_songs: [songRow(mkSong('s1', 'One', 'a'))], team_setlists: [], __rpcMissing: true, __rpcs: [] };
     const statuses = [];
-    const engine = createReplicaEngine((s) => statuses.push(s.state), TEAM, { client: createFakeClient(db) });
+    const engine = createReplicaEngine((s) => statuses.push(s.state), TEAM, { client: createFakeClient(db), readOnly: true });
     __setDevice('B');
 
     const r = await engine.fullSync([], [], noTombstones());

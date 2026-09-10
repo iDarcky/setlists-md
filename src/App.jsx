@@ -14,7 +14,6 @@ import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDif
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { DEMO_SONGS_MD } from '@/data/demos';
 import { createSyncEngine } from '@/sync/engine';
-import { createTeamSyncEngine } from '@/sync/team-engine';
 import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
@@ -121,11 +120,12 @@ function resolveLandingView(v) {
 // the personal library's Drive/Dropbox/OneDrive providers.
 function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
   if (libraryId === 'personal') return createSyncEngine(onStatusChange, libraryId, opts);
-  // A member's device is a pure mirror: it reads the server's change feed and
-  // never writes (docs/SYNC-REDESIGN.md, step 3). Writers stay on the
-  // manifest engine until the outbox lands.
-  if (opts.readOnly) return createReplicaEngine(onStatusChange, libraryId, opts);
-  return createTeamSyncEngine(onStatusChange, libraryId, opts);
+  // Every team library runs the replica (docs/SYNC-REDESIGN.md, step 3): a
+  // member's device is a pure mirror of the change feed; a writer's device is
+  // the same mirror plus an outbox of its own edits over apply_ops. The old
+  // manifest engine survives only as the replica's fallback on a project
+  // without the sync RPCs.
+  return createReplicaEngine(onStatusChange, libraryId, opts);
 }
 
 export default function App() {
@@ -287,6 +287,10 @@ export default function App() {
   }, []);
 
   const syncEngineRef = useRef(null);
+  // The replica asks for a pull after a push conflict (someone else wrote
+  // first); the pull merges or raises the conflict. A ref, because the engine
+  // outlives any one triggerSync closure.
+  const triggerSyncRef = useRef(null);
   const historyRef = useRef([]);
   const quotaWarnedRef = useRef(false);
   const isSwitchingLibraryRef = useRef(false);
@@ -433,7 +437,7 @@ export default function App() {
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts });
+    }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts, onPullNeeded: () => triggerSyncRef.current?.() });
   }, [activeLibrary, isTeamReadOnly, enqueueConflicts]);
 
   // `silent` is the default because most syncs are automatic (realtime echo,
@@ -471,6 +475,7 @@ export default function App() {
       });
     }
   }, [songs, setlists, tombstones, activeLibrary, adoptSyncResult]);
+  triggerSyncRef.current = triggerSync;
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.

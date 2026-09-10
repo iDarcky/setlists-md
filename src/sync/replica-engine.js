@@ -1,46 +1,63 @@
-// The replica engine — a member's device as a pure mirror of the team library.
+// The replica engine — a device as a mirror of the team library, plus, for
+// writers, an OUTBOX of its own edits.
 //
-// docs/SYNC-REDESIGN.md, step 3 (first half). Members cannot write, so their
-// device never has anything the server does not. That collapses sync to one
-// question — "what changed after the last thing I saw?" — and the server
-// answers it directly: `sync_changes(team, since)` returns every song, setlist
-// and DELETION with a feed position (`seq`) after the cursor, in order. No
-// hashing, no manifests, no baselines, no inferring a delete from a row that
-// went missing. The old manifest engine stays on for writers until the outbox
-// lands (step 3, second half).
+// docs/SYNC-REDESIGN.md, step 3. The server is the only truth. Every device
+// holds a cache of the server's library at feed position `since`, and asks
+// `sync_changes(team, since)` for what changed after that — songs, setlists and
+// DELETIONS, in order. A writer additionally keeps a DIRTY SET: the keys whose
+// local object differs from the copy the server gave it, each with the
+// serialized server copy it was based on. Those, and nothing else, go to
+// `apply_ops` with the version they were based on; the server accepts, or
+// returns its copy for a three-way merge (`./merge`). No hashing of the
+// library, no manifest, no baseline reconstruction, no inferring a delete
+// from a row that went missing.
 //
-// Shape of the persisted state (`sync:<teamId>`.replica):
-//   { since: <last seq applied>,
-//     rows: { song: { [key]: { version, seq, rowId } },
-//             setlist: { [key]: { version, seq, rowId } } } }
-// `rows` is the complete server set as this device knows it — puts add to it,
-// deletions remove from it — so "a local item the feed never named" is, by
-// construction, not on the server and is dropped (App's trash safety net keeps
-// it for 30 days). `rowId` is what `team_schedules.setlist_id` points at; the
-// setlist map hook reads it from here instead of the manifest.
+// Change detection is OBJECT IDENTITY, the signal this codebase already relies
+// on (saveSongs, adopt.js, the hash caches): App replaces only the object it
+// edited. `known[kind].get(key)` is the object the server last gave us (or we
+// last pushed); a different reference for the same key is a local edit. Across
+// a reload identity is gone, so the dirty set is persisted — a reload pushes
+// exactly the edits that had not reached the server, and the base each merge
+// needs travels with it.
+//
+// Persisted (`sync:<teamId>`.replica):
+//   { since, writer,
+//     rows:  { song: { [key]: { version, seq, rowId } }, setlist: {…} },
+//     dirty: { song: { [key]: <base md | null> },        setlist: { [key]: <base json | null> } } }
+// `rows` is the server set as this device knows it; a local item neither in
+// `rows` nor dirty is not on the server and is dropped (App's trash keeps it
+// 30 days). `rowId` is what `team_schedules.setlist_id` points at.
+//
+// First run of a writer (no replica state yet): the old manifest engine's
+// baseline hashes decide, once, which local items carry unpushed edits — the
+// same arithmetic that engine ran on every pass, run a last time so nothing
+// pending is lost and nothing stale is uploaded. After that the manifest is
+// never read again.
 //
 // A delta feed trusts the rows it already holds: the server does not re-send
-// what it has not changed. So a local mutation of a member's copy — which the
-// UI forbids, and which nothing here ever uploads — lingers until that row next
-// changes on the server, and then the server copy wins outright. The manifest
-// engine had the same property; it is the price of not re-downloading the
-// library on every pull.
+// what it has not changed. The dirty set is what makes that safe for writers;
+// for members (read-only), a local mutation — which the UI forbids — lingers
+// until that row next changes on the server, and then the server copy wins.
 //
-// Same interface as the other engines (fullSync / debouncedPush / flushPending /
-// cancelDebounce / recentlyPushed) and the same `replaced: true` result, so
-// App's adoption path is untouched. If the RPC is missing — a client running
-// ahead of the migration, or a project without it — the engine falls back to
-// the read-only manifest engine for the session instead of failing.
+// Same interface as the other engines and the same `replaced: true` result, so
+// App's adoption path is untouched. If the RPCs are missing (a project without
+// the migration) the engine falls back to the manifest engine for the session.
 
 import { supabase as defaultClient } from '@/auth/supabase';
 import { getSyncState, updateReplicaState } from './tokens';
-import { parseSongMd } from '@/parser';
+import { parseSongMd, songToMd } from '@/parser';
+import { songFromFlat } from '@/arrangements';
 import { mergeRemoteSong } from './mergeRemote';
+import { threeWayMergeSong, threeWayMergeSetlist } from './merge';
+import { canonicalSongHash, canonicalSetlistHash, stableStringify } from './canonical';
 import { withRetry } from './retry';
 import { withSyncLock } from './lock';
+import { SYNC_DEBOUNCE_MS } from './constants';
 import { createTeamSyncEngine } from './team-engine';
 
 export const REPLICA_PAGE = 500;
+export const APPLY_BATCH = 100;
+const KINDS = ['song', 'setlist'];
 
 // PostgREST reports an unknown RPC as PGRST202 ("Could not find the function
 // …"); Postgres itself as 42883 when the call gets that far.
@@ -53,101 +70,549 @@ export function isMissingRpc(error) {
 function safeParse(str) {
   try { return JSON.parse(str); } catch { return null; }
 }
+const emptyRows = () => ({ song: {}, setlist: {} });
+const emptyDirty = () => ({ song: {}, setlist: {} });
+const emptyKnown = () => ({ song: new Map(), setlist: new Map() });
 
-// Fold one page of feed changes into the maps. Ordered by seq, so a put and a
-// later deletion of the same key resolve in feed order.
+function normalizeReplica(raw) {
+  if (!raw?.rows?.song || !raw?.rows?.setlist) return null;
+  return {
+    since: Number(raw.since) || 0,
+    rows: { song: { ...raw.rows.song }, setlist: { ...raw.rows.setlist } },
+    dirty: { song: { ...(raw.dirty?.song || {}) }, setlist: { ...(raw.dirty?.setlist || {}) } },
+  };
+}
+
+// ── Serialized forms (the wire is markdown for songs, JSON for setlists) ─────
+function serialize(kind, obj) {
+  try {
+    return kind === 'song' ? songToMd(obj) : stableStringify(obj);
+  } catch {
+    return null;
+  }
+}
+function remoteSong(key, row, local) {
+  let parsed;
+  try { parsed = parseSongMd(row?.content); } catch { return null; }
+  const ts = row?.updated_at ? new Date(row.updated_at).getTime() : Date.now();
+  return mergeRemoteSong(local || null, { ...parsed, id: key }, ts);
+}
+function remoteSetlist(key, row) {
+  const content = typeof row?.content === 'string' ? safeParse(row.content) : row?.content;
+  if (!content || typeof content !== 'object') return null;
+  return { ...content, id: key };
+}
+function fromBase(kind, key, base) {
+  if (base == null) return null;
+  try {
+    if (kind === 'song') return songFromFlat({ ...parseSongMd(base), id: key });
+    const obj = typeof base === 'string' ? safeParse(base) : base;
+    return obj && typeof obj === 'object' ? { ...obj, id: key } : null;
+  } catch {
+    return null;
+  }
+}
+function sameBytes(kind, local, content) {
+  if (!local) return false;
+  const ser = serialize(kind, local);
+  if (ser == null) return false;
+  return kind === 'song' ? ser === content : ser === stableStringify(content);
+}
+const titleOf = (kind, obj) => (kind === 'song' ? obj?.title : obj?.name);
+
+// ── Reconcile one feed change into the maps ─────────────────────────────────
+// ctx: { songsById, setlistsById, rows, dirty, known, conflicts, readOnly }.
+// Feed order is seq order, so a put and a later deletion of the same key
+// resolve as the server saw them.
+export function reconcileChange(ch, ctx) {
+  const key = ch?.key;
+  if (!key) return;
+  if (ch.kind === 'deletion') {
+    const kind = ch.row?.kind === 'setlist' ? 'setlist' : 'song';
+    const map = kind === 'song' ? ctx.songsById : ctx.setlistsById;
+    if (!ctx.readOnly && key in ctx.dirty[kind] && map.has(key)) {
+      // An edit beats a concurrent delete: ours stays, and becomes a create.
+      delete ctx.rows[kind][key];
+      ctx.dirty[kind][key] = null;
+      ctx.known[kind].delete(key);
+      return;
+    }
+    map.delete(key);
+    delete ctx.rows[kind][key];
+    ctx.known[kind].delete(key);
+    return;
+  }
+  if (ch.kind !== 'song' && ch.kind !== 'setlist') return;
+  const kind = ch.kind;
+  const row = ch.row || {};
+  const map = kind === 'song' ? ctx.songsById : ctx.setlistsById;
+  const prev = ctx.rows[kind][key];
+  const stamp = { version: row.version ?? null, seq: ch.seq, rowId: row.row_id ?? prev?.rowId ?? null };
+  const local = map.get(key);
+
+  // A version we already hold — our own push echoing back, or a row an earlier
+  // pass adopted. Nothing to re-parse, nothing to replace.
+  if (local && prev && prev.version != null && prev.version === row.version) {
+    ctx.rows[kind][key] = stamp;
+    return;
+  }
+
+  const remote = kind === 'song' ? remoteSong(key, row, local) : remoteSetlist(key, row);
+  if (!remote) {
+    console.warn(`[replica] Skipping unreadable ${kind} ${key}`);
+    return;
+  }
+
+  const isDirty = !ctx.readOnly && local && key in ctx.dirty[kind];
+  if (isDirty) {
+    if (!prev) {
+      // First sight of this row while we hold an edit of it (a create that
+      // collided, or a first-run pending edit): ours stays and pushes next.
+      ctx.rows[kind][key] = stamp;
+      return;
+    }
+    const base = fromBase(kind, key, ctx.dirty[kind][key]);
+    if (base) {
+      const { merged, conflictFields } = kind === 'song'
+        ? threeWayMergeSong(base, local, remote)
+        : threeWayMergeSetlist(base, local, remote);
+      if (conflictFields.length === 0) {
+        // Disjoint edits: adopt the merge, stay dirty on top of the server copy.
+        map.set(key, merged);
+        ctx.dirty[kind][key] = serialize(kind, remote);
+        ctx.known[kind].set(key, remote);
+        ctx.rows[kind][key] = stamp;
+        return;
+      }
+    }
+    // Both sides changed the same thing: the server copy is adopted (App's
+    // contract — the cloud copy is already in state) and ours travels in the
+    // conflict for the user to choose.
+    ctx.conflicts.push({ kind, id: key, title: titleOf(kind, local), local, remote });
+    map.set(key, remote);
+    delete ctx.dirty[kind][key];
+    ctx.known[kind].set(key, remote);
+    ctx.rows[kind][key] = stamp;
+    return;
+  }
+
+  // Clean: the server copy wins; keep identity when the bytes are equal so an
+  // unchanged song is not rewritten to IndexedDB or reported as edited.
+  const adopted = sameBytes(kind, local, row.content) ? local : remote;
+  map.set(key, adopted);
+  ctx.known[kind].set(key, adopted);
+  ctx.rows[kind][key] = stamp;
+}
+
+// Back-compat for the member tests: a read-only fold of changes into maps.
 export function applyChanges(changes, songsById, setlistsById, rows) {
-  for (const ch of changes || []) {
-    const key = ch?.key;
-    if (!key) continue;
-    if (ch.kind === 'song') {
-      let parsed;
-      try {
-        parsed = parseSongMd(ch.row?.content);
-      } catch (err) {
-        console.warn(`[replica] Skipping unparseable song ${key}:`, err);
+  const ctx = { songsById, setlistsById, rows, dirty: emptyDirty(), known: emptyKnown(), conflicts: [], readOnly: true };
+  for (const ch of changes || []) reconcileChange(ch, ctx);
+}
+
+// ── First run of a WRITER: hand over from the manifest engine ───────────────
+// The feed from 0 is the whole server set. The old engine's baseline hashes say,
+// per local item, whether this device carried an unpushed edit: local ≠ baseline
+// while server = baseline means only we moved (push it); both moved is a
+// conflict (server adopted, ours in the conflict); local = baseline or
+// canonical-equal means nothing to push. Never-manifested local items are
+// creates; manifested items the server no longer has were deleted elsewhere
+// (dropped) unless edited here (kept, as a create — an edit beats a delete).
+function freshWriterReconcile(changes, ctx, state) {
+  const server = { song: new Map(), setlist: new Map() };
+  for (const ch of changes) {
+    if (!ch?.key) continue;
+    if (ch.kind === 'deletion') {
+      server[ch.row?.kind === 'setlist' ? 'setlist' : 'song'].delete(ch.key);
+    } else if (ch.kind === 'song' || ch.kind === 'setlist') {
+      server[ch.kind].set(ch.key, ch);
+    }
+  }
+  const manifests = { song: state?.syncManifest || {}, setlist: state?.setlistManifest || {} };
+  const hashOf = (kind, ser) => (kind === 'song' ? canonicalSongHash(ser) : canonicalSetlistHash(ser));
+
+  for (const kind of KINDS) {
+    const map = kind === 'song' ? ctx.songsById : ctx.setlistsById;
+    const manifest = manifests[kind];
+    for (const [key, ch] of server[kind]) {
+      const row = ch.row || {};
+      ctx.rows[kind][key] = { version: row.version ?? null, seq: ch.seq, rowId: row.row_id ?? null };
+      const local = map.get(key);
+      const remote = kind === 'song' ? remoteSong(key, row, local) : remoteSetlist(key, row);
+      if (!remote) continue;
+      if (!local) {
+        map.set(key, remote);
+        ctx.known[kind].set(key, remote);
         continue;
       }
-      const serverTs = ch.row?.updated_at ? new Date(ch.row.updated_at).getTime() : Date.now();
-      songsById.set(key, mergeRemoteSong(songsById.get(key) || null, { ...parsed, id: key }, serverTs));
-      rows.song[key] = { version: ch.row?.version ?? null, seq: ch.seq, rowId: ch.row?.row_id ?? null };
-    } else if (ch.kind === 'setlist') {
-      const content = typeof ch.row?.content === 'string' ? safeParse(ch.row.content) : ch.row?.content;
-      if (!content || typeof content !== 'object') {
-        console.warn(`[replica] Skipping invalid setlist ${key}`);
+      const localSer = serialize(kind, local);
+      const serverSer = kind === 'song' ? row.content : stableStringify(row.content);
+      if (localSer === serverSer) {
+        ctx.known[kind].set(key, local);
         continue;
       }
-      setlistsById.set(key, { ...content, id: key });
-      rows.setlist[key] = { version: ch.row?.version ?? null, seq: ch.seq, rowId: ch.row?.row_id ?? null };
-    } else if (ch.kind === 'deletion') {
-      const kind = ch.row?.kind === 'setlist' ? 'setlist' : 'song';
-      if (kind === 'song') songsById.delete(key);
-      else setlistsById.delete(key);
-      delete rows[kind][key];
+      const entry = manifest[key];
+      const localHash = localSer == null ? null : hashOf(kind, kind === 'song' ? localSer : local);
+      const serverHash = hashOf(kind, kind === 'song' ? row.content : row.content);
+      if (localHash != null && localHash === serverHash) {
+        // Same song, different bytes (another build's serialization): nothing to push.
+        ctx.known[kind].set(key, local);
+        continue;
+      }
+      if (entry?.lastSyncedHash != null && localHash === entry.lastSyncedHash) {
+        // Only the server moved since this device last synced.
+        map.set(key, remote);
+        ctx.known[kind].set(key, remote);
+        continue;
+      }
+      if (entry?.lastSyncedHash != null && serverHash === entry.lastSyncedHash) {
+        // Only we moved: a pending edit, based on the server copy.
+        ctx.dirty[kind][key] = serverSer;
+        continue;
+      }
+      // Both moved (or no baseline to tell): the server copy is adopted, ours
+      // travels in the conflict.
+      ctx.conflicts.push({ kind, id: key, title: titleOf(kind, local), local, remote });
+      map.set(key, remote);
+      ctx.known[kind].set(key, remote);
+    }
+    for (const [key, local] of map) {
+      if (server[kind].has(key)) continue;
+      const entry = manifest[key];
+      if (!entry) {
+        ctx.dirty[kind][key] = null; // never synced: a create
+        continue;
+      }
+      const localSer = serialize(kind, local);
+      const localHash = localSer == null ? null : hashOf(kind, kind === 'song' ? localSer : local);
+      if (localHash != null && localHash !== entry.lastSyncedHash) {
+        ctx.dirty[kind][key] = null; // edited here, deleted elsewhere: the edit wins
+      } else {
+        map.delete(key); // deleted elsewhere, untouched here
+      }
     }
   }
 }
 
-export function createReplicaEngine(onStatusChange, teamId, { client = defaultClient, pageSize = REPLICA_PAGE, fallback } = {}) {
+export function createReplicaEngine(onStatusChange, teamId, {
+  readOnly = false,
+  client = defaultClient,
+  pageSize = REPLICA_PAGE,
+  fallback,
+  onPullNeeded,
+} = {}) {
   let syncing = false;
   let fallbackEngine = null;
+  let debounceTimer = null;
+  let lastPushAt = 0;
   const setStatus = (state, extra = {}) => onStatusChange?.({ state, ...extra });
+
+  // In-memory replica state. `initialized` = a persisted replica exists (a
+  // full pull has happened and been adopted); `seeded` = `known` reflects the
+  // local objects of this session.
+  const mem = { initialized: false, seeded: false, since: 0, rows: emptyRows(), dirty: emptyDirty(), known: emptyKnown() };
+  let latest = null; // the last arrays App handed to debouncedPush
 
   const getFallback = () => {
     if (!fallbackEngine) {
       fallbackEngine = fallback
         ? fallback()
-        : createTeamSyncEngine(onStatusChange, teamId, { readOnly: true, client });
+        : createTeamSyncEngine(onStatusChange, teamId, { readOnly, client });
     }
     return fallbackEngine;
   };
 
-  async function fetchPage(since) {
+  const rpcError = (error, what) => {
+    const err = new Error(error?.message || `${what} failed`);
+    err.code = isMissingRpc(error) ? 'replica_unavailable' : (error?.code || 'rpc_error');
+    return err;
+  };
+
+  async function rpc(name, args) {
     // The RPC builder resolves with { data, error } for PostgREST errors and
     // rejects on transport failures — only the latter are retried.
-    const { data, error } = await withRetry(() =>
-      client.rpc('sync_changes', { p_team_id: teamId, p_since: since, p_limit: pageSize }));
-    if (error) {
-      const err = new Error(error.message || 'sync_changes failed');
-      err.code = isMissingRpc(error) ? 'replica_unavailable' : (error.code || 'rpc_error');
-      throw err;
+    const { data, error } = await withRetry(() => client.rpc(name, args));
+    if (error) throw rpcError(error, name);
+    return typeof data === 'string' ? safeParse(data) : data;
+  }
+
+  async function fetchAll(since) {
+    const changes = [];
+    let cursor = since;
+    for (;;) {
+      const page = await rpc('sync_changes', { p_team_id: teamId, p_since: cursor, p_limit: pageSize });
+      const batch = Array.isArray(page?.changes) ? page.changes : [];
+      changes.push(...batch);
+      const next = Number(page?.next_seq ?? cursor) || 0;
+      if (next > cursor) cursor = next;
+      if (!page?.more || batch.length === 0) break;
     }
-    const page = typeof data === 'string' ? safeParse(data) : data;
+    return { changes, nextSeq: cursor };
+  }
+
+  // Read the persisted replica (inside the lock — another tab may have moved
+  // it). In-memory dirty marks win: they are edits this tab saw happen.
+  async function loadPersisted() {
+    const state = await getSyncState(teamId);
+    const p = normalizeReplica(state.replica);
+    if (p) {
+      mem.initialized = true;
+      mem.since = p.since;
+      mem.rows = p.rows;
+      for (const kind of KINDS) {
+        for (const [k, base] of Object.entries(p.dirty[kind])) {
+          if (!(k in mem.dirty[kind])) mem.dirty[kind][k] = base;
+        }
+      }
+    } else {
+      mem.initialized = false;
+    }
+    return state;
+  }
+
+  async function persist() {
+    await updateReplicaState({ since: mem.since, rows: mem.rows, dirty: mem.dirty, writer: !readOnly }, teamId);
+  }
+
+  // `known` ← the local objects, for keys that are not dirty. After this,
+  // "a different reference" means "edited here".
+  function seed(songs, setlists) {
+    for (const s of songs) if (s?.id && !(s.id in mem.dirty.song)) mem.known.song.set(s.id, s);
+    for (const sl of setlists) if (sl?.id && !(sl.id in mem.dirty.setlist)) mem.known.setlist.set(sl.id, sl);
+    mem.seeded = true;
+  }
+
+  // Compare the arrays App holds against what the server gave us. Returns true
+  // when something new became dirty.
+  function markDirty(songs, setlists) {
+    if (readOnly) return false;
+    let changed = false;
+    const lists = { song: songs || [], setlist: setlists || [] };
+    for (const kind of KINDS) {
+      for (const obj of lists[kind]) {
+        const key = obj?.id;
+        if (!key || key in mem.dirty[kind]) continue;
+        if (!mem.seeded) {
+          // Unseeded (a temp engine, or before the first pull): only a key the
+          // server does not have is knowably ours — a create.
+          if (mem.initialized && !(key in mem.rows[kind])) { mem.dirty[kind][key] = null; changed = true; }
+          continue;
+        }
+        const known = mem.known[kind].get(key);
+        if (known === obj) continue;
+        mem.dirty[kind][key] = known ? serialize(kind, known) : null;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  function buildCtx(songs, setlists) {
     return {
-      changes: Array.isArray(page?.changes) ? page.changes : [],
-      nextSeq: Number(page?.next_seq ?? since) || 0,
-      more: !!page?.more,
+      songsById: new Map((songs || []).filter(s => s?.id).map(s => [s.id, s])),
+      setlistsById: new Map((setlists || []).filter(sl => sl?.id).map(sl => [sl.id, sl])),
+      rows: mem.rows,
+      dirty: mem.dirty,
+      known: mem.known,
+      conflicts: [],
+      readOnly,
     };
   }
 
-  async function pull(songs, setlists) {
-    const state = await getSyncState(teamId);
-    const prev = state.replica;
-    const fresh = !prev?.rows?.song || !prev?.rows?.setlist;
-    let since = fresh ? 0 : Number(prev.since) || 0;
-    const rows = fresh
-      ? { song: {}, setlist: {} }
-      : { song: { ...prev.rows.song }, setlist: { ...prev.rows.setlist } };
-    const songsById = new Map(songs.map(s => [s.id, s]));
-    const setlistsById = new Map(setlists.map(sl => [sl.id, sl]));
-    let applied = 0;
-
-    for (;;) {
-      const page = await fetchPage(since);
-      applyChanges(page.changes, songsById, setlistsById, rows);
-      applied += page.changes.length;
-      if (page.nextSeq > since) since = page.nextSeq;
-      if (!page.more || page.changes.length === 0) break;
+  function opFor(kind, obj) {
+    if (kind === 'song') {
+      const md = songToMd(obj);
+      return { kind, op: 'put', id: obj.id, title: obj.title || 'Untitled', content: md, content_hash: canonicalSongHash(md) };
     }
+    return { kind, op: 'put', id: obj.id, title: obj.name || 'Untitled Setlist', content: obj, content_hash: canonicalSetlistHash(obj) };
+  }
 
-    // The mirror IS the server set: a local item the feed never named is not on
-    // the server. Order: local order first, newly pulled items after.
+  // Send the dirty set and the tombstones. Mutates rows/dirty/known as the
+  // server confirms. Throws on transport/RPC failure (dirty stays for later).
+  async function pushDirty(ctx, tombstones) {
+    const out = { uploaded: { songs: 0, setlists: 0 }, pruned: { song: new Set(), setlist: new Set() }, conflicts: 0, needsPull: false };
+    if (readOnly) return out;
+    const ops = [];
+    const objects = new Map();
+    for (const kind of KINDS) {
+      const map = kind === 'song' ? ctx.songsById : ctx.setlistsById;
+      for (const key of Object.keys(mem.dirty[kind])) {
+        const obj = map.get(key);
+        if (!obj) { delete mem.dirty[kind][key]; continue; } // gone locally — a tombstone handles the server side
+        const known = mem.known[kind].get(key);
+        if (known && known !== obj && serialize(kind, known) === serialize(kind, obj)) {
+          // A new object, same bytes (play counts, a re-link that changed nothing): not an edit.
+          delete mem.dirty[kind][key];
+          mem.known[kind].set(key, obj);
+          continue;
+        }
+        const op = opFor(kind, obj);
+        op.base_version = mem.rows[kind][key]?.version ?? null;
+        ops.push(op);
+        objects.set(`${kind}:${key}`, obj);
+      }
+    }
+    const tomb = { song: tombstones?.songs || [], setlist: tombstones?.setlists || [] };
+    for (const kind of KINDS) {
+      for (const t of tomb[kind]) {
+        const row = mem.rows[kind][t.id];
+        if (row) ops.push({ kind, op: 'delete', id: t.id, base_version: row.version ?? null });
+        else out.pruned[kind].add(t.id); // nothing on the server to delete
+      }
+    }
+    for (let i = 0; i < ops.length; i += APPLY_BATCH) {
+      const chunk = ops.slice(i, i + APPLY_BATCH);
+      const res = await rpc('apply_ops', { p_team_id: teamId, p_ops: chunk });
+      for (const a of res?.applied || []) {
+        if (!KINDS.includes(a.kind)) continue;
+        if (a.op === 'put') {
+          mem.rows[a.kind][a.id] = { version: a.version ?? null, seq: a.seq ?? null, rowId: a.row_id ?? mem.rows[a.kind][a.id]?.rowId ?? null };
+          const obj = objects.get(`${a.kind}:${a.id}`);
+          if (obj) mem.known[a.kind].set(a.id, obj);
+          delete mem.dirty[a.kind][a.id];
+          out.uploaded[a.kind === 'song' ? 'songs' : 'setlists'] += 1;
+        } else {
+          delete mem.rows[a.kind][a.id];
+          mem.known[a.kind].delete(a.id);
+          out.pruned[a.kind].add(a.id);
+        }
+      }
+      for (const c of res?.conflicts || []) {
+        if (!KINDS.includes(c.kind)) continue;
+        out.conflicts += 1;
+        out.needsPull = true;
+        if (c.op === 'put') {
+          // 'version'/'exists': someone else wrote — the pull merges or asks.
+          // 'missing': the row is gone — ours becomes a create on the next push.
+          if (c.reason === 'missing') delete mem.rows[c.kind][c.id];
+        } else {
+          // An edit landed after our delete: their edit wins, our tombstone goes.
+          out.pruned[c.kind].add(c.id);
+        }
+      }
+    }
+    if (out.uploaded.songs + out.uploaded.setlists > 0) lastPushAt = Date.now();
+    return out;
+  }
+
+  function keepTombstones(tombstones, pruned) {
+    const songs = (tombstones?.songs || []).filter(t => !pruned.song.has(t.id));
+    const setlists = (tombstones?.setlists || []).filter(t => !pruned.setlist.has(t.id));
+    const changed = songs.length !== (tombstones?.songs || []).length || setlists.length !== (tombstones?.setlists || []).length;
+    return { tombstones: { songs, setlists }, changed };
+  }
+
+  async function runFullSync(songs, setlists, tombstones) {
+    const state = await loadPersisted();
+    const fresh = !mem.initialized;
+    if (!fresh && !mem.seeded) seed(songs, setlists);
+    if (!fresh) markDirty(songs, setlists);
+
+    const { changes, nextSeq } = await fetchAll(fresh ? 0 : mem.since);
+    const ctx = buildCtx(songs, setlists);
+    if (fresh) {
+      mem.rows = ctx.rows = emptyRows();
+      if (readOnly) {
+        for (const ch of changes) reconcileChange(ch, ctx);
+        // A mirror IS the server set.
+        for (const kind of KINDS) {
+          const map = kind === 'song' ? ctx.songsById : ctx.setlistsById;
+          for (const key of [...map.keys()]) if (!ctx.rows[kind][key]) map.delete(key);
+        }
+      } else {
+        freshWriterReconcile(changes, ctx, state);
+      }
+      mem.seeded = true;
+    } else {
+      for (const ch of changes) reconcileChange(ch, ctx);
+    }
+    mem.since = Math.max(mem.since, nextSeq);
+    mem.initialized = true;
+
+    // What stays: everything the server has, plus our unpushed creates/edits.
     const nextSongs = [];
-    for (const [id, song] of songsById) if (rows.song[id]) nextSongs.push(song);
+    for (const [id, s] of ctx.songsById) if (ctx.rows.song[id] || id in mem.dirty.song) nextSongs.push(s);
     const nextSetlists = [];
-    for (const [id, sl] of setlistsById) if (rows.setlist[id]) nextSetlists.push(sl);
+    for (const [id, sl] of ctx.setlistsById) if (ctx.rows.setlist[id] || id in mem.dirty.setlist) nextSetlists.push(sl);
 
-    return { songs: nextSongs, setlists: nextSetlists, replica: { since, rows }, applied, fresh };
+    const errors = [];
+    let push = { uploaded: { songs: 0, setlists: 0 }, pruned: { song: new Set(), setlist: new Set() }, conflicts: 0, needsPull: false };
+    try {
+      push = await pushDirty(ctx, tombstones);
+    } catch (err) {
+      if (err?.code === 'replica_unavailable') throw err;
+      errors.push({ kind: 'engine', message: err?.message || String(err) });
+    }
+    await persist();
+    const kept = keepTombstones(tombstones, push.pruned);
+    return {
+      songs: nextSongs,
+      setlists: nextSetlists,
+      tombstones: kept.tombstones,
+      tombstonesChanged: kept.changed,
+      conflicts: ctx.conflicts,
+      uploaded: push.uploaded,
+      errors,
+      changed: true,
+      replaced: true,
+      replica: { since: mem.since, applied: changes.length, fresh, pushConflicts: push.conflicts },
+    };
+  }
+
+  async function runPush(songs, setlists, tombstones, onTombstonesPruned) {
+    if (syncing || readOnly || !client) return;
+    syncing = true;
+    try {
+      await withSyncLock(teamId, async () => {
+        const state = await loadPersisted();
+        let ctx;
+        if (!mem.initialized) {
+          // Never pulled here (a temp engine pushing a moved/copied song): pull
+          // once into a scratch view to learn the server set, push only what
+          // it lacks, and persist nothing — no adopted state exists to anchor a
+          // cursor, and the first real pass will run the handover properly.
+          const { changes } = await fetchAll(0);
+          ctx = buildCtx(songs, setlists);
+          mem.rows = ctx.rows = emptyRows();
+          freshWriterReconcile(changes, ctx, state);
+          for (const kind of KINDS) {
+            for (const key of Object.keys(mem.dirty[kind])) {
+              if (mem.dirty[kind][key] != null) delete mem.dirty[kind][key]; // only creates are ours to push here
+            }
+          }
+          const push = await pushDirty(ctx, tombstones);
+          mem.rows = emptyRows(); mem.dirty = emptyDirty(); mem.known = emptyKnown(); mem.seeded = false;
+          const kept = keepTombstones(tombstones, push.pruned);
+          if (kept.changed) onTombstonesPruned?.(kept.tombstones);
+          if (push.uploaded.songs + push.uploaded.setlists > 0) {
+            setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+          }
+          return;
+        }
+        if (!mem.seeded) seed(songs, setlists);
+        markDirty(songs, setlists);
+        ctx = buildCtx(songs, setlists);
+        const push = await pushDirty(ctx, tombstones);
+        await persist();
+        const kept = keepTombstones(tombstones, push.pruned);
+        if (kept.changed) onTombstonesPruned?.(kept.tombstones);
+        if (push.uploaded.songs + push.uploaded.setlists > 0 || kept.changed) {
+          setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+        }
+        if (push.needsPull) onPullNeeded?.();
+      });
+    } catch (err) {
+      if (err?.code === 'replica_unavailable') {
+        console.warn('[replica] apply_ops is not available on this project — using the manifest engine.');
+        syncing = false;
+        return getFallback().debouncedPush(songs, setlists, tombstones, onTombstonesPruned);
+      }
+      console.error('[replica] Push error:', err);
+      setStatus('error');
+      await persist().catch(() => {});
+    } finally {
+      syncing = false;
+    }
   }
 
   return {
@@ -157,25 +622,12 @@ export function createReplicaEngine(onStatusChange, teamId, { client = defaultCl
       syncing = true;
       setStatus('syncing');
       try {
-        return await withSyncLock(teamId, async () => {
-          const r = await pull(songs, setlists);
-          await updateReplicaState(r.replica, teamId);
-          setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
-          return {
-            songs: r.songs,
-            setlists: r.setlists,
-            tombstones,
-            conflicts: [],
-            uploaded: { songs: 0, setlists: 0 },
-            errors: [],
-            changed: true,
-            replaced: true,
-            replica: { since: r.replica.since, applied: r.applied, fresh: r.fresh },
-          };
-        });
+        const result = await withSyncLock(teamId, () => runFullSync(songs, setlists, tombstones));
+        setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
+        return result;
       } catch (err) {
         if (err?.code === 'replica_unavailable') {
-          console.warn('[replica] sync_changes is not available on this project — using the manifest engine (read-only).');
+          console.warn('[replica] sync RPCs are not available on this project — using the manifest engine.');
           syncing = false;
           return getFallback().fullSync(songs, setlists, tombstones);
         }
@@ -187,13 +639,49 @@ export function createReplicaEngine(onStatusChange, teamId, { client = defaultCl
       }
     },
 
-    // A mirror never writes. These exist so App can call them unconditionally.
-    debouncedPush() {},
-    flushPending() {},
-    cancelDebounce() {},
-    recentlyPushed() { return false; },
+    // Record what changed now (so a reload cannot lose it), push after a pause.
+    debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
+      if (readOnly || !client) return;
+      if (fallbackEngine) return fallbackEngine.debouncedPush(songs, setlists, tombstones, onTombstonesPruned);
+      latest = { songs, setlists, tombstones, onTombstonesPruned };
+      if (markDirty(songs, setlists) && mem.initialized) persist().catch(() => {});
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        const l = latest;
+        runPush(l.songs, l.setlists, l.tombstones, l.onTombstonesPruned);
+      }, SYNC_DEBOUNCE_MS);
+    },
+
+    // Run a pending push now (tab hide/close).
+    flushPending(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
+      if (readOnly || !client) return;
+      if (fallbackEngine) return fallbackEngine.flushPending(songs, setlists, tombstones, onTombstonesPruned);
+      if (!debounceTimer) return;
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+      latest = { songs, setlists, tombstones, onTombstonesPruned };
+      markDirty(songs, setlists);
+      return runPush(songs, setlists, tombstones, onTombstonesPruned);
+    },
+
+    cancelDebounce() {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      fallbackEngine?.cancelDebounce();
+    },
+
+    // True if we wrote rows very recently — lets the realtime listener ignore
+    // the echo of our own writes.
+    recentlyPushed(windowMs = 4000) {
+      if (fallbackEngine) return fallbackEngine.recentlyPushed?.(windowMs) ?? false;
+      return Date.now() - lastPushAt < windowMs;
+    },
 
     // Diagnostics.
     get isReplica() { return !fallbackEngine; },
+    get isReadOnly() { return readOnly; },
   };
 }

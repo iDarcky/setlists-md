@@ -331,10 +331,12 @@ were queued before this batch, still in order:
    the decision log and the sequenced agenda live in **`docs/SYNC-REDESIGN.md`**.
    Step 1 (the live loop) shipped in `96192ba`; step 2 (the server half:
    `version`/`seq`/tombstones/`apply_ops`/`sync_changes`) is **applied to
-   production** (2026-09-10); step 3a (the member replica behind the
-   `createEngineForLibrary` seam, `sync/replica-engine.js`) shipped the same
-   day — every read-only member now mirrors the feed. Next: 3b, the writer
-   outbox over `apply_ops`, then the manifest engine goes.
+   production** (2026-09-10); step 3a (the member replica) and **3b (the
+   writer outbox over `apply_ops`, three-way merge on conflicts, handover
+   from the manifest)** shipped the same day — every team library runs
+   `sync/replica-engine.js`; the manifest engine is only its fallback. Next:
+   3c, delete the manifest engine and its hash machinery once 3b has run in
+   production for a while; then step 4 (personal workspace on Supabase).
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.

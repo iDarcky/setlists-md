@@ -30,6 +30,57 @@ function nextTs() {
   return new Date(now).toISOString();
 }
 
+// public.apply_ops(team, ops) — the validated semantics of 20260910_sync_versions
+// (+ row_id in applied puts, 20260910_apply_ops_row_id): put/delete per op,
+// guarded by base_version; identical content on a stale base counts as applied;
+// a real change bumps version + seq (trg_sync_stamp); a delete leaves a
+// tombstone (trg_record_deletion). `db.__writerDenied` refuses like RLS would.
+function applyOps(db, { p_team_id, p_ops }) {
+  if (db.__writerDenied) return { data: null, error: { code: '42501', message: 'apply_ops: not a writer of this workspace' } };
+  const applied = [];
+  const conflicts = [];
+  const clone = (v) => JSON.parse(JSON.stringify(v));
+  for (const op of p_ops || []) {
+    const kind = op.kind;
+    const table = kind === 'song' ? 'team_songs' : 'team_setlists';
+    const keyCol = kind === 'song' ? 'song_key' : 'setlist_key';
+    const nameCol = kind === 'song' ? 'title' : 'name';
+    const rows = (db[table] ||= []);
+    const idx = rows.findIndex(r => r.team_id === p_team_id && r[keyCol] === op.id);
+    const r = idx >= 0 ? rows[idx] : null;
+    const base = op.base_version ?? null;
+    const serverOf = (row) => ({ row_id: row.id, version: row.version, seq: row.seq, content: clone(row.content), title: row[nameCol], updated_at: row.updated_at });
+    const same = r && (kind === 'song' ? r.content === op.content : stableStringify(r.content) === stableStringify(op.content));
+    const ack = (row) => ({ kind, id: op.id, op: 'put', row_id: row.id, version: row.version, seq: row.seq, updated_at: row.updated_at });
+    if (op.op === 'delete') {
+      if (!r) applied.push({ kind, id: op.id, op: 'delete', version: null });
+      else if (base == null || r.version === base) {
+        rows.splice(idx, 1);
+        (db.team_deletions ||= []).push({ id: `row_${++rowSeq}`, team_id: r.team_id, kind, key: op.id, row_id: r.id, seq: nextSeq(), deleted_at: nextTs() });
+        applied.push({ kind, id: op.id, op: 'delete', version: r.version });
+      } else conflicts.push({ kind, id: op.id, op: 'delete', reason: 'version', server: serverOf(r) });
+      continue;
+    }
+    if (!r) {
+      if (base != null) { conflicts.push({ kind, id: op.id, op: 'put', reason: 'missing' }); continue; }
+      const row = { id: `row_${++rowSeq}`, team_id: p_team_id, [keyCol]: op.id, [nameCol]: op.title, content: clone(op.content), content_hash: op.content_hash ?? null, updated_at: nextTs(), version: 1, seq: nextSeq(), updated_by: db.__uid ?? null };
+      rows.push(row);
+      applied.push(ack(row));
+    } else if (base != null && r.version === base) {
+      if (!same || r[nameCol] !== op.title) {
+        r.content = clone(op.content); r[nameCol] = op.title; r.content_hash = op.content_hash ?? null;
+        r.version += 1; r.seq = nextSeq(); r.updated_at = nextTs(); r.updated_by = db.__uid ?? null;
+      }
+      applied.push(ack(r));
+    } else if (same) {
+      applied.push(ack(r));
+    } else {
+      conflicts.push({ kind, id: op.id, op: 'put', reason: base == null ? 'exists' : 'version', server: serverOf(r) });
+    }
+  }
+  return { data: { applied, conflicts }, error: null };
+}
+
 export function createFakeClient(db) {
   return {
     // public.sync_changes(team, since, limit): songs + setlists + deletions
@@ -41,6 +92,8 @@ export function createFakeClient(db) {
       if (db.__rpcMissing) {
         return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name} in the schema cache` } };
       }
+      if (db.__offline) { const e = new Error('Failed to fetch'); e.status = 0; throw e; }
+      if (name === 'apply_ops') return applyOps(db, args);
       if (name !== 'sync_changes') return { data: null, error: { code: 'PGRST202', message: `Could not find the function public.${name}` } };
       const { p_team_id, p_since = 0, p_limit = 500 } = args;
       const limit = Math.max(1, Math.min(p_limit ?? 500, 1000));

@@ -21,14 +21,31 @@
 
 import { stableStringify } from './canonical';
 
-const eq = (a, b) => stableStringify(a) === stableStringify(b);
+// Stamps are not content. An arrangement's `updatedAt` moves whenever the
+// object is rebuilt (a parse, an adoption, a push), so comparing arrangements
+// with it in would turn every disjoint edit into a conflict; its `id` is an
+// identity handle the wire may re-mint. Compare arrangements without them.
+function normalizeArrangements(arrs) {
+  if (!Array.isArray(arrs)) return arrs;
+  return arrs.map((a) => {
+    if (!a || typeof a !== 'object') return a;
+    const { updatedAt, id, ...rest } = a;
+    void updatedAt; void id;
+    return rest;
+  });
+}
+const NORMALIZE = { arrangements: normalizeArrangements };
+const eq = (a, b, key) => {
+  const norm = NORMALIZE[key];
+  return stableStringify(norm ? norm(a) : a) === stableStringify(norm ? norm(b) : b);
+};
 
 // Resolve one field across the three versions. Returns { value, conflict }.
-function mergeField(base, local, remote) {
-  if (eq(local, remote)) return { value: local, conflict: false };   // agree (or both same edit)
-  if (eq(local, base)) return { value: remote, conflict: false };    // only remote changed
-  if (eq(remote, base)) return { value: local, conflict: false };    // only local changed
-  return { value: local, conflict: true };                           // both changed differently
+function mergeField(base, local, remote, key) {
+  if (eq(local, remote, key)) return { value: local, conflict: false };   // agree (or both same edit)
+  if (eq(local, base, key)) return { value: remote, conflict: false };    // only remote changed
+  if (eq(remote, base, key)) return { value: local, conflict: false };    // only local changed
+  return { value: local, conflict: true };                                // both changed differently
 }
 
 // Merge a set of field keys off three objects. `blob` keys are compared as one
@@ -37,7 +54,7 @@ function mergeByKeys(keys, base, local, remote) {
   const merged = {};
   const conflictFields = [];
   for (const k of keys) {
-    const { value, conflict } = mergeField(base?.[k], local?.[k], remote?.[k]);
+    const { value, conflict } = mergeField(base?.[k], local?.[k], remote?.[k], k);
     merged[k] = value;
     if (conflict) conflictFields.push(k);
   }

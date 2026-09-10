@@ -141,7 +141,8 @@ Findings, in severity order:
 | 1 | Hotfix the pull merge (the live loop) | ✅ `96192ba`, 2026-09-09 |
 | 2 | Server foundations: `version`, `seq`, `updated_by`, `team_deletions`, `apply_ops`, `sync_changes` | ✅ `supabase/migrations/20260910_sync_versions.sql` — validated (§5.1) and **applied to production 2026-09-10** (0 null cursors, feed row counts match the tables, no new advisor findings) |
 | 3a | The replica for **members** (15 of 21 users, lowest risk), behind the `createEngineForLibrary` seam | ✅ `src/sync/replica-engine.js`, 2026-09-10 — see §5.2 |
-| 3b | The replica for **writers**: the outbox over `apply_ops`, `merge.js` for conflicts, then the old team engine goes | ⬜ next |
+| 3b | The replica for **writers**: the outbox over `apply_ops`, `merge.js` for conflicts | ✅ 2026-09-10 — see §5.3; the manifest engine is now only the replica's fallback |
+| 3c | Delete the manifest engine, `canonical.js`, the amplification guard, the hash caches and their tests once 3b has run in production for a while | ⬜ next |
 | 4 | Personal workspace on Supabase; retire the file engine, the three providers and `cloud-token-exchange` | ⬜ |
 | 5 | `doc jsonb` as the wire format; client id as primary key; drop `content`, `content_hash`, the manifest, the old sync tree | ⬜ |
 | — | DB hygiene: `(select auth.uid())` in policies, drop the duplicate "Admins can …" write policies, add `leader` to `team_invites.role` | ⬜ separate migration |
@@ -203,8 +204,55 @@ broken; the RPC's writer check accepts the owner either way).
   changes on the server. The UI forbids member writes; the manifest engine had
   the same property.
 
+### 5.3 Step 3b — what shipped
+
+- **Every team library runs the replica.** `createEngineForLibrary` hands all
+  of them to `sync/replica-engine.js`; the manifest engine (`team-engine.js`)
+  survives only as the fallback on a project without the RPCs.
+- **The outbox.** A writer's device keeps a **dirty set**: the keys whose local
+  object differs from the copy the server last gave it, each with the
+  serialized server copy it was based on. Change detection is object identity
+  (the signal `saveSongs` and `adopt.js` already rely on); across a reload the
+  dirty set is persisted with its bases, so a reload pushes exactly the edits
+  that had not reached the server. Pushes go to `apply_ops` in batches of 100
+  with `base_version`; applied puts update `rows` (version, seq, row id) and
+  clear the key; a new object with identical bytes (play counts, a re-link
+  that changed nothing) is not an edit and is not sent.
+- **Conflicts.** A push conflict asks App for a pull (`onPullNeeded` →
+  `triggerSync`). The pull runs `sync/merge.js` three-way with the persisted
+  base: disjoint edits merge silently and stay dirty on top of the server
+  copy; a real conflict adopts the server copy and hands ours to the existing
+  `ConflictResolver` (its "keep mine" restores the local object, which is then
+  an edit on top of the server's version and pushes cleanly). An edit beats a
+  concurrent delete (the song comes back as a create); a stale delete loses to
+  a newer edit (the tombstone is dropped). `merge.js` now compares arrangements
+  without their `updatedAt`/`id` stamps — with them in, every disjoint edit
+  degraded into a conflict.
+- **Handover.** A writer's first run reads the old manifest one last time:
+  local ≠ baseline while server = baseline is a pending edit (pushed); both
+  moved is a conflict (server adopted, ours in the prompt); local = baseline or
+  canonical-equal is nothing; unmanifested local items are creates;
+  manifested items the server lost are dropped unless edited here. The
+  manifest is never read again.
+- **Temp engines** (a song moved or copied into another library) push only the
+  keys the server lacks and persist nothing — no adopted state exists to
+  anchor a cursor.
+- **`apply_ops` returns `row_id`** (`20260910_apply_ops_row_id.sql`, applied)
+  so a freshly created setlist can be scheduled at once.
+- **SyncDoctor** speaks the replica's arithmetic for everyone: in sync /
+  pending push / newer on the server / diverged, from `rows` + `dirty`.
+- Tests: `replica-writer.test.js` (19) — create/edit/delete lifecycle and
+  silence in steady state, identical-bytes suppression, same-field conflict
+  with "keep mine", disjoint three-way merge, edit-beats-delete both ways,
+  dirty set across a reload, three-way merge from a persisted base after a
+  reload, a two-writers-plus-member seeded fuzz, the manifest handover (six
+  cases in one library), the temp-engine push, chunking, an RLS refusal, the
+  RPC-missing fallback, setlists, and an old manifest-engine build sharing
+  the server with the replica.
+
 Step 2 is additive and safe on live data; step 3a is the first one the owner can
-see: a member's device now mirrors the feed. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
+see: a member's device now mirrors the feed; 3b puts every writer on the same
+engine. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
 migration into the SQL editor; the old engines keep working unchanged after it.
 
 ## 6. Open questions for the owner

@@ -23,13 +23,20 @@ sequenced agenda. State: step 1 (the live `language`/`year` ping-pong — the
 six-field pull merge) is fixed in `96192ba`; step 2, the server half
 (`supabase/migrations/20260910_sync_versions.sql`: `version`, `seq`,
 `updated_by`, `team_deletions`, `apply_ops`, `sync_changes`) was validated in a
-rolled-back run and **applied to production on 2026-09-10**. Step 3a shipped the
-same day: read-only members run `src/sync/replica-engine.js` (feed cursor, no
-hashing, never writes; `useTeamSetlistMap` + `useTeamRealtime` + `SyncDoctor`
-know about it). **Next is 3b: the writer outbox over `apply_ops`**, conflicts
-through `sync/merge.js`, then delete the manifest engine. ⚠ The owner tests 3a
-first — a member's device should show the same library as before, pick up a
-leader's edit within a couple of seconds, and see a deleted song vanish. Two small separate items
+rolled-back run and **applied to production on 2026-09-10**. Steps 3a and 3b
+shipped the same day: **every team library runs `src/sync/replica-engine.js`**
+(feed cursor, no hashing; members never write; writers keep a persisted dirty
+set and push through `apply_ops` with `base_version`; conflicts merge
+three-way via `sync/merge.js` or reach the existing `ConflictResolver`). The
+manifest engine (`team-engine.js`) is only the replica's fallback now. **Next is
+3c** — delete `team-engine.js`, `canonical.js`, `amplification-guard.js`, the
+hash caches and their tests — but only after 3b has run in production for a
+while. ⚠ The owner tests first, on a WRITER device: edit a song, see it on a
+second device; edit the same song on two devices (one gets the conflict
+prompt, "keep mine" wins); fix a title on one and a lyric on the other (no
+prompt, both land); delete on one while editing on the other (the edit wins);
+edit offline, reload, come back online (the edit lands, nothing else uploads).
+Settings → Sync → Sync doctor should read "in sync" everywhere afterwards. Two small separate items
 sit in PLAN §2.3: `keyChanges`/`duration` never serialize for v2 songs, and the
 DB hygiene list in SYNC-REDESIGN §2 #8.
 
