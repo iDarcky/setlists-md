@@ -595,6 +595,22 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   jobs: `notify-worker` (every minute → the edge function) and a daily
   `cron-history-cleanup`.
 
+- `20260910_sync_versions.sql` — **server foundations for the replica sync
+  model** (`docs/SYNC-REDESIGN.md`, step 2). Adds `version` (the
+  compare-and-swap token, bumped by `trg_sync_stamp` on every real change),
+  `seq` (change-feed position from `public.sync_seq`, assigned under a
+  per-workspace advisory lock so feed order == commit order) and `updated_by`
+  to `team_songs`/`team_setlists`; a `team_deletions` tombstone table written
+  by an `AFTER DELETE` trigger (deletes become feed rows; hard deletes and
+  cascades stay); and two SECURITY INVOKER RPCs — `apply_ops(team, ops)` (a
+  batch of put/delete guarded by `base_version`, conflicts returned with the
+  server copy, identical-content retries count as applied) and
+  `sync_changes(team, since, limit)` (songs + setlists + deletions after a
+  cursor, one query). A no-op write is frozen to the old stamps. Additive; the
+  current engines never read the new columns. **Validated in a rolled-back run
+  against production on 2026-09-10; not applied yet; nothing in the client
+  calls the RPCs until step 3.**
+
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
 
@@ -716,6 +732,12 @@ Team libraries no longer go through the file-manifest engine
 **server-authoritative** engine that talks to `team_songs`/`team_setlists`
 directly:
 
+- ⚠ **This engine is being replaced.** `docs/SYNC-REDESIGN.md` is the decision
+  log and agenda: server-first with an offline replica, versions instead of
+  hashes, deletes as feed rows, members as a pure read replica. The server
+  half is `20260910_sync_versions.sql`; the client half (step 3) lands behind
+  the `createEngineForLibrary` seam. Do not add new cleverness to the hash /
+  manifest machinery below — fix bugs, but build new behaviour on the replica.
 - **Pull = server wins.** Every row replaces the local copy; rows deleted on
   the server disappear locally (App adopts the result wholesale via the
   `replaced: true` flag in the sync result). Local-only never-synced items are

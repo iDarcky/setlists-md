@@ -326,6 +326,14 @@ were queued before this batch, still in order:
    has a queue, so August is already late. **This is still the only thing that
    can make October 1 not happen.**
 
+4. **The sync replica** — opened by the owner on 2026-09-09 (*"I want a
+   complete redesign"*, then *"do the next thing on the agenda"*). The design,
+   the decision log and the sequenced agenda live in **`docs/SYNC-REDESIGN.md`**.
+   Step 1 (the live loop) shipped in `96192ba`; step 2 (the server half:
+   `version`/`seq`/tombstones/`apply_ops`/`sync_changes`) is written and
+   validated but **not applied**; step 3 (the member replica behind the
+   `createEngineForLibrary` seam) is next and is the first step anyone can see.
+
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.
 
