@@ -334,9 +334,10 @@ were queued before this batch, still in order:
    production** (2026-09-10); step 3a (the member replica) and **3b (the
    writer outbox over `apply_ops`, three-way merge on conflicts, handover
    from the manifest)** shipped the same day — every team library runs
-   `sync/replica-engine.js`; the manifest engine is only its fallback. Next:
-   3c, delete the manifest engine and its hash machinery once 3b has run in
-   production for a while; then step 4 (personal workspace on Supabase).
+   `sync/replica-engine.js` — and **3c deleted the manifest engine** (the
+   replica is the only team engine; a project without the RPCs gets a clear
+   error). Next: step 4 (personal workspace on Supabase, retire the file
+   engine + providers), then step 5 (JSON on the wire, client id as PK).
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.

@@ -1,6 +1,7 @@
-// In-memory stand-in for the Supabase client, shaped to exactly the query
-// surface the team sync engine uses. Shared by the engine unit tests and the
-// two-device convergence suite.
+// In-memory stand-in for the Supabase client. The replica engine uses only
+// `rpc` (sync_changes / apply_ops); the table surface (`from().select/insert/
+// update/delete`) stays so a test can act like a STALE BUILD writing straight
+// to the tables, and so SyncDoctor-style selects have something to hit.
 //
 // Emulated server behaviour:
 //  * select chains: .eq / .gt / .in / .order / .limit, awaitable builder,

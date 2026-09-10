@@ -122,9 +122,8 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
   if (libraryId === 'personal') return createSyncEngine(onStatusChange, libraryId, opts);
   // Every team library runs the replica (docs/SYNC-REDESIGN.md, step 3): a
   // member's device is a pure mirror of the change feed; a writer's device is
-  // the same mirror plus an outbox of its own edits over apply_ops. The old
-  // manifest engine survives only as the replica's fallback on a project
-  // without the sync RPCs.
+  // the same mirror plus an outbox of its own edits over apply_ops. A project
+  // without the sync RPCs gets a clear error and no sync, never another engine.
   return createReplicaEngine(onStatusChange, libraryId, opts);
 }
 

@@ -142,7 +142,7 @@ Findings, in severity order:
 | 2 | Server foundations: `version`, `seq`, `updated_by`, `team_deletions`, `apply_ops`, `sync_changes` | ✅ `supabase/migrations/20260910_sync_versions.sql` — validated (§5.1) and **applied to production 2026-09-10** (0 null cursors, feed row counts match the tables, no new advisor findings) |
 | 3a | The replica for **members** (15 of 21 users, lowest risk), behind the `createEngineForLibrary` seam | ✅ `src/sync/replica-engine.js`, 2026-09-10 — see §5.2 |
 | 3b | The replica for **writers**: the outbox over `apply_ops`, `merge.js` for conflicts | ✅ 2026-09-10 — see §5.3; the manifest engine is now only the replica's fallback |
-| 3c | Delete the manifest engine, `canonical.js`, the amplification guard, the hash caches and their tests once 3b has run in production for a while | ⬜ next |
+| 3c | Delete the team manifest engine (`team-engine.js`, `supabase-team.js`, their two suites) and the replica's fallback to it | ✅ 2026-09-10, on the owner's word — see §5.4 |
 | 4 | Personal workspace on Supabase; retire the file engine, the three providers and `cloud-token-exchange` | ⬜ |
 | 5 | `doc jsonb` as the wire format; client id as primary key; drop `content`, `content_hash`, the manifest, the old sync tree | ⬜ |
 | — | DB hygiene: `(select auth.uid())` in policies, drop the duplicate "Admins can …" write policies, add `leader` to `team_invites.role` | ⬜ separate migration |
@@ -250,9 +250,26 @@ broken; the RPC's writer check accepts the owner either way).
   RPC-missing fallback, setlists, and an old manifest-engine build sharing
   the server with the replica.
 
+### 5.4 Step 3c — what went
+
+- `src/sync/team-engine.js` (800 lines), `src/sync/supabase-team.js` (the
+  provider shim, 299), `team-engine.test.js` and `team-convergence.test.js`
+  (776). `provider.js` no longer routes `supabase-team:` names.
+- The replica's fallback. A project without the RPCs now gets
+  `MIGRATION_MISSING` as the error, status `error`, and no sync; a device that
+  has not completed a first pull never mints a replica state on a failed push.
+- Kept on purpose: `canonical.js` (the one-time handover from the old
+  manifest, `content_hash` on writes so the activity trigger's no-op guard
+  keeps working, and the file engine), `amplification-guard.js` and the
+  manifest functions in `tokens.js` (the file engine), `mergeRemote.js` (both
+  engines), `adopt.js`, `lock.js`, `retry.js`, `merge.js`.
+- The two tests that used the old engine as "another writer" now use a replica
+  writer; the "stale build still writing" case is simulated with a direct
+  table write, which is what a stale PWA build actually does.
+
 Step 2 is additive and safe on live data; step 3a is the first one the owner can
 see: a member's device now mirrors the feed; 3b puts every writer on the same
-engine. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
+engine; 3c leaves the replica as the only team engine. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
 migration into the SQL editor; the old engines keep working unchanged after it.
 
 ## 6. Open questions for the owner

@@ -26,7 +26,7 @@ export function createSyncEngine(onStatusChange, libraryId = 'personal', { readO
   // markdown / every setlist to JSON on each sync is the dominant CPU cost for
   // large libraries; React replaces only an edited item's object, so an
   // unchanged reference has an unchanged serialization + hash. A miss (new ref)
-  // recomputes. See the matching cache in team-engine.js.
+  // recomputes.
   const songHashCache = new Map(); // id -> { ref, md, hash }
   const slHashCache = new Map();   // id -> { ref, json, hash }
 

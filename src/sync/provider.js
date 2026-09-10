@@ -1,7 +1,6 @@
 import { createGoogleDriveProvider } from './google-drive';
 import { createDropboxProvider } from './dropbox';
 import { createOneDriveProvider } from './onedrive';
-import { createSupabaseTeamProvider } from './supabase-team';
 import { isProviderConfigured } from './constants';
 import { setActiveProvider, clearProvider, getSyncState } from './tokens';
 
@@ -31,21 +30,9 @@ const providers = {
 
 let cachedProviders = {};
 
-export function getProvider(name, options = {}) {
-  if (name.startsWith('supabase-team:')) {
-    // Include readOnly in the cache key so switching roles invalidates the cached provider.
-    const cacheKey = options.readOnly ? `${name}:ro` : name;
-    // Also invalidate the opposite cache entry if it exists.
-    const oppositeCacheKey = options.readOnly ? name : `${name}:ro`;
-    delete cachedProviders[oppositeCacheKey];
-
-    if (!cachedProviders[cacheKey]) {
-      const teamId = name.split(':')[1];
-      cachedProviders[cacheKey] = createSupabaseTeamProvider(teamId, { readOnly: !!options.readOnly });
-    }
-    return cachedProviders[cacheKey];
-  }
-
+// Team libraries (`supabase-team:<id>` in the sync state) never come through
+// here: they run sync/replica-engine.js, which talks to the RPCs directly.
+export function getProvider(name) {
   if (!providers[name]) {
     throw new Error(`Unknown sync provider: ${name}`);
   }

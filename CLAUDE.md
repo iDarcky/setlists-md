@@ -236,7 +236,8 @@ src/
 │   ├── supabase.js       # Supabase client (null when env vars missing)
 │   ├── AuthContext.js · useAuth.js · AuthProvider.jsx
 │   └── TeamContext.js · useTeam.js · TeamProvider.jsx
-├── sync/                 # Two engines + adopt/lock/merge/providers (COMPONENTS.md §0.3)
+├── sync/                 # replica-engine (team libraries) + engine (personal BYOC files)
+│                         #   + adopt/lock/merge/mergeRemote/providers (COMPONENTS.md §0.3)
 ├── lib/ · hooks/ · contexts/   # Shared logic, hooks, workspace context
 ├── pdf/ · import/ · share/ · setlist/ · notes/ · push/ · billing/
 ├── data/
@@ -265,7 +266,7 @@ folder. Used by several → `lib/` (pure logic) or `hooks/` (React hooks). Only
 `auth/`, `sync/`, `pdf/`, `push/`, `data/`, `contexts/` keep their own
 top-level folders — they're subsystems, not helpers. `auth/` and `sync/` each
 have a matching `features/` folder: **`src/<x>/` is the engine, `features/<x>/`
-is its UI** (`sync/team-engine.js` vs `features/sync/SyncStatus.jsx`).
+is its UI** (`sync/replica-engine.js` vs `features/sync/SyncStatus.jsx`).
 
 ## Architecture
 
@@ -724,118 +725,97 @@ Each team/church workspace is its own Stripe subscription, paid by the team
   content's padding, which is empty space. It makes the overlay silently
   untappable. Separate them by geometry instead.
 - **Realtime only fires for tables in the `supabase_realtime` publication.** A `postgres_changes` subscription to an unpublished table connects successfully and then receives nothing, forever — no error anywhere. `20260701_realtime_publication.sql` added `team_schedules`/`team_availability`/`team_notifications`/`team_activity`; any NEW realtime-subscribed table needs a matching `alter publication` migration (plus `replica identity full` if delete events must pass a `team_id=eq.` filter — default identity only carries the PK).
-- **`team_schedules.setlist_id` (and `team_notifications` metadata `setlist_id`) is the `team_setlists` ROW UUID, not the local setlist id.** Never match it against `setlist.id` directly — bridge through `useTeamSetlistMap` (localId→remoteId from the sync manifest; takes a `refreshKey`, App passes `syncState.lastSync`). Wrong matching is invisible: lookups just miss and fall back ("a setlist", empty calendars).
-- **`applyKeyHistories` / `applyTempoHistories` are reference-preserving on purpose** — unchanged songs keep object identity, and App chains both on load, so an untouched song survives two passes untouched. Per-song IndexedDB writes, both engines' hash caches, and `sync/adopt.js` mid-sync-edit detection all treat a new reference as "this song changed"; a map that re-mints every object reintroduces whole-library rewrites on launch.
+- **`team_schedules.setlist_id` (and `team_notifications` metadata `setlist_id`) is the `team_setlists` ROW UUID, not the local setlist id.** Never match it against `setlist.id` directly — bridge through `useTeamSetlistMap` (localId→row UUID from the replica state, `replica.rows.setlist[key].rowId`; takes a `refreshKey`, App passes `syncState.lastSync`). Wrong matching is invisible: lookups just miss and fall back ("a setlist", empty calendars).
+- **`applyKeyHistories` / `applyTempoHistories` are reference-preserving on purpose** — unchanged songs keep object identity, and App chains both on load, so an untouched song survives two passes untouched. Per-song IndexedDB writes, the replica's dirty detection, the file engine's hash cache, and `sync/adopt.js` mid-sync-edit detection all treat a new reference as "this song changed"; a map that re-mints every object reintroduces whole-library rewrites on launch.
 - **A play history is a `{ value: count }` map on the SONG, never in the `.md`.** `keyHistory` and `tempoHistory` are both `performanceHistory.js` with a different `valueOf` — the walk over past-dated setlists, the reference-preserving apply and the save-time diff live there once. Neither is serialized: they are device-derived counts, recomputed from setlists on load and merged by taking the larger count (`sync/merge.js` → `mergePlayCounts`), so they never conflict. **A third dimension (time signature, capo) is a `valueOf` function, not another copy of the file.**
 - **`item.tempo` is the per-setlist override and the only per-performance tempo record.** Resolved performance tempo = `item.tempo ?? arrangement.tempo`. The cards row (`SetlistCardRow`) writes it; the legacy `SetlistItemRow` writes straight back to the SONG instead — which is exactly why a tempo history was impossible for so long, and it is unreachable today only because `SetlistBuilder` defaults `cards = true`. Restore that row and you re-break the history.
 
-## Team library sync (src/sync/team-engine.js)
+## Team library sync (src/sync/replica-engine.js)
 
-Team libraries no longer go through the file-manifest engine
-(`engine.js` + the `supabase-team.js` provider shim). They use a dedicated
-**server-authoritative** engine that talks to `team_songs`/`team_setlists`
-directly:
+Team libraries sync through the **replica engine**. The server is the only
+truth; every device holds a cache of the server's library at a feed position;
+a writer's device sends only its own edits. `docs/SYNC-REDESIGN.md` is the
+decision log and agenda. The server half is `20260910_sync_versions.sql`
+(`version`/`seq`/`updated_by`, `team_deletions`, `apply_ops`, `sync_changes`).
+The manifest engine that preceded it (`team-engine.js`: canonical hashing of
+the whole library, CAS on `updated_at`, identity healing, circuit breakers,
+an amplification guard) was **deleted in step 3c, 2026-09-10**. `sync/engine.js`
+is the file-manifest engine for personal Drive/Dropbox/OneDrive folders and is
+unrelated (step 4 retires it).
 
-- ⚠ **This engine is the FALLBACK now, not the engine.** Since step 3b
-  (2026-09-10) every team library — members and writers — runs
-  `sync/replica-engine.js` (`docs/SYNC-REDESIGN.md`); `createEngineForLibrary`
-  in App.jsx never constructs this engine directly. It is built only by the
-  replica when the sync RPCs are missing on a project. Do not add behaviour
-  here; step 3c deletes it.
-- **The replica** (`sync/replica-engine.js`) pulls `sync_changes(team, since)`
-  in pages, folds songs/setlists/deletions in feed order, and persists
-  `{ since, rows, dirty, writer }` under `sync:<team>.replica`. `rows` is the
-  server set as this device knows it (version, seq, row id); a local item
-  neither in `rows` nor dirty is dropped (trash keeps it 30 days). A writer
-  keeps a **dirty set** — keys whose object differs from the copy the server
-  last gave it (object identity is the change signal; the dirty set is
-  persisted with its serialized bases so a reload pushes exactly the unpushed
-  edits) — and sends only those, plus tombstones, to `apply_ops` with
-  `base_version`. A push conflict asks App for a pull (`onPullNeeded`); the
-  pull merges three-way through `sync/merge.js` (disjoint → silent, stays
-  dirty on the server copy; same field → server adopted, ours in the
-  `ConflictResolver`). An edit beats a concurrent delete; a stale delete loses
-  to a newer edit. A writer's FIRST run reads the old manifest once to decide
-  which local items carried unpushed edits, then never again. Temp engines
-  (move/copy into another library) push only what the server lacks and persist
-  nothing. `useTeamSetlistMap` reads row UUIDs from `replica.rows`;
-  `useTeamRealtime` also listens on `team_deletions`; `SyncDoctor` reports from
-  `rows` + `dirty`. Tests: `replica-engine.test.js` (members),
-  `replica-writer.test.js` (writers, handover, fuzz); the fake client emulates
-  the stamp and deletion triggers, `sync_changes` and `apply_ops`.
+- **Pull** = `sync_changes(team, since)` in pages of 500: songs, setlists and
+  deletions after the cursor, in feed order. The device persists
+  `{ since, rows, dirty, writer }` under `sync:<team>.replica`; `rows` is the
+  server set as this device knows it (version, seq, row id). A local item
+  neither in `rows` nor dirty is not on the server and is dropped (App's trash
+  keeps it 30 days). A version the device already holds is skipped — its own
+  pushes echo back for free. A clean row whose bytes equal the local copy keeps
+  object identity, so an unchanged song is neither rewritten to IndexedDB nor
+  reported as edited.
+- **Members** (`readOnly`) are a pure mirror: no dirty set, no outbox, never a
+  conflict prompt. A delta feed does not re-send unchanged rows, so a local
+  mutation (which the UI forbids) lingers until that row next changes.
+- **Writers** keep a **dirty set** — the keys whose local object differs from
+  the copy the server last gave them. Object identity is the change signal
+  (the one `saveSongs` and `adopt.js` already rely on); the dirty set is
+  persisted with the serialized server copy each edit was based on, so a
+  reload pushes exactly the unpushed edits. Only those, plus tombstones, go to
+  `apply_ops` (batches of 100) with `base_version`. A new object with
+  identical bytes (play counts, a re-link that changed nothing) is not sent.
+- **Conflicts.** A push conflict asks App for a pull (`onPullNeeded` →
+  `triggerSync`). The pull merges three-way through `sync/merge.js` with the
+  persisted base: disjoint edits merge silently and stay dirty on top of the
+  server copy; a same-field conflict adopts the server copy and hands ours to
+  the `ConflictResolver` ("keep mine" restores the local object, which is then
+  an edit on top of the server's version and pushes cleanly). An edit beats a
+  concurrent delete (the song comes back as a create); a stale delete loses to
+  a newer edit (the tombstone is dropped).
+- **Handover.** A writer's FIRST run (no replica state yet) reads the old
+  manifest once: local ≠ baseline while server = baseline is a pending edit
+  (pushed); both moved is a conflict; local = baseline or canonical-equal is
+  nothing; unmanifested local items are creates; manifested items the server
+  lost are dropped unless edited here. The manifest is never read again —
+  `canonical.js` survives for this, for `content_hash` on writes, and for the
+  file engine.
+- **Temp engines** (a song moved/copied into another library) push only the
+  keys the server lacks and persist nothing — no adopted state exists to
+  anchor a cursor.
+- **A project without the RPCs** gets `MIGRATION_MISSING` as the error, status
+  `error`, and no sync. There is no other engine.
 - **`sync/merge.js` compares arrangements without `updatedAt`/`id`.** A base
   rebuilt from markdown carries a fresh stamp; with the stamp in the compare,
   every disjoint edit was a conflict.
-- **Pull = server wins.** Every row replaces the local copy; rows deleted on
-  the server disappear locally (App adopts the result wholesale via the
-  `replaced: true` flag in the sync result). Local-only never-synced items are
-  inserted; previously-synced items missing remotely are dropped.
-- **Canonical hashing** — songs hash the markdown text (the `content` text
-  column round-trips byte-exact); setlists hash a key-sorted `stableStringify`
-  because JSONB does not preserve key order. (The old engine hashed
-  pretty-printed JSON on push but compact JSONB on pull, so every cycle looked
-  dirty → re-upload → realtime → loop → endless "Synced" toasts.)
-- **CAS updates** — pushes guard with `.eq('updated_at', lastSyncedTime)`; a
-  miss means another member wrote first: their edit is kept, ours is reported
-  as a conflict and the next pull adopts the server copy.
-- **Identity** — the song/setlist id embedded in `content` is canonical, with
-  a fallback to the previous manifest's `remoteId` mapping (legacy rows
-  without embedded ids), then the row UUID. Duplicate rows for one id are
-  healed (newest kept, others deleted by writers).
 - **Pull adoption is WHOLESALE** (`sync/mergeRemote.js`, both engines): a
   pulled song replaces the local copy via `songFromFlat(parsed)`; only the
   play histories and local-only extra arrangements survive from the local
   object. Never patch a hand-written field list there — the six-field patch
   it replaced kept every newer field stale after a pull, and the re-push of
   those stale values was the `language`/`year` ping-pong (PLAN §1.2 #6).
-- Members (`readOnly`) are a pure mirror — no writes ever leave the device, and
-  **pull never raises a conflict for them** (the cloud copy is always adopted
-  silently). Conflict detection in `pull()` is guarded by `!readOnly`; conflicts
-  are only meaningful for writers (admins/editors). `ConflictResolver` also
-  offers **Keep all mine / Keep all cloud** (`onResolveAll` in App) so a
-  baseline-drift mass conflict clears in one tap instead of dozens of prompts.
-  (A whole-library "73 conflicts" symptom = canonical-hash baseline drift, e.g.
-  a schema field now serialized locally but absent in older server `content`;
-  root-cause per-song by diffing `songToMd(local)` vs the stored `content`.)
-- `createEngineForLibrary()` in App.jsx picks the engine per library; the
-  file-manifest engine remains for personal Drive/Dropbox/OneDrive sync.
 - **Every sync pass holds a Web Lock** (`sync/lock.js`,
-  `setlists-md:sync:<libraryId>`) around fullSync/runPush in BOTH engines. The
-  manifests are read-modify-write in IndexedDB; without the lock a second tab
-  or a temp engine (song move/copy) races the main engine and loses manifest
-  writes → stale baselines → phantom "changed" storms. Keep any new sync-state
-  writer inside `withSyncLock`.
-- **Pull pagination is keyset on `id`** (`.order('id').gt('id', last)`), never
-  offset/range — offset pages over a set other members are writing to can skip
-  rows, and a skipped row is indistinguishable from a server-side deletion.
-  `pageSize` is injectable for tests.
-- **Pulls are DELTA pulls**: heads (`id, updated_at`) are fetched for the whole
-  set, but content only for rows the manifest can't prove unchanged
-  (`lastSyncedTime === updated_at`) — unchanged rows reuse the manifest hash
-  and skip both download and re-parse. A hash-version migration forces one
-  full content fetch to re-baseline.
-- **Identity is server-side now** (`song_key`/`setlist_key`, unique per team —
-  see `20260702_identity_keys.sql`): payloads carry the local id as the key on
-  every write, inserts that collide adopt the existing row (race/lost-manifest
-  heal), and pre-migration servers get a column-missing fallback. Never-synced
-  songs are **bulk-inserted** in chunks of 50 (matched back via `song_key`),
-  falling back to per-row insert+adopt on batch failure.
-- **Two-device convergence suite**: `src/__tests__/team-convergence.test.js`
-  runs two engines against one fake server (device-namespaced tokens mock)
-  through edit/conflict/delete/create interleavings + a seeded fuzz, asserting
-  both devices and the server converge with zero loss. Extend it when touching
-  engine semantics. Shared fixtures: `src/__tests__/helpers/fakeSupabase.js`.
-- **Sync doctor** (`components/settings/SyncDoctor.jsx`, Settings → Sync in a
-  team Space) re-runs the engine's exact hash arithmetic per song
-  (local vs server vs baseline) and names drifting fields — use it before
-  digging into any "sync is weird" report.
+  `setlists-md:sync:<libraryId>`) around fullSync/push in both the replica and
+  the file engine. The replica re-reads its persisted state inside the lock,
+  so a second tab or a temp engine cannot lose its cursor or dirty marks
+  (in-memory dirty marks win — they are edits this tab saw happen).
 - **Sync results are adopted via `sync/adopt.js`** (`reconcileAdopt` /
   `applyPulled` through App's `adoptSyncResult`): adoption runs functionally
   against CURRENT state using the sync's input snapshot as the base, so an
   edit made while the sync was in flight is never clobbered (object identity =
   the change signal). Never `setSongs(result.songs)` a sync result directly.
-- Tests: `src/__tests__/team-engine.test.js` (fake Supabase client),
-  `src/__tests__/sync-adopt.test.js`.
+- **Sync doctor** (`features/settings/SyncDoctor.jsx`, Settings → Sync in a
+  team Space) reports from `replica.rows` + `dirty`: in sync / pending push /
+  newer on the server / diverged; a local-only item uploads only when dirty.
+  A device that has not synced since the upgrade still shows the manifest
+  arithmetic.
+- `useTeamSetlistMap` reads row UUIDs from `replica.rows` (the manifest as a
+  fallback for un-upgraded devices); `useTeamRealtime` listens on `team_songs`,
+  `team_setlists` and `team_deletions` — a DELETE event on the song table
+  carries only the PK and never passed the `team_id=eq.` filter.
+- Tests: `src/__tests__/replica-engine.test.js` (members),
+  `replica-writer.test.js` (writers, handover, a two-writers-plus-member fuzz),
+  `sync-adopt.test.js`, `merge.test.js`, `merge-remote.test.js`.
+  `helpers/fakeSupabase.js` emulates the stamp and deletion triggers,
+  `sync_changes` and `apply_ops`, plus a table surface for "stale build"
+  scenarios.
 
 ## Web Push & the notification worker
 

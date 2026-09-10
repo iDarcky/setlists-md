@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createReplicaEngine, applyChanges, isMissingRpc } from '@/sync/replica-engine';
-import { createTeamSyncEngine } from '@/sync/team-engine';
+import { createReplicaEngine, applyChanges, isMissingRpc, MIGRATION_MISSING } from '@/sync/replica-engine';
 import { songToMd } from '@/parser';
 import { createFakeClient, mkSong, mkSetlist, makeRowHelpers, noTombstones } from '@/__tests__/helpers/fakeSupabase';
 
@@ -51,16 +50,17 @@ function makeMember(name, db) {
   };
 }
 
-// A writer's device on the manifest engine — the only thing that writes.
+// A writer's device on the replica: fullSync pulls, then pushes its dirty set.
 function makeWriter(name, db) {
-  const engine = createTeamSyncEngine(() => {}, TEAM, { client: createFakeClient(db) });
+  const engine = createReplicaEngine(() => {}, TEAM, { client: createFakeClient(db) });
   return {
     name, engine,
     songs: [], setlists: [], tombstones: noTombstones(),
     async sync() {
       __setDevice(name);
       const r = await this.engine.fullSync(this.songs, this.setlists, this.tombstones);
-      this.songs = r.songs; this.setlists = r.setlists; this.tombstones = r.tombstones;
+      if (r.replaced) { this.songs = r.songs; this.setlists = r.setlists; }
+      if (r.tombstonesChanged) this.tombstones = r.tombstones;
       return r;
     },
     addSong(song) { this.songs = [...this.songs, song]; },
@@ -111,7 +111,7 @@ describe('replica engine — a member device mirrors the feed', () => {
     const cursor = (await B.state()).replica.since;
     const untouched = B.songs.find(s => s.id === 's2');
 
-    // Another member's writer edits s1 on the server (through the manifest engine).
+    // A leader edits s1 on the server.
     const A = makeWriter('A', db);
     await A.sync();
     A.editSong('s1', 'a2 from the leader');
@@ -214,22 +214,20 @@ describe('replica engine — a member device mirrors the feed', () => {
     expect(db.__rpcs[2].args.p_since).toBe(seqs[5]);
   });
 
-  it('falls back to the read-only manifest engine when the RPC is missing', async () => {
+  it('a project without the sync migration is reported, and local data is left alone', async () => {
     const db = { team_songs: [songRow(mkSong('s1', 'One', 'a'))], team_setlists: [], __rpcMissing: true, __rpcs: [] };
     const statuses = [];
     const engine = createReplicaEngine((s) => statuses.push(s.state), TEAM, { client: createFakeClient(db), readOnly: true });
     __setDevice('B');
+    const local = [mkSong('keep', 'Local', 'x')];
 
-    const r = await engine.fullSync([], [], noTombstones());
+    const r = await engine.fullSync(local, [], noTombstones());
 
-    expect(r.replaced).toBe(true);
-    expect(r.songs.map(s => s.id)).toEqual(['s1']);
-    expect(engine.isReplica).toBe(false);
-    expect(statuses.at(-1)).toBe('synced');
-    // Later passes go straight to the fallback — no second RPC probe.
-    db.__rpcs.length = 0;
-    await engine.fullSync(r.songs, [], noTombstones());
-    expect(db.__rpcs).toHaveLength(0);
+    expect(r.changed).toBe(false);
+    expect(r.songs).toBe(local);
+    expect(r.errors[0].message).toBe(MIGRATION_MISSING);
+    expect(statuses.at(-1)).toBe('error');
+    expect((await getSyncState(TEAM)).replica).toBeNull();
     expect(isMissingRpc({ code: 'PGRST202' })).toBe(true);
     expect(isMissingRpc({ code: '42883' })).toBe(true);
     expect(isMissingRpc({ message: 'Could not find the function public.sync_changes' })).toBe(true);
@@ -254,7 +252,7 @@ describe('replica engine — a member device mirrors the feed', () => {
   });
 });
 
-describe('replica engine — converges with a writer on the manifest engine', () => {
+describe('replica engine — converges with a writer on the replica', () => {
   it('create / edit / delete / setlist rename all reach the member', async () => {
     const db = { team_songs: [], team_setlists: [] };
     const A = makeWriter('A', db);

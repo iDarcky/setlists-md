@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createReplicaEngine } from '@/sync/replica-engine';
-import { createTeamSyncEngine } from '@/sync/team-engine';
+import { createReplicaEngine, MIGRATION_MISSING } from '@/sync/replica-engine';
 import { parseSongMd, songToMd } from '@/parser';
 import { songFromFlat } from '@/arrangements';
 import { canonicalSongHash } from '@/sync/canonical';
@@ -465,16 +464,19 @@ describe('writer replica — edges', () => {
     expect((await A.state()).replica.dirty.song.s1).toBeNull(); // still pending, nothing lost
   });
 
-  it('falls back to the manifest engine when the RPCs are missing', async () => {
+  it('a project without the sync migration is reported; nothing is written and nothing is minted locally', async () => {
     const db = { team_songs: [songRow(mkSong('s1', 'One', 'a'))], team_setlists: [], __rpcMissing: true };
     const A = makeDevice('A', db);
-    await A.sync();
-    expect(A.engine.isReplica).toBe(false);
-    expect(A.songs.map(s => s.id)).toEqual(['s1']);
-    // …and the fallback writes the old way.
+    const r = await A.sync();
+    expect(r.changed).toBe(false);
+    expect(r.errors[0].message).toBe(MIGRATION_MISSING);
+    expect(A.songs).toEqual([]);
     A.addSong(mkSong('s2', 'Two', 'b'));
     await A.save();
-    expect(db.team_songs.map(r => r.song_key).sort()).toEqual(['s1', 's2']);
+    expect(A.statuses.at(-1)).toBe('error');
+    expect(db.team_songs.map(r => r.song_key)).toEqual(['s1']);
+    expect((await A.state()).replica).toBeNull(); // no cursor without a first pull
+    expect(A.songs.map(s => s.id)).toEqual(['s2']); // still here, still local
   });
 
   it('setlists take the same road: create, edit with a stale base, three-way merge on disjoint fields', async () => {
@@ -500,19 +502,21 @@ describe('writer replica — edges', () => {
     expect(db.team_setlists[0].version).toBe(3);
   });
 
-  it('the old manifest engine and the replica can share a server (a stale build still writing)', async () => {
+  it('a stale build writing straight to the table (no RPC) is still picked up', async () => {
     const db = { team_songs: [], team_setlists: [] };
     const A = makeDevice('A', db);
     await A.sync();
     A.addSong(mkSong('s1', 'One', 'from the replica'));
     await A.save();
 
-    __setDevice('OLD');
-    const old = createTeamSyncEngine(() => {}, TEAM, { client: createFakeClient(db) });
-    let r = await old.fullSync([], [], noTombstones());
-    expect(md(r.songs[0])).toContain('from the replica');
-    const edited = r.songs.map(s => mkSong(s.id, s.title, 'from the old build'));
-    r = await old.fullSync(edited, [], noTombstones());
+    // A PWA still serving last month's shell writes the row directly; the
+    // stamp trigger (emulated by the fake) bumps version + seq all the same.
+    const row = db.team_songs[0];
+    const stale = createFakeClient(db);
+    await stale.from('team_songs')
+      .update({ content: md(mkSong('s1', 'One', 'from the old build')), title: 'One', updated_at: new Date().toISOString() })
+      .eq('id', row.id).eq('team_id', TEAM).eq('updated_at', row.updated_at)
+      .select('id, updated_at').maybeSingle();
     expect(db.team_songs[0].version).toBe(2);
 
     await A.sync();

@@ -107,28 +107,28 @@ history all present and tested (`storage.test.js`, `storage-persistence.test.js`
 #### 0.3 — Sync
 **Job.** Move songs and setlists between device and cloud without losing an edit.
 
-**Owns.** `sync/*` (16 files, 3,086 lines) — two engines: the file-manifest
-engine (`engine.js`, personal BYOC) and the server-authoritative team engine
-(`team-engine.js`, 844 lines) · `sync/adopt.js` · `sync/lock.js` ·
-`sync/merge.js` · `features/settings/SyncDoctor.jsx` · `SyncStatus.jsx` ·
-`ConflictResolver.jsx`
+**Owns.** `sync/*` — the replica engine (`replica-engine.js`, every team
+library: feed cursor, dirty set, `apply_ops`) and the file-manifest engine
+(`engine.js`, personal BYOC folders — step 4 of `docs/SYNC-REDESIGN.md`
+retires it) · `sync/adopt.js` · `sync/lock.js` · `sync/merge.js` ·
+`sync/mergeRemote.js` · `features/settings/SyncDoctor.jsx` · `SyncStatus.jsx`
+· `ConflictResolver.jsx`. The team manifest engine (`team-engine.js`) was
+deleted 2026-09-10.
 
-**State.** The sync manifests (baselines/hashes) in IndexedDB.
+**State.** `sync:<team>.replica` in IndexedDB — `{ since, rows, dirty, writer }`;
+the file engine still keeps manifests.
 
-**Status.** 🟡 The most carefully engineered subsystem — Web Locks mutex, keyset
-pagination, delta pulls, CAS updates, server-side identity keys, reconciled
-adoption, a two-device convergence suite. It has earned its complexity.
+**Status.** 🟢 Replaced 2026-09-10 (`docs/SYNC-REDESIGN.md` steps 1–3c): the
+server stamps versions and a change feed; devices hold a cursor and, for
+writers, a dirty set; conflicts merge three-way. Two seeded fuzz suites.
 
 **Debt.**
-- 🔴 **The repeating "Synced" toast is still open** (PLAN §2, P1). The toast is
-  silenced but the underlying re-upload loop is not root-caused. This is the one
-  open correctness bug in the foundations and it should be closed before any
-  surface work — a library that re-uploads every cycle burns quota and will
-  eventually lose a race.
-- Field-level 3-way merge (`sync/merge.js`) is built and tested but **not wired
-  into the engine** — needs per-field baselines + a `HASH_VERSION` bump.
-- Two engines with one adoption path is correct but under-documented; the
-  `createEngineForLibrary` seam is the only thing keeping them apart.
+- The personal library still syncs through the file-manifest engine to a
+  cloud folder nobody uses (0 rows in `user_cloud_tokens`); step 4 moves it
+  onto Supabase as a workspace and deletes `engine.js` + the three providers.
+- `canonical.js` survives for the one-time handover, for `content_hash` on
+  writes and for the file engine; it goes with step 4.
+- `keyChanges`/`duration` never serialize for v2 songs (PLAN §2.3).
 
 ---
 

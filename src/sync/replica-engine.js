@@ -39,9 +39,10 @@
 // for members (read-only), a local mutation — which the UI forbids — lingers
 // until that row next changes on the server, and then the server copy wins.
 //
-// Same interface as the other engines and the same `replaced: true` result, so
+// Same interface as the file engine and the same `replaced: true` result, so
 // App's adoption path is untouched. If the RPCs are missing (a project without
-// the migration) the engine falls back to the manifest engine for the session.
+// the migration) the engine says so, sets status `error`, and leaves local data
+// untouched — there is no other engine any more.
 
 import { supabase as defaultClient } from '@/auth/supabase';
 import { getSyncState, updateReplicaState } from './tokens';
@@ -53,10 +54,10 @@ import { canonicalSongHash, canonicalSetlistHash, stableStringify } from './cano
 import { withRetry } from './retry';
 import { withSyncLock } from './lock';
 import { SYNC_DEBOUNCE_MS } from './constants';
-import { createTeamSyncEngine } from './team-engine';
 
 export const REPLICA_PAGE = 500;
 export const APPLY_BATCH = 100;
+export const MIGRATION_MISSING = 'This workspace\'s database has not had the sync migration applied (20260910_sync_versions). Nothing was changed on this device.';
 const KINDS = ['song', 'setlist'];
 
 // PostgREST reports an unknown RPC as PGRST202 ("Could not find the function
@@ -298,11 +299,9 @@ export function createReplicaEngine(onStatusChange, teamId, {
   readOnly = false,
   client = defaultClient,
   pageSize = REPLICA_PAGE,
-  fallback,
   onPullNeeded,
 } = {}) {
   let syncing = false;
-  let fallbackEngine = null;
   let debounceTimer = null;
   let lastPushAt = 0;
   const setStatus = (state, extra = {}) => onStatusChange?.({ state, ...extra });
@@ -312,15 +311,6 @@ export function createReplicaEngine(onStatusChange, teamId, {
   // local objects of this session.
   const mem = { initialized: false, seeded: false, since: 0, rows: emptyRows(), dirty: emptyDirty(), known: emptyKnown() };
   let latest = null; // the last arrays App handed to debouncedPush
-
-  const getFallback = () => {
-    if (!fallbackEngine) {
-      fallbackEngine = fallback
-        ? fallback()
-        : createTeamSyncEngine(onStatusChange, teamId, { readOnly, client });
-    }
-    return fallbackEngine;
-  };
 
   const rpcError = (error, what) => {
     const err = new Error(error?.message || `${what} failed`);
@@ -602,14 +592,12 @@ export function createReplicaEngine(onStatusChange, teamId, {
         if (push.needsPull) onPullNeeded?.();
       });
     } catch (err) {
-      if (err?.code === 'replica_unavailable') {
-        console.warn('[replica] apply_ops is not available on this project — using the manifest engine.');
-        syncing = false;
-        return getFallback().debouncedPush(songs, setlists, tombstones, onTombstonesPruned);
-      }
-      console.error('[replica] Push error:', err);
+      if (err?.code === 'replica_unavailable') console.warn('[replica]', MIGRATION_MISSING);
+      else console.error('[replica] Push error:', err);
       setStatus('error');
-      await persist().catch(() => {});
+      // Keep the dirty marks for the next attempt — but never mint a replica
+      // state for a device that has not completed a first pull.
+      if (mem.initialized) await persist().catch(() => {});
     } finally {
       syncing = false;
     }
@@ -617,7 +605,6 @@ export function createReplicaEngine(onStatusChange, teamId, {
 
   return {
     async fullSync(songs, setlists, tombstones = { songs: [], setlists: [] }) {
-      if (fallbackEngine) return fallbackEngine.fullSync(songs, setlists, tombstones);
       if (syncing || !client) return { songs, setlists, tombstones, changed: false };
       syncing = true;
       setStatus('syncing');
@@ -626,14 +613,11 @@ export function createReplicaEngine(onStatusChange, teamId, {
         setStatus('synced', { lastSync: new Date().toISOString(), provider: `supabase-team:${teamId}` });
         return result;
       } catch (err) {
-        if (err?.code === 'replica_unavailable') {
-          console.warn('[replica] sync RPCs are not available on this project — using the manifest engine.');
-          syncing = false;
-          return getFallback().fullSync(songs, setlists, tombstones);
-        }
-        console.error('[replica] Sync error:', err);
+        const missing = err?.code === 'replica_unavailable';
+        if (missing) console.warn('[replica]', MIGRATION_MISSING);
+        else console.error('[replica] Sync error:', err);
         setStatus('error');
-        return { songs, setlists, tombstones, conflicts: [], changed: false, errors: [{ kind: 'engine', message: err?.message || String(err) }] };
+        return { songs, setlists, tombstones, conflicts: [], changed: false, errors: [{ kind: 'engine', message: missing ? MIGRATION_MISSING : (err?.message || String(err)) }] };
       } finally {
         syncing = false;
       }
@@ -642,7 +626,6 @@ export function createReplicaEngine(onStatusChange, teamId, {
     // Record what changed now (so a reload cannot lose it), push after a pause.
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (readOnly || !client) return;
-      if (fallbackEngine) return fallbackEngine.debouncedPush(songs, setlists, tombstones, onTombstonesPruned);
       latest = { songs, setlists, tombstones, onTombstonesPruned };
       if (markDirty(songs, setlists) && mem.initialized) persist().catch(() => {});
       if (debounceTimer) clearTimeout(debounceTimer);
@@ -656,7 +639,6 @@ export function createReplicaEngine(onStatusChange, teamId, {
     // Run a pending push now (tab hide/close).
     flushPending(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (readOnly || !client) return;
-      if (fallbackEngine) return fallbackEngine.flushPending(songs, setlists, tombstones, onTombstonesPruned);
       if (!debounceTimer) return;
       clearTimeout(debounceTimer);
       debounceTimer = null;
@@ -670,18 +652,15 @@ export function createReplicaEngine(onStatusChange, teamId, {
         clearTimeout(debounceTimer);
         debounceTimer = null;
       }
-      fallbackEngine?.cancelDebounce();
     },
 
     // True if we wrote rows very recently — lets the realtime listener ignore
     // the echo of our own writes.
     recentlyPushed(windowMs = 4000) {
-      if (fallbackEngine) return fallbackEngine.recentlyPushed?.(windowMs) ?? false;
       return Date.now() - lastPushAt < windowMs;
     },
 
     // Diagnostics.
-    get isReplica() { return !fallbackEngine; },
     get isReadOnly() { return readOnly; },
   };
 }
