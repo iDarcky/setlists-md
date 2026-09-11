@@ -42,8 +42,9 @@ is the whole JSON song (`team_songs.doc`, `20260911_json_wire.sql` applied;
 `src/sync/songDoc.js`), markdown dual-written for older builds; a writer's
 first pass after this build pushes a document for every markdown-only row it
 holds (the markdown does not change — one version bump per song, once). The
-client-id-as-PK half is deferred as 5b. **Next** is the open questions in
-SYNC-REDESIGN §6 #4–5 and the DB hygiene migration. ⚠ The owner tests first,
+client-id-as-PK half is deferred as 5b. **The DB hygiene migration shipped
+2026-09-11** (`20260911_db_hygiene.sql`, applied — SYNC-REDESIGN §2 #8). **Next**
+is the open questions in SYNC-REDESIGN §6 #4–5. ⚠ The owner tests first,
 on a WRITER device, and now also the personal library: sign in on two devices
 with a Pro/sync account, edit a song on one, see it on the other (Settings →
 Sync shows "Setlists.md cloud — On"); add a second arrangement on one device
@@ -52,9 +53,9 @@ second device; edit the same song on two devices (one gets the conflict
 prompt, "keep mine" wins); fix a title on one and a lyric on the other (no
 prompt, both land); delete on one while editing on the other (the edit wins);
 edit offline, reload, come back online (the edit lands, nothing else uploads).
-Settings → Sync → Sync doctor should read "in sync" everywhere afterwards. Two small separate items
-sit in PLAN §2.3: `keyChanges`/`duration` never serialize for v2 songs, and the
-DB hygiene list in SYNC-REDESIGN §2 #8.
+Settings → Sync → Sync doctor should read "in sync" everywhere afterwards. One
+item is the owner's alone: leaked-password protection is still off in the Auth
+dashboard (the one advisor finding SQL cannot fix).
 
 ## Where the element walk actually is
 

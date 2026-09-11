@@ -62,6 +62,18 @@ Findings, in severity order:
    `team_songs`/`team_setlists` carry two overlapping write-policy sets ("Admins
    can …" from 0521 was never dropped when "Team editors can …" landed);
    `team_invites.role` still forbids `leader`; leaked-password protection off.
+   **Fixed** 2026-09-11 in `20260911_db_hygiene.sql` (applied): every policy
+   rewritten to `(select auth.uid())` in place, the six duplicate write
+   policies dropped, the trigger restored (skipping personal workspaces),
+   `leader` allowed on invites, twelve covering indexes for the `auth.users`
+   foreign keys — and one thing the list did not name: `team_members_select`
+   was `using (true)` ("open for select for now to debug"), so any signed-in
+   user could list every workspace's roster; now own rows + the rosters of
+   workspaces you belong to or own. Advisors after: 0 initplan warnings, 0
+   multiple-permissive warnings, 0 unindexed foreign keys. Rehearsed in a
+   rolled-back run as a member, a stranger, an editor and an owner.
+   Leaked-password protection is an Auth dashboard toggle — still off, the
+   owner's to flip (Authentication → Providers → Email → Password security).
 
 ## 3. Principles
 
@@ -153,7 +165,7 @@ Findings, in severity order:
 | 4 | Personal workspace on Supabase (`20260911_personal_workspaces.sql`, `usePersonalWorkspace`, the replica pointed at the account's own `teams` row) — the file engine and providers **stay** as an opt-in folder sync (§4.3) | ✅ 2026-09-10, migration **applied to production** — see §5.5 |
 | 5 | `doc jsonb` as the wire format (`20260911_json_wire.sql`, `sync/songDoc.js`, the replica reads/writes documents, markdown dual-written; `keyChanges`/`duration` also added to the `.md` export) | ✅ 2026-09-10, migration **applied to production** — see §5.6 |
 | 5b | Client id as primary key; drop `content`, `content_hash`; retire `canonical.js` for the replica | ⬜ deferred (§4.3) — prerequisites: no build reads `content` (a release cycle after 5 ships), and a decision on whether the PK change is worth its own migration |
-| — | DB hygiene: `(select auth.uid())` in policies, drop the duplicate "Admins can …" write policies, add `leader` to `team_invites.role` | ⬜ separate migration |
+| — | DB hygiene: `(select auth.uid())` in policies, drop the duplicate "Admins can …" write policies, add `leader` to `team_invites.role`, restore the owner-membership trigger, close the open roster read, index the `auth.users` foreign keys | ✅ `20260911_db_hygiene.sql`, **applied to production 2026-09-11** — §2 #8 |
 | — | `keyChanges` / `duration` serialization (PLAN §2.3) | ✅ with step 5 — two view fields in `songToMd`, round-trip test in `song-doc.test.js` |
 
 ### 5.1 How step 2 was validated
@@ -371,9 +383,13 @@ migration into the SQL editor; the old engines keep working unchanged after it.
 ## 6. Open questions for the owner
 
 1. ~~Apply step 2 to production now?~~ Applied 2026-09-10 on the owner's word.
-2. **Retention for `team_deletions`.** Tombstones are tiny; a 90-day prune in
-   `prune_team_history()` is the obvious home once a replica exists to consume
-   them.
+2. ~~**Retention for `team_deletions`.**~~ Decided 2026-09-11: **not yet.** A
+   replica whose cursor predates a pruned tombstone would never hear about
+   that deletion and keep the song forever (a member's mirror has no other
+   way to learn a row is gone). Pruning needs a horizon first — a per-
+   workspace "pruned through seq" that `sync_changes` returns so a stale
+   cursor triggers a full resync. The table holds 0 rows today; revisit when
+   it holds thousands.
 3. ~~**Step 5's MAJOR.**~~ Avoided: the markdown is dual-written, so an old
    client reads what it always read. Multi-arrangement songs sync as of step 5.
    What remains for later is the cleanup (5b: drop `content`/`content_hash`,

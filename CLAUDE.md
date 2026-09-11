@@ -532,8 +532,11 @@ The Teams/Church tier adds these additional tables:
   by who's available on the setlist's date).
 
 RLS policies:
-- Members can view their own team and its roster.
-- The owner can create/update/delete the team.
+- Members can view their own team and its roster (and nobody else's — a
+  signed-in user sees their own membership rows plus the rosters of
+  workspaces they belong to or own, since `20260911_db_hygiene`).
+- The owner can create/update/delete the team; creating one makes the owner
+  an admin member atomically (`on_team_created`, not for personal workspaces).
 - Admins (and team owners on self-insert) can add members.
 - Admins can update member roles and remove members.
 - Any user can remove themselves (leave).
@@ -635,6 +638,20 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   the activity guard logs a document-only edit but not a row gaining its
   first document with the markdown unchanged. `content`/`content_hash` stay
   and are still written (older builds read them). Applied 2026-09-10.
+- `20260911_db_hygiene.sql` — the advisors' list, applied 2026-09-11. Every
+  RLS policy in `public` rewritten in place to `(select auth.uid())` (an
+  InitPlan, evaluated once per query instead of once per row — the DO block
+  is generic, so re-running the file picks up any later policy written the
+  old way); the six duplicate "Admins can …" write policies on
+  `team_songs`/`team_setlists` dropped (subsumed by "Team editors can …");
+  `team_members_select` tightened from `using (true)` to own rows + rosters
+  of workspaces you belong to or own; the `on_team_created` trigger restored
+  (owner becomes admin atomically; **skips `kind = 'personal'`**; the client's
+  own membership insert then hits 23505, which it tolerates);
+  `team_invites.role` allows `leader`; twelve covering indexes for the
+  `auth.users` foreign keys. `team_deletions` is deliberately NOT pruned
+  (SYNC-REDESIGN §6 #2). ⚠ Write new policies with `(select auth.uid())`,
+  never bare `auth.uid()`.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).

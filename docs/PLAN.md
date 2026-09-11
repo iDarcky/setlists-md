@@ -344,9 +344,13 @@ were queued before this batch, still in order:
    day**: the wire is the whole JSON song (`20260911_json_wire.sql`, applied;
    `sync/songDoc.js`) with the markdown dual-written for older builds, so
    multi-arrangement songs, key changes and lengths finally sync; the client-
-   id-as-primary-key half is deferred as 5b (SYNC-REDESIGN §4.3). Next: the
-   open questions in SYNC-REDESIGN §6 #4–5 (BYOC's shape, demo-song ids) and
-   the DB hygiene migration.
+   id-as-primary-key half is deferred as 5b (SYNC-REDESIGN §4.3). **The DB
+   hygiene migration shipped 2026-09-11** (`20260911_db_hygiene.sql`, applied:
+   initplan rewrite, duplicate write policies dropped, the open roster read
+   closed, owner-membership trigger restored, `leader` on invites, FK
+   indexes). Next: the open questions in SYNC-REDESIGN §6 #4–5 (BYOC's
+   shape, demo-song ids), and the owner flips leaked-password protection on
+   in the Auth dashboard.
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.
