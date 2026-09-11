@@ -109,16 +109,17 @@ history all present and tested (`storage.test.js`, `storage-persistence.test.js`
 
 **Owns.** `sync/*` — the replica engine (`replica-engine.js`: every team
 library AND the personal library's workspace on Supabase — feed cursor, dirty
-set, `apply_ops`) and the file-manifest engine (`engine.js`, an opt-in
-Drive/Dropbox/OneDrive folder for the personal library; a connected folder
-wins over the workspace) · `hooks/usePersonalWorkspace.js` · `sync/adopt.js`
-· `sync/lock.js` · `sync/merge.js` · `sync/mergeRemote.js` ·
-`features/settings/SyncDoctor.jsx` · `SyncStatus.jsx` · `ConflictResolver.jsx`.
-The team manifest engine (`team-engine.js`) was deleted 2026-09-10.
+set, `apply_ops`) and the backup mirror (`backup.js`: a Drive/Dropbox/OneDrive
+folder written one way after every change, read only on "Restore missing") ·
+`hooks/usePersonalWorkspace.js` · `sync/adopt.js` · `sync/lock.js` ·
+`sync/merge.js` · `sync/mergeRemote.js` · `features/settings/SyncDoctor.jsx` ·
+`SyncSettings.jsx` · `ConflictResolver.jsx`. The team manifest engine
+(`team-engine.js`) was deleted 2026-09-10; the file-manifest engine
+(`engine.js`) on 2026-09-11.
 
 **State.** `sync:<team>.replica` / `sync:personal.replica` in IndexedDB —
-`{ since, rows, dirty, writer }`; the file engine still keeps manifests under
-`sync:personal`.
+`{ since, rows, dirty, writer }`; the mirror keeps its file manifests and
+`lastBackupTime` under `sync:personal`.
 
 **Status.** 🟢 Replaced 2026-09-10 (`docs/SYNC-REDESIGN.md` steps 1–5): the
 wire is the whole JSON song (`sync/songDoc.js`), markdown dual-written; the
@@ -126,10 +127,10 @@ server stamps versions and a change feed; devices hold a cursor and, for
 writers, a dirty set; conflicts merge three-way. Two seeded fuzz suites.
 
 **Debt.**
-- BYOC folders are a second sync engine beside the workspace (kept on the
-  owner's word, SYNC-REDESIGN §4.3): folder-era edits reach the workspace only
-  after a disconnect, and two demo-seeded devices union to duplicate demos.
-  The recommended end state is a one-way backup mirror, not a merge engine.
+- The backup folder has no scheduled full pass: it is written on change and
+  on "Back up now", so a file deleted by hand in the folder stays absent until
+  that song next changes. Fine for a copy; note it if it ever needs to be a
+  guarantee.
 - `canonical.js` survives for the one-time team handover, for `content_hash`
   on writes and for the file engine.
 - `content`/`content_hash` are still written beside the document for older

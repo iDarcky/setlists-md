@@ -236,7 +236,7 @@ src/
 │   ├── supabase.js       # Supabase client (null when env vars missing)
 │   ├── AuthContext.js · useAuth.js · AuthProvider.jsx
 │   └── TeamContext.js · useTeam.js · TeamProvider.jsx
-├── sync/                 # replica-engine (team libraries) + engine (personal BYOC files)
+├── sync/                 # replica-engine (every library) + backup (the one-way folder mirror)
 │                         #   + adopt/lock/merge/mergeRemote/providers (COMPONENTS.md §0.3)
 ├── lib/ · hooks/ · contexts/   # Shared logic, hooks, workspace context
 ├── pdf/ · import/ · share/ · setlist/ · notes/ · push/ · billing/
@@ -776,9 +776,10 @@ decision log and agenda. The server half is `20260910_sync_versions.sql`
 (`version`/`seq`/`updated_by`, `team_deletions`, `apply_ops`, `sync_changes`).
 The manifest engine that preceded it (`team-engine.js`: canonical hashing of
 the whole library, CAS on `updated_at`, identity healing, circuit breakers,
-an amplification guard) was **deleted in step 3c, 2026-09-10**. `sync/engine.js`
-is the file-manifest engine for personal Drive/Dropbox/OneDrive folders — kept
-on purpose as an opt-in alternative (SYNC-REDESIGN §4.3).
+an amplification guard) was **deleted in step 3c, 2026-09-10**. The file-manifest
+engine for Drive/Dropbox/OneDrive folders (`engine.js`) went on 2026-09-11:
+**a connected folder is a one-way BACKUP MIRROR** (`sync/backup.js`), never a
+sync engine (SYNC-REDESIGN §4.3, §5.7).
 
 - **The personal library is a workspace too** (step 4, 2026-09-10): a `teams`
   row with `kind = 'personal'` and no members, created by
@@ -789,13 +790,26 @@ on purpose as an opt-in alternative (SYNC-REDESIGN §4.3).
   file engine uses), `providerId: supabase-personal:<id>` and
   **`handoverFromManifest: false`** — the personal manifest describes a cloud
   FOLDER, and reading it as this server's history drops every folder-synced
-  song as "deleted elsewhere" (a test pins this). **A connected folder wins**:
-  when `syncState.provider` names a non-`supabase-` provider (or the stored
-  sync state says so at load), the file engine runs instead; the two never
-  run together on one library. Disconnecting the folder clears the personal
-  replica so the next run reconciles from scratch. Known: two devices seeded
-  with demos union to duplicates on first sync; folder-era edits reach the
-  workspace only on that fresh run.
+  song as "deleted elsewhere" (a test pins this). Without cloud sync the
+  personal library gets `NULL_ENGINE` (no-op, same interface). The **demo
+  songs have fixed song and arrangement ids** (`data/demos.js`) and App passes
+  `seedBaselines` (the demo markdown) so a seed is its own baseline on a
+  first run: unedited → adopts the account's copy, edited → three-way merge
+  against the demo, deleted elsewhere → dropped, never seen → uploaded.
+- **The backup folder is a mirror, not sync** (`sync/backup.js`,
+  2026-09-11): `createBackupMirror` writes one `.md` per song and one `.json`
+  per setlist to the connected Drive/Dropbox/OneDrive folder after every
+  change (fed by the auto-save effects and the pagehide flush) and never
+  reads it back on its own; `restore()` is the one read, on request, and App
+  adds only what the library lacks (by the file's `songId`). One instance for
+  the app's life — it reads `activeProvider` from the stored sync state on
+  every run, so connect/disconnect need no re-creation. Its `backupState`
+  (provider, lastBackup, `needs-reconnect`) is separate from `syncState`.
+  Manifests (`syncManifest`/`setlistManifest` in the sync state) now hold the
+  remote file id + name + a hash of the bytes written. It shares the personal
+  library's Web Lock with the replica because both read-modify-write the
+  same sync-state record. The mass-delete guard (`isMassDelete`) stays: a
+  truncated local state must never empty the backup.
 
 - **The wire is a JSON document** (step 5, `sync/songDoc.js`): a song row's
   `doc` is the whole v2 object — every arrangement, `keyChanges`, `duration`,

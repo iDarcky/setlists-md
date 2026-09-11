@@ -13,6 +13,8 @@ const SYNC_DEFAULTS = {
   // The replica engine's cursor + server-set index (read-only members). See
   // sync/replica-engine.js for the shape. null until that engine has run.
   replica: null,
+  // When the backup folder (sync/backup.js) last equalled the library.
+  lastBackupTime: null,
 };
 
 export async function getSyncState(libraryId = 'personal') {
@@ -34,6 +36,12 @@ export async function clearProvider(libraryId = 'personal') {
   state.tokens = null;
   await saveSyncState(state, libraryId);
   return state;
+}
+
+export async function markBackupTime(iso, libraryId = 'personal') {
+  const state = await getSyncState(libraryId);
+  state.lastBackupTime = iso;
+  await saveSyncState(state, libraryId);
 }
 
 export async function updateTokens(tokens, libraryId = 'personal') {

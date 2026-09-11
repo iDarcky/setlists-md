@@ -348,9 +348,12 @@ were queued before this batch, still in order:
    hygiene migration shipped 2026-09-11** (`20260911_db_hygiene.sql`, applied:
    initplan rewrite, duplicate write policies dropped, the open roster read
    closed, owner-membership trigger restored, `leader` on invites, FK
-   indexes). Next: the open questions in SYNC-REDESIGN §6 #4–5 (BYOC's
-   shape, demo-song ids), and the owner flips leaked-password protection on
-   in the Auth dashboard.
+   indexes). **§6 #4–5 closed the same day**: the demo songs have fixed ids
+   and a seed is its own baseline; the Drive/Dropbox/OneDrive folder is a
+   one-way backup mirror (`sync/backup.js`), and the file-manifest sync engine
+   is gone. What is left of the sync redesign is step 5b (drop the markdown
+   columns, decide on the primary key) a release cycle out, and the owner
+   flipping leaked-password protection on in the Auth dashboard.
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.

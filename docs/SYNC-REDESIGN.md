@@ -150,7 +150,7 @@ Findings, in severity order:
 | Client id as primary key | **Deferred** (step 5b) | It would retire the row-UUID bridge (`useTeamSetlistMap`), but it re-keys `team_schedules.setlist_id`, the version history, the activity feed's `entity_id` and every FK — a migration on its own, for a bridge that now costs one map lookup. Not worth a MAJOR-sized risk while the replica is a day old. |
 | Hand-rolled vs. PowerSync | **Hand-rolled** | PowerSync fits Supabase but adds a hosted service and a SQLite runtime for 180 KB of data. |
 | Personal library | **A workspace in the same tables** (`teams.kind = 'personal'`, no members) | One engine, one code path. Shipped in step 4 (§5.5). |
-| BYOC folders (Drive/Dropbox/OneDrive) | **Kept, as an alternative the user opts into** — revised 2026-09-10 on the owner's word | The owner's product reason: not everyone wants a subscription, and "your songs in your own Drive" is a real pitch. As *sync infrastructure* it stays the weak option (per-file last-writer-wins, three provider APIs, OAuth token upkeep, no change feed, no realtime) and it is not what makes two devices of one account converge. Rule: a connected folder **wins** over the personal workspace on that device; the two never run together on one library. Recommendation for later: turn BYOC into a **one-way backup/export mirror** of the Supabase library (a folder of `.md` files the user owns, written after each sync) rather than a second sync engine — that keeps the pitch and deletes the merge problem. Note that today BYOC is gated only by being signed in; the `cloud-sync` entitlement (sync tier / one-time Pro) gates the personal workspace instead. |
+| BYOC folders (Drive/Dropbox/OneDrive) | **A one-way backup mirror, not a sync engine** — decided 2026-09-11 (§5.7; interim 2026-09-10: kept as a second engine, "a connected folder wins") | The owner's product reason: not everyone wants a subscription, and "your songs in your own Drive" is a real pitch. As *sync infrastructure* it was the weak option (per-file last-writer-wins, three provider APIs, OAuth token upkeep, no change feed, no realtime), and running two engines on one library was what made the personal library's sync hard to reason about (§5.5's "not solved, on purpose" list). Now: the folder is written after every change and read only when the user asks to restore; cross-device sync is the replica against the account's workspace, and only that. The pitch survives as "your library is in your Drive, as files"; the no-subscription route is the one-time Pro purchase (`profile.is_pro` already unlocks `cloud-sync`), which is the pricing model's call, not sync's. |
 | Who may write | **admin · leader · editor**, RLS decides | Unchanged. The client mirrors it in `lib/teamRoles.js`; the two must agree. |
 
 ## 5. Agenda
@@ -318,12 +318,11 @@ broken; the RPC's writer check accepts the owner either way).
   workspace like a team's. Settings → Sync shows a "Setlists.md cloud — On"
   card above the folder providers; disconnecting a folder clears the personal
   replica so its next run reconciles from scratch.
-- **Not solved, on purpose.** Two devices each seeded with the demo songs
-  (different generated ids) union to duplicates on their first personal sync.
-  Edits made while a folder was connected are not pushed to the workspace
-  until the folder is disconnected (then the fresh run reconciles: local-only
-  → create, diverged → conflict prompt). Both are consequences of keeping BYOC
-  as a second engine — see the §4.3 recommendation.
+- ~~**Not solved, on purpose.**~~ Both consequences of keeping BYOC as a
+  second engine were closed on 2026-09-11: the demo songs have fixed ids and
+  the replica treats a seed as its baseline (§6 #5), and the folder is a
+  backup mirror that never displaces the replica (§5.7), so there is no
+  longer a mode in which edits are withheld from the workspace.
 - `canonical.js`, `amplification-guard.js` and the manifest functions in
   `tokens.js` therefore stay (the file engine is still shipped).
 
@@ -375,6 +374,38 @@ broken; the RPC's writer check accepts the owner either way).
   restored; two writers upgrading one row without a prompt; a markdown base
   from the previous build; the conflict payload carrying the document).
 
+### 5.7 BYOC → the backup mirror (2026-09-11)
+
+- `src/sync/engine.js` (the file-manifest SYNC engine: pull, merge, conflicts,
+  tombstones, an amplification guard, 531 lines) and
+  `src/sync/amplification-guard.js` are gone. `src/sync/backup.js` (~240
+  lines) replaces them: `createBackupMirror` writes the folder so it equals
+  the library — one `.md` per song, one `.json` per setlist — after every
+  change (the same 2 s debounce as the replica, flushed on pagehide) and on
+  "Back up now". It never reads the folder on its own; `restore()` is the one
+  read, on request, and hands back what the folder holds so App can ADD what
+  the library lacks (by the `songId` each file carries — a song backed up from
+  this account comes back as itself). Existing items are never overwritten:
+  the folder is a copy, the library is the truth.
+- Kept from the old engine: the three providers and their OAuth, the
+  per-library manifests (remote file id + name + a hash of the bytes written,
+  so an unchanged song is not re-uploaded and a renamed one replaces its
+  file), the refusal to delete more than half the folder in one pass, and the
+  `needs-reconnect` banner when a refresh token has expired.
+- App: the personal library's engine is the replica when the account has
+  cloud sync and a null engine otherwise — a connected folder no longer
+  changes which engine runs, and nothing is frozen while it is connected.
+  The mirror is one instance for the app's life, fed by the auto-save effects
+  and the pagehide flush; its own `backupState` (provider, last backup,
+  needs-reconnect) sits beside `syncState`. Settings → Cloud Sync is two
+  cards: "Setlists.md cloud" (on / Pro upgrade) and "Backup folder" (connect,
+  back up now, restore missing, disconnect).
+- Tests: `backup-mirror.test.js` against an in-memory folder — first backup,
+  unchanged library writes nothing, edit / rename / delete, the mass-delete
+  guard, a hand-edited file is left alone until the song changes, restore,
+  debounce + flush, no folder, expired sign-in.
+- The two demo-song and folder wrinkles §5.5 listed are closed (§6 #4–5).
+
 Step 2 is additive and safe on live data; step 3a is the first one the owner can
 see: a member's device now mirrors the feed; 3b puts every writer on the same
 engine; 3c leaves the replica as the only team engine. Apply step 2 with the Supabase CLI (`supabase db push`) or by pasting the
@@ -395,11 +426,14 @@ migration into the SQL editor; the old engines keep working unchanged after it.
    What remains for later is the cleanup (5b: drop `content`/`content_hash`,
    decide on the primary key) — do it a release cycle after every build reads
    the document.
-4. **BYOC's future shape.** Keep it as a second sync engine (today), or turn
-   it into a one-way backup mirror of the Supabase library (§4.3's
-   recommendation)? The mirror keeps "your songs in your Drive" and the
-   no-subscription pitch only if the personal workspace itself is free or
-   one-time — which is a pricing decision, not a sync one.
-5. **Demo songs on a second device.** Seed demos only when the workspace is
-   empty after the first pull (or give them fixed ids) so two devices do not
-   union to six demo songs.
+4. ~~**BYOC's future shape.**~~ Decided 2026-09-11: a one-way backup mirror
+   (§4.3, §5.7). The no-subscription route is the one-time Pro purchase,
+   which already unlocks the personal workspace — a pricing decision the
+   owner can revisit without touching sync.
+5. ~~**Demo songs on a second device.**~~ Done 2026-09-11: fixed song and
+   arrangement ids, and the replica treats a seed as the song's baseline
+   (`seedBaselines`) — an unedited seed adopts the account's copy, an edited
+   one merges three-way against the demo, a demo deleted elsewhere stays
+   deleted, and a seed the account never saw uploads like any new song. The
+   three-way merge stopped comparing `defaultArrangementId` as content along
+   the way (it is an identity handle; it follows the arrangements that won).

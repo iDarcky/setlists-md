@@ -34,17 +34,18 @@ gets `MIGRATION_MISSING` instead of another engine. **Step 4 shipped the same
 day**: the personal library is a workspace on Supabase (`teams.kind =
 'personal'`, `20260911_personal_workspaces.sql` applied; `hooks/
 usePersonalWorkspace.js`; the replica with `libraryId: 'personal'` and
-`handoverFromManifest: false`). The file engine and the three folder
-providers **stay** as an opt-in alternative on the owner's word — a connected
-folder wins on that device (SYNC-REDESIGN §4.3, §5.5). `canonical.js` and
-`amplification-guard.js` therefore survive. **Step 5 shipped too**: the wire
+`handoverFromManifest: false`). **Step 5 shipped too**: the wire
 is the whole JSON song (`team_songs.doc`, `20260911_json_wire.sql` applied;
 `src/sync/songDoc.js`), markdown dual-written for older builds; a writer's
 first pass after this build pushes a document for every markdown-only row it
 holds (the markdown does not change — one version bump per song, once). The
 client-id-as-PK half is deferred as 5b. **The DB hygiene migration shipped
-2026-09-11** (`20260911_db_hygiene.sql`, applied — SYNC-REDESIGN §2 #8). **Next**
-is the open questions in SYNC-REDESIGN §6 #4–5. ⚠ The owner tests first,
+2026-09-11** (`20260911_db_hygiene.sql`, applied — SYNC-REDESIGN §2 #8), and
+**§6 #4–5 are closed**: demo songs have fixed ids (a seed is its baseline), and
+the Drive/Dropbox/OneDrive folder is a one-way **backup mirror**
+(`sync/backup.js`; `engine.js` is gone; Settings → Cloud Sync is two cards).
+**Next** is nothing on the sync agenda until step 5b; the reader element walk
+resumes. ⚠ The owner tests first,
 on a WRITER device, and now also the personal library: sign in on two devices
 with a Pro/sync account, edit a song on one, see it on the other (Settings →
 Sync shows "Setlists.md cloud — On"); add a second arrangement on one device

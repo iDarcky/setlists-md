@@ -530,7 +530,7 @@ function TabColorControl({ value, fallback, onChange }) {
   );
 }
 
-function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, activeLibrary, team, songs, setlists = [], onRepairSetlistLinks }) {
+function SyncPanel({ syncState, onSyncStateChange, onSyncNow, backupState, onBackupStateChange, onBackupNow, onRestoreFromBackup, cloudAllowed, onUpgrade, onRequestSignIn, activeLibrary, team, songs, setlists = [], onRepairSetlistLinks }) {
   if (activeLibrary !== 'personal') {
     return (
       <>
@@ -556,6 +556,12 @@ function SyncPanel({ syncState, onSyncStateChange, onSyncNow, onRequestSignIn, a
       syncState={syncState || { state: 'idle', lastSync: null, provider: null }}
       onSyncStateChange={onSyncStateChange}
       onSyncNow={onSyncNow}
+      backupState={backupState || { state: 'idle', provider: null, lastBackup: null }}
+      onBackupStateChange={onBackupStateChange}
+      onBackupNow={onBackupNow}
+      onRestoreFromBackup={onRestoreFromBackup}
+      cloudAllowed={cloudAllowed}
+      onUpgrade={onUpgrade}
       onRequestSignIn={onRequestSignIn}
     />
   );
@@ -1041,12 +1047,15 @@ function sectionsSummary(s) {
   return parts.join(' · ');
 }
 
-function syncSummary(syncState) {
-  if (!syncState?.provider) return 'Off';
-  const provider = syncState.provider;
-  if (provider.startsWith('supabase-team:')) return 'Team Cloud';
-  if (provider.startsWith('supabase-personal:')) return 'Setlists.md Cloud';
-  return provider.charAt(0).toUpperCase() + provider.slice(1);
+const BACKUP_NAMES = { 'google-drive': 'Google Drive', dropbox: 'Dropbox', onedrive: 'OneDrive' };
+function syncSummary(syncState, backupState) {
+  const provider = syncState?.provider;
+  let sync = 'Off';
+  if (provider?.startsWith('supabase-team:')) sync = 'Team Cloud';
+  else if (provider?.startsWith('supabase-personal:')) sync = 'Setlists.md Cloud';
+  else if (provider) sync = provider.charAt(0).toUpperCase() + provider.slice(1);
+  const backup = backupState?.provider ? ` · Backup: ${BACKUP_NAMES[backupState.provider] || backupState.provider}` : '';
+  return sync + backup;
 }
 
 // ─── Main component ──────────────────────────────────────────────────────
@@ -1064,6 +1073,11 @@ export default function Settings({
   syncState,
   onSyncStateChange,
   onSyncNow,
+  backupState,
+  onBackupStateChange,
+  onBackupNow,
+  onRestoreFromBackup,
+  cloudAllowed = false,
   onRequestSignIn,
   onUpgrade,
   onShowLegal,
@@ -1156,6 +1170,12 @@ export default function Settings({
             syncState={syncState}
             onSyncStateChange={onSyncStateChange}
             onSyncNow={onSyncNow}
+            backupState={backupState}
+            onBackupStateChange={onBackupStateChange}
+            onBackupNow={onBackupNow}
+            onRestoreFromBackup={onRestoreFromBackup}
+            cloudAllowed={cloudAllowed}
+            onUpgrade={onUpgrade}
             onRequestSignIn={onRequestSignIn}
             activeLibrary={activeLibrary}
             team={team}
@@ -1233,7 +1253,7 @@ export default function Settings({
     {
       title: 'Sync & data',
       items: [
-        { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, value: syncSummary(syncState) },
+        { key: 'sync', label: 'Cloud Sync', icon: CloudIcon, value: syncSummary(syncState, backupState) },
         { key: 'notifications', label: 'Notifications', icon: BellIcon, value: 'Push alerts on this device' },
         { key: 'services', label: 'Services', icon: PlanIcon, value: `${serviceCount} service${serviceCount === 1 ? '' : 's'}`, show: canManageServices },
         { key: 'data', label: 'Data', icon: DataIcon, value: `${songCount} songs · ${setlistCount} setlists` },
