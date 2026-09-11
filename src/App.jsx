@@ -12,7 +12,7 @@ import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
 import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDiff } from './tempoHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
-import { DEMO_SONGS_MD } from '@/data/demos';
+import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
 import { createSyncEngine } from '@/sync/engine';
 import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
@@ -134,6 +134,8 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
         providerId: `supabase-personal:${personalCloudId}`,
         // The personal manifest describes a cloud folder, not this server.
         handoverFromManifest: false,
+        // A seeded demo's baseline is the demo itself (data/demos.js).
+        seedBaselines: DEMO_BASELINES,
       });
     }
     return createSyncEngine(onStatusChange, libraryId, rest);
@@ -543,11 +545,9 @@ export default function App() {
       if (ignore) return;
       const isFirstRun = savedSongs.length === 0;
       if (isFirstRun && activeLibrary === 'personal') {
-        // First time in personal library — load demo songs
-        const demos = DEMO_SONGS_MD.map(md => songFromFlat({
-          ...parseSongMd(md),
-          id: generateId(),
-        }));
+        // First time in personal library — load demo songs (fixed ids: the
+        // same three songs on every device of an account, never six).
+        const demos = seedDemoSongs();
         if (ignore) return;
         savedSongs = demos;
         await saveSongs(demos, 'personal');
@@ -2202,10 +2202,7 @@ export default function App() {
             // Inject demos if not already present (covers the first-run path).
             setSongs(prev => {
               if (prev.length > 0) return prev;
-              const demos = DEMO_SONGS_MD.map(md => songFromFlat({
-                ...parseSongMd(md),
-                id: generateId(),
-              }));
+              const demos = seedDemoSongs();
               saveSongs(demos);
               return demos;
             });

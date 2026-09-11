@@ -4,6 +4,7 @@ import { parseSongMd, songToMd } from '@/parser';
 import { songFromFlat, addArrangement, withArrangement } from '@/arrangements';
 import { canonicalSongHash } from '@/sync/canonical';
 import { docString } from '@/sync/songDoc';
+import { seedDemoSongs, DEMO_BASELINES, DEMO_SONGS } from '@/data/demos';
 import { createFakeClient, mkSong, mkSetlist, makeRowHelpers, noTombstones } from '@/__tests__/helpers/fakeSupabase';
 
 // ── Device-namespaced sync state (each device has its own IndexedDB) ─────────
@@ -781,6 +782,88 @@ describe('JSON on the wire (step 5)', () => {
     expect(B.conflicts).toHaveLength(1);
     expect(B.conflicts[0].remote.arrangements).toHaveLength(2); // the server copy, whole
     expect(B.songs[0].arrangements).toHaveLength(2);
+  });
+});
+
+// ── The demo songs: fixed ids, the seed as baseline (SYNC-REDESIGN §6 #5) ──
+const seeded = (name, db) => {
+  const dev = makePersonal(name, db, { seedBaselines: DEMO_BASELINES });
+  dev.songs = seedDemoSongs();
+  return dev;
+};
+const demoId = DEMO_SONGS[0].id;
+
+describe('demo songs on a second device', () => {
+  it('the seeds have fixed song and arrangement ids, identical on every device', () => {
+    const a = seedDemoSongs();
+    const b = seedDemoSongs();
+    expect(a.map(s => s.id)).toEqual(DEMO_SONGS.map(d => d.id));
+    expect(new Set(a.map(s => s.id)).size).toBe(a.length);
+    expect(a.map(docString)).toEqual(b.map(docString));
+  });
+
+  it('two fresh devices of one account end up with three demo songs, not six, and no prompt', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = seeded('A', db);
+    const B = seeded('B', db);
+    await A.sync();
+    await B.sync();
+    expect(db.team_songs).toHaveLength(3);
+    expect(A.conflicts).toEqual([]);
+    expect(B.conflicts).toEqual([]);
+    expect(fingerprint(A.songs)).toEqual(fingerprint(B.songs));
+    // The second device found its seeds already there: nothing to upload.
+    expect(db.__rpcs.filter(c => c.name === 'apply_ops' && c.args.p_ops.some(op => op.op === 'put'))).toHaveLength(1);
+  });
+
+  it('a demo edited on the first device wins over a pristine seed on the second, without a prompt', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = seeded('A', db);
+    await A.sync();
+    A.retitle(demoId, 'Amazing Grace (our arrangement)');
+    await A.save();
+    const B = seeded('B', db);
+    await B.sync();
+    expect(B.conflicts).toEqual([]);
+    expect(B.songs.find(s => s.id === demoId).title).toBe('Amazing Grace (our arrangement)');
+    expect(db.team_songs.find(x => x.song_key === demoId).title).toBe('Amazing Grace (our arrangement)');
+  });
+
+  it('a seed edited on the second device merges three-way against the demo, not against nothing', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = seeded('A', db);
+    await A.sync();
+    A.editSong(demoId, 'A changed the lyric');
+    await A.save();
+    const B = seeded('B', db);
+    B.retitle(demoId, 'B changed the title');
+    await B.sync();
+    // Title from B, lyric from A: disjoint, merged, no prompt.
+    expect(B.conflicts).toEqual([]);
+    const merged = B.songs.find(s => s.id === demoId);
+    expect(merged.title).toBe('B changed the title');
+    expect(md(merged)).toContain('A changed the lyric');
+  });
+
+  it('a demo deleted on the first device stays deleted: the second device drops its seed', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = seeded('A', db);
+    await A.sync();
+    A.deleteSong(demoId);
+    await A.save();
+    expect(db.team_songs.map(x => x.song_key)).not.toContain(demoId);
+    const B = seeded('B', db);
+    await B.sync();
+    expect(B.songs.map(s => s.id)).not.toContain(demoId);
+    expect(db.team_songs.map(x => x.song_key)).not.toContain(demoId);
+    expect(B.songs).toHaveLength(2);
+  });
+
+  it('a seed the account never saw is uploaded like any new song', async () => {
+    const db = { team_songs: [], team_setlists: [], __rpcs: [] };
+    const A = seeded('A', db);
+    await A.sync();
+    expect(db.team_songs.map(x => x.song_key).sort()).toEqual(DEMO_SONGS.map(d => d.id).sort());
   });
 });
 

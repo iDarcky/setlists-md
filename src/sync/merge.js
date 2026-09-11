@@ -61,16 +61,19 @@ function mergeByKeys(keys, base, local, remote) {
   return { merged, conflictFields };
 }
 
-// Song fields that merge independently. `arrangements` + `defaultArrangementId`
-// are the chart — compared as one unit (both-touched → conflict). `keyHistory`
-// and `tempoHistory` are device-derived play counts, not user content: never a
-// conflict, union by taking the larger count so no play is lost.
+// Song fields that merge independently. `arrangements` is the chart —
+// compared as one unit (both-touched → conflict); `defaultArrangementId` is an
+// identity handle into it (two devices can hold the same song under different
+// arrangement ids), so it is not compared: it follows whichever side's
+// arrangements won. `keyHistory` and `tempoHistory` are device-derived play
+// counts, not user content: never a conflict, union by taking the larger
+// count so no play is lost.
 const SONG_FIELDS = [
   'title', 'artist', 'ccli', 'tags', 'spotify', 'youtube',
   'originalTitle', 'language', 'translator', 'writers', 'publishers',
   'copyright', 'album', 'label', 'year', 'themes', 'genres', 'scripture',
   'vocalRange', 'moment', 'story',
-  'arrangements', 'defaultArrangementId',
+  'arrangements',
 ];
 
 function mergePlayCounts(base, local, remote) {
@@ -85,10 +88,17 @@ function mergePlayCounts(base, local, remote) {
 export function threeWayMergeSong(base, local, remote) {
   if (!base || !local || !remote) return { merged: remote, conflictFields: ['__nobase__'] };
   const { merged, conflictFields } = mergeByKeys(SONG_FIELDS, base, local, remote);
+  // The default pointer follows the arrangements that won, and must resolve.
+  const winner = merged.arrangements === local.arrangements ? local : remote;
+  const arrs = Array.isArray(merged.arrangements) ? merged.arrangements : [];
+  const defaultArrangementId = arrs.some(a => a?.id === winner.defaultArrangementId)
+    ? winner.defaultArrangementId
+    : (arrs[0]?.id ?? winner.defaultArrangementId);
   return {
     merged: {
       ...remote,          // carry any fields we don't explicitly merge (id, updatedAt, …)
       ...merged,
+      defaultArrangementId,
       id: local.id,       // identity is never merged — keep ours
       keyHistory: mergePlayCounts(base.keyHistory, local.keyHistory, remote.keyHistory),
       tempoHistory: mergePlayCounts(base.tempoHistory, local.tempoHistory, remote.tempoHistory),
