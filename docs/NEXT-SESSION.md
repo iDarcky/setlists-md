@@ -85,10 +85,11 @@ a closed dead island imported by nothing live. That is ~2,800 lines, and it is
 the moment to drop the `showChords` migration fallback (those views were its
 only writers) and Settings → Chart Style.
 
-⚠ **And read §2.1 before picking anything.** It is September; the public beta
-targets October 1; the domain split → email → OAuth chain has not started and
-each link waits on the one above. `PLAN.md` calls it the only thing that can
-make October 1 not happen.
+⚠ **And read §2.1 before picking anything.** The public beta was moved to
+**1 February 2027** on 2026-10-07 (October 1 passed with Stream A unstarted).
+The domain split → email → OAuth chain still has not started and each link
+waits on the one above. `PLAN.md` calls it the only thing that can make the
+new date not happen.
 
 ### What five passes in a row found, so the sixth looks for it first
 
