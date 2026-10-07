@@ -3,7 +3,7 @@
 > **The single sequenced plan.** What to do, in what order, and why. Replaces
 > the old area-grouped plan (which said what was wrong but never what was next).
 >
-> _Last updated: 2026-07-30 · Version `0.17.0-beta.25` on `beta` · Target: **public beta October 1**._
+> _Last updated: 2026-07-30 · Version `0.17.0-beta.25` on `beta` · Target: **public beta 1 February 2027** (moved 2026-10-07 from October 1, which passed with Stream A unstarted)._
 
 **Three docs, three jobs.** `CLAUDE.md` = how it works (stack, schema, gotchas,
 finish/release workflow) · `docs/COMPONENTS.md` = what the pieces are (25
@@ -22,12 +22,12 @@ parallel** and rarely block each other:
 | :-- | :--- | :--- |
 | What | Domain, email, OAuth, staging, monitoring | Component passes, features, polish |
 | Nature | Mostly **ops + money + waiting on third parties** | Mostly **you writing code** |
-| Deadline | Hard — Oct 1 | Soft — continuous |
+| Deadline | Hard — 1 Feb 2027 | Soft — continuous |
 | Risk if late | **The beta doesn't happen** | The beta is rougher |
 | Currently | **Not started. This is the real risk.** | Moving well |
 
 **The honest read (2026-07-27):** engineering is ahead, ops is behind. Every
-remaining hard blocker to October 1 is in Stream A, and none of it is
+remaining hard blocker to the public beta (now 1 February 2027) is in Stream A, and none of it is
 programming. If you only do one thing in August, do Stream A.
 
 ---
@@ -323,8 +323,8 @@ were queued before this batch, still in order:
 2. **Setlist-builder tests** (§3.2) — the other surface where a bug silently
    destroys user work.
 3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth. It
-   has a queue, so August is already late. **This is still the only thing that
-   can make October 1 not happen.**
+   has a queue. **This is still the only thing that can make 1 February 2027
+   not happen.**
 
 4. **The sync replica** — opened by the owner on 2026-09-09 (*"I want a
    complete redesign"*, then *"do the next thing on the agenda"*). The design,
@@ -360,9 +360,9 @@ system) and the three new ones, §7 #10–12.
 
 ---
 
-## 2. Stream A — Ship the public beta (by October 1)
+## 2. Stream A — Ship the public beta (by 1 February 2027)
 
-### 2.1 🔴 Critical path — start in August, in this order
+### 2.1 🔴 Critical path — start now, in this order
 
 These are **sequential**: each waits on the one above it.
 
@@ -374,8 +374,9 @@ These are **sequential**: each waits on the one above it.
       _Needs the domain (redirect URIs) + working email._
 - [ ] **Cookie / storage transparency notice** — marketing-site footer.
 - [ ] **Leaked-password protection** — one toggle in the Supabase dashboard. Do it today, it's free.
-- [ ] **Private soft-launch to 5–10 worship teams** — September. This is the
-      validation gate for October, not a formality.
+- [ ] **Private soft-launch to 5–10 worship teams** — by early December 2026,
+      so January is for fixing what they find. This is the validation gate for
+      February, not a formality.
 
 ### 2.2 🔴 Production-grade gaps (found in the 2026-07-27 audit)
 
