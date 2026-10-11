@@ -56,7 +56,7 @@ of inactivity), cloud sync is offered as an optional safety net.
 - **Team sync** — for team/church Spaces, data syncs through Supabase.
 - **Conflict resolution** — Last-Write-Wins, comparing local `updatedAt`
   timestamps against remote modified dates. (Optimistic locking is a known gap;
-  see `analysis/TEAM_SYNC_AUDIT.md`.)
+  see `archive/TEAM_SYNC_AUDIT.md`.)
 
 ## 5. Auth & Accounts (`src/auth/`)
 
