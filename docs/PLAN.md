@@ -3,13 +3,36 @@
 > **The single sequenced plan.** What to do, in what order, and why. Replaces
 > the old area-grouped plan (which said what was wrong but never what was next).
 >
-> _Last updated: 2026-07-30 · Version `0.17.0-beta.25` on `beta` · Target: **public beta 1 February 2027** (moved 2026-10-07 from October 1, which passed with Stream A unstarted)._
+> _Last updated: 2026-10-11 · Version `0.18.0-beta.1` on `beta`, `0.17.0` on `main` · Target: **public beta 1 February 2027** (moved 2026-10-07 from October 1, which passed with Stream A unstarted)._
 
 **Three docs, three jobs.** `CLAUDE.md` = how it works (stack, schema, gotchas,
 finish/release workflow) · `docs/COMPONENTS.md` = what the pieces are (25
 components, owner files, debt) · **this file = what order to do them in.**
 
 **Status marks.** 🔴 blocker · 🟡 should · ⬜ nice · ✅ done · ⏭️ deliberately deferred · ❓ needs your decision.
+
+## Where things stand (2026-10-11)
+
+Sections 1–4 below were written in July and August and are kept for their
+reasoning. This block is the current state.
+
+**Done since the July plan:** the Reader finished and its flag graduated
+(2026-08-21); the sync redesign shipped through step 5 (`docs/SYNC-REDESIGN.md`);
+the DB hygiene migration; the docs and loose-files cleanup (#70); stale
+branches deleted; the seven dead reader files deleted (2026-10-11, §1.1 #4).
+
+**Next, in order:**
+1. **Release `beta` → `main`.** `main` is still `0.17.0`; the churches using
+   the app do not have the new sync yet. Then release every 2–3 weeks.
+2. **Start Stream A (§2).** Domain → email → OAuth is the only thing that can
+   make 1 February 2027 slip.
+3. **Soft launch to a few more churches by early December** (§2.1).
+
+**Still open from the cleanup:** the files the old reader left orphaned (see
+§3.6) and the `showChords` migration fallback (§1.1 #4).
+
+**Native is Kotlin Multiplatform** for Android and iOS (owner, 2026-10-11).
+§5.1 and `docs/NATIVE-READINESS.md` are updated for it.
 
 ---
 
@@ -101,8 +124,12 @@ is a correction or a promise already made.
 3. 🟡 **A divider between the top bar and the structure ribbon** — a hairline,
    lighter than the Score mockup's, which is the mockup element 2's geometry
    already came from.
-4. ✅ **Graduate the flag** — done 2026-08-21. The DELETE is still pending and is
-   now cheap: `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`,
+4. ✅ **Graduate the flag** — done 2026-08-21. ✅ **Deleted 2026-10-11:**
+   `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`,
+   `PracticeFinale`, `FullscreenChartViewer` and `ChordPicker`. Still open: the
+   `showChords` fallback, Settings → Chart Style, and the files only those
+   surfaces used (§3.6). The note from before the delete follows.
+   It said: `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`,
    `LiveFinale`, `PracticeFinale` and `FullscreenChartViewer` are a closed dead
    island, imported by nothing live. Deleting them is still the moment to drop
    the `showChords` migration fallback (they were its only writers) and to decide
@@ -635,6 +662,21 @@ Each doubles the work of the pass that touches it.
 - [x] ✅ `NewSongModal` — deleted, which **graduates `addSongModal`**. Everyone
       now gets the single add-a-song surface, and **PDF import works for
       everyone** (it only ever worked with that flag on).
+- [x] ✅ **The old reader surfaces** — deleted 2026-10-11, ~2,700 lines:
+      `performance/SetlistPlayer`, `PerformanceView`, `PracticeView`,
+      `LiveFinale`, `PracticeFinale`, `song/FullscreenChartViewer` and
+      `editor/ChordPicker` (§7 #13's second picker; `ChordAutocomplete` is the
+      one in use).
+- [ ] **Orphaned by that delete — needs a decision, not a sweep.** Nothing live
+      imports these any more: `chart/ChartView`, `chart/ChartStyleControls`,
+      `chart/SongMap`, `performance/PerformanceLayoutSheet`,
+      `ui/StageHeader`, `ui/FloatingStructure`, `ui/viewModes`,
+      `hooks/useStageHeaderCollapse`. Two carry features rather than dead
+      code: `ui/NotesStack` + `hooks/usePrivateNotes` are the only UI for
+      **"My note"** (private notes, still synced via `team_notes`), and
+      `lib/songSuggestions` fed campfire's "Up next" suggestions in the old
+      live view. Bring
+      them into the reader or delete them on purpose.
 - [ ] `Button2` + `PageHeaderLegacy` — now isolated in `features/design/`;
       nothing but the showcase imports them. Deleting is a decision about the
       showcase, not a refactor.
@@ -714,34 +756,33 @@ then update that component's entry. Definition of done is in COMPONENTS §5.
 
 ## 5. After the beta
 
-### 5.1 Native (2027 — full detail in `docs/NATIVE-READINESS.md`)
+### 5.1 Native (2027 — Kotlin Multiplatform; detail in `docs/NATIVE-READINESS.md`)
 
-That doc is the authority; the sequencing it settled on:
+**Decided 2026-10-11 (owner):** Android and iOS are **Kotlin Multiplatform**
+apps, not a wrapped PWA. No Capacitor, TWA, Expo or React Native.
 
-1. **Windows — days.** PWABuilder → Microsoft Store. The manifest already
-   qualifies. Free registration, ~24–48 h review, **0% fee** for non-game apps
-   using their own commerce. **Skip Electron entirely** — no policy or
-   capability benefit. _(Note: PWAs already install from Edge/Chrome today with
-   zero work — the Store is about discovery.)_
-2. **Google Play — weeks.** A Trusted Web Activity wraps the deployed PWA with
-   near-zero code change. Needs `assetlinks.json`, signing, Data Safety form,
-   and **Lighthouse ≥ 80** (§3.4). Post-Epic-settlement rules allow linking out
-   to Stripe (~10% on subscription link-outs).
-3. **Apple — months, and the long pole.** Capacitor, plus real work: Sign in
-   with Apple (required because you offer Google OAuth), OAuth deep links,
-   native storage backstop, Guideline 4.2 "doesn't feel like a website" polish.
-   **Billing posture for v1: don't sell in the iOS app** (reader-app pattern) —
-   teams subscribe on the web, the app just signs in. Zero IAP work, compliant everywhere.
+1. **Windows — days.** Unchanged: PWABuilder → Microsoft Store, 0% fee for
+   non-game apps using their own commerce. Skip Electron.
+2. **Android and iOS — one KMP codebase.** Shared Kotlin for the data layer:
+   the `.md` parser and serializer, transpose, the v2 song model, and a sync
+   client for the existing `apply_ops` / `sync_changes` RPCs. A native local
+   store replaces IndexedDB. UI is native per platform or Compose
+   Multiplatform, to be decided when the work starts.
+3. **What carries over from the wrapper plan:** Sign in with Apple (required
+   because of Google OAuth), deep-link OAuth, the public account-deletion URL
+   for Play, privacy labels, and the **billing posture for v1: don't sell in
+   the iOS app** (teams subscribe on the web).
 
-**The five webview blockers (N-1…N-5)** are enumerated in that doc. N-1 (PDF
-`window.open`) is ✅ already fixed. The rest — IndexedDB eviction on iOS, OAuth
-origin assumptions, Stripe navigation, and the missing platform shim — are worth
-keeping in mind as you build, because each one gets more expensive the later it's found.
+**The real cost is parity, not packaging.** Every rule the web client
+encodes about a song (parsing, `songDoc` normalization, merge) must give the
+same bytes in Kotlin, or two devices disagree about an unchanged song and
+sync ping-pongs. Shared test fixtures that both clients run are the
+precondition for the first native build.
 
 **Why bother, given the PWA works:** reach. iOS web push only reaches installed
 PWAs on 16.4+, and "Add to Home Screen" is a buried gesture most worship leaders
 will never find. Store presence is also credibility when asking a church to
-standardize on you.
+standardize on you. A native app also removes the iOS IndexedDB-eviction risk.
 
 ### 5.2 Reading-view model — 2 surfaces, not 4
 

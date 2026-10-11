@@ -10,7 +10,7 @@ A Progressive Web App for worship chord charts. Install on iPad/Android tablet, 
 - **vite-plugin-pwa** — service worker + manifest for offline/installable
 - **svguitar** — chord diagram rendering (MIT license)
 - **jszip** — setlist export/import as .zip bundles
-- **Hosted on Vercel** — auto-deploys from `master` branch
+- **Hosted on Vercel** — production deploys from `main` (releases only reach it through the `beta → main` PR)
 
 ## Commands
 
@@ -198,12 +198,11 @@ src/
 │
 ├── features/
 │   ├── library/          # Library.jsx, SongCard, LibraryFilters
-│   ├── song/             # SongHub (song-open target), SongDetails, SongPlayerBar,
-│   │                     #   FullscreenChartViewer (WIP)
+│   ├── song/             # SongHub (song-open target), SongDetails, SongPlayerBar
 │   ├── chart/            # ChartView (reader), SectionBlock, TabBlock, ChordDiagram,
 │   │                     #   StructureRibbon, SongMap, AaMenu, ChartStyleControls
 │   ├── editor/           # Editor.jsx shell + ArrangeTabV2 (canvas), WriteTab, TabsTab,
-│   │                     #   MetadataPanel, PreviewPanel, ChordPicker, TabGridEditorV2,
+│   │                     #   MetadataPanel, PreviewPanel, ChordAutocomplete, TabGridEditorV2,
 │   │                     #   PasteReview, StructureControl …
 │   ├── import/           # AddSongModal (Labs) · NewSongModal (legacy) · BrowseTab · ImportTab
 │   ├── dashboard/        # Dashboard.jsx
@@ -213,9 +212,10 @@ src/
 │   │                     #   BandPanel, BandReadCard
 │   ├── setlist-viewer/   # SetlistOverview (2 render sites!), SetlistOverviewV2 (legacy),
 │   │                     #   SetlistViewerCards
-│   ├── performance/      # ⚠ ALL UNREFERENCED since 2026-08-21 — SetlistPlayer,
-│   │                     #   PerformanceView, PracticeView, LiveFinale,
-│   │                     #   PracticeFinale, PerformanceLayoutSheet/SetlistSheet, WakeLockExplainer
+│   ├── reader/           # THE reader — Reader, SetlistReader, FullscreenReader,
+│   │                     #   ReaderFinale, LiveIntro … (decision log: docs/READER.md)
+│   ├── performance/      # PerformanceSetlistSheet (used by reader/SetlistRail) +
+│   │                     #   PerformanceLayoutSheet (orphaned — PLAN §3.6)
 │   ├── sharing/          # ShareSetlistDialog, SharedSetlistViewer, ExportSetlistDialog
 │   ├── settings/         # Settings.jsx, Account.jsx, AccountWall, AccountPanel,
 │   │                     #   SyncSettings, SyncDoctor, ChartStylePanel, WhatsNewPanel …
@@ -272,10 +272,10 @@ is its UI** (`sync/replica-engine.js` vs `features/sync/SyncStatus.jsx`).
 
 - **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-read`, `setlist-finale`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.
 - **ONE reading route.** `setlist-play`, `setlist-performance` and `setlist-practice` collapsed into **`setlist-read`**, and `practice-finale` + `live-finale` into **`setlist-finale`** (2026-08-21). The three old names rendered the same component with the same props and differed only in which finale they landed on. Live vs practice is now `readerMode` STATE, carried in the history snapshot.
-- **The `unifiedReader` Labs flag is GONE.** `Reader` is the only reader on every surface. ⚠ Flipping a flag's default graduates nobody — `loadSettings` merges defaults under stored settings and `saveSettings` persists the merged object, so every profile already had `unifiedReader: false` written down. Graduation means deleting the READ sites. `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`, `PracticeFinale` and `FullscreenChartViewer` are still in the tree and are now a closed dead island — no live code imports any of them.
+- **The `unifiedReader` Labs flag is GONE.** `Reader` is the only reader on every surface. ⚠ Flipping a flag's default graduates nobody — `loadSettings` merges defaults under stored settings and `saveSettings` persists the merged object, so every profile already had `unifiedReader: false` written down. Graduation means deleting the READ sites. `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`, `PracticeFinale`, `FullscreenChartViewer` and `ChordPicker` were deleted on 2026-10-11. `ChartView` and the few files only it and they used are still in the tree, imported by nothing live; `docs/PLAN.md` §3.6 lists them and what each needs decided.
 - **Which mode a setlist opens in is decided by the CLOCK** — `src/lib/openingMode.js`, not a preference. Live from 30 min before the service to `endTime` (or +3h); a rehearsal recorded that same day pushes live back to the service start; everything else, including no date/time and campfire, is practice. `READER_DEFAULT_MODE` is only that leftover. There is deliberately **no manual way into live** — the ☰'s Live row exists only while live, as the way out.
-- **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds `ChartView` as **just the reader** (`embedded` + controlled `selectedKey`/`displayMode`/`aaAnchor`/`arrangementId` props). Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
-- **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
+- **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds **`Reader`** (`features/reader/Reader.jsx`); full screen opens `FullscreenReader`. ⚠ The rest of this bullet predates the reader graduation and still describes `ChartView`, which the hub no longer mounts. Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
+- **The server is the source of truth for song data** (since the 2026-09 sync redesign). Each device keeps an IndexedDB copy via idb-keyval and works offline; team libraries, and the personal library when the account has cloud sync, sync through Supabase (see "Team library sync" below). Guests and accounts without cloud sync stay local-only.
 - **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `tempoHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; **sync carries the whole object** as a JSON document (`src/sync/songDoc.js`, `team_songs.doc`), so every arrangement follows the song across devices since 2026-09-10.
 - **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). One scoped layer sits beside them: `team_notes` (per-**user** private, via `usePrivateNotes`). A per-setlist **leaders-only** layer was built and then removed — see `docs/PLAN.md` → Team, "Post-service feedback".
 - **The .md format** is the interchange format — YAML frontmatter + `## Section` headers + `[Chord]lyrics` inline chords + `> notes` for band cues + `{tab}...{/tab}` for guitar tabs
