@@ -76,8 +76,7 @@ const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOver
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
 // PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
-// 2026-08-11 and the three old surfaces are no longer referenced from anywhere.
-// They stay in the tree for one more cycle; see docs/PLAN.md §1.1.
+// 2026-08-11 and the three old surfaces were deleted on 2026-10-11.
 //
 // ⚠ A lazy import of `ChartView` also lived here, referenced by nothing. It was
 // the LAST non-legacy call site keeping the old renderer in the graph, and it
@@ -87,7 +86,7 @@ const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
 const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
 // Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
-// ~80% the same file). Both are unreferenced as of the graduation.
+// ~80% the same file). Both were deleted on 2026-10-11.
 const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 // Shown once per ACCOUNT, the first time someone goes live — the fold in the
 // corner is deliberately cheap rather than self-explanatory, and this is where
