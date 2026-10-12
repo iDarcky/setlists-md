@@ -2,18 +2,24 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
-## 0.18.0 — Tempo history, and a reader that does what it said
-*September 2026*
+## 0.18.0 — Sync rebuilt, tempo history, and a reader that does what it said
+*October 2026*
 
 ### Added
+- **Your personal songs follow you to every device** — with cloud sync, your personal library now lives in your account, so a phone and a tablet signed in as you finally see the same songs.
+- **Every arrangement syncs** — a song's second and third arrangements, its key changes and its length now travel with it to every device in your Space. Before, only the main arrangement left the device you wrote it on.
 - **Every tempo you've played it at** — a song now remembers its tempos the way it already remembered its keys. Set a tempo on a song inside a setlist, and once that service is past it counts. You'll see it in the song's Details tab, in the editor's metadata panel, and in the reader when you tap the song title: "usually played at ♩ 72 ×5 · 76 ×2".
 - **Acoustic and Electric are separate instruments** — the reader's "Your instrument" menu offered one "Guitar", and it quietly meant electric. If you play acoustic, it was opening the wrong tab and closing yours.
 - **Swipe can finish a set** — every other way of moving through a setlist turns its last control into Finish. Swipe had no way to end a service at all; now there's a Finish button beside the song counter on the last item.
 
 ### Improved
+- **Sync rebuilt from the ground up** — the server now holds the one true copy of a Space's library, and each device keeps a copy to read offline. Your device sends only the changes you made, so two people editing different parts of a song no longer undo each other, and a real clash on the same detail asks you which one to keep.
+- **Drive, Dropbox and OneDrive are a backup now** — a connected folder gets a fresh copy of every song and setlist after each change, and you can restore from it whenever you need to. It no longer tries to sync, so it can't fight with your account.
 - **Your instrument follows your schedule** — if the leader put you down for electric guitar, that's what the reader assumes. Listed as playing an instrument *and* singing? The instrument wins; it's the one that decides which tab is yours.
 
 ### Fixed
+- **Songs stopped flipping back and forth.** A song's language and year could bounce between two versions every few seconds when two devices were open, each one putting back the other's older copy.
+- **The demo songs don't multiply.** Signing in on a new device no longer adds a second copy of the three welcome songs.
 - **Tabs actually collapse now.** Everyone else's tabs were supposed to fold to a single line so you don't scroll past a riff you're not playing. They never did — the reader worked out what you play a moment after it had already drawn the page, and then never looked again. Changing your instrument mid-song also did nothing; now it re-decides immediately.
 - **Chord diagrams are drawn on the fretboard.** Barre chords — Bm, Cm, Gm, Ab, Eb and the rest — had their dots pushed below the bottom of the diagram, so the shape you were shown wasn't playable. Bm is in nearly every song in G or D.
 - **Chords in sharp keys have shapes again.** A song in A or E said "No shape for this one yet" for F♯m, C♯m and G♯m, while the very same shapes sat in the app under their flat names.
