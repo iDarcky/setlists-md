@@ -510,7 +510,7 @@ export default function Dashboard({
         : 'Synced';
       const sub = !hasCloud
         ? 'Connect cloud sync in Settings to back up across devices.'
-        : `${provider ? provider.replace(/^supabase-team:.*/, 'Team cloud').replace(/^(\w)/, c => c.toUpperCase()) : 'Cloud'}${last ? ` · ${last.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}`;
+        : `${provider ? provider.replace(/^supabase-team:.*/, 'Team cloud').replace(/^supabase-personal:.*/, 'Setlists.md cloud').replace(/^(\w)/, c => c.toUpperCase()) : 'Cloud'}${last ? ` · ${last.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}`;
       return (
         <section className="flex flex-col gap-3 sm:gap-4">
           <div className="modes-card p-4 flex items-center gap-3">

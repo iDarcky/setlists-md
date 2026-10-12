@@ -325,7 +325,15 @@ export function resolveReaderConfig(settings, ctx = {}) {
       // Two columns on a wide screen is a fact about the space, not a taste.
       columns: wide ? 2 : 1,
       display: resolveChartDisplay(null),
-      myInstrument,
+      // ⚠ `tabId()` here for the SAME reason as the stage branch below, and it
+      // is the one line of the hub view that is not a taste: `SectionBlock`
+      // compares this against a TAB_INSTRUMENTS key (`acoustic`), and the band
+      // hands down a token (`acoustic-guitar`). Passing the raw value through
+      // does not fail loudly — it collapses exactly one tab, YOURS, and opens
+      // everyone else's. No embedded caller passes an instrument today, which
+      // is what makes this a landmine rather than a live bug: the inversion
+      // arrives with whoever wires the next one.
+      myInstrument: tabId(myInstrument),
       embedded: true,
       topBar: 'ribbon',
       notePlacement: wide ? 'leader' : 'above',

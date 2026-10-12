@@ -5,7 +5,7 @@
 // and the reflection box — so the tests below also pin what must NOT come back
 // without a decision to bring it back.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import ReaderFinale from '@/features/reader/ReaderFinale';
 
 // Team context is swapped per test via this mutable box.
@@ -164,5 +164,25 @@ describe('element 13 — what was deliberately cut', () => {
     renderFinale({ session: { startTime: Date.now() } });
     expect(screen.queryByText('What you played')).toBeNull();
     expect(screen.getAllByRole('button')).toHaveLength(2);
+  });
+});
+
+describe('element 13 — the clock stops when the set does', () => {
+  // ⚠ It used to TICK, once a minute, "so the clock stays honest if they
+  // linger". It did the opposite. This screen mounts when Finish is pressed, so
+  // the run ended at that instant — and a running clock counted the time spent
+  // LOOKING at the finale into the session it reports. Left on a music stand,
+  // a 20-minute practice read as an hour and a half. The one number on the
+  // screen has to be a fact about the run, not about the screen.
+  it('does not keep counting while the finale sits open', () => {
+    vi.useFakeTimers();
+    try {
+      renderFinale({ session: { startTime: Date.now() - 20 * 60 * 1000 } });
+      expect(screen.getByText('20m 00s')).toBeTruthy();
+      act(() => { vi.advanceTimersByTime(90 * 60 * 1000); });
+      expect(screen.getByText('20m 00s')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

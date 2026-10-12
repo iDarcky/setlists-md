@@ -110,6 +110,50 @@ describe('context overrides are physical facts, not preferences', () => {
   });
 });
 
+// ⚠ ELEMENT 9'S ONE TRANSLATION, and it had no test at all — which is how the
+// embedded branch came to skip it. `SectionBlock` opens a tab when
+// `tab.instrument === config.myInstrument`, where the left side is a
+// TAB_INSTRUMENTS key (`acoustic`) and the band hands down a token
+// (`acoustic-guitar`). Skip `tabId()` and the comparison is false for the one
+// person it is meant to be true for: their own tab is the only one that stays
+// collapsed. It fails silently in both directions, so only a test catches it.
+describe('what am I playing — the token → tab-id translation', () => {
+  const my = (ctx) => resolveReaderConfig({}, { wide: true, ...ctx }).myInstrument;
+
+  it('translates the band token on the stage', () => {
+    expect(my({ myInstrument: 'acoustic-guitar' })).toBe('acoustic');
+    expect(my({ myInstrument: 'Acoustic Guitar' })).toBe('acoustic');
+    expect(my({ myInstrument: 'electric-guitar' })).toBe('electric');
+    expect(my({ myInstrument: 'bass-guitar' })).toBe('bass');
+  });
+
+  it('translates it in the hub too', () => {
+    expect(my({ embedded: true, myInstrument: 'acoustic-guitar' })).toBe('acoustic');
+    expect(my({ embedded: true, myInstrument: 'Bass' })).toBe('bass');
+  });
+
+  it('is null for an instrument no tab is written for, and for nobody', () => {
+    for (const ctx of [{}, { embedded: true }]) {
+      expect(my({ ...ctx, myInstrument: 'drums' })).toBeNull();
+      expect(my({ ...ctx, myInstrument: 'keys' })).toBeNull();
+      expect(my({ ...ctx, myInstrument: 'vocals:alto' })).toBeNull();
+      expect(my({ ...ctx, myInstrument: null })).toBeNull();
+    }
+  });
+
+  // The manual pick already speaks tab ids, so it passes through untranslated
+  // — and it beats the band, because it is you saying what you want on screen.
+  it('lets the settings override win, in tab-id form', () => {
+    expect(resolveReaderConfig(
+      { tabInstrument: 'acoustic' }, { wide: true, myInstrument: 'bass-guitar' },
+    ).myInstrument).toBe('acoustic');
+    // 'all' means never collapse — fall back to the band's answer.
+    expect(resolveReaderConfig(
+      { tabInstrument: 'all' }, { wide: true, myInstrument: 'bass-guitar' },
+    ).myInstrument).toBe('bass');
+  });
+});
+
 describe('display still flows through chartDisplay', () => {
   it('keeps stage-mode notation and type sizes', () => {
     const c = resolveReaderConfig({ notation: 'nashville', defaultFontSize: 'L' }, wide);

@@ -3,13 +3,36 @@
 > **The single sequenced plan.** What to do, in what order, and why. Replaces
 > the old area-grouped plan (which said what was wrong but never what was next).
 >
-> _Last updated: 2026-07-30 · Version `0.17.0-beta.25` on `beta` · Target: **public beta October 1**._
+> _Last updated: 2026-10-11 · Version `0.18.0-beta.1` on `beta`, `0.17.0` on `main` · Target: **public beta 1 February 2027** (moved 2026-10-07 from October 1, which passed with Stream A unstarted)._
 
 **Three docs, three jobs.** `CLAUDE.md` = how it works (stack, schema, gotchas,
 finish/release workflow) · `docs/COMPONENTS.md` = what the pieces are (25
 components, owner files, debt) · **this file = what order to do them in.**
 
 **Status marks.** 🔴 blocker · 🟡 should · ⬜ nice · ✅ done · ⏭️ deliberately deferred · ❓ needs your decision.
+
+## Where things stand (2026-10-11)
+
+Sections 1–4 below were written in July and August and are kept for their
+reasoning. This block is the current state.
+
+**Done since the July plan:** the Reader finished and its flag graduated
+(2026-08-21); the sync redesign shipped through step 5 (`docs/SYNC-REDESIGN.md`);
+the DB hygiene migration; the docs and loose-files cleanup (#70); stale
+branches deleted; the seven dead reader files deleted (2026-10-11, §1.1 #4).
+
+**Next, in order:**
+1. **Release `beta` → `main`.** `main` is still `0.17.0`; the churches using
+   the app do not have the new sync yet. Then release every 2–3 weeks.
+2. **Start Stream A (§2).** Domain → email → OAuth is the only thing that can
+   make 1 February 2027 slip.
+3. **Soft launch to a few more churches by early December** (§2.1).
+
+**Still open from the cleanup:** the files the old reader left orphaned (see
+§3.6) and the `showChords` migration fallback (§1.1 #4).
+
+**Native is Kotlin Multiplatform** for Android and iOS (owner, 2026-10-11).
+§5.1 and `docs/NATIVE-READINESS.md` are updated for it.
 
 ---
 
@@ -22,12 +45,12 @@ parallel** and rarely block each other:
 | :-- | :--- | :--- |
 | What | Domain, email, OAuth, staging, monitoring | Component passes, features, polish |
 | Nature | Mostly **ops + money + waiting on third parties** | Mostly **you writing code** |
-| Deadline | Hard — Oct 1 | Soft — continuous |
+| Deadline | Hard — 1 Feb 2027 | Soft — continuous |
 | Risk if late | **The beta doesn't happen** | The beta is rougher |
 | Currently | **Not started. This is the real risk.** | Moving well |
 
 **The honest read (2026-07-27):** engineering is ahead, ops is behind. Every
-remaining hard blocker to October 1 is in Stream A, and none of it is
+remaining hard blocker to the public beta (now 1 February 2027) is in Stream A, and none of it is
 programming. If you only do one thing in August, do Stream A.
 
 ---
@@ -71,9 +94,14 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 > | **Closed** | **5 — notes** ✅ 2026-08-09, six rounds. It started as "what does a note look like" and became **where editing lives**: one mode, no arming, and a rule that assigns every control to a surface (bar = where you are · corner = what you do to the song · footer = where you're going). The edit bar is gone, Cancel is a word in the top bar, live can do nothing to a song, and the ☰ leaves edit mode entirely — *"you're changing the song, not the screen."* Also: three declared-but-unread capabilities, the ț bug (a 6px unpainted margin under a sticky heading, not multicol), and ~830 lines of orphans. `READER.md` → "The element-5 pass". |
 > | **Closed** | **6/7 — chords and lyrics** ✅ 2026-08-10, nine rounds. Billed as polish; it found that **the chart was DELETING chords** (a held chord met an arriving one and the arriving one was dropped — `[C]a [G] [D] [Em]b` drew two of four, and a trailing turnaround is how half the choruses in the library end), that trailing chords painted **off the screen**, and four more switches wired at one end only. Chord clearance became *what is missing* rather than a constant (56.1px of dead space on one chorus line → 42.3, and that remainder is legitimate); accidentals now travel with the CHORD, not the key; the "old chart feels airier" mystery was **mono spaces between sans words**, by accident. **Element 19 (capo) closed inside it** — one number, per song, per person, replacing a shared `item.capo` that let one guitarist rewrite the bass player's chart. Plus: add-a-section from the chart, editing expands every repeat, the hub stops mounting a second Reader. `READER.md` → "The element-6/7 pass". |
 > | **Closed** | **The two big threads** ✅ 2026-08-21, sixteen commits, promoted at `0.17.0-beta.96`. The flag is no longer READ anywhere and the Labs toggle is gone; `setlist-play`/`-performance`/`-practice` collapsed to **`setlist-read`** and the two finales to **`setlist-finale`**; one Play button replaces two. Live became a **red corner fold** (three shapes rejected on the way: a two-way chip, a Go-live button, a badge — each measured against the phone title, 48.0 → 51.2 → 108.7px) with the ✕ dropped on phones only and a pull to exit. **Which mode you open in is the CLOCK's decision** (`lib/openingMode.js`), not a preference — the constant flipped 'practice' → 'live' → 'practice' before that landed, which was the tell. Also: Chart Defaults deleted from Settings, 23 Reset buttons removed from the ☰, and **~10 switches wired at one end** — including a keep-awake regression the graduation would have shipped, the founder's note being unreachable for the whole life of the flag, and the ☰ doing nothing at all on a shared link. `READER.md` → "The element-6/7 pass" is followed by element 8's. |
-> | **Now** | **8 — key change**, most of it done and NOT closed. Marker trimmed 68.1 → 36.9px; the ribbon's `C ×2` run now splits at the key change (it was swallowing the commonest modulation there is); `{modulate: +2}` fires once and `{modulate: +2, every}` climbs. ⚠ **Open, and the reason it is not closed:** a key change cannot belong to a SLOT, so "Chorus in C, Verse 2, Chorus in D" is unrepresentable without duplicating the section. That is an `.md` format change — a MAJOR-version conversation like bars. |
+> | **Closed** | **8 — key change** ✅ shipped in `0.17.0`. Marker trimmed 68.1 → 36.9px; the ribbon's `C ×2` run splits at the key change; `{modulate: +2}` fires once and `{modulate: +2, every}` climbs. The thing that held it open — a key change cannot belong to a SLOT, so "Chorus in C, Verse 2, Chorus in D" was unrepresentable — was solved as an **overlay on the arrangement** (`src/lib/keyChanges.js`, `arrangement.keyChanges`), which sidestepped the `.md` format change and the MAJOR-version conversation. ⚠ Three docs went on saying "do not close element 8 without it" for two weeks after it shipped; corrected 2026-09-03. |
+> | **Closed** | **9 — tabs** ✅ 2026-09-03. Billed as instrument-awareness polish; it found element 9 **doing nothing at all** for most users. `TabBlock` seeded its open state from `defaultOpen`, derived from `myInstrument`, which arrives from Supabase *after* the first paint — so every tab froze open and the ☰'s "Your instrument" pick changed nothing (**trap 25**, trap 23 from the state side). Also: the ☰'s single "Guitar" row silently meant ELECTRIC, which is element 9 backwards for an acoustic player (two rows now); a singer-guitarist got no answer at all, the commonest entry a worship roster holds (vocals now loses to an instrument); and the hub branch of `resolveReaderConfig` skipped `tabId()`, the one translation `data/instruments.js` exists to warn about, with no test on it anywhere. `READER.md` → "The element-9 pass". |
 > | **Closed** | **4 — the section heading, and 4b the band cue** ✅ 2026-08-06, five rounds. Sizes you can read, eleven section types in eleven colours, four frames that take no width from the words, the left edge on a phone, a note gutter down the right, pinning tied to the column count, `↩ BRIDGE ×3`, and a tag that closes again. It also turned up **seven bugs older than the element** — the band-cue space bug (§1.2 #3c), a new section reverting to Verse, hyphenated `Pre-Chorus` falling off the colour table, `?` for every unknown type, a one-line section hidden behind its own heading, and two documented defaults nobody has ever had. `READER.md` → "The element-4 pass". |
-> | **Then** | **8 → 13** — modulate, tabs, getting to the next song, chord diagrams, the practice tools, and 13. All BUILT and shipping; none has had its element pass. ⚠ Element 12 carries a known correction: **the metronome must not start on tap** (item 1 below). |
+> | **Closed** | **10 — getting to the next song** ✅ 2026-09-03. The four navs, the footer, the rail and the break were all built right; the pass found that the element's one rule that is NOT about getting somewhere — **nothing leaves a song mid-edit** — was enforced on the three navs you can see and neither of the two you cannot, so a `→`, a pedal tap or a swipe stranded an applied edit with Cancel gone (**trap 26**). The rail had it inverted: `locked` disabled the safe Collapse chevron and left every jump-to-song row live. And the key you are reading was kept under two identities — persisted per SLOT, session per SONG — so a **reprise** opened in the opener's key, overriding what the leader saved for that slot. `READER.md` → "The element-10 pass". |
+> | **Closed** | **11 — chord diagrams** ✅ 2026-09-03. The design held; what it did not do is answer the SECOND question. The dismissing backdrop (`fixed inset-0 z-[200]`) sat over the chords, so — measured in Chromium — `elementFromPoint` at a chord's own centre returned the backdrop and every chord after the first cost two taps (**trap 27**). The backdrop stays (it is what keeps a dismissing tap off the ✕) and re-targets. The open/close toggle was keyed on the chord NAME, so the chorus's G closed the verse's G instead of moving — occurrence now. And the enharmonic aliases were eight hand-written lines, already missing `A#` and `D#`; derived now, so a chart in a sharp key stops saying "No shape for this one yet" for shapes that are right there. `READER.md` → "The element-11 pass". |
+> | **Closed** | **12 — practice tools** ✅ 2026-09-03. The engine holds up — the lookahead scheduler, the derived tempo, the track teardown, the held stepper (a predicted runaway interval when a button disables mid-hold was **measured in Chromium and does not exist**: pointer events still bubble from a disabled button). Two things did not. The practice row **outlived the mode that allowed it** — the icon is capability-gated but `practiceOpen` is state, so flipping the ☰'s Live switch with the row open left the click running in live, the one mode whose table says these tools do not exist. And **Save offered to persist a number nobody chose**: its test was "different from the song's tempo", and `Number(undefined)` is NaN, so an untimed song offered to save the 100 fallback before the user had touched anything. `READER.md` → "The element-12 pass". |
+> | **Closed** | **13 — the finale** ✅ 2026-09-03, and with it the whole element walk. The screen is right — one screenful, no page scroll, both ways out pinned, the three cuts still cut. Everything found was on the way IN: **swipe could not finish a set at all** (footer, pill and edge each turn their last control into Finish; swipe has no visible control, and a swipe past the end clamps), the finale's **clock kept counting after the set ended** (it ticked once a minute, so time spent looking at the finale went into the session it reports — a 20-minute practice left on a stand read as an hour and a half), and `onFinish?.()` made every nav's Finish guard always true. `READER.md` → "The element-13 pass". |
+ ⚠ Element 12 carries a known correction: **the metronome must not start on tap** (item 1 below). |
 > | **New** | **31 arrangements · 32 bars in the `.md` · 33 the hub's tabs** — all three named on 2026-08-10, all three out of scope for the element they surfaced in. 31 is the big one: the v2 schema has carried `arrangements[]` from the start and almost nothing uses it. |
 > | **Then** | **29 — the setlist rail.** Its permanent strip was removed in element 4's pass (owner pulled it forward: *"remove the rail on ipad to win more space"*); the rest of it is still open. Then the 14–27 table. |
 >
@@ -83,17 +111,25 @@ any of it. Also landed: the component-architecture foundation (§3.1, all ✅).
 The four items below predate the element pass. None is a new design round; each
 is a correction or a promise already made.
 
-1. 🔴 **The metronome must not start on tap** (element 12). The icon should open
-   the practice row; the row's own play button starts the click. Shipped wrong in
-   `0.17.0-beta.21` — two owner answers conflicted ("icon opens it" vs "the row
-   appears once the click starts") and the conflict was resolved the wrong way.
+1. ✅ **The metronome must not start on tap** (element 12) — **already fixed in
+   the code**, and confirmed by test during element 12's pass. The icon opens
+   the practice row; the row's own play button starts the click. It shipped
+   wrong in `0.17.0-beta.21` (two owner answers conflicted — "icon opens it" vs
+   "the row appears once the click starts" — and the conflict was resolved the
+   wrong way), was corrected soon after, and this list plus `READER.md`'s own
+   bullet went on describing the broken behaviour. Trap 19 at document scale,
+   for the second time this session.
 2. 🔴 **The practice row is too long on a phone.** ❓ Needs a decision first —
    §7 #10.
 3. 🟡 **A divider between the top bar and the structure ribbon** — a hairline,
    lighter than the Score mockup's, which is the mockup element 2's geometry
    already came from.
-4. ✅ **Graduate the flag** — done 2026-08-21. The DELETE is still pending and is
-   now cheap: `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`,
+4. ✅ **Graduate the flag** — done 2026-08-21. ✅ **Deleted 2026-10-11:**
+   `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`,
+   `PracticeFinale`, `FullscreenChartViewer` and `ChordPicker`. Still open: the
+   `showChords` fallback, Settings → Chart Style, and the files only those
+   surfaces used (§3.6). The note from before the delete follows.
+   It said: `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`,
    `LiveFinale`, `PracticeFinale` and `FullscreenChartViewer` are a closed dead
    island, imported by nothing live. Deleting them is still the moment to drop
    the `showChords` migration fallback (they were its only writers) and to decide
@@ -202,7 +238,7 @@ serious thing in this document; the last two are blocked on you.
    Not an open question: `docs/READER.md` already records the decision — "a white
    chart card sitting inside a dark app reads as broken rather than as a stage" —
    and the code disagrees with it. A bug against a written decision.
-6. 🔴 **Prod-only sync loop — ROOT-CAUSED 2026-08-07, not yet fixed in code.**
+6. 🟡 **Prod-only sync loop — ROOT-CAUSED 2026-08-07; the CODE half fixed 2026-09-09, the stale-client half is operational.**
    Measured against production, not guessed:
    - `team_activity` held **27,628 rows, 93% of them `song_edited`** — 5,482 in
      the last 7 days alone. Nobody edits songs 5,482 times in a week.
@@ -241,6 +277,26 @@ serious thing in this document; the last two are blocked on you.
      assert every key it emits is in `KNOWN_FRONTMATTER_KEYS`, so adding a key
      to the serializer and forgetting the list fails the suite instead of
      writing that key twice on the next save.
+   - ✅ **Reproduced on CURRENT builds 2026-09-09 and fixed.** The stale
+     client was only half the story. The pull-side merge (`mergeRemoteSong`
+     in `team-engine.js`, and its twin inline in `engine.js`) carried exactly
+     six song fields — title, artist, ccli, tags, spotify, youtube — onto an
+     existing local copy. Every field added since (the extended metadata, the
+     preserved unknown frontmatter, `structureMode`, `keyChanges`) kept its
+     STALE local value after a pull. The device then hashed that copy, saw it
+     differ from the server hash it had just recorded as the baseline, and
+     pushed the old values back; the other device did the same in reverse. So
+     two current builds loop with no old client anywhere. Measured against
+     `team_song_versions`: "Domn peste veacuri" alternating between two hashes
+     every 3–5 s on 08-21 and again on 09-03, same account both sides, the two
+     versions differing only by `language:` and `year:`; the amplification
+     guard is why each burst stops near 20 snapshots. The merge now lives in
+     `src/sync/mergeRemote.js` and adopts the server copy **wholesale** via
+     `songFromFlat(parsed)` — the parser's own shape, so a future field cannot
+     be missed — keeping only what the wire cannot carry: play histories and
+     local-only extra arrangements. Pinned by `merge-remote.test.js` and a
+     convergence scenario (`language`/`year` set on A reach B, and every later
+     sync on both devices uploads nothing).
 
    **Cleanup done** (`supabase/migrations/20260807_activity_retention.sql`):
    27,628 → 2,041 rows by collapsing edit storms to one row per entity per
@@ -294,17 +350,46 @@ were queued before this batch, still in order:
 2. **Setlist-builder tests** (§3.2) — the other surface where a bug silently
    destroys user work.
 3. **Start Stream A** (§2) — the domain split gates email, which gates OAuth. It
-   has a queue, so August is already late. **This is still the only thing that
-   can make October 1 not happen.**
+   has a queue. **This is still the only thing that can make 1 February 2027
+   not happen.**
+
+4. **The sync replica** — opened by the owner on 2026-09-09 (*"I want a
+   complete redesign"*, then *"do the next thing on the agenda"*). The design,
+   the decision log and the sequenced agenda live in **`docs/SYNC-REDESIGN.md`**.
+   Step 1 (the live loop) shipped in `96192ba`; step 2 (the server half:
+   `version`/`seq`/tombstones/`apply_ops`/`sync_changes`) is **applied to
+   production** (2026-09-10); step 3a (the member replica) and **3b (the
+   writer outbox over `apply_ops`, three-way merge on conflicts, handover
+   from the manifest)** shipped the same day — every team library runs
+   `sync/replica-engine.js` — and **3c deleted the manifest engine** (the
+   replica is the only team engine; a project without the RPCs gets a clear
+   error). **Step 4 shipped 2026-09-10**: the personal library is a workspace
+   on Supabase (`20260911_personal_workspaces.sql`, applied), synced by the
+   same replica; the Drive/Dropbox/OneDrive providers **stay** as an opt-in
+   folder sync on the owner's word (SYNC-REDESIGN §4.3 has the trade-off and
+   the "one-way backup mirror" recommendation). **Step 5 shipped the same
+   day**: the wire is the whole JSON song (`20260911_json_wire.sql`, applied;
+   `sync/songDoc.js`) with the markdown dual-written for older builds, so
+   multi-arrangement songs, key changes and lengths finally sync; the client-
+   id-as-primary-key half is deferred as 5b (SYNC-REDESIGN §4.3). **The DB
+   hygiene migration shipped 2026-09-11** (`20260911_db_hygiene.sql`, applied:
+   initplan rewrite, duplicate write policies dropped, the open roster read
+   closed, owner-membership trigger restored, `leader` on invites, FK
+   indexes). **§6 #4–5 closed the same day**: the demo songs have fixed ids
+   and a seed is its own baseline; the Drive/Dropbox/OneDrive folder is a
+   one-way backup mirror (`sync/backup.js`), and the file-manifest sync engine
+   is gone. What is left of the sync redesign is step 5b (drop the markdown
+   columns, decide on the primary key) a release cycle out, and the owner
+   flipping leaked-password protection on in the Auth dashboard.
 
 **Design calls waiting on you** before their work can start: §7 #8–9 (design
 system) and the three new ones, §7 #10–12.
 
 ---
 
-## 2. Stream A — Ship the public beta (by October 1)
+## 2. Stream A — Ship the public beta (by 1 February 2027)
 
-### 2.1 🔴 Critical path — start in August, in this order
+### 2.1 🔴 Critical path — start now, in this order
 
 These are **sequential**: each waits on the one above it.
 
@@ -316,8 +401,9 @@ These are **sequential**: each waits on the one above it.
       _Needs the domain (redirect URIs) + working email._
 - [ ] **Cookie / storage transparency notice** — marketing-site footer.
 - [ ] **Leaked-password protection** — one toggle in the Supabase dashboard. Do it today, it's free.
-- [ ] **Private soft-launch to 5–10 worship teams** — September. This is the
-      validation gate for October, not a formality.
+- [ ] **Private soft-launch to 5–10 worship teams** — by early December 2026,
+      so January is for fixing what they find. This is the validation gate for
+      February, not a formality.
 
 ### 2.2 🔴 Production-grade gaps (found in the 2026-07-27 audit)
 
@@ -356,6 +442,16 @@ Ordered by what hurts most if it goes wrong in front of real churches.
       a field serialized locally but absent from older server content, a
       client-side normalisation applied after adopt, or a lost manifest write.
       Note `createAmplificationGuard` isn't tripping, so it runs below that threshold.
+      **Probably the same bug as §1.2 #6** (the six-field pull merge) — confirm
+      with SyncDoctor once that fix is deployed before digging further.
+- [x] **Key changes and song length never leave the device.** ~~Found
+      2026-09-09 while pinning the pull-merge fix: `songToMd`'s v2 view copies
+      `key/tempo/time/capo/notes/structure/structureMode/sections/tabLibrary`
+      from the arrangement but not `keyChanges` or `duration`.~~ Fixed
+      2026-09-10 with sync step 5: both ride the JSON document on the wire,
+      and the two view fields were added to `songToMd` so `.md` export and
+      the markdown written beside the document carry them too (round-trip
+      test in `song-doc.test.js`). Songs holding either re-upload once.
 - [ ] **Dashboard global search returns nothing (desktop/tablet).** The home
       top-bar / ⌘K search yields no results where the same query works elsewhere.
       Likely a wiring gap between the dashboard input and `lib/search.js`.
@@ -566,6 +662,21 @@ Each doubles the work of the pass that touches it.
 - [x] ✅ `NewSongModal` — deleted, which **graduates `addSongModal`**. Everyone
       now gets the single add-a-song surface, and **PDF import works for
       everyone** (it only ever worked with that flag on).
+- [x] ✅ **The old reader surfaces** — deleted 2026-10-11, ~2,700 lines:
+      `performance/SetlistPlayer`, `PerformanceView`, `PracticeView`,
+      `LiveFinale`, `PracticeFinale`, `song/FullscreenChartViewer` and
+      `editor/ChordPicker` (§7 #13's second picker; `ChordAutocomplete` is the
+      one in use).
+- [ ] **Orphaned by that delete — needs a decision, not a sweep.** Nothing live
+      imports these any more: `chart/ChartView`, `chart/ChartStyleControls`,
+      `chart/SongMap`, `performance/PerformanceLayoutSheet`,
+      `ui/StageHeader`, `ui/FloatingStructure`, `ui/viewModes`,
+      `hooks/useStageHeaderCollapse`. Two carry features rather than dead
+      code: `ui/NotesStack` + `hooks/usePrivateNotes` are the only UI for
+      **"My note"** (private notes, still synced via `team_notes`), and
+      `lib/songSuggestions` fed campfire's "Up next" suggestions in the old
+      live view. Bring
+      them into the reader or delete them on purpose.
 - [ ] `Button2` + `PageHeaderLegacy` — now isolated in `features/design/`;
       nothing but the showcase imports them. Deleting is a decision about the
       showcase, not a refactor.
@@ -645,34 +756,33 @@ then update that component's entry. Definition of done is in COMPONENTS §5.
 
 ## 5. After the beta
 
-### 5.1 Native (2027 — full detail in `docs/NATIVE-READINESS.md`)
+### 5.1 Native (2027 — Kotlin Multiplatform; detail in `docs/NATIVE-READINESS.md`)
 
-That doc is the authority; the sequencing it settled on:
+**Decided 2026-10-11 (owner):** Android and iOS are **Kotlin Multiplatform**
+apps, not a wrapped PWA. No Capacitor, TWA, Expo or React Native.
 
-1. **Windows — days.** PWABuilder → Microsoft Store. The manifest already
-   qualifies. Free registration, ~24–48 h review, **0% fee** for non-game apps
-   using their own commerce. **Skip Electron entirely** — no policy or
-   capability benefit. _(Note: PWAs already install from Edge/Chrome today with
-   zero work — the Store is about discovery.)_
-2. **Google Play — weeks.** A Trusted Web Activity wraps the deployed PWA with
-   near-zero code change. Needs `assetlinks.json`, signing, Data Safety form,
-   and **Lighthouse ≥ 80** (§3.4). Post-Epic-settlement rules allow linking out
-   to Stripe (~10% on subscription link-outs).
-3. **Apple — months, and the long pole.** Capacitor, plus real work: Sign in
-   with Apple (required because you offer Google OAuth), OAuth deep links,
-   native storage backstop, Guideline 4.2 "doesn't feel like a website" polish.
-   **Billing posture for v1: don't sell in the iOS app** (reader-app pattern) —
-   teams subscribe on the web, the app just signs in. Zero IAP work, compliant everywhere.
+1. **Windows — days.** Unchanged: PWABuilder → Microsoft Store, 0% fee for
+   non-game apps using their own commerce. Skip Electron.
+2. **Android and iOS — one KMP codebase.** Shared Kotlin for the data layer:
+   the `.md` parser and serializer, transpose, the v2 song model, and a sync
+   client for the existing `apply_ops` / `sync_changes` RPCs. A native local
+   store replaces IndexedDB. UI is native per platform or Compose
+   Multiplatform, to be decided when the work starts.
+3. **What carries over from the wrapper plan:** Sign in with Apple (required
+   because of Google OAuth), deep-link OAuth, the public account-deletion URL
+   for Play, privacy labels, and the **billing posture for v1: don't sell in
+   the iOS app** (teams subscribe on the web).
 
-**The five webview blockers (N-1…N-5)** are enumerated in that doc. N-1 (PDF
-`window.open`) is ✅ already fixed. The rest — IndexedDB eviction on iOS, OAuth
-origin assumptions, Stripe navigation, and the missing platform shim — are worth
-keeping in mind as you build, because each one gets more expensive the later it's found.
+**The real cost is parity, not packaging.** Every rule the web client
+encodes about a song (parsing, `songDoc` normalization, merge) must give the
+same bytes in Kotlin, or two devices disagree about an unchanged song and
+sync ping-pongs. Shared test fixtures that both clients run are the
+precondition for the first native build.
 
 **Why bother, given the PWA works:** reach. iOS web push only reaches installed
 PWAs on 16.4+, and "Add to Home Screen" is a buried gesture most worship leaders
 will never find. Store presence is also credibility when asking a church to
-standardize on you.
+standardize on you. A native app also removes the iOS IndexedDB-eviction risk.
 
 ### 5.2 Reading-view model — 2 surfaces, not 4
 
@@ -731,6 +841,8 @@ Detail that belongs to a component pass. When you start a pass, read its section
 here first. Nothing in this section is scheduled on its own.
 
 ### Song details
+- ✅ **Tempo history** — *"show all the used tempos somewhere"*. Shipped as the twin of `keyHistory`: `performanceHistory.js` now holds the shared walk/apply/diff and `tempoHistory.js` supplies the tempo `valueOf` (`item.tempo ?? arrangement.tempo`). Shown in the reader's song panel, the hub's Details tab and the editor's metadata panel.
+- ⬜ **Should the setlist builder suggest the most-played tempo?** It already pre-fills the most-played KEY (`SetlistBuilder` → `mostPlayedKey`), so the data and the precedent are both there now. Deliberately NOT built — a tempo the leader did not type appearing in a setlist is a change to how setlists get made, which is his call, not a follow-on from showing the history.
 - ❓ **Capo: per-user rather than per-song?** A capo position belongs to the instrumentalist, not the song. Undecided since the June note; would need a per-user store.
 - Rich editor for **Story-behind** (breaks-style) ❓ both Story and Notes, or just Story?
 - Dedicated full song-details view ❓ route or expanded panel?

@@ -831,15 +831,70 @@ modulated again"*). Not a rendering bug — a gap in what the format could SAY.
 `{modulate: +2}` now fires the first time only; `{modulate: +2, every}` climbs.
 ⚠ This CHANGES the sound of existing songs that repeat a modulating section.
 
-**Still open, and it is the reason element 8 is not closed:** a key change
-cannot belong to a SLOT. The owner's case — *"Chorus in C then Verse 2 then
-Chorus again but this time in D"* — is unrepresentable. `once` gives C then C;
-`every` climbs Verse 2 and everything after; the only workaround is duplicating
-the chorus into two sections differing solely by key. The fix is `structure`
-entries carrying the change, which is an `.md` format change and a MAJOR-version
-conversation like bars. **Do not close element 8 without it.**
+**Closed by the overlay, in `0.17.0`.** A key change could not belong to a SLOT
+— the owner's case *"Chorus in C then Verse 2 then Chorus again but this time in
+D"* was unrepresentable, because `once` gives C then C and `every` climbs Verse 2
+and everything after. The expected fix was `structure` entries carrying the
+change, an `.md` format change and a MAJOR-version conversation like bars. It
+was **not** built that way: `arrangement.keyChanges` is an overlay resolved per
+slot (`src/lib/keyChanges.js`), so the format never moved. `SectionBlock` takes
+`keyMarks`, and a caller with an overlay silences the section's own `{modulate}`
+markers so a song mid-conversion does not draw the change twice.
+
+⚠ This paragraph said "do not close element 8 without it" for two weeks AFTER
+the overlay shipped, and `PLAN.md` and `NEXT-SESSION.md` agreed with it — so the
+next session was being sent to build something that already existed. **Trap 19,
+at document scale:** when you close something, grep for every note that says it
+is open.
 
 ### 9 — Tabs
+
+> **The element-9 pass.** Billed as instrument-awareness polish; it found that
+> **element 9 was doing nothing at all for most users**, and three separate
+> reasons why. Everything below the pass note is the original design, which
+> stands.
+>
+> 1. ⚠ **The collapse read its prop once and stopped listening.** `TabBlock`
+>    held `useState(defaultOpen)`, and `defaultOpen` is computed from
+>    `myInstrument` — which comes from Supabase (schedules, members, the setlist
+>    map) and is therefore **null on every first paint**. So every tab mounted
+>    `collapsible: false, defaultOpen: true`, the band data landed a moment
+>    later, and the state was already frozen open. Nothing threw. The ☰'s "Your
+>    instrument" pick died the same way: it recomputed a prop on a component
+>    that had stopped reading it, so picking Bass mid-song visibly changed
+>    nothing — **trap 23 from the state side.** Now `defaultOpen` is the answer
+>    and `openOverride` is only your tap on top of it; a NEW answer clears the
+>    tap on purpose, because "what am I playing" just changed and every tab
+>    deserves re-deciding under it.
+> 2. ⚠ **"Guitar" was one row in the ☰ and it meant ELECTRIC** (`tabInstrument:
+>    'electric'`), silently. On an acoustic player that is element 9 exactly
+>    backwards: the one tab written for them collapsed and the electric one
+>    opened, and nothing about the row said which guitar it meant. Two rows now
+>    — **Acoustic** and **Electric** (owner: *"you're scheduled as electric
+>    guitar → you see the electric guitar view"*); the library is worship
+>    charts, and acoustic is not the rarer half. `guitar` is retired from the
+>    list but NOT from accounts: `displayRole` is a **synced** preference, so
+>    `LEGACY_ROLE` keeps the row lit and `ROLE_INSTRUMENT` still resolves it to
+>    electric, which is what that row actually wrote.
+> 3. ⚠ **A singer-guitarist got no answer** — the commonest entry a worship
+>    roster holds. `resolveMyInstrument` returned null for anything but a
+>    one-item list, so "Guitar, Vocals" fell through to the fallback meant for
+>    people we know nothing about. Vocals now loses to an instrument (owner:
+>    *"instrument + vocals → instrument takes priority"*), and it is not a
+>    guess: vocals carries no tab and no diagram, so the only thing it could
+>    contribute is lyrics-instead-of-chords, which is the half he said loses.
+>    A list that is ONLY vocals still answers vocals — that IS their instrument.
+>    Two real instruments stay ambiguous forever.
+>
+> Also closed: the **hub branch of `resolveReaderConfig` skipped `tabId()`**, so
+> the token→tab-id translation that `data/instruments.js` exists to warn about
+> was missing on one of the two paths. No embedded caller passes an instrument
+> today, which is what made it a landmine rather than a bug — the inversion
+> arrives with whoever wires the next one. There was **no test on that
+> translation at all**, which is how the branch drifted; there is now, on both
+> paths. And the collapsed row named the stored id (`▸ electric tab`) instead of
+> the instrument.
+
 - **Instrument-aware.** Your instrument's tabs open; everyone else's collapse
   to one tappable line. `src/lib/myInstrument.js` answers "what am I playing":
   `team_schedules.role` for this setlist (bridged through `useTeamSetlistMap`
@@ -854,6 +909,38 @@ conversation like bars. **Do not close element 8 without it.**
   transposes but flags a large shift. Half a transposed tab is worse than none.
 
 ### 10 — Getting to the next song
+
+> **The element-10 pass.** The four navs, the footer, the rail and the break
+> were all built right. What the pass found is that the element's one rule that
+> is *not* about getting somewhere — **while a song is being edited, nothing may
+> leave it** — was enforced on the halves of the element you can see and on
+> neither half you cannot.
+>
+> 1. ⚠ **A hidden control is not a disabled one.** The footer, the floating pill
+>    and the edge arrows all carry `!locked`. The **keyboard/pedal handler and
+>    the swipe carried nothing**, so a `→`, a Bluetooth pedal tap or a
+>    horizontal drag mid-edit walked to the next song and stranded the change —
+>    applied, with Cancel gone. Those are precisely the paths that give no sign
+>    navigation is meant to be off, so there was nothing to notice. Both are
+>    locked now. ⚠ `locked` had to move UP to the state it reads: a `const` used
+>    in a dep array evaluated earlier in the render is a TDZ crash, not a stale
+>    value.
+> 2. ⚠ **The rail's guard was on the wrong button.** `locked` disabled the
+>    **Collapse** chevron — which strands nothing, since closing the rail leaves
+>    you on the song — and left every **row** live, so one tap jumped straight
+>    out of the edit. The rail cannot be *opened* while locked, but its open
+>    state is remembered per device, so on any tablet that left it open it is
+>    already on screen when edit mode starts. Rows are inert now; Collapse works.
+> 3. ⚠ **The key you are reading was kept under two identities.** The persisted
+>    half is per-SLOT and says so (`items[idx].transpose`, "a decision about THIS
+>    set"); the session map was keyed by **song id**. They agree until a service
+>    plays a song twice — a **reprise**, which is an ordinary thing to put in a
+>    set and usually the whole reason the second slot is saved a tone up. Change
+>    the opener's key on the fly, walk to the reprise, and it opened in the
+>    opener's key, silently overriding what the leader had saved for that slot.
+>    The slot is the identity `idx`, `go` and the persisted write already use;
+>    the session map was the one thing using a different one.
+
 - **Four nav styles** — `readerNav`: bottom bar (default) / floating pill /
   edge arrows / swipe.
 - **Keyboard and Bluetooth pedals are unconditional**, not one of the four —
@@ -875,6 +962,39 @@ conversation like bars. **Do not close element 8 without it.**
   literal `0` — guard with `> 0`.)
 
 ### 11 — Chord diagrams
+
+> **The element-11 pass.** The design held — no strip, capo ignored, Nashville
+> looked up by letter, guitar only, Pro-gated. What it did not do is answer the
+> **second** question you ask it.
+>
+> 1. ⚠ **The backdrop ate the next chord.** `ChordPopover` puts a
+>    `fixed inset-0 z-[200]` sheet over the chart to catch a dismissing tap; the
+>    chords are in normal flow underneath it. **Measured in Chromium:**
+>    `document.elementFromPoint` at a chord's own centre returns the BACKDROP
+>    while the popover is open. So the tap meant to ask about the next chord
+>    only dismissed the last one, and every chord after the first cost two taps
+>    — mid-song, on a stage, which is the one moment this element exists for.
+>    Nothing looked broken: the popover closed, exactly as a tap outside should.
+>    The backdrop **stays** (it is also what stops a dismissing tap pressing the
+>    chrome beneath it, ✕ included) and now *re-targets*: it lifts itself out
+>    for one synchronous `elementFromPoint`, and forwards only a tap that landed
+>    on a `[data-chord-tap]`. Re-measured in Chromium: chord tap → the chord,
+>    empty space → dismiss.
+> 2. ⚠ **The toggle was keyed on the chord NAME.** Tapping the chorus's G while
+>    the verse's G was open read as "the same chord again" and closed — a tap on
+>    a chord you had not asked about yet answering by showing nothing. A song
+>    repeats its chords by nature; two G's on one screen is the normal case. It
+>    is keyed on the OCCURRENCE now (the rect), so the same chord tapped twice
+>    still closes.
+> 3. ⚠ **The enharmonic aliases were eight hand-written lines, already
+>    incomplete** — `A#` and `D#` were missing while `Bb` and `Eb` sat in the
+>    table. Which spelling the chart prints is not the shape table's business
+>    (the key and the reader's `accidentals` setting decide it), so both have to
+>    answer or a chord that HAS a shape reads "No shape for this one yet" on
+>    half the settings. Derived now, root and slash-bass alike, and a written
+>    shape always beats a derived alias. Custom shapes (PLAN §1.2b #2) inherit
+>    the rule for free.
+
 - **Tap a chord, see that chord.** No strip. A strip is a permanent tax paid
   for the one chord you didn't know, which is why nobody left diagrams on.
 - **Capo is deliberately ignored.** Chart says G, tap G, get the G shape.
@@ -885,6 +1005,38 @@ conversation like bars. **Do not close element 8 without it.**
 - **Pro** — `useEntitlement('chord-diagrams')`. Without it chords stay inert.
 
 ### 12 — Practice tools
+
+> **The element-12 pass.** The engine is in good shape — the lookahead
+> scheduler, the derived tempo, the track teardown on a song change, the
+> stepper's held repeat (I predicted a runaway interval when a button disables
+> mid-hold and **measured it in Chromium: pointer events still bubble from a
+> disabled button**, so there is none) all hold up. Two things did not.
+>
+> 1. ⚠ **The practice row outlived the mode that allowed it.** The icon is
+>    gated on the capability — `can.practiceTools ? togglePractice : null`, and
+>    live sets it false — but `practiceOpen` is STATE, and gating the way in
+>    says nothing about a row already open. The ☰'s Live switch appears during
+>    the live window and turns live ON, so: open the tools twenty minutes
+>    before the service, start the click, flip the switch — and the row stayed
+>    on screen **with the click running, in live**, the one mode whose
+>    capability table says these tools do not exist. Trap 26's shape in state
+>    rather than in a lock: the guard was on the control, not on the thing it
+>    controls. The row now closes with the capability (a render-phase
+>    adjustment, not an effect — the compiler lint is right to reject
+>    `setState` in one) and the click stops with it.
+> 2. ⚠ **Save offered to persist a number nobody chose.** The button's test was
+>    "different from the song's tempo", and `Number(undefined)` is NaN, which
+>    differs from everything — so opening the row on a song with **no** tempo
+>    offered to save **100**, the fallback constant, before the user had done a
+>    thing. One tap and that is the song's tempo forever. It now asks the real
+>    question: has a tempo been tapped, typed or stepped for THIS song
+>    (`tempoChosen`, the same stamp `bpm` is derived from).
+>
+> Also: the "stops a click rather than carrying it into the next song" test was
+> omitting `mode` on its rerender, so it changed the SONG and the MODE at once
+> and only passed because nothing yet noticed the mode. A rerender drops every
+> prop you do not restate.
+
 
 **Round 1 is the metronome and slow-down. Nothing else.** Count-in and section
 loop were both considered and **cut**: a loop has nothing to loop against — the
@@ -897,10 +1049,16 @@ loop and no autoscroll. The old Practice screen was a chart viewer with differen
 chrome. So "the reason a separate Practice screen exists" was aspirational, and
 deleting the old surfaces costs nothing but the finale stats (element 13).
 
-- **One icon beside ☰ is the switch**, and **the icon IS the switch** — tapping it
-  starts the click *and* opens the row; tapping it again stops and closes. The
-  row keeps its own stop/start so silencing the click doesn't take the track
-  controls with it. Nothing was added near the ✕.
+- **One icon is the switch, and it only OPENS.** ⚠ This bullet used to say "the
+  icon IS the switch — tapping it starts the click *and* opens the row", and
+  that was the wrong resolution of two conflicting owner answers ("icon opens
+  it" vs "the row appears once the click starts"). It shipped in
+  `0.17.0-beta.21` and meant a tap to *see* the tempo filled a quiet room with
+  a click — the tool announcing itself before being asked. **Corrected in the
+  code well before this doc was**: the icon opens the row, the row's own play
+  button starts the click, closing still stops it (a click with no visible
+  control is worse than no click). The row keeps its own stop/start so silencing
+  the click doesn't take the track controls with it. Nothing was added near the ✕.
 - **ONE row, two halves, above element 10's nav bar** — click on the left, track
   on the right. Two bars at the bottom edge, **never three**: the alternative was
   a player, a tools bar *and* the nav bar, ~150px of chrome eating the chart on a
@@ -1029,6 +1187,36 @@ with their key, breaks dashed and italic.
   still fixed; only what hangs under it changes.
 
 ### 13 — The finale
+
+> **The element-13 pass.** The screen itself is right — one screenful, no page
+> scroll, both ways out pinned outside the scroller, the three cuts still cut.
+> What the pass found is all on the way IN and the way the number is read.
+>
+> 1. ⚠ **One of the four navs could not finish a set.** The footer's last arrow
+>    turns into Finish, the floating pill's does, the edge arrows' does —
+>    **swipe** had no visible control at all beyond the counter chip, and a
+>    swipe past the last song simply clamps. So for a swipe user element 13 was
+>    reachable by no route whatever, and the only way out of a finished set was
+>    the ✕. It gets a Finish button beside the chip on the last item — a button
+>    and not a gesture, because the other three navs all make Finish something
+>    you can SEE, and an invisible gesture off the end of the set is not the
+>    place to start. Edge is excluded: its right arrow is already Finish, and
+>    two of them on one screen is worse than none.
+> 2. ⚠ **The clock kept running after the thing it was timing had stopped.**
+>    `now` ticked once a minute "so the clock stays honest if they linger" — but
+>    this screen mounts when Finish is pressed, so the run ended at that
+>    instant, and the tick counted the time spent LOOKING at the finale into the
+>    session it reports. Left on a music stand, a 20-minute practice reads as an
+>    hour and a half. Frozen at mount. The one number on this screen has to be a
+>    fact about the run, not about the screen.
+> 3. ⚠ **`onFinish?.()` made every Finish guard always true.** Each nav asks
+>    `… && onFinish` before drawing Finish, and `SetlistReader` handed them
+>    `() => onFinish?.({ startTime })` — a function whether or not the host gave
+>    one. A caller with no finale would have got a Finish button that did
+>    nothing. Latent (App always passes one), and now null when there is nowhere
+>    to finish to. **Trap 23, again, from the other end: when you write `?.`,
+>    decide what it means for the thing to be absent.**
+
 
 **One screen for both kinds** (`ReaderFinale`), in place of `LiveFinale` (246
 lines) and `PracticeFinale` (252) — which were ~80% the same file, with
@@ -3006,6 +3194,58 @@ being routes into `live`.
    cost a false "confirmed broken" on the role picker, too: a chord count taken
    over the scroller picked up the ☰'s own contents, because on desktop the menu
    lives INSIDE that scroller.
+25. **`useState(prop)` is trap 23 from the state side, and the async props are
+   where it bites.** `TabBlock` seeded its open/closed state from `defaultOpen`,
+   which is derived from `myInstrument` — a value that arrives from Supabase
+   *after* the first paint, so the seed was always the "we don't know yet"
+   answer and the real one was never read. Element 9 did nothing for anyone, and
+   the ☰ pick that recomputes the same prop changed nothing on screen. The tell
+   is the same as trap 23's: a control that looks live and discards the change.
+   **Any prop that can arrive late or change — anything resolved from the team,
+   the schedule, or a synced setting — must not be seeded into `useState` and
+   left there.** Hold the derived answer as the value and the user's override
+   beside it, and decide explicitly what a NEW answer does to an old override.
+   A rerender test is the only thing that catches it; nothing throws when a
+   component quietly stops listening.
+26. **When a mode forbids something, enumerate every way to do it — the
+   invisible ones first.** Edit mode locks song navigation, and `locked` reached
+   the footer, the pill and the edge arrows, all of which you can SEE. It did
+   not reach the keyboard/pedal handler or the swipe, which you cannot, so the
+   rule held only against the users who could tell it was there. The rail then
+   had the same mistake inverted: the guard sat on the one control that was
+   safe (Collapse) while the dangerous ones (the rows) stayed live. **List the
+   ways INTO the forbidden state, not the buttons you happen to be looking at**,
+   and check each one has the guard rather than checking each guard has a
+   button.
+27. **A full-screen backdrop is a hit-test decision, not just a dismiss
+   affordance.** `fixed inset-0` over the content means every tap while it is
+   up belongs to it — including taps on the very thing the panel is about, so
+   asking a second question costs two taps and the first one looks like it did
+   nothing. jsdom cannot see this (it does not hit-test), and reading the JSX
+   does not show it either; `document.elementFromPoint` at the target's own
+   centre, in a real browser, answers in one line. **Whenever an overlay sits
+   over content the user may want to act on next, measure what is on top at
+   that content's coordinates.** The fix is usually to re-target rather than to
+   remove the backdrop — removing it hands the dismissing tap to whatever is
+   underneath, which here is the reader's chrome and its ✕.
+28. **Gating the control that OPENS a thing is not gating the thing.** Element
+   12's practice icon is capability-gated (`can.practiceTools ? … : null`) and
+   live sets that false — but `practiceOpen` is STATE, so a row opened in
+   practice stayed on screen, click running, after the ☰'s Live switch flipped
+   the mode. Same lesson as trap 26 arriving through state instead of through a
+   lock. **When a capability can go away underneath an open thing, the open
+   thing has to read the capability too** — and the closing half is a
+   render-phase adjustment, not an effect: the compiler lint rejects `setState`
+   in an effect, and it is right to.
+29. **An affordance present on three of four variants is absent, not
+   consistent.** Element 10 offers four nav styles and each turns its last
+   control into Finish — except swipe, which has no visible control at all, so
+   element 13 was unreachable for a whole nav mode. The variants were built one
+   at a time and each was checked against the one before it, never against the
+   list. **When a feature has N variants, put the promise in a loop over all N**
+   — `for (const nav of NAVS)` in `setlist-reader-finish.test.jsx` is the whole
+   fix, and it is what makes a fifth variant answer the question before it
+   ships.
 19. **A doc that says "removed" is not a removal.** beta.58 wrote the
    `scrollTop`-compensation warning above into both the code and this file and
    left the line itself running; the next round then read the comment, believed

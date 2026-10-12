@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { transposeTab } from '@/lib/tabTranspose';
+import { TAB_INSTRUMENTS } from '@/data/tabInstruments';
 
 // Tightened so more of a tab fits on screen: six strings at 18px spacing plus
 // padding made a single riff as tall as four lyric lines. These are the
@@ -37,7 +38,29 @@ export default function TabBlock({
   );
   const parsed = useMemo(() => parseForRender(shifted), [shifted]);
   const c = { ...DEFAULT_COLORS, ...(colors || {}) };
-  const [open, setOpen] = useState(defaultOpen);
+
+  // ⚠ THIS WAS `useState(defaultOpen)`, AND THAT READ THE PROP ONCE — on
+  // mount, never again. Element 9's whole job then did nothing in the ordinary
+  // case: `myInstrument` comes from Supabase (schedules, members, the setlist
+  // map), so the first paint always has NO answer — `collapsible: false`,
+  // `defaultOpen: true` — and by the time the band data lands, `open` is
+  // already `true` and frozen there. Every tab stayed open for everyone. The
+  // ☰'s "Your instrument" pick had the same fate: it recomputed `defaultOpen`
+  // on a component that had stopped listening, so choosing Bass mid-song
+  // visibly changed nothing (READER.md trap 23, from the state side).
+  //
+  // So: `defaultOpen` is the answer, and `openOverride` is only YOUR tap on top
+  // of it. A NEW answer clears the tap on purpose — "what am I playing" just
+  // changed, and every tab deserves to be re-decided by it rather than
+  // inheriting a choice you made under the previous answer.
+  const [openOverride, setOpenOverride] = useState(null);
+  const [lastDefault, setLastDefault] = useState(defaultOpen);
+  if (lastDefault !== defaultOpen) {
+    setLastDefault(defaultOpen);
+    setOpenOverride(null);
+  }
+  const open = openOverride ?? defaultOpen;
+  const setOpen = (next) => setOpenOverride(typeof next === 'function' ? next(open) : next);
 
   // Measure the available width so the tab can wrap onto multiple rows (broken
   // at bar lines) instead of overflowing into a horizontal scroll. Until the
@@ -71,7 +94,9 @@ export default function TabBlock({
 
   const height = PADDING_TOP + (parsed.strings.length - 1) * STRING_SPACING + PADDING_BOTTOM;
 
-  const instrument = label || data?.instrument;
+  // The stored value is an id (`electric`), not a name — "▸ electric tab" is a
+  // key leaking into the sentence. `label` stays an explicit override.
+  const instrument = label || TAB_INSTRUMENTS[data?.instrument]?.label || data?.instrument;
   const header = (collapsible || shift.flagged) && (
     <div className="flex items-center gap-2 text-[11px] leading-none">
       {collapsible && (

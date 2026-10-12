@@ -15,6 +15,49 @@ import ChordDiagram from './ChordDiagram';
  * does to it is the player's job, and second-guessing it here would mean
  * showing a shape whose name is nowhere on the screen.
  */
+
+/**
+ * ⚠ THE BACKDROP ATE THE NEXT CHORD.
+ *
+ * A `fixed inset-0 z-[200]` sheet is over the whole chart, and the chords are
+ * in normal flow underneath it. Measured in Chromium: with the popover open,
+ * `document.elementFromPoint` at a chord's own centre returns the BACKDROP.
+ * So the tap that was meant to ask about the next chord only dismissed the
+ * last one, and every chord after the first cost two taps — mid-song, on a
+ * stage, which is the one moment this element exists for. Nothing looked
+ * broken: the popover closed, exactly as a tap outside should.
+ *
+ * The fix re-targets rather than removing the backdrop, because the backdrop
+ * is also what stops a dismissing tap pressing whatever is beneath it — and
+ * beneath it is the reader's chrome, including the ✕, the one control that
+ * must never be hit by accident. So: only a tap that lands on a CHORD is
+ * forwarded; everything else dismisses exactly as before.
+ *
+ * `elementFromPoint` ignores elements with `pointer-events: none`, so the
+ * backdrop lifts itself out of the way for the length of one synchronous
+ * lookup. If the lookup answers nothing useful (jsdom returns null), this
+ * falls through to the old behaviour rather than swallowing the tap.
+ */
+function retargetOrClose(onClose) {
+  return (e) => {
+    const backdrop = e.currentTarget;
+    let under = null;
+    try {
+      backdrop.style.pointerEvents = 'none';
+      under = document.elementFromPoint(e.clientX, e.clientY);
+    } catch { /* no layout engine */ } finally {
+      backdrop.style.pointerEvents = '';
+    }
+    const chord = under?.closest?.('[data-chord-tap]');
+    if (chord) {
+      // Let the chord answer for itself — including "this is the one already
+      // open", which its own handler reads as close.
+      chord.click();
+      return;
+    }
+    onClose?.();
+  };
+}
 export default function ChordPopover({ chord, anchorRect, onClose }) {
   const ref = useRef(null);
   const [pos, setPos] = useState(null);
@@ -50,7 +93,11 @@ export default function ChordPopover({ chord, anchorRect, onClose }) {
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[200]" onClick={onClose} aria-hidden="true" />
+      <div
+        className="fixed inset-0 z-[200]"
+        onPointerDown={retargetOrClose(onClose)}
+        aria-hidden="true"
+      />
       <div
         ref={ref}
         role="dialog"

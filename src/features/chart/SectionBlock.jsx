@@ -662,6 +662,11 @@ export default function SectionBlock({
           role: 'button',
           tabIndex: 0,
           'aria-label': `${shapeName} chord shape`,
+          // How `ChordPopover` recognises a chord under its backdrop. Without
+          // it the backdrop swallows every tap while the popover is open, so
+          // moving from one chord to the next costs two taps — see the note
+          // there.
+          'data-chord-tap': '',
           onClick: (e) => {
             // ⚠ Stop the bubble. Element 5 puts a note-opening click on the
             // line wrapper, and a chord sits INSIDE it — without this, tapping

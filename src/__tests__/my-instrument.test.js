@@ -31,7 +31,12 @@ describe('resolveMyInstrument', () => {
       userId: ME,
       setlistId: 'sl-1',
       schedules: [{ user_id: 'user-other', setlist_id: 'row-uuid', role: 'Drums' }],
-      members: [{ user_id: ME, instruments: ['Keys', 'Vocals'] }],
+      // ⚠ Two REAL instruments on purpose. This fixture used to be
+      // `['Keys', 'Vocals']`, which no longer returns null — vocals stopped
+      // making a list ambiguous — and a fallback that answers would hide
+      // whether the schedule row was wrongly matched, which is what this test
+      // is actually about.
+      members: [{ user_id: ME, instruments: ['Keys', 'Acoustic Guitar'] }],
       setlistMap: { 'sl-1': 'row-uuid' },
     });
     expect(got).toBeNull();
@@ -42,10 +47,52 @@ describe('resolveMyInstrument', () => {
   });
 
   it('guesses nothing when I play several', () => {
-    // Hiding the wrong tab is worse than showing all of them.
+    // Hiding the wrong tab is worse than showing all of them. Two REAL
+    // instruments have no answer and never will.
+    expect(resolveMyInstrument({
+      userId: ME,
+      members: [{ user_id: ME, instruments: ['Keys', 'Acoustic Guitar'] }],
+    })).toBeNull();
+  });
+
+  // ⚠ THIS CASE USED TO RETURN NULL, and it is the commonest entry a worship
+  // roster holds — so the single most typical band member got the fallback
+  // meant for people we know nothing about. Owner: *"scheduled as instrument +
+  // vocals → instrument takes priority"*. It is not a guess: vocals carries no
+  // tab and no diagram, so all it could contribute is lyrics-instead-of-chords,
+  // which is the half he said loses.
+  it('lets the instrument win over vocals — a singing guitarist plays guitar', () => {
     expect(resolveMyInstrument({
       userId: ME,
       members: [{ user_id: ME, instruments: ['Keys', 'Vocals'] }],
+    })).toBe('keys');
+    expect(resolveMyInstrument({
+      userId: ME,
+      members: [{ user_id: ME, instruments: ['Vocals', 'Acoustic Guitar'] }],
+    })).toBe('acoustic-guitar');
+    // A part is still vocals.
+    expect(resolveMyInstrument({
+      userId: ME,
+      members: [{ user_id: ME, instruments: ['vocals:backing', 'Bass'] }],
+    })).toBe('bass-guitar');
+  });
+
+  it('answers vocals for someone who only sings', () => {
+    // Not a leftover — it IS their instrument: lyrics display, no tab of their
+    // own. Dropping it would take the answer away from every pure singer.
+    expect(resolveMyInstrument({
+      userId: ME, members: [{ user_id: ME, instruments: ['vocals:alto'] }],
+    })).toBe('vocals:alto');
+    // Several vocal parts still have no single answer.
+    expect(resolveMyInstrument({
+      userId: ME, members: [{ user_id: ME, instruments: ['vocals:alto', 'vocals:tenor'] }],
+    })).toBeNull();
+  });
+
+  it('still gives up on two instruments even when vocals is also listed', () => {
+    expect(resolveMyInstrument({
+      userId: ME,
+      members: [{ user_id: ME, instruments: ['Vocals', 'Keys', 'Drums'] }],
     })).toBeNull();
   });
 

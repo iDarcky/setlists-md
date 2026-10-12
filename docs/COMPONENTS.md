@@ -61,7 +61,8 @@ over. Settle these before the surfaces that sit on them.*
 **Job.** Turn `.md` into structured songs and back, losslessly, and do all
 music theory (transpose, capo, enharmonics, Nashville).
 
-**Owns.** `parser.js` · `music.js` · `arrangements.js` · `keyHistory.js` ·
+**Owns.** `parser.js` · `music.js` · `arrangements.js` ·
+`performanceHistory.js` · `keyHistory.js` · `tempoHistory.js` ·
 `recommendations.js` · `lib/detectSections.js` · `lib/importChords.js` ·
 `lib/cleanPastedText.js`
 
@@ -70,7 +71,7 @@ every other component reads.
 
 **Status.** ✅ The healthiest part of the codebase, and the only part with test
 coverage proportional to its risk (parser, music, arrangements, keyHistory,
-detectSections, importChords, repeat-marks, canvas-frontmatter).
+tempoHistory, detectSections, importChords, repeat-marks, canvas-frontmatter).
 
 **Debt.**
 - Frontmatter is one line per field — multi-line Story/Notes needs a format
@@ -106,28 +107,35 @@ history all present and tested (`storage.test.js`, `storage-persistence.test.js`
 #### 0.3 — Sync
 **Job.** Move songs and setlists between device and cloud without losing an edit.
 
-**Owns.** `sync/*` (16 files, 3,086 lines) — two engines: the file-manifest
-engine (`engine.js`, personal BYOC) and the server-authoritative team engine
-(`team-engine.js`, 844 lines) · `sync/adopt.js` · `sync/lock.js` ·
-`sync/merge.js` · `features/settings/SyncDoctor.jsx` · `SyncStatus.jsx` ·
-`ConflictResolver.jsx`
+**Owns.** `sync/*` — the replica engine (`replica-engine.js`: every team
+library AND the personal library's workspace on Supabase — feed cursor, dirty
+set, `apply_ops`) and the backup mirror (`backup.js`: a Drive/Dropbox/OneDrive
+folder written one way after every change, read only on "Restore missing") ·
+`hooks/usePersonalWorkspace.js` · `sync/adopt.js` · `sync/lock.js` ·
+`sync/merge.js` · `sync/mergeRemote.js` · `features/settings/SyncDoctor.jsx` ·
+`SyncSettings.jsx` · `ConflictResolver.jsx`. The team manifest engine
+(`team-engine.js`) was deleted 2026-09-10; the file-manifest engine
+(`engine.js`) on 2026-09-11.
 
-**State.** The sync manifests (baselines/hashes) in IndexedDB.
+**State.** `sync:<team>.replica` / `sync:personal.replica` in IndexedDB —
+`{ since, rows, dirty, writer }`; the mirror keeps its file manifests and
+`lastBackupTime` under `sync:personal`.
 
-**Status.** 🟡 The most carefully engineered subsystem — Web Locks mutex, keyset
-pagination, delta pulls, CAS updates, server-side identity keys, reconciled
-adoption, a two-device convergence suite. It has earned its complexity.
+**Status.** 🟢 Replaced 2026-09-10 (`docs/SYNC-REDESIGN.md` steps 1–5): the
+wire is the whole JSON song (`sync/songDoc.js`), markdown dual-written; the
+server stamps versions and a change feed; devices hold a cursor and, for
+writers, a dirty set; conflicts merge three-way. Two seeded fuzz suites.
 
 **Debt.**
-- 🔴 **The repeating "Synced" toast is still open** (PLAN §2, P1). The toast is
-  silenced but the underlying re-upload loop is not root-caused. This is the one
-  open correctness bug in the foundations and it should be closed before any
-  surface work — a library that re-uploads every cycle burns quota and will
-  eventually lose a race.
-- Field-level 3-way merge (`sync/merge.js`) is built and tested but **not wired
-  into the engine** — needs per-field baselines + a `HASH_VERSION` bump.
-- Two engines with one adoption path is correct but under-documented; the
-  `createEngineForLibrary` seam is the only thing keeping them apart.
+- The backup folder has no scheduled full pass: it is written on change and
+  on "Back up now", so a file deleted by hand in the folder stays absent until
+  that song next changes. Fine for a copy; note it if it ever needs to be a
+  guarantee.
+- `canonical.js` survives for the one-time team handover, for `content_hash`
+  on writes and for the file engine.
+- `content`/`content_hash` are still written beside the document for older
+  builds; dropping them (and deciding on the client id as primary key) is
+  SYNC-REDESIGN step 5b, a release cycle out.
 
 ---
 

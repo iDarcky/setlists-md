@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { CHORD_SHAPES } from '@/data/chordShapes';
+import { CHORD_SHAPES, toRelativeFrets } from '@/data/chordShapes';
 
 // svguitar (with its svg.js dependency) is ~189 KB — larger than the entire
 // chart reader. Diagrams are OFF by default and only reachable from the
@@ -25,8 +25,9 @@ export default function ChordDiagram({ chord, size = 80 }) {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const shape = CHORD_SHAPES[chord];
-    if (!shape) return;
+    const stored = CHORD_SHAPES[chord];
+    if (!stored) return;
+    const shape = toRelativeFrets(stored);
 
     // Clear previous render
     containerRef.current.innerHTML = '';

@@ -10,7 +10,7 @@ A Progressive Web App for worship chord charts. Install on iPad/Android tablet, 
 - **vite-plugin-pwa** — service worker + manifest for offline/installable
 - **svguitar** — chord diagram rendering (MIT license)
 - **jszip** — setlist export/import as .zip bundles
-- **Hosted on Vercel** — auto-deploys from `master` branch
+- **Hosted on Vercel** — production deploys from `main` (releases only reach it through the `beta → main` PR)
 
 ## Commands
 
@@ -198,12 +198,11 @@ src/
 │
 ├── features/
 │   ├── library/          # Library.jsx, SongCard, LibraryFilters
-│   ├── song/             # SongHub (song-open target), SongDetails, SongPlayerBar,
-│   │                     #   FullscreenChartViewer (WIP)
+│   ├── song/             # SongHub (song-open target), SongDetails, SongPlayerBar
 │   ├── chart/            # ChartView (reader), SectionBlock, TabBlock, ChordDiagram,
 │   │                     #   StructureRibbon, SongMap, AaMenu, ChartStyleControls
 │   ├── editor/           # Editor.jsx shell + ArrangeTabV2 (canvas), WriteTab, TabsTab,
-│   │                     #   MetadataPanel, PreviewPanel, ChordPicker, TabGridEditorV2,
+│   │                     #   MetadataPanel, PreviewPanel, ChordAutocomplete, TabGridEditorV2,
 │   │                     #   PasteReview, StructureControl …
 │   ├── import/           # AddSongModal (Labs) · NewSongModal (legacy) · BrowseTab · ImportTab
 │   ├── dashboard/        # Dashboard.jsx
@@ -213,9 +212,10 @@ src/
 │   │                     #   BandPanel, BandReadCard
 │   ├── setlist-viewer/   # SetlistOverview (2 render sites!), SetlistOverviewV2 (legacy),
 │   │                     #   SetlistViewerCards
-│   ├── performance/      # ⚠ ALL UNREFERENCED since 2026-08-21 — SetlistPlayer,
-│   │                     #   PerformanceView, PracticeView, LiveFinale,
-│   │                     #   PracticeFinale, PerformanceLayoutSheet/SetlistSheet, WakeLockExplainer
+│   ├── reader/           # THE reader — Reader, SetlistReader, FullscreenReader,
+│   │                     #   ReaderFinale, LiveIntro … (decision log: docs/READER.md)
+│   ├── performance/      # PerformanceSetlistSheet (used by reader/SetlistRail) +
+│   │                     #   PerformanceLayoutSheet (orphaned — PLAN §3.6)
 │   ├── sharing/          # ShareSetlistDialog, SharedSetlistViewer, ExportSetlistDialog
 │   ├── settings/         # Settings.jsx, Account.jsx, AccountWall, AccountPanel,
 │   │                     #   SyncSettings, SyncDoctor, ChartStylePanel, WhatsNewPanel …
@@ -236,7 +236,8 @@ src/
 │   ├── supabase.js       # Supabase client (null when env vars missing)
 │   ├── AuthContext.js · useAuth.js · AuthProvider.jsx
 │   └── TeamContext.js · useTeam.js · TeamProvider.jsx
-├── sync/                 # Two engines + adopt/lock/merge/providers (COMPONENTS.md §0.3)
+├── sync/                 # replica-engine (every library) + backup (the one-way folder mirror)
+│                         #   + adopt/lock/merge/mergeRemote/providers (COMPONENTS.md §0.3)
 ├── lib/ · hooks/ · contexts/   # Shared logic, hooks, workspace context
 ├── pdf/ · import/ · share/ · setlist/ · notes/ · push/ · billing/
 ├── data/
@@ -265,17 +266,17 @@ folder. Used by several → `lib/` (pure logic) or `hooks/` (React hooks). Only
 `auth/`, `sync/`, `pdf/`, `push/`, `data/`, `contexts/` keep their own
 top-level folders — they're subsystems, not helpers. `auth/` and `sync/` each
 have a matching `features/` folder: **`src/<x>/` is the engine, `features/<x>/`
-is its UI** (`sync/team-engine.js` vs `features/sync/SyncStatus.jsx`).
+is its UI** (`sync/replica-engine.js` vs `features/sync/SyncStatus.jsx`).
 
 ## Architecture
 
 - **No router** — App.jsx manages views via `view` state (`library`, `song-hub`, `editor`, `setlist-build`, `setlist-read`, `setlist-finale`, `signin`, `recovery`, `auth-callback`, …). The `song-hub` route replaced the old `chart` route entirely.
 - **ONE reading route.** `setlist-play`, `setlist-performance` and `setlist-practice` collapsed into **`setlist-read`**, and `practice-finale` + `live-finale` into **`setlist-finale`** (2026-08-21). The three old names rendered the same component with the same props and differed only in which finale they landed on. Live vs practice is now `readerMode` STATE, carried in the history snapshot.
-- **The `unifiedReader` Labs flag is GONE.** `Reader` is the only reader on every surface. ⚠ Flipping a flag's default graduates nobody — `loadSettings` merges defaults under stored settings and `saveSettings` persists the merged object, so every profile already had `unifiedReader: false` written down. Graduation means deleting the READ sites. `ChartView`, `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`, `PracticeFinale` and `FullscreenChartViewer` are still in the tree and are now a closed dead island — no live code imports any of them.
+- **The `unifiedReader` Labs flag is GONE.** `Reader` is the only reader on every surface. ⚠ Flipping a flag's default graduates nobody — `loadSettings` merges defaults under stored settings and `saveSettings` persists the merged object, so every profile already had `unifiedReader: false` written down. Graduation means deleting the READ sites. `PerformanceView`, `PracticeView`, `SetlistPlayer`, `LiveFinale`, `PracticeFinale`, `FullscreenChartViewer` and `ChordPicker` were deleted on 2026-10-11. `ChartView` and the few files only it and they used are still in the tree, imported by nothing live; `docs/PLAN.md` §3.6 lists them and what each needs decided.
 - **Which mode a setlist opens in is decided by the CLOCK** — `src/lib/openingMode.js`, not a preference. Live from 30 min before the service to `endTime` (or +3h); a rehearsal recorded that same day pushes live back to the service start; everything else, including no date/time and campfire, is practice. `READER_DEFAULT_MODE` is only that leftover. There is deliberately **no manual way into live** — the ☰'s Live row exists only while live, as the way out.
-- **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds `ChartView` as **just the reader** (`embedded` + controlled `selectedKey`/`displayMode`/`aaAnchor`/`arrangementId` props). Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
-- **No server for song data** — songs/setlists stored client-side in IndexedDB via idb-keyval. Supabase only handles auth + account-level preferences.
-- **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; multi-arrangement state is app-internal.
+- **Song Hub** (`SongHub.jsx`) is the song-open target. It owns identity + transpose + tab navigation and embeds **`Reader`** (`features/reader/Reader.jsx`); full screen opens `FullscreenReader`. ⚠ The rest of this bullet predates the reader graduation and still describes `ChartView`, which the hub no longer mounts. Tabs are **Chart / Lyrics / Details** rendered as brand-coloured pills (matching the top nav). The **Aa** display popover and a centered **"Advanced"** `Dialog` both render inside `ChartView`; the Aa + full-screen buttons live in the reader **tab header** and show only on Chart/Lyrics (hidden on Details). Full-screen opens `FullscreenChartViewer` (WIP — future home of the chart "view modes"). The hub ⋮ menu carries Print/Move/Copy (desktop) plus Campfire+Edit folded in on mobile. Backing-track audio is `SongPlayerBar` (YouTube-only): a single card pinned to the bottom, laid out as one non-wrapping row (play · title · scrubber · time) so the scrubber stays on the title's line even on phones.
+- **The server is the source of truth for song data** (since the 2026-09 sync redesign). Each device keeps an IndexedDB copy via idb-keyval and works offline; team libraries, and the personal library when the account has cloud sync, sync through Supabase (see "Team library sync" below). Guests and accounts without cloud sync stay local-only.
+- **Songs** are stored as parsed objects on a **v2 multi-arrangement schema** (`src/arrangements.js`): top-level identity (`id`, `title`, `artist`, `ccli`, `tags`, `keyHistory`, `tempoHistory`, `defaultArrangementId`) plus an `arrangements[]` array. Each arrangement carries its own `key`, `tempo`, `time`, `capo`, `notes`, `structure[]`, and `sections[]`. The `.md` format flattens to a single arrangement; **sync carries the whole object** as a JSON document (`src/sync/songDoc.js`, `team_songs.doc`), so every arrangement follows the song across devices since 2026-09-10.
 - **Notes live at three levels** — per-arrangement `arrangement.notes` (markdown, shared across setlists), per-setlist-item `items[i].note` (100-char cue), and per-break `items[i].note` (500-char markdown). One scoped layer sits beside them: `team_notes` (per-**user** private, via `usePrivateNotes`). A per-setlist **leaders-only** layer was built and then removed — see `docs/PLAN.md` → Team, "Post-service feedback".
 - **The .md format** is the interchange format — YAML frontmatter + `## Section` headers + `[Chord]lyrics` inline chords + `> notes` for band cues + `{tab}...{/tab}` for guitar tabs
 - **Section types** each have a color scheme defined in `music.js` (Intro, Verse, Chorus, Bridge, etc.)
@@ -387,11 +388,15 @@ keep the regex, the object and the text together.
 - A solid `--chord` chip names the **arrival key**, not the interval
 - Round-trip: serialized back through `serializeModulate()` in `songToMd()`
 
-⚠ **A key change still cannot belong to a SLOT.** "Chorus in C, Verse 2, Chorus
-in D" is unrepresentable: `once` gives you C then C, `every` climbs Verse 2 and
-everything after, and the only workaround is duplicating the chorus into two
-sections that differ solely by key. The fix is to let `structure` entries carry
-the change — an `.md` format change, and a MAJOR-version conversation like bars.
+⚠ **A key change CAN belong to a slot now — and it is not these markers.**
+"Chorus in C, Verse 2, Chorus in D" is unrepresentable in the body (`once` gives
+you C then C, `every` climbs Verse 2 and everything after), so it is carried by
+an **overlay on the arrangement** instead: `arrangement.keyChanges`, resolved
+per slot by `src/lib/keyChanges.js`. That kept the `.md` format — and the
+MAJOR-version conversation — out of it. `SectionBlock` takes `keyMarks`, and
+when a caller passes an overlay the section's own `{modulate}` markers go
+**silent** rather than drawing the same change twice; a song mid-conversion
+carries both.
 
 ## Tab Block Format
 
@@ -493,7 +498,9 @@ The signed-in experience depends on a `profiles` table with columns:
 
 The Teams/Church tier adds these additional tables:
 
-- **`teams`** — `id`, `name`, `location`, `owner_id`, `plan` (team|church),
+- **`teams`** — `id`, `name`, `location`, `owner_id`, `kind`
+  (personal|team|church — `personal` is the owner's private library, no
+  members, never in the switcher), `plan` (personal|team|church),
   `max_seats` (10 for team, 30 for church), `logo_url`, `created_at`,
   `updated_at`, plus **per-workspace subscription** columns:
   `subscription_status` (trialing|active|past_due|canceled|unpaid, default
@@ -525,8 +532,11 @@ The Teams/Church tier adds these additional tables:
   by who's available on the setlist's date).
 
 RLS policies:
-- Members can view their own team and its roster.
-- The owner can create/update/delete the team.
+- Members can view their own team and its roster (and nobody else's — a
+  signed-in user sees their own membership rows plus the rosters of
+  workspaces they belong to or own, since `20260911_db_hygiene`).
+- The owner can create/update/delete the team; creating one makes the owner
+  an admin member atomically (`on_team_created`, not for personal workspaces).
 - Admins (and team owners on self-insert) can add members.
 - Admins can update member roles and remove members.
 - Any user can remove themselves (leave).
@@ -590,6 +600,58 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   (being rostered now writes a durable notification), and `pg_cron`+`pg_net`
   jobs: `notify-worker` (every minute → the edge function) and a daily
   `cron-history-cleanup`.
+
+- `20260910_sync_versions.sql` — **server foundations for the replica sync
+  model** (`docs/SYNC-REDESIGN.md`, step 2). Adds `version` (the
+  compare-and-swap token, bumped by `trg_sync_stamp` on every real change),
+  `seq` (change-feed position from `public.sync_seq`, assigned under a
+  per-workspace advisory lock so feed order == commit order) and `updated_by`
+  to `team_songs`/`team_setlists`; a `team_deletions` tombstone table written
+  by an `AFTER DELETE` trigger (deletes become feed rows; hard deletes and
+  cascades stay); and two SECURITY INVOKER RPCs — `apply_ops(team, ops)` (a
+  batch of put/delete guarded by `base_version`, conflicts returned with the
+  server copy, identical-content retries count as applied) and
+  `sync_changes(team, since, limit)` (songs + setlists + deletions after a
+  cursor, one query). A no-op write is frozen to the old stamps. Additive; the
+  manifest engine never reads the new columns. Validated in a rolled-back run
+  and **applied to production on 2026-09-10**. `sync/replica-engine.js` reads
+  `sync_changes` and writes through `apply_ops`.
+- `20260910_apply_ops_row_id.sql` — `apply_ops` returns `row_id` in every
+  applied put (and in conflict payloads), so a writer that just created a
+  setlist can point `team_schedules` at it without waiting for the feed echo.
+  Applied 2026-09-10.
+- `20260911_personal_workspaces.sql` — **the personal library as a workspace**
+  (`docs/SYNC-REDESIGN.md`, step 4). Adds `teams.kind`
+  (`personal | team | church`, default `team`), lets `plan` be `personal`, a
+  partial unique index (one personal row per owner) and
+  `ensure_personal_workspace()` (security definer, authenticated only,
+  idempotent). A personal workspace has **no `team_members` row** — the
+  owner clauses in RLS, `apply_ops`, `sync_changes`, realtime and the version
+  history already accept it, and the switcher (memberships-driven) never
+  lists it. Applied to production 2026-09-10. Client: `hooks/usePersonalWorkspace.js`.
+- `20260911_json_wire.sql` — **JSON on the wire** (`docs/SYNC-REDESIGN.md`,
+  step 5). Adds `team_songs.doc jsonb` (the whole v2 song, every arrangement)
+  and `team_song_versions.doc`; `apply_ops` takes `doc` on a song put and
+  returns it in conflicts; `sync_changes` returns it; `trg_guard_song_doc`
+  (BEFORE UPDATE) nulls the document when `content` changes without it, so a
+  stale document never outlives its markdown; the snapshot trigger stores it;
+  the activity guard logs a document-only edit but not a row gaining its
+  first document with the markdown unchanged. `content`/`content_hash` stay
+  and are still written (older builds read them). Applied 2026-09-10.
+- `20260911_db_hygiene.sql` — the advisors' list, applied 2026-09-11. Every
+  RLS policy in `public` rewritten in place to `(select auth.uid())` (an
+  InitPlan, evaluated once per query instead of once per row — the DO block
+  is generic, so re-running the file picks up any later policy written the
+  old way); the six duplicate "Admins can …" write policies on
+  `team_songs`/`team_setlists` dropped (subsumed by "Team editors can …");
+  `team_members_select` tightened from `using (true)` to own rows + rosters
+  of workspaces you belong to or own; the `on_team_created` trigger restored
+  (owner becomes admin atomically; **skips `kind = 'personal'`**; the client's
+  own membership insert then hits 23505, which it tolerates);
+  `team_invites.role` allows `leader`; twelve covering indexes for the
+  `auth.users` foreign keys. `team_deletions` is deliberately NOT pruned
+  (SYNC-REDESIGN §6 #2). ⚠ Write new policies with `(select auth.uid())`,
+  never bare `auth.uid()`.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
@@ -700,80 +762,143 @@ Each team/church workspace is its own Stripe subscription, paid by the team
   content's padding, which is empty space. It makes the overlay silently
   untappable. Separate them by geometry instead.
 - **Realtime only fires for tables in the `supabase_realtime` publication.** A `postgres_changes` subscription to an unpublished table connects successfully and then receives nothing, forever — no error anywhere. `20260701_realtime_publication.sql` added `team_schedules`/`team_availability`/`team_notifications`/`team_activity`; any NEW realtime-subscribed table needs a matching `alter publication` migration (plus `replica identity full` if delete events must pass a `team_id=eq.` filter — default identity only carries the PK).
-- **`team_schedules.setlist_id` (and `team_notifications` metadata `setlist_id`) is the `team_setlists` ROW UUID, not the local setlist id.** Never match it against `setlist.id` directly — bridge through `useTeamSetlistMap` (localId→remoteId from the sync manifest; takes a `refreshKey`, App passes `syncState.lastSync`). Wrong matching is invisible: lookups just miss and fall back ("a setlist", empty calendars).
-- **`applyKeyHistories` is reference-preserving on purpose** — unchanged songs keep object identity. Per-song IndexedDB writes, both engines' hash caches, and `sync/adopt.js` mid-sync-edit detection all treat a new reference as "this song changed"; a map that re-mints every object reintroduces whole-library rewrites on launch.
+- **`team_schedules.setlist_id` (and `team_notifications` metadata `setlist_id`) is the `team_setlists` ROW UUID, not the local setlist id.** Never match it against `setlist.id` directly — bridge through `useTeamSetlistMap` (localId→row UUID from the replica state, `replica.rows.setlist[key].rowId`; takes a `refreshKey`, App passes `syncState.lastSync`). Wrong matching is invisible: lookups just miss and fall back ("a setlist", empty calendars).
+- **`applyKeyHistories` / `applyTempoHistories` are reference-preserving on purpose** — unchanged songs keep object identity, and App chains both on load, so an untouched song survives two passes untouched. Per-song IndexedDB writes, the replica's dirty detection, the file engine's hash cache, and `sync/adopt.js` mid-sync-edit detection all treat a new reference as "this song changed"; a map that re-mints every object reintroduces whole-library rewrites on launch.
+- **A play history is a `{ value: count }` map on the SONG, never in the `.md`.** `keyHistory` and `tempoHistory` are both `performanceHistory.js` with a different `valueOf` — the walk over past-dated setlists, the reference-preserving apply and the save-time diff live there once. Neither is serialized: they are device-derived counts, recomputed from setlists on load and merged by taking the larger count (`sync/merge.js` → `mergePlayCounts`), so they never conflict. **A third dimension (time signature, capo) is a `valueOf` function, not another copy of the file.**
+- **`item.tempo` is the per-setlist override and the only per-performance tempo record.** Resolved performance tempo = `item.tempo ?? arrangement.tempo`. The cards row (`SetlistCardRow`) writes it; the legacy `SetlistItemRow` writes straight back to the SONG instead — which is exactly why a tempo history was impossible for so long, and it is unreachable today only because `SetlistBuilder` defaults `cards = true`. Restore that row and you re-break the history.
 
-## Team library sync (src/sync/team-engine.js)
+## Team library sync (src/sync/replica-engine.js)
 
-Team libraries no longer go through the file-manifest engine
-(`engine.js` + the `supabase-team.js` provider shim). They use a dedicated
-**server-authoritative** engine that talks to `team_songs`/`team_setlists`
-directly:
+Team libraries sync through the **replica engine**. The server is the only
+truth; every device holds a cache of the server's library at a feed position;
+a writer's device sends only its own edits. `docs/SYNC-REDESIGN.md` is the
+decision log and agenda. The server half is `20260910_sync_versions.sql`
+(`version`/`seq`/`updated_by`, `team_deletions`, `apply_ops`, `sync_changes`).
+The manifest engine that preceded it (`team-engine.js`: canonical hashing of
+the whole library, CAS on `updated_at`, identity healing, circuit breakers,
+an amplification guard) was **deleted in step 3c, 2026-09-10**. The file-manifest
+engine for Drive/Dropbox/OneDrive folders (`engine.js`) went on 2026-09-11:
+**a connected folder is a one-way BACKUP MIRROR** (`sync/backup.js`), never a
+sync engine (SYNC-REDESIGN §4.3, §5.7).
 
-- **Pull = server wins.** Every row replaces the local copy; rows deleted on
-  the server disappear locally (App adopts the result wholesale via the
-  `replaced: true` flag in the sync result). Local-only never-synced items are
-  inserted; previously-synced items missing remotely are dropped.
-- **Canonical hashing** — songs hash the markdown text (the `content` text
-  column round-trips byte-exact); setlists hash a key-sorted `stableStringify`
-  because JSONB does not preserve key order. (The old engine hashed
-  pretty-printed JSON on push but compact JSONB on pull, so every cycle looked
-  dirty → re-upload → realtime → loop → endless "Synced" toasts.)
-- **CAS updates** — pushes guard with `.eq('updated_at', lastSyncedTime)`; a
-  miss means another member wrote first: their edit is kept, ours is reported
-  as a conflict and the next pull adopts the server copy.
-- **Identity** — the song/setlist id embedded in `content` is canonical, with
-  a fallback to the previous manifest's `remoteId` mapping (legacy rows
-  without embedded ids), then the row UUID. Duplicate rows for one id are
-  healed (newest kept, others deleted by writers).
-- Members (`readOnly`) are a pure mirror — no writes ever leave the device, and
-  **pull never raises a conflict for them** (the cloud copy is always adopted
-  silently). Conflict detection in `pull()` is guarded by `!readOnly`; conflicts
-  are only meaningful for writers (admins/editors). `ConflictResolver` also
-  offers **Keep all mine / Keep all cloud** (`onResolveAll` in App) so a
-  baseline-drift mass conflict clears in one tap instead of dozens of prompts.
-  (A whole-library "73 conflicts" symptom = canonical-hash baseline drift, e.g.
-  a schema field now serialized locally but absent in older server `content`;
-  root-cause per-song by diffing `songToMd(local)` vs the stored `content`.)
-- `createEngineForLibrary()` in App.jsx picks the engine per library; the
-  file-manifest engine remains for personal Drive/Dropbox/OneDrive sync.
+- **The personal library is a workspace too** (step 4, 2026-09-10): a `teams`
+  row with `kind = 'personal'` and no members, created by
+  `ensure_personal_workspace()` through `hooks/usePersonalWorkspace.js` when
+  the **profile** is entitled to `cloud-sync` (never the active team's plan).
+  `createEngineForLibrary('personal')` returns the replica pointed at that
+  row with `libraryId: 'personal'` (the same IndexedDB slot + Web Lock the
+  file engine uses), `providerId: supabase-personal:<id>` and
+  **`handoverFromManifest: false`** — the personal manifest describes a cloud
+  FOLDER, and reading it as this server's history drops every folder-synced
+  song as "deleted elsewhere" (a test pins this). Without cloud sync the
+  personal library gets `NULL_ENGINE` (no-op, same interface). The **demo
+  songs have fixed song and arrangement ids** (`data/demos.js`) and App passes
+  `seedBaselines` (the demo markdown) so a seed is its own baseline on a
+  first run: unedited → adopts the account's copy, edited → three-way merge
+  against the demo, deleted elsewhere → dropped, never seen → uploaded.
+- **The backup folder is a mirror, not sync** (`sync/backup.js`,
+  2026-09-11): `createBackupMirror` writes one `.md` per song and one `.json`
+  per setlist to the connected Drive/Dropbox/OneDrive folder after every
+  change (fed by the auto-save effects and the pagehide flush) and never
+  reads it back on its own; `restore()` is the one read, on request, and App
+  adds only what the library lacks (by the file's `songId`). One instance for
+  the app's life — it reads `activeProvider` from the stored sync state on
+  every run, so connect/disconnect need no re-creation. Its `backupState`
+  (provider, lastBackup, `needs-reconnect`) is separate from `syncState`.
+  Manifests (`syncManifest`/`setlistManifest` in the sync state) now hold the
+  remote file id + name + a hash of the bytes written. It shares the personal
+  library's Web Lock with the replica because both read-modify-write the
+  same sync-state record. The mass-delete guard (`isMassDelete`) stays: a
+  truncated local state must never empty the backup.
+
+- **The wire is a JSON document** (step 5, `sync/songDoc.js`): a song row's
+  `doc` is the whole v2 object — every arrangement, `keyChanges`, `duration`,
+  the tab library, unknown frontmatter — minus play histories and `updatedAt`
+  stamps, NORMALIZED (empty/zero/default fields dropped at the song and
+  arrangement level) so a legacy object and a fresh parse are the same bytes.
+  `content` (markdown, one arrangement) is written beside it for older
+  builds; a row WITHOUT a document was written by such a build and is read
+  from its markdown (`mergeRemote`, which keeps local extra arrangements).
+  Row stamps carry `fmt: 'doc' | 'md'`; a writer holding an `'md'` row (or a
+  stamp without `fmt`, persisted before step 5) pushes its document once —
+  the "upgrade" — with the markdown as base, on its first pass. A dirty base
+  may be a document string or markdown; `fromBase` tells them apart. Never
+  put a device-derived or default-valued field into the document without
+  normalizing it: two devices would then disagree about an unchanged song.
+- **Pull** = `sync_changes(team, since)` in pages of 500: songs, setlists and
+  deletions after the cursor, in feed order. The device persists
+  `{ since, rows, dirty, writer }` under `sync:<team>.replica`; `rows` is the
+  server set as this device knows it (version, seq, row id, wire format). A local item
+  neither in `rows` nor dirty is not on the server and is dropped (App's trash
+  keeps it 30 days). A version the device already holds is skipped — its own
+  pushes echo back for free. A clean row whose bytes equal the local copy keeps
+  object identity, so an unchanged song is neither rewritten to IndexedDB nor
+  reported as edited.
+- **Members** (`readOnly`) are a pure mirror: no dirty set, no outbox, never a
+  conflict prompt. A delta feed does not re-send unchanged rows, so a local
+  mutation (which the UI forbids) lingers until that row next changes.
+- **Writers** keep a **dirty set** — the keys whose local object differs from
+  the copy the server last gave them. Object identity is the change signal
+  (the one `saveSongs` and `adopt.js` already rely on); the dirty set is
+  persisted with the serialized server copy each edit was based on, so a
+  reload pushes exactly the unpushed edits. Only those, plus tombstones, go to
+  `apply_ops` (batches of 100) with `base_version`. A new object with
+  identical bytes (play counts, a re-link that changed nothing) is not sent.
+- **Conflicts.** A push conflict asks App for a pull (`onPullNeeded` →
+  `triggerSync`). The pull merges three-way through `sync/merge.js` with the
+  persisted base: disjoint edits merge silently and stay dirty on top of the
+  server copy; a same-field conflict adopts the server copy and hands ours to
+  the `ConflictResolver` ("keep mine" restores the local object, which is then
+  an edit on top of the server's version and pushes cleanly). An edit beats a
+  concurrent delete (the song comes back as a create); a stale delete loses to
+  a newer edit (the tombstone is dropped).
+- **Handover.** A writer's FIRST run (no replica state yet) reads the old
+  manifest once: local ≠ baseline while server = baseline is a pending edit
+  (pushed); both moved is a conflict; local = baseline or canonical-equal is
+  nothing; unmanifested local items are creates; manifested items the server
+  lost are dropped unless edited here. The manifest is never read again —
+  `canonical.js` survives for this, for `content_hash` on writes, and for the
+  file engine.
+- **Temp engines** (a song moved/copied into another library) push only the
+  keys the server lacks and persist nothing — no adopted state exists to
+  anchor a cursor.
+- **A project without the RPCs** gets `MIGRATION_MISSING` as the error, status
+  `error`, and no sync. There is no other engine.
+- **`sync/merge.js` compares arrangements without `updatedAt`/`id`.** A base
+  rebuilt from markdown carries a fresh stamp; with the stamp in the compare,
+  every disjoint edit was a conflict.
+- **Pull adoption is WHOLESALE** (`songFromDoc` for a document row;
+  `sync/mergeRemote.js` for a markdown row and the file engine): a pulled
+  song replaces the local copy; only the play histories (and, for a markdown
+  row, local-only extra arrangements) survive from the local object. Never
+  patch a hand-written field list there — the six-field patch
+  it replaced kept every newer field stale after a pull, and the re-push of
+  those stale values was the `language`/`year` ping-pong (PLAN §1.2 #6).
 - **Every sync pass holds a Web Lock** (`sync/lock.js`,
-  `setlists-md:sync:<libraryId>`) around fullSync/runPush in BOTH engines. The
-  manifests are read-modify-write in IndexedDB; without the lock a second tab
-  or a temp engine (song move/copy) races the main engine and loses manifest
-  writes → stale baselines → phantom "changed" storms. Keep any new sync-state
-  writer inside `withSyncLock`.
-- **Pull pagination is keyset on `id`** (`.order('id').gt('id', last)`), never
-  offset/range — offset pages over a set other members are writing to can skip
-  rows, and a skipped row is indistinguishable from a server-side deletion.
-  `pageSize` is injectable for tests.
-- **Pulls are DELTA pulls**: heads (`id, updated_at`) are fetched for the whole
-  set, but content only for rows the manifest can't prove unchanged
-  (`lastSyncedTime === updated_at`) — unchanged rows reuse the manifest hash
-  and skip both download and re-parse. A hash-version migration forces one
-  full content fetch to re-baseline.
-- **Identity is server-side now** (`song_key`/`setlist_key`, unique per team —
-  see `20260702_identity_keys.sql`): payloads carry the local id as the key on
-  every write, inserts that collide adopt the existing row (race/lost-manifest
-  heal), and pre-migration servers get a column-missing fallback. Never-synced
-  songs are **bulk-inserted** in chunks of 50 (matched back via `song_key`),
-  falling back to per-row insert+adopt on batch failure.
-- **Two-device convergence suite**: `src/__tests__/team-convergence.test.js`
-  runs two engines against one fake server (device-namespaced tokens mock)
-  through edit/conflict/delete/create interleavings + a seeded fuzz, asserting
-  both devices and the server converge with zero loss. Extend it when touching
-  engine semantics. Shared fixtures: `src/__tests__/helpers/fakeSupabase.js`.
-- **Sync doctor** (`components/settings/SyncDoctor.jsx`, Settings → Sync in a
-  team Space) re-runs the engine's exact hash arithmetic per song
-  (local vs server vs baseline) and names drifting fields — use it before
-  digging into any "sync is weird" report.
+  `setlists-md:sync:<libraryId>`) around fullSync/push in both the replica and
+  the file engine. The replica re-reads its persisted state inside the lock,
+  so a second tab or a temp engine cannot lose its cursor or dirty marks
+  (in-memory dirty marks win — they are edits this tab saw happen).
 - **Sync results are adopted via `sync/adopt.js`** (`reconcileAdopt` /
   `applyPulled` through App's `adoptSyncResult`): adoption runs functionally
   against CURRENT state using the sync's input snapshot as the base, so an
   edit made while the sync was in flight is never clobbered (object identity =
   the change signal). Never `setSongs(result.songs)` a sync result directly.
-- Tests: `src/__tests__/team-engine.test.js` (fake Supabase client),
-  `src/__tests__/sync-adopt.test.js`.
+- **Sync doctor** (`features/settings/SyncDoctor.jsx`, Settings → Sync in a
+  team Space) reports from `replica.rows` + `dirty`: in sync / pending push /
+  newer on the server / diverged; a local-only item uploads only when dirty.
+  A device that has not synced since the upgrade still shows the manifest
+  arithmetic.
+- `useTeamSetlistMap` reads row UUIDs from `replica.rows` (the manifest as a
+  fallback for un-upgraded devices); `useTeamRealtime` listens on `team_songs`,
+  `team_setlists` and `team_deletions` — a DELETE event on the song table
+  carries only the PK and never passed the `team_id=eq.` filter.
+- Tests: `src/__tests__/replica-engine.test.js` (members),
+  `replica-writer.test.js` (writers, handover, a two-writers-plus-member fuzz),
+  `sync-adopt.test.js`, `merge.test.js`, `merge-remote.test.js`.
+  `helpers/fakeSupabase.js` emulates the stamp and deletion triggers,
+  `sync_changes` and `apply_ops`, plus a table surface for "stale build"
+  scenarios.
 
 ## Web Push & the notification worker
 

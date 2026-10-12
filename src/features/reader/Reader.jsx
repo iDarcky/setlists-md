@@ -86,6 +86,14 @@ const EMPTY = [];
  * like it can be annoying"* — so the arithmetic is offered and the choice is
  * the player's, which also means it survives the leader moving the key.
  */
+// Two DOMRects describing the same chord on screen. Compared to the pixel
+// rather than by identity: the rect is measured fresh on every tap, so the
+// same chord tapped twice produces two different objects with the same box.
+function sameBox(a, b) {
+  if (!a || !b) return false;
+  return Math.abs(a.left - b.left) < 1 && Math.abs(a.top - b.top) < 1;
+}
+
 function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
   const suggestion = suggestCapo(soundingKey, writtenCapo);
   return (
@@ -421,8 +429,16 @@ export default function Reader({
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
   const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
+  // ⚠ The toggle is on the OCCURRENCE, not the chord name. Keyed on the name,
+  // tapping the G in the chorus while the G from verse 1 was open read as
+  // "same chord again" and closed — so a tap on a chord you had not asked
+  // about yet answered by showing nothing. A song repeats its chords by
+  // nature; two G's on one screen is the normal case, not an edge one. The
+  // rect is the occurrence: the same chord tapped twice reports the same box.
   const onChordTap = useCallback((chord, rect) => {
-    setTappedChord(prev => (prev?.chord === chord ? null : { chord, rect }));
+    setTappedChord(prev => (
+      prev && prev.chord === chord && sameBox(prev.rect, rect) ? null : { chord, rect }
+    ));
   }, []);
   const wide = useMediaQuery('(min-width: 768px)');
   // ⚠ ONE source for "does the bar still carry tempo and time". It was a bare
@@ -593,6 +609,36 @@ export default function Reader({
     [settings, wide, embedded, myInstrument, mode]
   );
 
+  // ── The practice row, against the CAPABILITY and not just the icon ───────
+  //
+  // ⚠ `practiceOpen` is state, and it outlived the mode that allowed it. The
+  // icon is gated (`can.practiceTools ? togglePractice : null`) and live sets
+  // that false — but gating the way IN says nothing about a row that is
+  // already open. The ☰'s Live switch appears during the live window and turns
+  // live ON, so: open the tools 20 minutes before the service, start the
+  // click, flip the switch — and the row stayed on screen **with the click
+  // still running, in live**, which is the one mode whose capability table
+  // says these tools do not exist. Trap 26's shape again, in state rather than
+  // in a lock: the guard was on the control, not on the thing it controls.
+  const canPractice = config.can.practiceTools;
+  const practiceRowOpen = practiceOpen && canPractice;
+  // Closing the row is a RENDER decision, adjusted the moment the capability
+  // goes — not an effect. (`setState` inside an effect is a cascading render
+  // and the compiler lint rejects it; this is React's documented
+  // adjust-state-when-a-prop-changes shape, the same one `TabBlock` uses for
+  // element 9's collapse.) It closes rather than merely hiding, so coming back
+  // to practice is a fresh ask: a tool you have to reach for should be
+  // reached for, and live took this one away.
+  const [lastCanPractice, setLastCanPractice] = useState(canPractice);
+  if (lastCanPractice !== canPractice) {
+    setLastCanPractice(canPractice);
+    if (!canPractice) setPracticeOpen(false);
+  }
+  // SILENCING is a real external system, so that half IS an effect — the same
+  // split this file already makes for the tempo (derived) and for the click on
+  // a song change (an effect).
+  useEffect(() => { if (!canPractice) stopClick(); }, [canPractice, stopClick]);
+
   useEffect(() => {
     const el = chartRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
@@ -700,7 +746,7 @@ export default function Reader({
   // and not a dependency: `setRestH` has to happen where the height is
   // measured, and calling setState straight out of an effect body is a
   // cascading render (the React compiler rule that caught this).
-  useEffect(() => { modeRef.current = { editing, practiceOpen }; }, [editing, practiceOpen]);
+  useEffect(() => { modeRef.current = { editing, practiceOpen: practiceRowOpen }; }, [editing, practiceRowOpen]);
 
   // Report the mode outward, so the HOST can lock its own controls (the
   // setlist's nav and rail). An effect, because it synchronises an external
@@ -2369,7 +2415,7 @@ export default function Reader({
           was there, pinned, and painted underneath the nav bar, so it looked
           like nothing had changed. A z-index cannot separate two elements that
           want the same 0px. */}
-      {(bottomRibbon || footer || (showChrome && practiceOpen) || editing) && (
+      {(bottomRibbon || footer || (showChrome && practiceRowOpen) || editing) && (
         <div
           ref={footRef}
           className="sticky bottom-0 z-20 shrink-0 border-t"
@@ -2384,19 +2430,22 @@ export default function Reader({
         >
           {bottomRibbon && (
             <div
-              className={`wide-container overflow-hidden py-1${(footer || practiceOpen) ? ' border-b' : ''}`}
-              style={{ ...(footer || practiceOpen ? rule : null), fontSize: '0.85em' }}
+              className={`wide-container overflow-hidden py-1${(footer || practiceRowOpen) ? ' border-b' : ''}`}
+              style={{ ...(footer || practiceRowOpen ? rule : null), fontSize: '0.85em' }}
             >
               {ribbonNode}
             </div>
           )}
-          {showChrome && practiceOpen && (
+          {showChrome && practiceRowOpen && (
             <div className={`reader-row-in wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
               <ReaderPracticeRow
                 song={song}
                 bpm={bpm}
                 onBpm={changeBpm}
                 onSaveTempo={onUpdateSong ? (v) => onUpdateSong({ ...song, tempo: v }) : null}
+                // The same stamp `bpm` is derived from: a tempo belongs to a
+                // song, so arriving at the next one is not "still chosen".
+                tempoChosen={tempoSet?.id === songId}
                 clickRunning={metronome.running}
                 onToggleClick={() => (metronome.running ? metronome.stop() : metronome.start(bpm, song.time))}
               />
@@ -2493,7 +2542,7 @@ export default function Reader({
           // Null in live as of 2026-08-09 (`readerConfig`), so live shows
           // neither circle — it is the reading view and nothing else.
           onPractice={config.can.practiceTools ? togglePractice : null}
-          practiceOpen={practiceOpen}
+          practiceOpen={practiceRowOpen}
           practiceRunning={metronome.running}
           // The sticky bottom block, PLUS the docked ☰ — both are below these
           // in the reader's column and they have to clear both.

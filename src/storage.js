@@ -85,6 +85,7 @@ export function migrateSongShape(s) {
     spotify: s.spotify || '',
     youtube: s.youtube || '',
     keyHistory: (s.keyHistory && typeof s.keyHistory === 'object') ? s.keyHistory : {},
+    tempoHistory: (s.tempoHistory && typeof s.tempoHistory === 'object') ? s.tempoHistory : {},
     defaultArrangementId: arrId,
     arrangements: [{
       id: arrId,

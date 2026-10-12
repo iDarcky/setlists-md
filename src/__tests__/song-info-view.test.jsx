@@ -64,6 +64,36 @@ describe('what it says', () => {
     expect(container.textContent).not.toContain('Usually played in');
   });
 
+  // The same question about speed, and it was impossible until a setlist item
+  // started carrying its own tempo — see `src/tempoHistory.js` for why.
+  it('answers the other leader question: how fast do we usually take it', () => {
+    render(
+      <SongInfoView open onClose={() => {}} displayKey="C"
+        song={{ ...song, tempoHistory: { 72: 5, 76: 2, 80: 1, 84: 1 } }} />
+    );
+    expect(screen.getByText(/♩ 72 ×5\s+·\s+76 ×2\s+·\s+80 ×1/)).toBeTruthy();
+    expect(screen.queryByText(/84 ×1/)).toBeNull();
+  });
+
+  // ⚠ The anti-duplication rule, applied to tempo. One recorded tempo that
+  // equals the song's own is the bar's "♩ 118" printed a second time under a
+  // different label — the exact carelessness `songInfoFacts` exists to avoid.
+  it('stays quiet when the only tempo it knows is the one already on screen', () => {
+    const { container } = render(
+      <SongInfoView open onClose={() => {}} displayKey="C"
+        song={{ ...song, tempoHistory: { 118: 6 } }} />
+    );
+    expect(container.textContent).not.toContain('Usually played at');
+  });
+
+  it('speaks up when the band plays it slower than the chart says', () => {
+    render(
+      <SongInfoView open onClose={() => {}} displayKey="C"
+        song={{ ...song, tempoHistory: { 96: 6 } }} />
+    );
+    expect(screen.getByText('♩ 96 ×6')).toBeTruthy();
+  });
+
   // ⚠ THE RULE THAT SURVIVED EVERY REWRITE. The owner turned down reusing the
   // Song Hub's Details tab because it carries *"too many info there that are
   // not relevant in a practice/live scenario"*. The line, asked and answered:

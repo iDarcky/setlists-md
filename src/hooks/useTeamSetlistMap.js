@@ -8,7 +8,9 @@ import { getSyncState } from '@/sync/tokens';
  * When the user is in a team library, local setlist IDs are base-36
  * strings from `generateId()`, but the `team_schedules` table needs
  * the UUID from `team_setlists.id`. The sync engine stores this mapping
- * in `setlistManifest[localId].remoteId`. This hook exposes it.
+ * in `setlistManifest[localId].remoteId`; the replica engine (read-only
+ * members) keeps it in `replica.rows.setlist[key].rowId`. This hook exposes
+ * whichever the device has — the replica's wins when both exist.
  *
  * @param {string} libraryId — 'personal' or the team UUID
  * @param {*} [refreshKey] — optional; pass a value that changes when a sync
@@ -39,6 +41,9 @@ export function useTeamSetlistMap(libraryId, refreshKey) {
           if (entry?.remoteId) {
             result[localId] = entry.remoteId;
           }
+        }
+        for (const [key, row] of Object.entries(state?.replica?.rows?.setlist || {})) {
+          if (row?.rowId) result[key] = row.rowId;
         }
         setMap(result);
       } catch (err) {

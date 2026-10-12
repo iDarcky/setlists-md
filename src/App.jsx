@@ -10,10 +10,11 @@ import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSet
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
+import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDiff } from './tempoHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
-import { DEMO_SONGS_MD } from '@/data/demos';
-import { createSyncEngine } from '@/sync/engine';
-import { createTeamSyncEngine } from '@/sync/team-engine';
+import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
+import { createBackupMirror } from '@/sync/backup';
+import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
@@ -47,6 +48,8 @@ import { useTeamRealtime } from '@/hooks/useTeamRealtime';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
+import { usePersonalWorkspace } from '@/hooks/usePersonalWorkspace';
+import { checkEntitlement } from '@/hooks/useEntitlement';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
@@ -73,8 +76,7 @@ const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOver
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
 // PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
-// 2026-08-11 and the three old surfaces are no longer referenced from anywhere.
-// They stay in the tree for one more cycle; see docs/PLAN.md §1.1.
+// 2026-08-11 and the three old surfaces were deleted on 2026-10-11.
 //
 // ⚠ A lazy import of `ChartView` also lived here, referenced by nothing. It was
 // the LAST non-legacy call site keeping the old renderer in the graph, and it
@@ -84,7 +86,7 @@ const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
 const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
 // Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
-// ~80% the same file). Both are unreferenced as of the graduation.
+// ~80% the same file). Both were deleted on 2026-10-11.
 const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 // Shown once per ACCOUNT, the first time someone goes live — the fold in the
 // corner is deliberately cheap rather than self-explanatory, and this is where
@@ -114,17 +116,54 @@ function resolveLandingView(v) {
 }
 
 
-// Team libraries sync directly against the Supabase tables
-// (server-authoritative team engine); the file-manifest engine remains for
-// the personal library's Drive/Dropbox/OneDrive providers.
+// No cloud for this library: everything stays on the device. The same
+// interface as the replica, so the call sites need no branches.
+const NULL_ENGINE = {
+  async fullSync(songs, setlists, tombstones = { songs: [], setlists: [] }) { return { songs, setlists, tombstones, changed: false }; },
+  debouncedPush() {},
+  flushPending() {},
+  cancelDebounce() {},
+  recentlyPushed() { return false; },
+};
+
+// Which engine syncs a library (docs/SYNC-REDESIGN.md):
+//   * a team library always runs the replica against its team's rows;
+//   * the personal library runs the SAME replica against the account's own
+//     workspace on Supabase (a `teams` row of kind 'personal', step 4) when the
+//     account has cloud sync, and nothing otherwise. A connected folder
+//     (Drive/Dropbox/OneDrive) is a BACKUP MIRROR (sync/backup.js), never an
+//     engine: it is written after every change and read only on request.
 function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
-  return libraryId !== 'personal'
-    ? createTeamSyncEngine(onStatusChange, libraryId, opts)
-    : createSyncEngine(onStatusChange, libraryId, opts);
+  if (libraryId === 'personal') {
+    const { personalCloudId, ...rest } = opts;
+    if (!personalCloudId) return NULL_ENGINE;
+    return createReplicaEngine(onStatusChange, personalCloudId, {
+      ...rest,
+      libraryId: 'personal',
+      providerId: `supabase-personal:${personalCloudId}`,
+      // The personal manifest describes a backup folder, not this server.
+      handoverFromManifest: false,
+      // A seeded demo's baseline is the demo itself (data/demos.js).
+      seedBaselines: DEMO_BASELINES,
+    });
+  }
+  // Every team library runs the replica (docs/SYNC-REDESIGN.md, step 3): a
+  // member's device is a pure mirror of the change feed; a writer's device is
+  // the same mirror plus an outbox of its own edits over apply_ops. A project
+  // without the sync RPCs gets a clear error and no sync, never another engine.
+  return createReplicaEngine(onStatusChange, libraryId, opts);
 }
 
 export default function App() {
   const { user, profile, signOut, updateProfile } = useAuth();
+  // The personal library's workspace on Supabase (step 4). Entitled by the
+  // PROFILE's tier — never the active team's — so a free account inside a
+  // church workspace does not get a personal cloud it loses on switching back.
+  // The id is cached per user, so the engine choice below is synchronous.
+  const personalCloudAllowed = !!user && checkEntitlement(profile?.subscription_tier, 'cloud-sync', !!profile?.is_pro).allowed;
+  const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
+  const personalWorkspaceIdRef = useRef(null);
+  personalWorkspaceIdRef.current = personalWorkspaceId;
   const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
@@ -282,6 +321,10 @@ export default function App() {
   }, []);
 
   const syncEngineRef = useRef(null);
+  // The replica asks for a pull after a push conflict (someone else wrote
+  // first); the pull merges or raises the conflict. A ref, because the engine
+  // outlives any one triggerSync closure.
+  const triggerSyncRef = useRef(null);
   const historyRef = useRef([]);
   const quotaWarnedRef = useRef(false);
   const isSwitchingLibraryRef = useRef(false);
@@ -421,6 +464,7 @@ export default function App() {
   // disagree the write lands in local state, looks saved, and is silently
   // reverted by the next pull — the worst failure mode this app has.
   const isTeamReadOnly = activeLibrary !== 'personal' && !canWriteLibrary;
+  const personalCloudId = activeLibrary === 'personal' && personalWorkspaceId ? personalWorkspaceId : null;
   useEffect(() => {
     if (syncEngineRef.current) {
       syncEngineRef.current.cancelDebounce();
@@ -428,8 +472,24 @@ export default function App() {
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
       setSyncState(prev => ({ ...prev, ...status }));
-    }, { readOnly: isTeamReadOnly, onConflicts: enqueueConflicts });
-  }, [activeLibrary, isTeamReadOnly, enqueueConflicts]);
+    }, {
+      readOnly: isTeamReadOnly,
+      onConflicts: enqueueConflicts,
+      onPullNeeded: () => triggerSyncRef.current?.(),
+      personalCloudId,
+    });
+  }, [activeLibrary, isTeamReadOnly, enqueueConflicts, personalCloudId]);
+
+  // The backup mirror (sync/backup.js): the personal library as files in a
+  // folder the user owns. One instance for the app's life — it reads the
+  // connected provider from the stored sync state on every run, so connecting
+  // or disconnecting in Settings needs no re-creation. It only ever WRITES;
+  // `handleRestoreFromBackup` is the one read, on request.
+  const backupRef = useRef(null);
+  const [backupState, setBackupState] = useState({ state: 'idle', provider: null, lastBackup: null });
+  if (!backupRef.current) {
+    backupRef.current = createBackupMirror((status) => setBackupState(prev => ({ ...prev, ...status })));
+  }
 
   // `silent` is the default because most syncs are automatic (realtime echo,
   // tab focus, reconnect). A success toast for background work the user didn't
@@ -439,8 +499,14 @@ export default function App() {
   const triggerSync = useCallback(async ({ silent = true } = {}) => {
     if (isSwitchingLibraryRef.current) return;
     const state = await getSyncState(activeLibrary);
-    const providerId = activeLibrary !== 'personal' ? `supabase-team:${activeLibrary}` : state?.activeProvider;
+    void state;
+    const providerId = activeLibrary !== 'personal'
+      ? `supabase-team:${activeLibrary}`
+      : (personalCloudId ? `supabase-personal:${personalCloudId}` : null);
     if (!providerId) return;
+    // A library switch may have started during the await above; this closure
+    // still holds the OLD library's songs.
+    if (isSwitchingLibraryRef.current) return;
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setSyncState(prev => ({ ...prev, state: 'offline', provider: providerId }));
       return;
@@ -465,7 +531,8 @@ export default function App() {
         description: parts.length ? `Uploaded ${parts.join(', ')}.` : 'Everything is up to date.',
       });
     }
-  }, [songs, setlists, tombstones, activeLibrary, adoptSyncResult]);
+  }, [songs, setlists, tombstones, activeLibrary, personalCloudId, adoptSyncResult]);
+  triggerSyncRef.current = triggerSync;
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.
@@ -474,7 +541,7 @@ export default function App() {
     triggerSync();
   }, [triggerSync]);
   useTeamRealtime(
-    activeLibrary !== 'personal' ? activeLibrary : null,
+    activeLibrary !== 'personal' ? activeLibrary : personalCloudId,
     handleRemoteChange
   );
 
@@ -492,11 +559,9 @@ export default function App() {
       if (ignore) return;
       const isFirstRun = savedSongs.length === 0;
       if (isFirstRun && activeLibrary === 'personal') {
-        // First time in personal library — load demo songs
-        const demos = DEMO_SONGS_MD.map(md => songFromFlat({
-          ...parseSongMd(md),
-          id: generateId(),
-        }));
+        // First time in personal library — load demo songs (fixed ids: the
+        // same three songs on every device of an account, never six).
+        const demos = seedDemoSongs();
         if (ignore) return;
         savedSongs = demos;
         await saveSongs(demos, 'personal');
@@ -505,15 +570,16 @@ export default function App() {
       let savedSetlists = await loadSetlists(activeLibrary);
       if (ignore) return;
 
-      // Recompute keyHistory once on load by scanning past-dated setlists.
-      // This is cheap and self-healing — if the device missed an
-      // increment-on-save (e.g. it was offline) the history catches up.
-      // Done BEFORE the initial setSongs (and before the startup sync gets
+      // Recompute keyHistory + tempoHistory once on load by scanning
+      // past-dated setlists. This is cheap and self-healing — if the device
+      // missed an increment-on-save (e.g. it was offline) the history catches
+      // up. Done BEFORE the initial setSongs (and before the startup sync gets
       // its base snapshot) so the sync sees the same object references React
-      // holds — applyKeyHistories preserves identity for unchanged songs.
+      // holds — both apply* helpers preserve identity for unchanged songs, so
+      // chaining them still leaves an untouched song untouched.
       if (savedSongs.length > 0) {
-        const histories = computeKeyHistories(savedSongs, savedSetlists || []);
-        savedSongs = applyKeyHistories(savedSongs, histories);
+        savedSongs = applyKeyHistories(savedSongs, computeKeyHistories(savedSongs, savedSetlists || []));
+        savedSongs = applyTempoHistories(savedSongs, computeTempoHistories(savedSongs, savedSetlists || []));
       }
 
       // Self-heal orphaned setlist references: re-link items whose songId no
@@ -582,8 +648,15 @@ export default function App() {
       // Initialize sync state from storage and trigger initial pull
       const storedSync = await getSyncState(activeLibrary);
       const isTeamLibrary = activeLibrary !== 'personal';
-      const providerId = isTeamLibrary ? `supabase-team:${activeLibrary}` : storedSync?.activeProvider;
-      
+      const personalCloud = !isTeamLibrary ? personalWorkspaceIdRef.current : null;
+      const providerId = isTeamLibrary
+        ? `supabase-team:${activeLibrary}`
+        : (personalCloud ? `supabase-personal:${personalCloud}` : null);
+      if (!isTeamLibrary) {
+        // The backup folder, if one is connected on this device.
+        setBackupState({ state: 'idle', provider: storedSync?.activeProvider || null, lastBackup: storedSync?.lastBackupTime || null });
+      }
+
       if (isTeamLibrary && storedSync?.activeProvider !== providerId) {
         // Force the provider state for team libraries
         await setActiveProvider(providerId, { connected: true }, activeLibrary);
@@ -612,6 +685,19 @@ export default function App() {
     })();
     return () => { ignore = true; };
   }, [activeLibrary]);
+  // The personal workspace can appear after load (the profile arrives, the
+  // folder is disconnected, the account upgrades): pull as soon as it does.
+  // Declared AFTER the load effect on purpose: on a library switch the load
+  // effect has already raised `isSwitchingLibraryRef`, so this one stands
+  // down and the startup sync above handles it with the freshly loaded data.
+  const personalCloudWasActiveRef = useRef(false);
+  useEffect(() => {
+    const was = personalCloudWasActiveRef.current;
+    personalCloudWasActiveRef.current = !!personalCloudId;
+    if (!personalCloudId || was || !loaded || isSwitchingLibraryRef.current) return;
+    setSyncState(prev => (prev.provider ? prev : { ...prev, provider: `supabase-personal:${personalCloudId}` }));
+    triggerSyncRef.current?.();
+  }, [personalCloudId, loaded]);
 
   // Auto-save when data changes + debounced sync push
   useEffect(() => {
@@ -619,14 +705,20 @@ export default function App() {
       saveSongs(songs, activeLibrary);
       // Offline: the edit is durably saved locally above; skip the network push
       // and let the reconnect handler flush it via a full sync.
-      if (navigator.onLine) syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+      if (navigator.onLine) {
+        syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+        if (activeLibrary === 'personal') backupRef.current?.debouncedBackup(songs, setlists);
+      }
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [songs, loaded, activeLibrary]);
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
       saveSetlists(setlists, activeLibrary);
-      if (navigator.onLine) syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+      if (navigator.onLine) {
+        syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
+        if (activeLibrary === 'personal') backupRef.current?.debouncedBackup(songs, setlists);
+      }
       maybeWarnQuota(quotaWarnedRef);
     }
   }, [setlists, loaded, activeLibrary]);
@@ -706,6 +798,7 @@ export default function App() {
     if (!loaded) return;
     const flush = () => {
       syncEngineRef.current?.flushPending?.(songs, setlists, tombstones, setTombstones);
+      if (activeLibrary === 'personal') backupRef.current?.flushPending(songs, setlists);
     };
     const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
     window.addEventListener('pagehide', flush);
@@ -714,7 +807,38 @@ export default function App() {
       window.removeEventListener('pagehide', flush);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [loaded, songs, setlists, tombstones]);
+  }, [loaded, songs, setlists, tombstones, activeLibrary]);
+
+  // Backup folder actions (Settings → Cloud Sync). Restore adds what the
+  // folder holds and the library lacks — by id, so a song backed up from this
+  // account comes back as itself, not as a duplicate. Existing items are
+  // never overwritten: the folder is a copy, the library is the truth.
+  const handleBackupNow = useCallback(async () => {
+    const r = await backupRef.current?.backupNow(songs, setlists);
+    if (r?.skipped) return null;
+    if (r?.errors?.length) {
+      toast({ title: 'Backup had problems', description: r.errors[0].message, variant: 'error' });
+    } else if (r) {
+      const n = (r.uploaded?.songs || 0) + (r.uploaded?.setlists || 0);
+      toast({ title: 'Backed up', description: n ? `${n} file${n === 1 ? '' : 's'} written.` : 'The folder already matched your library.' });
+    }
+    return r;
+  }, [songs, setlists]);
+  const handleRestoreFromBackup = useCallback(async () => {
+    const r = await backupRef.current?.restore();
+    if (!r) return null;
+    const haveSongs = new Set(songs.map(s => s.id));
+    const haveSetlists = new Set(setlists.map(s => s.id));
+    const newSongs = r.songs.filter(s => !haveSongs.has(s.id));
+    const newSetlists = r.setlists.filter(s => !haveSetlists.has(s.id));
+    if (newSongs.length) setSongs(prev => [...prev, ...newSongs.filter(s => !prev.some(p => p.id === s.id))]);
+    if (newSetlists.length) setSetlists(prev => [...prev, ...newSetlists.filter(s => !prev.some(p => p.id === s.id))]);
+    const desc = newSongs.length + newSetlists.length
+      ? `Added ${newSongs.length} song${newSongs.length === 1 ? '' : 's'} and ${newSetlists.length} setlist${newSetlists.length === 1 ? '' : 's'} the library did not have.`
+      : 'Everything in the folder is already in your library.';
+    toast({ title: 'Restore finished', description: desc, variant: r.errors?.length ? 'error' : undefined });
+    return { songs: newSongs.length, setlists: newSetlists.length, errors: r.errors };
+  }, [songs, setlists]);
 
   // Document-level appearance: theme, Labs palette, orientation lock.
   useAppearance(settings);
@@ -1262,6 +1386,13 @@ export default function App() {
     goToMainView('library');
   };
 
+  // A throwaway engine for a move/copy INTO another library: the same choice
+  // the main engine makes.
+  const createTempEngine = async (libraryId) => {
+    if (libraryId !== 'personal') return createEngineForLibrary(libraryId, () => {});
+    return createEngineForLibrary('personal', () => {}, { personalCloudId: personalWorkspaceIdRef.current });
+  };
+
   const handleMoveSongToLibrary = async (songId, targetLibraryId) => {
     try {
       const song = songs.find(s => s.id === songId);
@@ -1290,7 +1421,7 @@ export default function App() {
       // Trigger a background sync on the target library so the cloud gets the file
       if (syncEngineRef.current) {
         // We can instantiate a temporary engine just to push to the target library
-        const tempEngine = createEngineForLibrary(targetLibraryId, () => {});
+        const tempEngine = await createTempEngine(targetLibraryId);
         // We need the tombstones of the target library to pass to push
         const targetTombstones = await loadTombstones(targetLibraryId);
         const targetSetlists = await loadSetlists(targetLibraryId);
@@ -1323,7 +1454,7 @@ export default function App() {
 
       // Trigger a background sync on the target library so the cloud gets the file
       if (syncEngineRef.current) {
-        const tempEngine = createEngineForLibrary(targetLibraryId, () => {});
+        const tempEngine = await createTempEngine(targetLibraryId);
         const targetTombstones = await loadTombstones(targetLibraryId);
         const targetSetlists = await loadSetlists(targetLibraryId);
         tempEngine.debouncedPush(targetSongs, targetSetlists, targetTombstones, () => {});
@@ -1558,12 +1689,14 @@ export default function App() {
     if (guardTeamReadOnly()) return;
     setNewSongModal(null);
     // Stable identity across re-imports (batch): if a song with this title
-    // already exists, adopt its id + keyHistory so Save UPDATES it in place and
+    // already exists, adopt its id + play histories so Save UPDATES it in place and
     // keeps every setlist reference intact, instead of minting a new id that
     // orphans past setlists. Same rule as the single-paste import path.
     const queue = parsedSongs.map(s => {
       const existing = matchSongByTitle(songs, s.title);
-      return existing ? { ...s, id: existing.id, keyHistory: existing.keyHistory } : s;
+      return existing
+        ? { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory }
+        : s;
     });
     if (queue.length === 1) {
       navigate('editor', { song: queue[0] });
@@ -1654,10 +1787,13 @@ export default function App() {
       }
       return [...prev, sl];
     });
-    // Update keyHistory in response to this save. incrementForSetlistDiff
-    // handles all four cases (was-past × is-past) and is a no-op for
+    // Update keyHistory + tempoHistory in response to this save. Both diffs
+    // handle all four cases (was-past × is-past) and are a no-op for
     // future/undated setlists.
-    setSongs(prev => incrementForSetlistDiff(prev, prevSetlist, sl));
+    setSongs(prev => incrementTempoForSetlistDiff(
+      incrementForSetlistDiff(prev, prevSetlist, sl),
+      prevSetlist, sl,
+    ));
     if (!settings?.firstSetlistBuilt) {
       setSettings(prev => ({ ...prev, firstSetlistBuilt: true }));
     }
@@ -1724,8 +1860,13 @@ export default function App() {
       } else if (Array.isArray(updatedSong.arrangements)) {
         next = updatedSong;
       } else {
-        // Legacy flat → wrap as new song with one arrangement, preserving id/keyHistory.
-        next = { ...songFromFlat(updatedSong), id: updatedSong.id, keyHistory: existing.keyHistory };
+        // Legacy flat → wrap as new song with one arrangement, preserving id + play histories.
+        next = {
+          ...songFromFlat(updatedSong),
+          id: updatedSong.id,
+          keyHistory: existing.keyHistory,
+          tempoHistory: existing.tempoHistory,
+        };
       }
       const arr = [...prev];
       arr[i] = { ...next, updatedAt: Date.now() };
@@ -2102,10 +2243,7 @@ export default function App() {
             // Inject demos if not already present (covers the first-run path).
             setSongs(prev => {
               if (prev.length > 0) return prev;
-              const demos = DEMO_SONGS_MD.map(md => songFromFlat({
-                ...parseSongMd(md),
-                id: generateId(),
-              }));
+              const demos = seedDemoSongs();
               saveSongs(demos);
               return demos;
             });
@@ -2544,6 +2682,11 @@ export default function App() {
               syncState={syncState}
               onSyncStateChange={setSyncState}
               onSyncNow={() => triggerSync({ silent: false })}
+              backupState={backupState}
+              onBackupStateChange={setBackupState}
+              onBackupNow={handleBackupNow}
+              onRestoreFromBackup={handleRestoreFromBackup}
+              cloudAllowed={personalCloudAllowed}
               onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onUpgrade={() => navigate('upgrade')}
               onShowLegal={(doc) => navigate(`legal-${doc}`)}

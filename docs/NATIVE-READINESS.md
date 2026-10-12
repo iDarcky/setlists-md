@@ -5,7 +5,49 @@ web PWA: Apple App Store, Google Play, and Windows. Store-policy facts below wer
 against June-2026 sources (linked inline) — several are in active legal flux, so re-verify
 before committing to a billing architecture.
 
-## TL;DR — recommended sequencing
+## Direction (2026-10-11): Kotlin Multiplatform for Android and iOS
+
+**The owner's decision:** Android and iOS ship as **Kotlin Multiplatform (KMP)**
+apps. The Capacitor (iOS) and TWA (Android) paths below are **superseded**, and
+Expo / React Native are not options. Windows stays a packaged PWA.
+
+| Platform | Path | Status |
+|---|---|---|
+| Windows | PWABuilder → Microsoft Store (§2) | Unchanged. Days of work, 0% fee. |
+| Android | KMP app | Replaces the TWA plan. |
+| iOS | KMP app | Replaces the Capacitor plan. |
+
+**What KMP changes.**
+- The webview blockers in §1 (N-2 to N-5) were about running the web app inside
+  a native shell. A KMP app does not run the web app, so they stop applying as
+  written. Their underlying needs remain: durable local storage, deep-link
+  OAuth, opening Stripe in the system browser, and a platform branch point.
+- The shared Kotlin module owns the data layer: the `.md` parser and
+  serializer, transpose, the v2 song model, `songDoc` normalization, the
+  three-way merge, and a sync client for the existing `apply_ops` /
+  `sync_changes` RPCs. The server side needs no change.
+- Local persistence becomes a native database instead of IndexedDB, which also
+  removes the iOS storage-eviction risk in N-2.
+- UI is either native per platform or Compose Multiplatform. That choice is
+  open.
+
+**The main risk is parity.** The web and Kotlin clients must produce the same
+bytes for the same song, or sync will treat unchanged songs as edited. Shared
+fixtures (song `.md` → expected JSON document) run by both test suites are the
+first thing to build.
+
+**What still applies from this doc:** the store policies in §2 and §3 (Sign in
+with Apple, Guideline 4.2, account deletion, privacy labels, Data Safety), the
+billing analysis in §3, and the v1 posture of **not selling in the iOS app**.
+A real native app also makes Guideline 4.2 ("feels like a website") much
+easier to pass.
+
+The rest of this document is the June 2026 assessment of the wrapped-PWA
+approach, kept for its policy research.
+
+---
+
+## TL;DR (June 2026, wrapped-PWA approach — superseded for Android and iOS)
 
 1. **Windows first (days of work):** package the existing PWA with PWABuilder for the
    Microsoft Store. Free individual registration, ~24–48 h review, and non-game apps may use
@@ -100,7 +142,7 @@ Practical options for the team/church subscriptions:
 Google Play and Microsoft Store both accommodate the existing Stripe model with at most an
 enrollment + fee.
 
-## 4. Suggested pre-native checklist (in order)
+## 4. Suggested pre-native checklist (June 2026 — steps 5 and 6 superseded by KMP)
 
 1. Fix N-1 (PDF export) — fixes today's iPad PWA bug *and* unblocks every native path.
 2. Add the Google **public account-deletion URL** (cheap, needed for Play regardless).

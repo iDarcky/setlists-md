@@ -21,14 +21,31 @@
 
 import { stableStringify } from './canonical';
 
-const eq = (a, b) => stableStringify(a) === stableStringify(b);
+// Stamps are not content. An arrangement's `updatedAt` moves whenever the
+// object is rebuilt (a parse, an adoption, a push), so comparing arrangements
+// with it in would turn every disjoint edit into a conflict; its `id` is an
+// identity handle the wire may re-mint. Compare arrangements without them.
+function normalizeArrangements(arrs) {
+  if (!Array.isArray(arrs)) return arrs;
+  return arrs.map((a) => {
+    if (!a || typeof a !== 'object') return a;
+    const { updatedAt, id, ...rest } = a;
+    void updatedAt; void id;
+    return rest;
+  });
+}
+const NORMALIZE = { arrangements: normalizeArrangements };
+const eq = (a, b, key) => {
+  const norm = NORMALIZE[key];
+  return stableStringify(norm ? norm(a) : a) === stableStringify(norm ? norm(b) : b);
+};
 
 // Resolve one field across the three versions. Returns { value, conflict }.
-function mergeField(base, local, remote) {
-  if (eq(local, remote)) return { value: local, conflict: false };   // agree (or both same edit)
-  if (eq(local, base)) return { value: remote, conflict: false };    // only remote changed
-  if (eq(remote, base)) return { value: local, conflict: false };    // only local changed
-  return { value: local, conflict: true };                           // both changed differently
+function mergeField(base, local, remote, key) {
+  if (eq(local, remote, key)) return { value: local, conflict: false };   // agree (or both same edit)
+  if (eq(local, base, key)) return { value: remote, conflict: false };    // only remote changed
+  if (eq(remote, base, key)) return { value: local, conflict: false };    // only local changed
+  return { value: local, conflict: true };                                // both changed differently
 }
 
 // Merge a set of field keys off three objects. `blob` keys are compared as one
@@ -37,26 +54,29 @@ function mergeByKeys(keys, base, local, remote) {
   const merged = {};
   const conflictFields = [];
   for (const k of keys) {
-    const { value, conflict } = mergeField(base?.[k], local?.[k], remote?.[k]);
+    const { value, conflict } = mergeField(base?.[k], local?.[k], remote?.[k], k);
     merged[k] = value;
     if (conflict) conflictFields.push(k);
   }
   return { merged, conflictFields };
 }
 
-// Song fields that merge independently. `arrangements` + `defaultArrangementId`
-// are the chart — compared as one unit (both-touched → conflict). `keyHistory`
-// is device-derived play counts, not user content: never a conflict, union by
-// taking the larger count so no play is lost.
+// Song fields that merge independently. `arrangements` is the chart —
+// compared as one unit (both-touched → conflict); `defaultArrangementId` is an
+// identity handle into it (two devices can hold the same song under different
+// arrangement ids), so it is not compared: it follows whichever side's
+// arrangements won. `keyHistory` and `tempoHistory` are device-derived play
+// counts, not user content: never a conflict, union by taking the larger
+// count so no play is lost.
 const SONG_FIELDS = [
   'title', 'artist', 'ccli', 'tags', 'spotify', 'youtube',
   'originalTitle', 'language', 'translator', 'writers', 'publishers',
   'copyright', 'album', 'label', 'year', 'themes', 'genres', 'scripture',
   'vocalRange', 'moment', 'story',
-  'arrangements', 'defaultArrangementId',
+  'arrangements',
 ];
 
-function mergeKeyHistory(base, local, remote) {
+function mergePlayCounts(base, local, remote) {
   const out = {};
   for (const k of new Set([...Object.keys(local || {}), ...Object.keys(remote || {})])) {
     out[k] = Math.max(local?.[k] || 0, remote?.[k] || 0);
@@ -68,12 +88,20 @@ function mergeKeyHistory(base, local, remote) {
 export function threeWayMergeSong(base, local, remote) {
   if (!base || !local || !remote) return { merged: remote, conflictFields: ['__nobase__'] };
   const { merged, conflictFields } = mergeByKeys(SONG_FIELDS, base, local, remote);
+  // The default pointer follows the arrangements that won, and must resolve.
+  const winner = merged.arrangements === local.arrangements ? local : remote;
+  const arrs = Array.isArray(merged.arrangements) ? merged.arrangements : [];
+  const defaultArrangementId = arrs.some(a => a?.id === winner.defaultArrangementId)
+    ? winner.defaultArrangementId
+    : (arrs[0]?.id ?? winner.defaultArrangementId);
   return {
     merged: {
       ...remote,          // carry any fields we don't explicitly merge (id, updatedAt, …)
       ...merged,
+      defaultArrangementId,
       id: local.id,       // identity is never merged — keep ours
-      keyHistory: mergeKeyHistory(base.keyHistory, local.keyHistory, remote.keyHistory),
+      keyHistory: mergePlayCounts(base.keyHistory, local.keyHistory, remote.keyHistory),
+      tempoHistory: mergePlayCounts(base.tempoHistory, local.tempoHistory, remote.tempoHistory),
     },
     conflictFields,
   };

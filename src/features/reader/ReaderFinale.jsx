@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/ui/Button';
 import { useTeam } from '@/auth/useTeam';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
@@ -61,12 +61,14 @@ export default function ReaderFinale({
   const startTime = session?.startTime || null;
 
   const [phrase] = useState(() => pick(flavour.phrases));
-  const [now, setNow] = useState(() => Date.now());
-  // Tick once a minute so the clock stays honest if they linger on the screen.
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(id);
-  }, []);
+  // ⚠ FROZEN, and it used to tick once a minute "so the clock stays honest if
+  // they linger". It did the opposite. This screen mounts when Finish is
+  // pressed, so the set ended at exactly this instant — and a running clock
+  // then counted the time somebody spent looking at the finale INTO the
+  // session it is reporting. Leave it up on a music stand and a 20-minute
+  // practice reads as an hour and a half. The one number on the screen has to
+  // be a fact about the run, not about the screen.
+  const [endedAt] = useState(() => Date.now());
 
   const { team, members } = useTeam();
   const { schedules } = useTeamSchedules(team?.id || null);
@@ -92,7 +94,7 @@ export default function ReaderFinale({
   // parts that actually exist are shown; a placeholder dash for a setlist with
   // no date is noise pretending to be information.
   const meta = [];
-  if (startTime) meta.push(formatElapsed(now - startTime));
+  if (startTime) meta.push(formatElapsed(endedAt - startTime));
   if (setlist?.date) {
     const d = new Date(`${setlist.date}T12:00:00`);
     if (!Number.isNaN(d.getTime())) {

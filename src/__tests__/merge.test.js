@@ -77,6 +77,15 @@ describe('threeWayMergeSong', () => {
     expect(merged.keyHistory).toEqual({ G: 3, A: 1, B: 5 });
   });
 
+  it('unions tempoHistory play counts on the same terms', () => {
+    const base = song({ tempoHistory: { 72: 1 } });
+    const local = song({ tempoHistory: { 72: 3, 76: 1 } });
+    const remote = song({ tempoHistory: { 72: 2, 80: 5 } });
+    const { merged, conflictFields } = threeWayMergeSong(base, local, remote);
+    expect(conflictFields).toEqual([]);
+    expect(merged.tempoHistory).toEqual({ 72: 3, 76: 1, 80: 5 });
+  });
+
   it('signals no-baseline so the caller can fall back to the conflict UI', () => {
     const { conflictFields } = threeWayMergeSong(null, song(), song());
     expect(conflictFields).toEqual(['__nobase__']);

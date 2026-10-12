@@ -116,14 +116,33 @@ const NOTATIONS = [
 // settings it implies, visibly, so there is never a second source of truth
 // quietly overriding what the display panel says. (A hidden role layer is what
 // turned the hub's Chart tab into a second Lyrics tab; see READER.md.)
+//
+// ⚠ **"Guitar" was one row and it meant ELECTRIC** — `tabInstrument:
+// 'electric'`, silently. On an acoustic player that is element 9 exactly
+// backwards: the one tab written for them collapses and the electric one
+// opens. Nothing about the row said which guitar it meant, so there was no
+// way to notice from the outside. The two guitars are two rows now (owner:
+// *"you're scheduled as electric guitar → you see the electric guitar
+// view"*), and the library is worship charts — acoustic is not the rarer half.
+//
+// `guitar` is RETIRED but not dead: `displayRole` is a synced preference, so
+// profiles carry the old id across devices. `LEGACY_ROLE` below keeps the row
+// lit for them, and `ROLE_INSTRUMENT` in `lib/myInstrument.js` still resolves
+// it. Dropping an id from this list does not drop it from anyone's account.
 const ROLES = [
   { id: 'leader', label: 'Leading', applies: { displayMode: 'chords', tabInstrument: 'all' } },
   { id: 'vocalist', label: 'Vocals', applies: { displayMode: 'lyrics', tabInstrument: 'all' } },
-  { id: 'guitar', label: 'Guitar', applies: { displayMode: 'chords', tabInstrument: 'electric' } },
+  { id: 'acoustic', label: 'Acoustic', applies: { displayMode: 'chords', tabInstrument: 'acoustic' } },
+  { id: 'electric', label: 'Electric', applies: { displayMode: 'chords', tabInstrument: 'electric' } },
   { id: 'bass', label: 'Bass', applies: { displayMode: 'chords', tabInstrument: 'bass' } },
   { id: 'keys', label: 'Keys', applies: { displayMode: 'chords', tabInstrument: 'all' } },
   { id: 'drums', label: 'Drums', applies: { displayMode: 'lyrics', tabInstrument: 'all' } },
 ];
+
+// Stored ids no longer offered → the row that now means the same thing. A pick
+// that lights nothing reads as "I never chose one", which would make a user
+// re-pick a setting they already have.
+const LEGACY_ROLE = { guitar: 'electric' };
 
 // The mockup's row glyphs: a single character each, not an icon set. At 19px in
 // a 13.5px row, a drawn icon is noise — the label is doing the work.
@@ -873,7 +892,8 @@ export default function ReaderMenu({
 
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
 
-  const roleId = settings?.displayRole || 'leader';
+  const storedRole = settings?.displayRole || 'leader';
+  const roleId = LEGACY_ROLE[storedRole] || storedRole;
   const capo = song?.capo ? Number(song.capo) : 0;
 
   // ── Reset, per OPTION ────────────────────────────────────────────────────
@@ -1386,7 +1406,7 @@ export default function ReaderMenu({
               playing name"*). "Your instrument" is the concrete thing, and it
               is the same word the team schema uses (`team_members.instruments`)
               — one day this row and the roster will be the same fact. */}
-          <Field label="Your instrument"            info="Vocals and Drums drop the chords; Guitar and Bass open their own tabs. Everything here stays changeable on its own afterwards.">
+          <Field label="Your instrument"            info="Vocals and Drums drop the chords; Acoustic, Electric and Bass each open their own tabs and collapse the others. Everything here stays changeable on its own afterwards.">
             <Picks value={roleId} options={ROLES.map(r => [r.id, r.label])}
               onChange={(id) => {
                 // Applies its settings VISIBLY. A role that silently overrode

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { splitMd, replaceFrontmatter, parseFrontmatterFields, serializeFrontmatterFields } from '@/parser';
 import ChipInput from '@/ui/ChipInput';
+import { rankedTempos } from '@/tempoHistory';
 
 // type: 'text' (default) | 'number' | 'time' | 'url' | 'chips'
 // max: maxLength for text/number/time; maxChips for chips.
@@ -40,7 +41,7 @@ const FIELDS = [
 
 const INPUT_CLASS = 'w-full px-2.5 py-1.5 bg-[var(--ds-gray-100)] border border-[var(--ds-gray-400)] rounded-md text-copy-13 text-[var(--ds-gray-1000)] outline-none font-mono';
 
-export default function MetadataPanel({ md, onChange, isOpen, keyHistory }) {
+export default function MetadataPanel({ md, onChange, isOpen, keyHistory, tempoHistory }) {
   const [fields, setFields] = useState(() => parseFrontmatterFields(splitMd(md).frontmatter));
 
   // Sync from external md changes (e.g., WriteTab edited frontmatter directly).
@@ -152,6 +153,24 @@ export default function MetadataPanel({ md, onChange, isOpen, keyHistory }) {
                       <span className="text-[var(--ds-gray-600)] tabular-nums">·{count}</span>
                     </span>
                   ))}
+              </div>
+            </section>
+          )}
+          {rankedTempos(tempoHistory).length > 0 && (
+            <section>
+              <h3 className="text-label-11 font-semibold uppercase tracking-[0.1em] text-[var(--ds-gray-600)] mb-2 pb-1 border-b border-[var(--ds-gray-200)]">
+                Most played at
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {rankedTempos(tempoHistory).map(([bpm, count]) => (
+                  <span
+                    key={bpm}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-label-11 border border-[var(--ds-gray-400)] bg-[var(--ds-gray-100)]"
+                  >
+                    <span className="text-[var(--chord)] font-semibold">♩ {bpm}</span>
+                    <span className="text-[var(--ds-gray-600)] tabular-nums">·{count}</span>
+                  </span>
+                ))}
               </div>
             </section>
           )}
