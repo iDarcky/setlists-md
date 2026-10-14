@@ -931,13 +931,14 @@ sync engine (SYNC-REDESIGN §4.3, §5.7).
 
 ## Current Focus & Roadmap
 
-**Planning lives in `docs/PLAN.md`** — the single **sequenced** roadmap: what to
-do, in what order, and why. It separates the two streams that were previously
-tangled (**A** ship-the-beta ops vs **B** build-the-product engineering), carries
-the component-pass order, and collects every open decision in one table (§7).
-The per-area detail is §6, explicitly *not* sequenced — read a section when you
-start that component's pass. Keep this file (`CLAUDE.md`) for dev/agent memory
-only: stack, architecture, schema, the finish/release workflows, and gotchas.
+**Planning lives in `docs/PLAN.md`** — one page: **Now** (P0 fixes and the
+beta critical path) → **Next** (the new flows decided in the October 2026
+app-flow review, before the 1 February 2027 beta) → **Later**, plus the
+decisions still open. `PLAN §x.y` references in code comments and older docs
+point at the previous plan, archived as `docs/archive/PLAN-2026-10-11.md`;
+its Stream B (foundation) and per-area backlog are still useful reference.
+Keep this file (`CLAUDE.md`) for dev/agent memory only: stack, architecture,
+schema, the finish/release workflows, and gotchas.
 
 **Starting a fresh session?** If `docs/NEXT-SESSION.md` exists, read it first —
 it's the short-lived handoff for whatever pass is in flight, and it links
