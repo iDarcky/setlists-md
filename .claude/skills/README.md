@@ -12,6 +12,8 @@ Each keeps its upstream licence beside it. To update, re-copy from the upstream 
 | `accessibility` | addyosmani/web-quality-skills | afa8da9 | WCAG 2.2 audit |
 | `performance` | addyosmani/web-quality-skills | afa8da9 | Load and runtime performance |
 | `best-practices` | addyosmani/web-quality-skills | afa8da9 | Security, compatibility, code quality |
+| `core-web-vitals` | addyosmani/web-quality-skills | afa8da9 | LCP, INP, CLS |
+| `seo` | addyosmani/web-quality-skills | afa8da9 | Referenced by web-quality-audit; for the public site |
 | `web-quality-audit` | addyosmani/web-quality-skills | afa8da9 | Combined Lighthouse-style audit in a real browser |
 
 Trimmed on import: upstream test suites and evals. taste-skill (Leonxlnx/taste-skill) was tried and
