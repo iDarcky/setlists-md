@@ -14,7 +14,7 @@ import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
 import { TEAM_ROLES } from '@/lib/teamRoles';
 import { displayTokens } from '@/data/instruments';
 import { Switch } from '@/ui/Switch';
-import { joinUrl, joinPartLabel } from '@/lib/joinLink';
+import { joinUrl, joinPartLabel, inviteMailto } from '@/lib/joinLink';
 import { getTeamJoinLink, resetTeamJoinLink, setTeamJoinLinkEnabled } from '@/features/join/joinApi';
 
 const TeamIcon = () => (
@@ -377,7 +377,7 @@ function InviteRow({ invite, isAdmin, onCancel }) {
   );
 }
 
-function InviteForm({ onInvite, seatsLeft }) {
+function InviteForm({ team, onInvite, seatsLeft, pendingInvites = 0 }) {
   const [userId, setUserId] = useState('');
   const [role, setRole] = useState('member');
   const [busy, setBusy] = useState(false);
@@ -395,10 +395,24 @@ function InviteForm({ onInvite, seatsLeft }) {
       setRole('member');
       // `invite_user_to_team` only adds someone who already has an account;
       // anyone else becomes a PENDING invite that is claimed when they sign in
-      // with exactly this address. No email is sent, so say so.
-      setMessage(res?.status === 'invited'
-        ? { kind: 'info', text: `Invite pending for ${res.email || email}. They'll join when they sign in with this exact email — we don't send one, so let them know (or share the join link).` }
-        : { kind: 'info', text: `${email} is in the team now.` });
+      // with exactly this address. The app sends no email, so open the
+      // leader's own mail app with the join link in it — the link also works
+      // when they sign in with a different address (they ask, you approve).
+      if (res?.status === 'invited') {
+        let url = '';
+        try {
+          const link = await getTeamJoinLink(team.id);
+          if (link?.code && link.enabled) url = joinUrl(window.location.origin, link.code);
+        } catch { /* join links not set up yet: fall back to the plain note */ }
+        if (url) {
+          window.location.href = inviteMailto({ email: res.email || email, teamName: team.name, url });
+          setMessage({ kind: 'info', text: `Your email app opened with the join link for ${res.email || email}. Press send. If they sign in with another address, they'll ask to join and you approve them here.` });
+        } else {
+          setMessage({ kind: 'info', text: `Invite saved for ${res.email || email}. They'll join when they sign in with this exact email. No email was sent, so let them know.` });
+        }
+      } else {
+        setMessage({ kind: 'info', text: `${email} is in the team now.` });
+      }
     } catch (err) {
       setMessage({ kind: 'error', text: err.message || 'Could not add member.' });
     } finally {
@@ -414,6 +428,7 @@ function InviteForm({ onInvite, seatsLeft }) {
         </span>
         <span className="text-label-11 text-[var(--modes-text-dim)]">
           {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
+          {pendingInvites > 0 && ` · ${pendingInvites} invite${pendingInvites !== 1 ? 's' : ''} waiting`}
         </span>
       </div>
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -1082,7 +1097,9 @@ function EditTeamForm({ team, onUpdate }) {
 function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onRoleChange, onInvite, onCancelInvite, onLeave, onDelete, onUpdate, isDefaultSpace = false, onToggleDefaultSpace, canManageJoinLink = false, joinRequests = [], onApproveJoin, onDeclineJoin, onApproveAllJoins }) {
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('members');
-  const seatsLeft = (team.max_seats || 10) - members.length - (invites?.length || 0);
+  // Seats are taken by members only, the same rule the server applies; an
+  // invite nobody has used yet takes none.
+  const seatsLeft = Math.max(0, (team.max_seats || 10) - members.length);
 
   return (
     <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
@@ -1175,7 +1192,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
             )}
             {canManageJoinLink && <JoinLinkCard team={team} />}
             {isAdmin && (
-              <InviteForm onInvite={onInvite} seatsLeft={seatsLeft} />
+              <InviteForm team={team} onInvite={onInvite} seatsLeft={seatsLeft} pendingInvites={invites?.length || 0} />
             )}
             <div>
               <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">

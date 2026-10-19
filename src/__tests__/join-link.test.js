@@ -15,6 +15,7 @@ import {
   churchInitials,
   joinStepFor,
   findJoinRequest,
+  inviteMailto,
 } from '@/lib/joinLink';
 import { normalize } from '@/data/instruments';
 
@@ -155,5 +156,15 @@ describe('which screen', () => {
     expect(findJoinRequest(rows, { teamId: 'B' }).id).toBe('3');
     expect(findJoinRequest(rows, { teamId: 'C' })).toBeNull();
     expect(findJoinRequest(null, { teamId: 'A' })).toBeNull();
+  });
+});
+
+describe('inviteMailto', () => {
+  it('addresses the invitee and carries the join link', () => {
+    const href = inviteMailto({ email: 'ana@example.com', teamName: 'Grace Church', url: 'https://app.test/join/abc23xyz9kmn' });
+    expect(href.startsWith('mailto:ana%40example.com?')).toBe(true);
+    const params = new URLSearchParams(href.split('?')[1]);
+    expect(params.get('subject')).toBe('Join Grace Church on Setlists.md');
+    expect(params.get('body')).toContain('https://app.test/join/abc23xyz9kmn');
   });
 });
