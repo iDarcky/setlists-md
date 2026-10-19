@@ -29,6 +29,13 @@ const RESEND_COOLDOWN_MS = 30_000;
 // §1.2 still lists "Google / Apple OAuth re-enabled"). Until then a button that
 // lands on a Supabase error page is worse than no button, so they show only
 // when the build lists them: VITE_OAUTH_PROVIDERS="apple,google".
+// The emailed code needs a real mail server: Supabase's built-in one only
+// delivers to the project's own team, a couple of messages an hour. Until a
+// custom SMTP server is set up the way in is email + password (with "Confirm
+// email" off, sign-up needs no email at all); VITE_EMAIL_CODES=true brings
+// the code back.
+const EMAIL_CODES = import.meta.env.VITE_EMAIL_CODES === 'true';
+
 const OAUTH_PROVIDERS = new Set(
   String(import.meta.env.VITE_OAUTH_PROVIDERS || '')
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
@@ -131,7 +138,7 @@ function ChurchHeader({ peek, title, subtitle }) {
 
 // ── (a) Landing — who invited you, and sign in ──────────────────────────────
 
-function SignInCard({ onPasswordSignIn }) {
+function SignInCard({ onPasswordSignIn, codes = EMAIL_CODES }) {
   const { signInWithApple, signInWithGoogle, signInWithOtp, verifyEmailOtp } = useAuth();
   const [email, setEmail] = useState(() => {
     try { return window.localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
@@ -211,7 +218,18 @@ function SignInCard({ onPasswordSignIn }) {
         </div>
       )}
 
-      {!codeSentTo ? (
+      {!codes ? (
+        <div className="flex flex-col gap-3">
+          <Button type="button" variant="brand" size="lg" className="w-full" disabled={busy}
+            onClick={() => onPasswordSignIn?.('signup')}>
+            Create account
+          </Button>
+          <Button type="button" variant="secondary" size="lg" className="w-full" disabled={busy}
+            onClick={() => onPasswordSignIn?.('signin')}>
+            I have an account
+          </Button>
+        </div>
+      ) : !codeSentTo ? (
         <form onSubmit={sendCode} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Email</span>
@@ -247,8 +265,8 @@ function SignInCard({ onPasswordSignIn }) {
 
       <Message message={message} />
 
-      {onPasswordSignIn && (
-        <Button type="button" variant="ghost" size="sm" className="self-center" disabled={busy} onClick={onPasswordSignIn}>
+      {codes && onPasswordSignIn && (
+        <Button type="button" variant="ghost" size="sm" className="self-center" disabled={busy} onClick={() => onPasswordSignIn('signin')}>
           I have a password
         </Button>
       )}

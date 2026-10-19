@@ -2323,11 +2323,11 @@ export default function App() {
               leaveJoinFlow();
               setView(resolveLandingView(settings?.landingView));
             }}
-            onPasswordSignIn={() => {
+            onPasswordSignIn={(mode = 'signin') => {
               // The code stays parked in localStorage; the resume effect brings
               // the flow back once AuthScreen signs in.
               leaveJoinFlow();
-              setAuthStartMode('signin');
+              setAuthStartMode(mode === 'signup' ? 'signup' : 'signin');
               setView('signin');
             }}
           />

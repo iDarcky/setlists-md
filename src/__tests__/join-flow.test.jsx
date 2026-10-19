@@ -31,10 +31,14 @@ describe('JoinFlow', () => {
 
   it('shows the invite and parks the code for after sign-in', async () => {
     api.peekJoinLink.mockResolvedValue(PEEK);
-    render(<JoinFlow code={CODE} />);
+    const onPasswordSignIn = vi.fn();
+    render(<JoinFlow code={CODE} onPasswordSignIn={onPasswordSignIn} />);
     expect(await screen.findByText('Ana and 11 others are already in')).toBeInTheDocument();
     expect(screen.getByText('Grace Church')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Email me a code' })).toBeInTheDocument();
+    // No emailed code until a custom SMTP server is set up (VITE_EMAIL_CODES).
+    expect(screen.queryByRole('button', { name: 'Email me a code' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(onPasswordSignIn).toHaveBeenCalledWith('signup');
     expect(JSON.parse(localStorage.getItem('setlists-md:pending-join'))).toMatchObject({ code: CODE, stage: 'auth' });
   });
 
