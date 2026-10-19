@@ -16,6 +16,21 @@ export function churchDefaultSpaceId({ current, teams }) {
 }
 
 /**
+ * Opening into the home Space, once per sign-in. Returns `{ done, switchTo }`:
+ * `done` says the decision is final for this sign-in; until then the caller
+ * asks again as `teams` and `activeLibrary` change. The memberships load after
+ * the first render, so a home Space missing from `teams` means "not loaded
+ * yet", never "gone" — deciding on that first empty list is what opened every
+ * church member into Personal.
+ */
+export function homeSpaceStep({ target, activeLibrary, teams }) {
+  if (!target) return { done: false, switchTo: null };
+  if (target === 'personal' || activeLibrary !== 'personal') return { done: true, switchTo: null };
+  if ((teams || []).some(t => t && t.id === target)) return { done: true, switchTo: target };
+  return { done: false, switchTo: null };
+}
+
+/**
  * After being approved into `joinedTeamId`: it becomes home, unless home is
  * already another Space the user still belongs to (the first church you join
  * becomes home; a second one doesn't silently replace it).
