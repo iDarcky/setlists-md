@@ -39,6 +39,23 @@ export function joinUrl(origin, code) {
   return `${base}/join/${code}`;
 }
 
+/**
+ * A `mailto:` link that opens the leader's own email app with the join link
+ * written out. The app has no mail server of its own, so the leader sends it.
+ */
+export function inviteMailto({ email, teamName, url }) {
+  const name = teamName || 'our team';
+  const subject = `Join ${name} on Setlists.md`;
+  const body = [
+    `Hi! Tap this link to join ${name} on Setlists.md:`,
+    '',
+    url,
+    '',
+    'Sign in with this email address and you are in. With any other address, ask to join and I will approve you.',
+  ].join('\n');
+  return `mailto:${encodeURIComponent(email || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
 // ── "What do you play or sing?" ─────────────────────────────────────────────
 // `id` is what the request stores in `parts`. The six instrument ids are the
 // canonical tokens of data/instruments.js (`vocals` is a retired-but-valid
