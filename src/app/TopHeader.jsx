@@ -5,6 +5,7 @@ import Highlight from '@/ui/Highlight';
 import { cn } from '@/lib/utils';
 import { workspaceStatusLabel } from '@/lib/billingCheckout';
 import { searchSongs, searchSetlists } from '@/lib/search';
+import CountBadge from '@/ui/CountBadge';
 
 // Don't hijack "/" while the user is typing in a field.
 function isEditableTarget(el) {
@@ -130,6 +131,8 @@ export default function TopHeader({
   // Church-first: Personal is left out of the switcher for church members
   // with nothing of their own in it (lib/spaceDefaults.js → shouldHidePersonal).
   hidePersonal = false,
+  // Pending "Asking to join" requests, shown on the Team tab.
+  teamBadgeCount = 0,
 }) {
   const [trayOpen, setTrayOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
@@ -282,6 +285,7 @@ export default function TopHeader({
               return (
                 <button key={id} onClick={() => onNavigate(id)} className={navBtn(active)}>
                   <span>{label}</span>
+                  {id === 'team' && <CountBadge count={teamBadgeCount} label={`${teamBadgeCount} asking to join`} />}
                 </button>
               );
             })}

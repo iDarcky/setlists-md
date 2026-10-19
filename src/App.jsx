@@ -170,7 +170,7 @@ export default function App() {
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
-  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams } = useTeam();
+  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams, pendingJoinCount = 0 } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
@@ -2470,6 +2470,7 @@ export default function App() {
           // header at all.
           showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
           hidePersonal={hidePersonalSpace}
+          teamBadgeCount={pendingJoinCount}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
@@ -2479,6 +2480,7 @@ export default function App() {
             songs={songs}
               setlists={setlists}
               onOpenDrawer={openDrawer}
+              menuBadgeCount={activeLibrary !== 'personal' ? pendingJoinCount : 0}
               onOpenNotifications={user ? () => navigate('notifications') : undefined}
               unreadCount={user ? mergedNotifications.filter(n => !n.read).length : 0}
               onSelectSong={goChart}
@@ -2926,6 +2928,7 @@ export default function App() {
           or break the glass backdrop-filter. */}
       {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'notifications'].includes(view) && !drawerOpen && (
         <BottomNav
+          teamBadgeCount={pendingJoinCount}
           activeView={view}
           onNavigate={goToMainView}
           activeLibrary={activeLibrary}
@@ -2980,6 +2983,7 @@ export default function App() {
           onSignIn={() => { setDrawerOpen(false); setAuthStartMode('signin'); navigate('signin'); }}
           onCreateAccount={() => { setDrawerOpen(false); setAuthStartMode('signup'); navigate('signin'); }}
           onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
+          teamBadgeCount={pendingJoinCount}
           teams={teams}
           activeLibrary={activeLibrary}
           canInstall={canInstall}

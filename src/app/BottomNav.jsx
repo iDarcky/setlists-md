@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMediaQuery, useIsTablet } from '@/lib/useMediaQuery';
+import CountBadge from '@/ui/CountBadge';
 
 const HomeIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -103,7 +104,7 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView, onMarkAllRead, onClearAllNotifications }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView, onMarkAllRead, onClearAllNotifications, teamBadgeCount = 0 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
@@ -202,6 +203,7 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
               }}
             >
               {tabIcon(id, active)}
+              {id === 'team' && <CountBadge count={teamBadgeCount} absolute className="!top-1.5 !right-3" label={`${teamBadgeCount} asking to join`} />}
               <span className={`leading-tight ${active ? 'font-semibold' : 'font-medium'}`} style={{ fontSize: 'clamp(9px, 2.5vw, 11px)' }}>{label}</span>
             </button>
           );

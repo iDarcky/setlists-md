@@ -3,7 +3,8 @@ import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
 import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
-import { canPlanServices, canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
+import { canPlanServices, canWriteLibrary as roleCanWriteLibrary, canApproveJoins } from '@/lib/teamRoles';
+import { useTeamJoinRequests } from '@/hooks/useTeamJoinRequests';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -183,6 +184,20 @@ export function TeamProvider({ children }) {
     return () => { ignore = true; };
   }, [activeTeamId, user?.id, membersReloadKey]);
 
+  // Join link + "Asking to join" for the active Space. Owner, admins and
+  // leaders only — must agree with `get_user_join_manager_teams()` in
+  // 20261019_join_links.sql, or the list just comes back empty.
+  const myActiveRole = team ? members.find(m => m.user_id === user?.id)?.role : null;
+  const canManageJoinLink = !!team && team.kind !== 'personal'
+    && (team.owner_id === user?.id || canApproveJoins(myActiveRole));
+  const {
+    requests: joinRequests,
+    approve: approveJoinRequest,
+    decline: declineJoinRequest,
+    approveAll: approveAllJoinRequests,
+    refresh: refreshJoinRequests,
+  } = useTeamJoinRequests(activeTeamId, { enabled: canManageJoinLink, onMembersChanged: reloadMembers });
+
   // Reset on sign-out.
   useEffect(() => {
     if (!user?.id) loadedForUserRef.current = null;
@@ -236,6 +251,13 @@ export function TeamProvider({ children }) {
       canWriteLibrary,
       refreshTeams,
       reloadMembers,
+      canManageJoinLink,
+      joinRequests,
+      pendingJoinCount: joinRequests.length,
+      approveJoinRequest,
+      declineJoinRequest,
+      approveAllJoinRequests,
+      refreshJoinRequests,
       teams,
       activeTeamId,
       setActiveTeam,
@@ -528,7 +550,7 @@ export function TeamProvider({ children }) {
         setInvites([]);
       },
     };
-  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers]);
+  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }
