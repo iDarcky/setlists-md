@@ -584,6 +584,7 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
             Ask to join
           </Button>
         </form>
+        <Button variant="ghost" size="sm" className="self-center" onClick={leave}>Not now</Button>
       </Shell>
     );
   }
