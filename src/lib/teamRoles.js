@@ -31,6 +31,7 @@ export const TEAM_ROLES = [
     canWriteLibrary: true,
     canPlanServices: true,
     canManageMembers: true,
+    canApproveJoins: true,
   },
   {
     id: 'leader',
@@ -43,6 +44,9 @@ export const TEAM_ROLES = [
     canWriteLibrary: true,
     canPlanServices: true,
     canManageMembers: false,
+    // Join link + "Asking to join" (20261019_join_links): leaders approve
+    // newcomers too — they are the ones who know who turned up on Sunday.
+    canApproveJoins: true,
   },
   {
     // ⚠ The STORED value stays `editor` — renaming the label is free, renaming
@@ -55,6 +59,7 @@ export const TEAM_ROLES = [
     canWriteLibrary: true,
     canPlanServices: false,
     canManageMembers: false,
+    canApproveJoins: false,
   },
   {
     id: 'member',
@@ -63,6 +68,7 @@ export const TEAM_ROLES = [
     canWriteLibrary: false,
     canPlanServices: false,
     canManageMembers: false,
+    canApproveJoins: false,
   },
 ];
 
@@ -81,6 +87,15 @@ export function canWriteLibrary(role) {
 /** May this role schedule people and run the band? */
 export function canPlanServices(role) {
   return roleDef(role).canPlanServices;
+}
+
+/**
+ * May this role run the join link and approve "Asking to join"? ⚠ The DB's
+ * half is `get_user_join_manager_teams()` (owner + admin + leader); the owner
+ * is handled by the caller, as everywhere in this file.
+ */
+export function canApproveJoins(role) {
+  return !!roleDef(role).canApproveJoins;
 }
 
 /** May this role invite, remove and re-role people? */

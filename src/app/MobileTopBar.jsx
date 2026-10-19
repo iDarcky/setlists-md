@@ -3,6 +3,7 @@ import SongCard from '@/features/library/SongCard';
 import { workspaceStatusLabel } from '@/lib/billingCheckout';
 import { searchSongs, searchSetlists } from '@/lib/search';
 import Highlight from '@/ui/Highlight';
+import CountBadge from '@/ui/CountBadge';
 
 const HamburgerIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -62,6 +63,8 @@ export default function MobileTopBar({
   onOpenDrawer,
   onOpenNotifications,
   unreadCount = 0,
+  // Pending "Asking to join" requests — the Team row lives in the drawer.
+  menuBadgeCount = 0,
   onSelectSong,
   onSelectSetlist,
   activeLibrary = 'personal',
@@ -143,11 +146,12 @@ export default function MobileTopBar({
           {!accountPanel && (
             <button
               onClick={onOpenDrawer}
-              aria-label="Open menu"
-              className="shrink-0 w-12 flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors border-none"
+              aria-label={menuBadgeCount > 0 ? `Open menu, ${menuBadgeCount} asking to join` : 'Open menu'}
+              className="relative shrink-0 w-12 flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] transition-colors border-none"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <HamburgerIcon />
+              <CountBadge count={menuBadgeCount} absolute />
             </button>
           )}
           <div className="relative flex-1 min-w-0 flex items-center">

@@ -4,33 +4,10 @@ import { Input } from '@/ui/Input';
 import PageHeader from '@/ui/PageHeader';
 import BrandWordmark from '@/ui/BrandWordmark';
 import { useAuth } from '@/auth/useAuth';
+import { friendlyAuthError } from './friendlyAuthError';
 
 const LAST_EMAIL_KEY = 'setlists-md:last-email';
 const RESEND_COOLDOWN_MS = 30_000;
-
-// Map the most common Supabase auth errors to copy our users can actually
-// act on. Falls through to the raw message when nothing matches.
-function friendlyAuthError(err) {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return "You're offline. Check your connection and try again.";
-  }
-  const raw = err?.message || '';
-  const lower = raw.toLowerCase();
-  if (lower.includes('failed to fetch') || lower.includes('network request failed') || lower.includes('networkerror')) {
-    return "Couldn't reach the server. Check your connection and try again.";
-  }
-  if (lower.includes('invalid login credentials')) return 'Wrong email or password.';
-  if (lower.includes('user already registered')) return 'That email already has an account — try signing in instead.';
-  if (lower.includes('email not confirmed')) return 'Please confirm your email before signing in.';
-  if (lower.includes('email rate limit') || lower.includes('over_email_send_rate_limit')) {
-    return 'Too many emails sent. Try again in a few minutes.';
-  }
-  if (lower.includes('you can only request this') || lower.includes('once every')) {
-    return 'Please wait a minute before trying again.';
-  }
-  if (lower.includes('password should be at least')) return 'Password must be at least 8 characters.';
-  return raw || 'Something went wrong.';
-}
 
 // Rough password strength: length + character variety → 1 (weak) … 3 (strong).
 function passwordStrength(pw) {
@@ -149,9 +126,14 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     }
     await runAction('submit', async () => {
       if (isSignUp) {
-        const { error } = await signUpWithPassword(email, password, displayName);
+        const { data, error } = await signUpWithPassword(email, password, displayName);
         if (error) throw error;
         rememberEmail(email);
+        // With "Confirm email" off the account is live straight away.
+        if (data?.session) {
+          onSignedIn?.();
+          return;
+        }
         setMessage({ kind: 'info', text: `Check ${email} to confirm your account.` });
         setPendingVerification(email);
         setResendAvailableAt(Date.now() + RESEND_COOLDOWN_MS);
