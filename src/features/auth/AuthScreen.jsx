@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/ui/Button';
 import { Input } from '@/ui/Input';
 import PageHeader from '@/ui/PageHeader';
 import BrandWordmark from '@/ui/BrandWordmark';
 import { useAuth } from '@/auth/useAuth';
 import { friendlyAuthError } from './friendlyAuthError';
+import EmailCodeCard from './EmailCodeCard';
+import { isPlaceholderName } from './placeholderName';
 
 const LAST_EMAIL_KEY = 'setlists-md:last-email';
 const RESEND_COOLDOWN_MS = 30_000;
@@ -55,9 +57,17 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     resetPassword,
     resendVerification,
     isConfigured,
+    user,
+    profile,
+    updateProfile,
   } = useAuth();
 
   const [mode, setMode] = useState(defaultMode); // 'signin' | 'signup'
+  // The emailed code is the way in; the password form stays for accounts
+  // that were made with one.
+  const [usePassword, setUsePassword] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const doneRef = useRef(false);
   const [email, setEmail] = useState(() => {
     if (typeof window === 'undefined') return '';
     try { return window.localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
@@ -136,7 +146,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
         const { error } = await signInWithPassword(email, password);
         if (error) throw error;
         rememberEmail(email);
-        onSignedIn?.();
+        finish();
       }
     });
   };
@@ -148,6 +158,32 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
       if (error) throw error;
       setMessage({ kind: 'info', text: `Confirmation email resent to ${pendingVerification}.` });
       setResendAvailableAt(Date.now() + RESEND_COOLDOWN_MS);
+    });
+  };
+
+  const finish = () => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onSignedIn?.();
+  };
+
+  // A code (or a magic link in another tab) signs in without this screen
+  // calling anything: carry on once the session and profile arrive. A brand
+  // new account has no real name yet (the sign-up trigger fills in the part of
+  // the email before the @), so it is asked for first.
+  const needsName = !!user && !!profile && isPlaceholderName(profile.display_name, profile.email || user.email);
+  useEffect(() => {
+    if (user && profile && !needsName) finish();
+  });
+
+  const saveName = async (e) => {
+    e.preventDefault();
+    const name = nameDraft.trim().replace(/\s+/g, ' ').slice(0, 80);
+    if (!name) return;
+    await runAction('name', async () => {
+      const res = await updateProfile?.({ display_name: name });
+      if (res?.error) throw res.error;
+      finish();
     });
   };
 
@@ -168,9 +204,69 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     );
   }
 
+  if (needsName) {
+    return (
+      <div data-theme-variant="modes" className="fixed inset-0 overflow-y-auto flex flex-col">
+        <div className="flex-1 flex items-start justify-center px-4 py-10">
+          <form onSubmit={saveName} className="w-full max-w-sm flex flex-col gap-4">
+            <h1 className="text-heading-24 text-[var(--modes-text)] m-0">What should we call you?</h1>
+            <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">This is the name your band sees.</p>
+            <Input
+              type="text"
+              autoComplete="name"
+              autoFocus
+              value={nameDraft}
+              onChange={e => setNameDraft(e.target.value)}
+              placeholder="Your name"
+              maxLength={80}
+            />
+            {message && (
+              <div role="status" className="text-copy-13 px-3 py-2 rounded-lg bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]">{message.text}</div>
+            )}
+            <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !nameDraft.trim()} loading={busyTarget === 'name'}>
+              Continue
+            </Button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (!usePassword) {
+    return (
+      <div data-theme-variant="modes" className="fixed inset-0 overflow-y-auto flex flex-col">
+        <PageHeader title={isSignUp ? 'Create account' : 'Log in'} onBack={onBack} />
+        <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
+          <div className="w-full max-w-sm flex flex-col gap-4">
+            <div className="flex flex-col items-center gap-3 pt-2 pb-1 text-center">
+              <img src="/setlists-md-mark.svg" alt="" aria-hidden="true" width="56" height="56" className="rounded-2xl shadow-md" />
+              <h1 className="text-heading-24 text-[var(--modes-text)] m-0">
+                {isSignUp ? 'Create your account' : 'Welcome back'}
+              </h1>
+              <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
+                We'll email you a code. No password to remember.
+              </p>
+            </div>
+            <EmailCodeCard
+              onPasswordSignIn={() => { setUsePassword(true); setMode('signin'); setMessage(null); }}
+            />
+            {isSignUp && (
+              <p className="text-center text-copy-12 text-[var(--modes-text-dim)] m-0 leading-relaxed">
+                By continuing you agree to our{' '}
+                <button type="button" onClick={() => onShowLegal ? onShowLegal('terms') : (window.location.href = '/terms')} className="underline underline-offset-2 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] text-copy-12">Terms of Service</button>
+                {' '}and{' '}
+                <button type="button" onClick={() => onShowLegal ? onShowLegal('privacy') : (window.location.href = '/privacy')} className="underline underline-offset-2 bg-transparent border-none p-0 cursor-pointer text-[var(--modes-text-muted)] text-copy-12">Privacy Policy</button>.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div data-theme-variant="modes" className="fixed inset-0 overflow-y-auto flex flex-col">
-      <PageHeader title={isSignUp ? 'Create account' : 'Sign in'} onBack={onBack} />
+      <PageHeader title="Log in" onBack={onBack} />
 
       <div className="flex-1 flex items-start justify-center px-4 py-6 sm:py-10">
         <div className="w-full max-w-sm flex flex-col gap-4">
@@ -190,7 +286,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
               className="text-[var(--modes-text)] opacity-95"
             />
             <p className="text-copy-13 text-[var(--modes-text-muted)] m-0 text-center">
-              {isSignUp ? 'Create your account to sync across devices.' : 'Welcome back — sign in to your account.'}
+              Log in with your password.
             </p>
           </div>
 
@@ -332,18 +428,19 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
               disabled={busy || !email || !password || (isSignUp && confirmPassword !== password)}
               loading={busyTarget === 'submit'}
             >
-              {isSignUp ? 'Create account' : 'Sign in'}
+              {isSignUp ? 'Create account' : 'Log in'}
             </Button>
+
 
             <Button
               type="button"
-              variant="secondary"
-              size="md"
-              className="w-full"
+              variant="ghost"
+              size="sm"
+              className="self-center"
               disabled={busy}
-              onClick={() => { setMode(isSignUp ? 'signin' : 'signup'); setMessage(null); setConfirmPassword(''); }}
+              onClick={() => { setUsePassword(false); setMessage(null); }}
             >
-              {isSignUp ? 'Sign in instead' : 'Create an account'}
+              Email me a code instead
             </Button>
 
             {isSignUp && (
