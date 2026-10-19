@@ -598,7 +598,7 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   service-role-only `app_config` (holds the VAPID keys — values are inserted
   operationally, never committed), a `notify_on_schedule_request` trigger
   (being rostered now writes a durable notification), and `pg_cron`+`pg_net`
-  jobs: `notify-worker` (every minute → the edge function) and a daily
+  jobs: `notify-worker` (every five minutes since 20261019 → the edge function) and a daily
   `cron-history-cleanup`.
 
 - `20260910_sync_versions.sql` — **server foundations for the replica sync
@@ -904,7 +904,7 @@ sync engine (SYNC-REDESIGN §4.3, §5.7).
 
 - **Pipeline**: DB triggers (`schedule_request` on roster insert,
   `schedule_decline`) write `team_notifications` rows → the `notify-worker`
-  edge function (pg_cron, every minute) sends RFC 8291/8292 Web Push to each
+  edge function (pg_cron, every five minutes) sends RFC 8291/8292 Web Push to each
   recipient's `push_subscriptions` and marks `pushed_at` (at-most-once; dead
   subscriptions pruned on 404/410). It also generates `schedule_maybe_nudge`
   rows server-side (one per schedule, ever).

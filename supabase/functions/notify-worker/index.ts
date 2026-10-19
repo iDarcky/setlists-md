@@ -1,5 +1,5 @@
 // notify-worker — the notification background worker, invoked by pg_cron
-// (every minute, see 20260702_web_push.sql) and safe to invoke at will: every
+// (every five minutes, see 20261019_notify_worker_every_5_min.sql) and safe to invoke at will: every
 // step is idempotent.
 //
 //  1. MAYBE-NUDGES: any 'maybe' availability on a setlist dated within the
