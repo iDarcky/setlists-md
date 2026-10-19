@@ -26,7 +26,7 @@ import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
 import { APP_HEIGHT } from '@/lib/appViewport';
-import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
+import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Library from '@/features/library/Library';
 import Settings from '@/features/settings/Settings';
@@ -2402,25 +2402,27 @@ export default function App() {
       )}
       {view === 'onboarding' && (
         <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
-        <OnboardingFlow
-          onComplete={(quiz) => {
-            // Inject demos if not already present (covers the first-run path).
+        <WelcomeScreen
+          onTrySolo={() => {
+            // Demos are seeded on a first run already; this covers a replay
+            // from Settings after the library was emptied.
             setSongs(prev => {
               if (prev.length > 0) return prev;
               const demos = seedDemoSongs();
               saveSongs(demos);
               return demos;
             });
-            setSettings(prev => ({
-              ...prev,
-              ...quiz,
-              onboardingComplete: true,
-            }));
+            setSettings(prev => ({ ...prev, onboardingComplete: true }));
             setView('home');
           }}
           onSignIn={() => {
             setSettings(prev => ({ ...prev, onboardingComplete: true }));
             setAuthStartMode('signin');
+            setView('signin');
+          }}
+          onCreateAccount={() => {
+            setSettings(prev => ({ ...prev, onboardingComplete: true }));
+            setAuthStartMode('signup');
             setView('signin');
           }}
         />

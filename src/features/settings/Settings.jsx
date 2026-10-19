@@ -229,7 +229,7 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
       <Row label="Help guide" description="Open the in-app help and feedback.">
         <Button size="sm" variant="secondary" onClick={() => onShowHelp?.()}>Open Help</Button>
       </Row>
-      <Row label="Replay onboarding" description="See the first-run welcome flow again.">
+      <Row label="Replay onboarding" description="See the first-run welcome screen again.">
         <Button size="sm" variant="secondary" onClick={() => onReplayOnboarding?.()}>Replay</Button>
       </Row>
     </Section>
