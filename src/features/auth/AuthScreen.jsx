@@ -126,9 +126,14 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     }
     await runAction('submit', async () => {
       if (isSignUp) {
-        const { error } = await signUpWithPassword(email, password, displayName);
+        const { data, error } = await signUpWithPassword(email, password, displayName);
         if (error) throw error;
         rememberEmail(email);
+        // With "Confirm email" off the account is live straight away.
+        if (data?.session) {
+          onSignedIn?.();
+          return;
+        }
         setMessage({ kind: 'info', text: `Check ${email} to confirm your account.` });
         setPendingVerification(email);
         setResendAvailableAt(Date.now() + RESEND_COOLDOWN_MS);
