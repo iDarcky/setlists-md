@@ -23,6 +23,17 @@ export function TeamProvider({ children }) {
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(false);
   const loadedForUserRef = useRef(null);
+  // Bumped to re-read memberships (e.g. a join request was just approved) or
+  // the active roster (someone was approved in) without a reload.
+  const [teamsReloadKey, setTeamsReloadKey] = useState(0);
+  const [membersReloadKey, setMembersReloadKey] = useState(0);
+  const silentReloadRef = useRef(false);
+  const refreshTeams = useCallback(() => {
+    loadedForUserRef.current = null;
+    silentReloadRef.current = true;
+    setTeamsReloadKey(k => k + 1);
+  }, []);
+  const reloadMembers = useCallback(() => setMembersReloadKey(k => k + 1), []);
 
   // The user's personal tier drives whether they may create/own workspaces.
   // (The legacy `profiles.plan` column was dropped in 20260522_plans_migration;
@@ -52,8 +63,10 @@ export function TeamProvider({ children }) {
     if (loadedForUserRef.current === user.id) return;
     loadedForUserRef.current = user.id;
 
+    const silent = silentReloadRef.current;
+    silentReloadRef.current = false;
     (async () => {
-      setLoading(true);
+      if (!silent) setLoading(true);
       try {
         // All of the user's team memberships (no longer capped at one).
         const { data: memberships } = await supabase
@@ -82,10 +95,10 @@ export function TeamProvider({ children }) {
       } catch (err) {
         console.error('[team] Failed to load teams:', err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     })();
-  }, [user?.id]);
+  }, [user?.id, teamsReloadKey]);
 
   // Load members + invites for the active team whenever it changes.
   useEffect(() => {
@@ -168,7 +181,7 @@ export function TeamProvider({ children }) {
     })();
 
     return () => { ignore = true; };
-  }, [activeTeamId, user?.id]);
+  }, [activeTeamId, user?.id, membersReloadKey]);
 
   // Reset on sign-out.
   useEffect(() => {
@@ -221,6 +234,8 @@ export function TeamProvider({ children }) {
     return {
       myRole,
       canWriteLibrary,
+      refreshTeams,
+      reloadMembers,
       teams,
       activeTeamId,
       setActiveTeam,
@@ -513,7 +528,7 @@ export function TeamProvider({ children }) {
         setInvites([]);
       },
     };
-  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam]);
+  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }
