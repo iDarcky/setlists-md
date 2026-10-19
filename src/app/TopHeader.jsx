@@ -127,6 +127,9 @@ export default function TopHeader({
   // the brand lockup on the left instead of the nav tabs, keeping the
   // workspace switcher centered and the right-side actions in place.
   hidePrimaryNav = false,
+  // Church-first: Personal is left out of the switcher for church members
+  // with nothing of their own in it (lib/spaceDefaults.js → shouldHidePersonal).
+  hidePersonal = false,
 }) {
   const [trayOpen, setTrayOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
@@ -205,7 +208,7 @@ export default function TopHeader({
 
   // Workspaces: Personal + every team the user belongs to.
   const workspaces = [
-    { id: 'personal', name: 'Personal Space', isPersonal: true, avatarUrl },
+    ...(hidePersonal ? [] : [{ id: 'personal', name: 'Personal Space', isPersonal: true, avatarUrl }]),
     ...teams.map(t => ({ id: t.id, name: t.name, plan: t.plan, avatarUrl: t.logo_url || null, status: t.subscription_status })),
   ];
   const activeWorkspace =

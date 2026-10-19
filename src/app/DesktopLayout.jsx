@@ -33,6 +33,7 @@ export default function DesktopLayout({
   onSelectSong,
   onSelectSetlist,
   showGlobalSearch = false,
+  hidePersonal = false,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -92,6 +93,7 @@ export default function DesktopLayout({
           onSelectSong={onSelectSong}
           onSelectSetlist={onSelectSetlist}
           showSearch={showGlobalSearch}
+          hidePersonal={hidePersonal}
         />
       )}
 

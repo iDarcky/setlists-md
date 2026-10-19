@@ -217,6 +217,12 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
           reading from, so it belongs beside that screen. `keepAwake` itself is
           unchanged and still portable; only its control moved — and going live
           now acquires the wake lock regardless of it. */}
+      {/* Church-first (lib/spaceDefaults.js): Personal drops out of the Space
+          switcher for church members with nothing in it. This brings it back.
+          It is always shown when there are songs or setlists of your own. */}
+      <Row label="Show my own songs and setlists" description="Keep your Personal space in the Space switcher, even while it's empty. It always shows once you have songs or setlists of your own.">
+        <OnOffToggle value={settings?.showPersonalSpace === true} onChange={(v) => update('showPersonalSpace', v)} />
+      </Row>
       <Row label="Lock orientation" description="Best-effort: keep the current orientation while reading. Most browsers only allow this in full screen / an installed PWA.">
         <OnOffToggle value={settings?.lockOrientation === true} onChange={(v) => update('lockOrientation', v)} />
       </Row>

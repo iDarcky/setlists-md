@@ -15,6 +15,9 @@ import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from 
 import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDiff } from './tempoHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, shouldHidePersonal } from '@/lib/spaceDefaults';
+
+const DEMO_SONG_IDS = Object.keys(DEMO_BASELINES);
 import { createBackupMirror } from '@/sync/backup';
 import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
@@ -379,6 +382,36 @@ export default function App() {
       setActiveLibrary(target);
     }
   }, [loaded, user?.id, teamLoading, teams, activeLibrary, settings?.defaultSpaceId]);
+
+  // Church-first: someone in a church who never picked a home Space gets that
+  // church as home (the effect above then opens into it). Waits for the
+  // profile so cloud preferences are hydrated first — the functional update
+  // only fills a gap, so a cloud 'personal' still wins.
+  useEffect(() => {
+    if (!loaded || !user?.id || teamLoading || !profile) return;
+    if (settings?.defaultSpaceId) return;
+    const id = churchDefaultSpaceId({ current: settings?.defaultSpaceId, teams });
+    if (!id) return;
+    setSettings(prev => (prev && !prev.defaultSpaceId ? { ...prev, defaultSpaceId: id } : prev));
+  }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
+
+  // Does the personal library hold anything of the user's own? While it is
+  // the open library the answer is in state; otherwise read it from IndexedDB
+  // (null until known — unknown never hides anything).
+  const [storedPersonalHasContent, setStoredPersonalHasContent] = useState(null);
+  useEffect(() => {
+    if (activeLibrary === 'personal') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [ps, psl] = await Promise.all([loadSongs('personal'), loadSetlists('personal')]);
+        if (!cancelled) setStoredPersonalHasContent(hasOwnPersonalContent(ps, psl, DEMO_SONG_IDS));
+      } catch {
+        if (!cancelled) setStoredPersonalHasContent(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeLibrary, user?.id]);
 
   // ── Join link: resume after sign-in ───────────────────────────────────────
   // OAuth comes back through /auth/callback and a magic link opens `/` in a
@@ -1205,7 +1238,12 @@ export default function App() {
   // link has met the app; the first-run tour is not for them.
   const handleJoinedSpace = (teamId, { switchTo = null } = {}) => {
     refreshTeams?.();
-    setSettings(prev => (prev ? { ...prev, onboardingComplete: true } : prev));
+    const teamIds = teams.map(t => t.id);
+    setSettings(prev => (prev ? {
+      ...prev,
+      onboardingComplete: true,
+      defaultSpaceId: defaultAfterJoin({ current: prev.defaultSpaceId, joinedTeamId: teamId, teamIds }),
+    } : prev));
     if (teamId && switchTo) setPendingSpaceSwitch({ teamId, view: switchTo });
   };
 
@@ -1216,9 +1254,22 @@ export default function App() {
     setJoinCode(null);
   };
 
+  const personalHasContent = activeLibrary === 'personal'
+    ? (loaded ? hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS) : null)
+    : storedPersonalHasContent;
+  const hidePersonalSpace = shouldHidePersonal({
+    showPersonalPref: settings?.showPersonalSpace,
+    inChurch: teams.length > 0,
+    hasPersonalContent: personalHasContent,
+    personalCloud: personalCloudAllowed,
+    activeIsPersonal: activeLibrary === 'personal',
+    defaultIsPersonal: settings?.defaultSpaceId === 'personal',
+  });
+
   // Workspace list shared by the mobile top bar and the account panel.
+  // Personal is left out for church members with nothing of their own in it.
   const workspaces = [
-    { id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null },
+    ...(hidePersonalSpace ? [] : [{ id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null }]),
     ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
   ];
 
@@ -2418,6 +2469,7 @@ export default function App() {
           // builder (its library picker). Fullscreen views don't render the
           // header at all.
           showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
+          hidePersonal={hidePersonalSpace}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
