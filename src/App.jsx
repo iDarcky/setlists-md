@@ -15,6 +15,7 @@ import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from 
 import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDiff } from './tempoHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
+import { isLockedOut } from '@/lib/appGate';
 import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
 
 const DEMO_SONG_IDS = Object.keys(DEMO_BASELINES);
@@ -26,7 +27,7 @@ import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
 import { APP_HEIGHT } from '@/lib/appViewport';
-import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
+import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Library from '@/features/library/Library';
 import Settings from '@/features/settings/Settings';
@@ -161,7 +162,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 }
 
 export default function App() {
-  const { user, profile, signOut, updateProfile } = useAuth();
+  const { user, profile, signOut, updateProfile, loading: authLoading, isConfigured: accountsEnabled } = useAuth();
   // The personal library's workspace on Supabase (step 4). Entitled by the
   // PROFILE's tier — never the active team's — so a free account inside a
   // church workspace does not get a personal cloud it loses on switching back.
@@ -424,6 +425,24 @@ export default function App() {
     setJoinCode(pending.code);
     setView('join');
   }, [loaded, user?.id, view]);
+
+  // ── Welcome gate ──────────────────────────────────────────────────────────
+  // The main app is for signed-in users and people who chose Try solo. Any
+  // other way in (Back from Log in, signing out, a stale landing view) lands
+  // on the welcome screen instead, with nothing behind it to go back to.
+  const lockedOut = isLockedOut({
+    view,
+    loaded,
+    authLoading,
+    configured: accountsEnabled,
+    signedIn: !!user?.id,
+    soloMode: !!settings?.soloMode,
+  });
+  useEffect(() => {
+    if (!lockedOut) return;
+    historyRef.current = [];
+    setView('onboarding');
+  }, [lockedOut]);
 
   // Switch into a just-joined Space once its membership has loaded.
   useEffect(() => {
@@ -720,7 +739,7 @@ export default function App() {
 
         // Determine initial view based on onboarding state. `share-view` is a
         // public, no-auth route — never override it with onboarding/landing.
-        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join';
+        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
         if (isAuthFlow) {
           // Keep the current auth view
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
@@ -2372,6 +2391,9 @@ export default function App() {
     try {
       await signOut();
       toast({ title: 'Signed out' });
+      // Back to the welcome screen (the gate does the rest): signing out
+      // isn't a way to keep using the app without an account.
+      setSettings(prev => ({ ...prev, soloMode: false }));
       goToMainView('home');
     } catch (err) {
       toast({ title: 'Sign-out failed', description: err.message, variant: 'error' });
@@ -2392,33 +2414,46 @@ export default function App() {
       <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen
-          onBack={goBack}
+          onBack={() => {
+            // Came here from a church's join link: Back returns to that
+            // invitation, not to the welcome screen.
+            const pending = loadPendingJoin();
+            if (!user?.id && pending?.stage === 'auth' && pending.code) {
+              window.history.replaceState({}, document.title, `/join/${pending.code}`);
+              setJoinCode(pending.code);
+              setView('join');
+              return;
+            }
+            goBack();
+          }}
           onSignedIn={() => goToMainView('home')}
           defaultMode={authStartMode}
           onShowLegal={(doc) => navigate(`legal-${doc}`)}
         />
       )}
-      {view === 'onboarding' && (
+      {(view === 'onboarding' || lockedOut) && (
         <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
-        <OnboardingFlow
-          onComplete={(quiz) => {
-            // Inject demos if not already present (covers the first-run path).
+        <WelcomeScreen
+          onTrySolo={() => {
+            // Demos are seeded on a first run already; this covers a replay
+            // from Settings after the library was emptied.
             setSongs(prev => {
               if (prev.length > 0) return prev;
               const demos = seedDemoSongs();
               saveSongs(demos);
               return demos;
             });
-            setSettings(prev => ({
-              ...prev,
-              ...quiz,
-              onboardingComplete: true,
-            }));
+            setSettings(prev => ({ ...prev, onboardingComplete: true, soloMode: true }));
             setView('home');
           }}
           onSignIn={() => {
             setSettings(prev => ({ ...prev, onboardingComplete: true }));
             setAuthStartMode('signin');
+            setView('signin');
+          }}
+          onCreateAccount={() => {
+            setSettings(prev => ({ ...prev, onboardingComplete: true }));
+            setAuthStartMode('signup');
             setView('signin');
           }}
         />
@@ -2430,7 +2465,7 @@ export default function App() {
           onDone={() => setView('home')}
         />
       )}
-      {!['onboarding', 'signin', 'recovery'].includes(view) && (
+      {!lockedOut && !['onboarding', 'signin', 'recovery'].includes(view) && (
         <DesktopLayout
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
