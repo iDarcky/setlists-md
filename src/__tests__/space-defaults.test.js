@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, shouldHidePersonal } from '@/lib/spaceDefaults';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
 import { PORTABLE_PREF_KEYS } from '@/app/usePreferenceSync';
 import { DEMO_BASELINES, seedDemoSongs } from '@/data/demos';
 
@@ -70,5 +70,26 @@ describe('shouldHidePersonal', () => {
   });
   it('the toggle follows the account', () => {
     expect(PORTABLE_PREF_KEYS).toContain('showPersonalSpace');
+  });
+});
+
+describe('homeSpaceStep', () => {
+  const church = { id: 'c1', kind: 'team', plan: 'church' };
+
+  it('waits while the home church has not loaded yet', () => {
+    expect(homeSpaceStep({ target: 'c1', activeLibrary: 'personal', teams: [] })).toEqual({ done: false, switchTo: null });
+  });
+
+  it('opens the home church once its membership arrives', () => {
+    expect(homeSpaceStep({ target: 'c1', activeLibrary: 'personal', teams: [church] })).toEqual({ done: true, switchTo: 'c1' });
+  });
+
+  it('waits when no home is set', () => {
+    expect(homeSpaceStep({ target: null, activeLibrary: 'personal', teams: [church] }).done).toBe(false);
+  });
+
+  it('leaves an explicit Personal home, or a Space already open, alone', () => {
+    expect(homeSpaceStep({ target: 'personal', activeLibrary: 'personal', teams: [church] })).toEqual({ done: true, switchTo: null });
+    expect(homeSpaceStep({ target: 'c1', activeLibrary: 'other', teams: [church] })).toEqual({ done: true, switchTo: null });
   });
 });

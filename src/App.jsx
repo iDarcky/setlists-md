@@ -15,7 +15,7 @@ import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from 
 import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDiff } from './tempoHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
-import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, shouldHidePersonal } from '@/lib/spaceDefaults';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
 
 const DEMO_SONG_IDS = Object.keys(DEMO_BASELINES);
 import { createBackupMirror } from '@/sync/backup';
@@ -375,12 +375,10 @@ export default function App() {
   useEffect(() => {
     if (!loaded || !user?.id || teamLoading) return;
     if (defaultSpaceAppliedForRef.current === user.id) return;
-    const target = settings?.defaultSpaceId;
-    if (!target) return; // nothing set yet (or cloud prefs not hydrated) — wait
+    const { done, switchTo } = homeSpaceStep({ target: settings?.defaultSpaceId, activeLibrary, teams });
+    if (!done) return; // no home yet, or its membership hasn't loaded — wait
     defaultSpaceAppliedForRef.current = user.id;
-    if (target !== 'personal' && activeLibrary === 'personal' && teams.some(t => t.id === target)) {
-      setActiveLibrary(target);
-    }
+    if (switchTo) setActiveLibrary(switchTo);
   }, [loaded, user?.id, teamLoading, teams, activeLibrary, settings?.defaultSpaceId]);
 
   // Church-first: someone in a church who never picked a home Space gets that
