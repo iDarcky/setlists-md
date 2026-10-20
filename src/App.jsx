@@ -2945,6 +2945,7 @@ export default function App() {
               onOpenSetlist={goSetlistView}
               onOpenGrid={goScheduling}
               onOpenServices={goServices}
+              onAddSetlist={isTeamReadOnly ? null : (prefill) => goSetlistBuild(prefill)}
               viewMode={scheduleView}
               onSetView={setScheduleView}
               clockFormat={settings?.clockFormat || '12h'}
