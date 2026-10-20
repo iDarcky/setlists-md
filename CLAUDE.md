@@ -653,6 +653,18 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   (SYNC-REDESIGN §6 #2). ⚠ Write new policies with `(select auth.uid())`,
   never bare `auth.uid()`.
 
+- `20261020_team_services.sql` — **services as real objects**. `team_services`
+  (name, colour id, `weekday` 0–6 + optional `nth` 1–5 of the month,
+  `start_time`, `ask_weeks`, `parts`, `outline`, `auto_add`) and
+  `team_service_members` (who plays in which). Members read, owner/admin/leader
+  write (`get_user_join_manager_teams()`). A trigger puts every new
+  `team_members` row on the `auto_add` services (Approve all relies on it);
+  leaving a Space takes you off its services. `team_availability` is
+  unchanged — still one answer per person per DATE. Dates are computed client
+  side in `lib/services.js`; a setlist still names its service by text, matched
+  by `setlistFor()`. Client: `hooks/useTeamServices.js`,
+  `features/scheduling/ServicesScreen.jsx` (view `services`).
+
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
 

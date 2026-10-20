@@ -19,7 +19,7 @@ function toLocalDateStr(date) {
 
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
-export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, onOpenServices, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -112,6 +112,15 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
               options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
               size="sm"
             />
+            {onOpenServices && canManageBand && (
+              <button
+                type="button"
+                onClick={onOpenServices}
+                className="inline-flex items-center gap-1.5 text-label-12 font-semibold px-3 py-1.5 rounded-lg bg-[var(--modes-surface)] text-[var(--modes-text)] border border-[var(--modes-border)] cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors"
+              >
+                Services
+              </button>
+            )}
             {onOpenGrid && (
               <button
                 type="button"
@@ -127,6 +136,20 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
       />
 
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-6 pb-28 flex flex-col gap-6">
+        {/* PageHeader drops its actions on phones, so leaders reach Services here. */}
+        {onOpenServices && canManageBand && (
+          <button
+            type="button"
+            onClick={onOpenServices}
+            className="sm:hidden modes-card flex items-center gap-3 min-h-[56px] px-4 text-left cursor-pointer"
+          >
+            <span className="flex-1 min-w-0">
+              <span className="block text-copy-15 font-semibold text-[var(--modes-text)]">Services</span>
+              <span className="block text-label-13 text-[var(--modes-text-muted)]">Days, templates and who plays in each</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
+        )}
         <RecurringPicker onApply={handleApplyRecurring} />
 
         {viewMode === 'list' ? (
