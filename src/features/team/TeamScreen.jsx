@@ -16,6 +16,9 @@ import { displayTokens } from '@/data/instruments';
 import { Switch } from '@/ui/Switch';
 import { joinUrl, joinPartLabel, inviteMailto } from '@/lib/joinLink';
 import { getTeamJoinLink, resetTeamJoinLink, setTeamJoinLinkEnabled } from '@/features/join/joinApi';
+import { Dialog } from '@/ui/Dialog';
+import { useTeamServices } from '@/hooks/useTeamServices';
+import { serviceColor, whenLabel } from '@/lib/services';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -662,10 +665,59 @@ function JoinRequestRow({ request, onApprove, onDecline, busy }) {
   );
 }
 
+// "Which services does Maya play in?" — shown when the Space has services, so
+// a newcomer lands on the right dates from the first day. The auto_add
+// services are ticked to start with (the same ones Approve all uses).
+function ApproveDialog({ request, services, busy, onCancel, onConfirm }) {
+  const [picked, setPicked] = useState(() => new Set(services.filter(s => s.auto_add).map(s => s.id)));
+  const name = request.display_name || request.email?.split('@')[0] || 'this person';
+  const toggle = (id) => setPicked(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const n = picked.size;
+  return (
+    <Dialog open onClose={onCancel} ariaLabel={`Approve ${name}`}>
+      <div className="p-5 flex flex-col gap-4">
+        <h2 className="text-heading-20 m-0 text-[var(--ds-gray-1000)]">Approve {name}</h2>
+        <div className="flex flex-col gap-2">
+          <span className="text-copy-13 font-semibold text-[var(--ds-gray-900)]">Which services does {name.split(' ')[0]} play in?</span>
+          {services.map(s => {
+            const on = picked.has(s.id);
+            return (
+              <label key={s.id} className={`flex items-center gap-3 min-h-[56px] px-3 rounded-xl cursor-pointer border ${on ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-[var(--ds-gray-400)]'}`}>
+                <input type="checkbox" checked={on} onChange={() => toggle(s.id)} className="w-5 h-5 accent-[var(--color-brand)]" />
+                <span aria-hidden="true" className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: serviceColor(s.color) }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-copy-14 font-semibold text-[var(--ds-gray-1000)] truncate">{s.name}</span>
+                  <span className="block text-label-12 text-[var(--ds-gray-700)]">{whenLabel(s)}</span>
+                </span>
+              </label>
+            );
+          })}
+          <span className="text-label-12 text-[var(--ds-gray-700)]">You can change this later on the service's page.</span>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>Cancel</Button>
+          <Button variant="brand" onClick={() => onConfirm([...picked])} loading={busy}>
+            {n === 0 ? 'Approve, no services yet' : `Approve and add to ${n} service${n === 1 ? '' : 's'}`}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
 function JoinRequestsSection({ requests, onApprove, onDecline, onApproveAll }) {
   const confirm = useConfirm();
+  const { team } = useTeam();
+  const svc = useTeamServices(team?.id);
+  const services = svc.ready ? svc.services : [];
+  const autoServices = services.filter(s => s.auto_add);
   const [busyId, setBusyId] = useState(null); // `${id}:approve` | `${id}:decline` | 'all'
   const [message, setMessage] = useState(null);
+  const [approving, setApproving] = useState(null); // the request whose service sheet is open
 
   if (!requests || requests.length === 0) return null;
 
@@ -718,11 +770,29 @@ function JoinRequestsSection({ requests, onApprove, onDecline, onApproveAll }) {
             key={r.id}
             request={r}
             busy={busyId === 'all' ? 'all' : busyId?.startsWith(`${r.id}:`) ? busyId.split(':')[1] : null}
-            onApprove={(req) => run(`${req.id}:approve`, () => onApprove(req.id))}
+            onApprove={(req) => (services.length > 0 ? setApproving(req) : run(`${req.id}:approve`, () => onApprove(req.id)))}
             onDecline={decline}
           />
         ))}
       </div>
+      {requests.length > 1 && autoServices.length > 0 && (
+        <div className="text-label-12 text-[var(--modes-text-dim)] mt-2 px-1">
+          Approve all puts everyone on {autoServices.map(s => s.name).join(', ')}.
+        </div>
+      )}
+      {approving && (
+        <ApproveDialog
+          request={approving}
+          services={services}
+          busy={busyId === `${approving.id}:approve`}
+          onCancel={() => setApproving(null)}
+          onConfirm={(serviceIds) => run(`${approving.id}:approve`, async () => {
+            await onApprove(approving.id);
+            setApproving(null);
+            if (approving.user_id) await svc.setPersonServices(approving.user_id, serviceIds);
+          })}
+        />
+      )}
       {message && (
         <div
           className={`text-copy-13 px-3 py-2 rounded-lg mt-2 ${

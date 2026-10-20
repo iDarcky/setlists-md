@@ -112,6 +112,7 @@ const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
 const Schedule = lazy(() => import('@/features/scheduling/Schedule'));
 const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
+const ServicesScreen = lazy(() => import('@/features/scheduling/ServicesScreen'));
 const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
 const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint'));
@@ -1405,6 +1406,7 @@ export default function App() {
   const newWorkspaceLocked = eligibleToCreateWorkspace && atWorkspaceLimit;
   const goSchedule = () => navigate('schedule');
   const goScheduling = () => navigate('scheduling');
+  const goServices = () => navigate('services');
 
   // Song CRUD
   // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
@@ -2940,11 +2942,15 @@ export default function App() {
               onBack={goBack}
               onOpenSetlist={goSetlistView}
               onOpenGrid={goScheduling}
+              onOpenServices={goServices}
               viewMode={scheduleView}
               onSetView={setScheduleView}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
+          )}
+          {view === 'services' && (
+            <ServicesScreen onBack={goBack} />
           )}
           {view === 'scheduling' && (
             <SchedulingGrid
@@ -2959,7 +2965,7 @@ export default function App() {
       {/* Mobile glass nav lives at the App root (not inside <main>) so the
           drawer's transform/will-change doesn't capture its fixed positioning
           or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'notifications'].includes(view) && !drawerOpen && (
+      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'services', 'notifications'].includes(view) && !drawerOpen && (
         <BottomNav
           teamBadgeCount={pendingJoinCount}
           activeView={view}
