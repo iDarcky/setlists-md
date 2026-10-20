@@ -2939,6 +2939,8 @@ export default function App() {
           {view === 'schedule' && (
             <Schedule
               setlists={setlists}
+              schedules={schedules}
+              setlistMap={teamSetlistMap}
               onBack={goBack}
               onOpenSetlist={goSetlistView}
               onOpenGrid={goScheduling}

@@ -9,6 +9,9 @@ import DateStatusModal from './DateStatusModal';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
+import { useTeamServices } from '@/hooks/useTeamServices';
+import { myServiceDates, serviceIdsFor } from '@/lib/services';
+import MyDates from './MyDates';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();
@@ -19,10 +22,17 @@ function toLocalDateStr(date) {
 
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
-export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, onOpenServices, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, schedules = [], setlistMap = {}, onBack, onOpenSetlist, onOpenGrid, onOpenServices, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
+  const { services, serviceMembers, ready: servicesReady } = useTeamServices(team?.id);
+  // Once the Space has services, members see only their services' dates.
+  // Leaders keep the all-dates views underneath until planning moves too.
+  const hasServices = servicesReady && services.length > 0;
+  const mine = serviceIdsFor(user?.id, serviceMembers);
+  const myServices = services.filter(s => mine.has(s.id));
+  const myEntries = hasServices ? myServiceDates(user?.id, services, serviceMembers) : [];
 
   const [weeksAhead, setWeeksAhead] = useState(8);
   const [bandSetlist, setBandSetlist] = useState(null);
@@ -106,12 +116,14 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
         onClose={onBack}
         actions={
           <div className="flex items-center gap-2">
-            <SegmentedControl
-              value={viewMode}
-              onChange={handleSetView}
-              options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
-              size="sm"
-            />
+            {(!hasServices || canManageBand) && (
+              <SegmentedControl
+                value={viewMode}
+                onChange={handleSetView}
+                options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
+                size="sm"
+              />
+            )}
             {onOpenServices && canManageBand && (
               <button
                 type="button"
@@ -121,7 +133,7 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
                 Services
               </button>
             )}
-            {onOpenGrid && (
+            {onOpenGrid && (!hasServices || canManageBand) && (
               <button
                 type="button"
                 onClick={onOpenGrid}
@@ -150,9 +162,29 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
         )}
-        <RecurringPicker onApply={handleApplyRecurring} />
+        {hasServices && (
+          <MyDates
+            entries={myEntries}
+            myServices={myServices}
+            availability={availability}
+            userId={user?.id}
+            setlists={setlists}
+            schedules={schedules}
+            setlistMap={setlistMap}
+            clockFormat={clockFormat}
+            onSetStatus={setStatus}
+            onClearStatus={clearStatus}
+            onOpenSetlist={onOpenSetlist}
+          />
+        )}
 
-        {viewMode === 'list' ? (
+        {hasServices && canManageBand && (
+          <h2 className="text-heading-18 font-semibold text-[var(--modes-text)] m-0 mt-2">All dates</h2>
+        )}
+
+        {!hasServices && <RecurringPicker onApply={handleApplyRecurring} />}
+
+        {hasServices && !canManageBand ? null : viewMode === 'list' ? (
           <ScheduleListView
             weeksAhead={weeksAhead}
             onLoadMore={() => setWeeksAhead(w => w + 8)}
