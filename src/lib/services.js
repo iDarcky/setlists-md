@@ -107,3 +107,18 @@ export function setlistFor(service, date, setlists) {
   const name = (service?.name || '').trim().toLowerCase();
   return (setlists || []).find(sl => sl.date === date && (sl.service || '').trim().toLowerCase() === name) || null;
 }
+
+/**
+ * What a date means for me right now.
+ * @returns {{ kind: 'asked'|'playing'|'declined'|'open', setlist: object|null, schedule: object|null }}
+ */
+export function dateState({ date, service, setlists, schedules, setlistMap, userId }) {
+  const setlist = setlistFor(service, date, setlists);
+  if (!setlist) return { kind: 'open', setlist: null, schedule: null };
+  const rowId = setlistMap?.[setlist.id];
+  const schedule = rowId ? (schedules || []).find(s => s.user_id === userId && s.setlist_id === rowId) : null;
+  if (!schedule) return { kind: 'open', setlist, schedule: null };
+  if (schedule.availability === 'pending') return { kind: 'asked', setlist, schedule };
+  if (schedule.availability === 'unavailable') return { kind: 'declined', setlist, schedule };
+  return { kind: 'playing', setlist, schedule };
+}

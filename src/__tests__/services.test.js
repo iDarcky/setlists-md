@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serviceDates, myServiceDates, repeatLabel, whenLabel, setlistFor, serviceColor } from '@/lib/services';
+import { serviceDates, myServiceDates, repeatLabel, whenLabel, setlistFor, serviceColor, dateState } from '@/lib/services';
 
 // Tuesday 20 October 2026.
 const FROM = new Date(2026, 9, 20);
@@ -66,5 +66,28 @@ describe('setlistFor', () => {
     ];
     expect(setlistFor({ name: 'Sunday Morning' }, '2026-10-25', setlists)?.id).toBe('a');
     expect(setlistFor({ name: 'Youth Night' }, '2026-10-25', setlists)).toBe(null);
+  });
+});
+
+describe('dateState', () => {
+  const service = { id: 'morning', name: 'Sunday Morning' };
+  const setlists = [{ id: 'local-1', date: '2026-10-25', service: 'Sunday Morning' }];
+  const setlistMap = { 'local-1': 'row-1' };
+  const base = { date: '2026-10-25', service, setlists, setlistMap, userId: 'ana' };
+
+  it('is open when no setlist exists for the date yet', () => {
+    expect(dateState({ ...base, date: '2026-11-01', schedules: [] }).kind).toBe('open');
+  });
+
+  it('bridges the local setlist id to the row uuid before matching a schedule', () => {
+    const schedules = [{ user_id: 'ana', setlist_id: 'row-1', availability: 'pending' }];
+    expect(dateState({ ...base, schedules }).kind).toBe('asked');
+    // The local id alone never matches (team_schedules holds the row uuid).
+    expect(dateState({ ...base, schedules: [{ user_id: 'ana', setlist_id: 'local-1', availability: 'pending' }] }).kind).toBe('open');
+  });
+
+  it('reads available as playing and unavailable as declined', () => {
+    expect(dateState({ ...base, schedules: [{ user_id: 'ana', setlist_id: 'row-1', availability: 'available' }] }).kind).toBe('playing');
+    expect(dateState({ ...base, schedules: [{ user_id: 'ana', setlist_id: 'row-1', availability: 'unavailable' }] }).kind).toBe('declined');
   });
 });
