@@ -173,7 +173,7 @@ export default function App() {
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
   const { team, teams, members, setActiveTeam, isAdmin, canManageBand, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams, pendingJoinCount = 0 } = useTeam();
-  const { schedules, updateSchedule } = useTeamSchedules(team?.id);
+  const { schedules, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
   const canEdit = canWriteLibrary;
@@ -2944,7 +2944,11 @@ export default function App() {
           {view === 'schedule' && (
             <Schedule
               setlists={setlists}
+              songs={songs}
               schedules={schedules}
+              onUpdateSchedule={updateSchedule}
+              onCreateSchedule={isTeamReadOnly ? null : createSchedule}
+              onDeleteSchedule={isTeamReadOnly ? null : deleteSchedule}
               setlistMap={teamSetlistMap}
               // A tab in a church Space: nothing to close back to.
               onBack={churchSpace ? undefined : goBack}

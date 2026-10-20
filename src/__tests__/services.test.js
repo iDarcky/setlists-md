@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serviceDates, myServiceDates, repeatLabel, whenLabel, setlistFor, serviceColor, dateState } from '@/lib/services';
+import { serviceDates, myServiceDates, repeatLabel, whenLabel, setlistFor, serviceColor, dateState, shortServiceName, songCountOf } from '@/lib/services';
 
 // Tuesday 20 October 2026.
 const FROM = new Date(2026, 9, 20);
@@ -89,5 +89,20 @@ describe('dateState', () => {
   it('reads available as playing and unavailable as declined', () => {
     expect(dateState({ ...base, schedules: [{ user_id: 'ana', setlist_id: 'row-1', availability: 'available' }] }).kind).toBe('playing');
     expect(dateState({ ...base, schedules: [{ user_id: 'ana', setlist_id: 'row-1', availability: 'unavailable' }] }).kind).toBe('declined');
+  });
+});
+
+describe('shortServiceName', () => {
+  it('drops a leading weekday, else keeps the first word', () => {
+    expect(shortServiceName('Sunday Morning')).toBe('Morning');
+    expect(shortServiceName('Youth Night')).toBe('Youth');
+    expect(shortServiceName('Prayer')).toBe('Prayer');
+  });
+});
+
+describe('songCountOf', () => {
+  it('skips breaks', () => {
+    expect(songCountOf({ items: [{ songId: 'a' }, { type: 'break' }, { songId: 'b' }] })).toBe(2);
+    expect(songCountOf(null)).toBe(0);
   });
 });
