@@ -35,6 +35,7 @@ export default function DesktopLayout({
   showGlobalSearch = false,
   hidePersonal = false,
   teamBadgeCount = 0,
+  churchSpace = false,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
@@ -96,6 +97,7 @@ export default function DesktopLayout({
           showSearch={showGlobalSearch}
           hidePersonal={hidePersonal}
           teamBadgeCount={teamBadgeCount}
+          churchSpace={churchSpace}
         />
       )}
 

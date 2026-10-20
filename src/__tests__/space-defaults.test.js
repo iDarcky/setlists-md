@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal, isChurchSpace, primaryTabs, tabForView } from '@/lib/spaceDefaults';
 import { PORTABLE_PREF_KEYS } from '@/app/usePreferenceSync';
 import { DEMO_BASELINES, seedDemoSongs } from '@/data/demos';
 
@@ -91,5 +91,32 @@ describe('homeSpaceStep', () => {
   it('leaves an explicit Personal home, or a Space already open, alone', () => {
     expect(homeSpaceStep({ target: 'personal', activeLibrary: 'personal', teams: [church] })).toEqual({ done: true, switchTo: null });
     expect(homeSpaceStep({ target: 'c1', activeLibrary: 'other', teams: [church] })).toEqual({ done: true, switchTo: null });
+  });
+});
+
+describe('church tabs', () => {
+  const church = { id: 'c1', kind: 'church' };
+  const band = { id: 'b1', kind: 'team', plan: 'team' };
+
+  it('is a church Space only while that church is active', () => {
+    expect(isChurchSpace(church, 'c1')).toBe(true);
+    expect(isChurchSpace({ id: 'c2', kind: 'team', plan: 'church' }, 'c2')).toBe(true);
+    expect(isChurchSpace(band, 'b1')).toBe(false);
+    expect(isChurchSpace(church, 'personal')).toBe(false);
+    expect(isChurchSpace(null, 'c1')).toBe(false);
+  });
+
+  it('swaps Setlists for Schedule in a church', () => {
+    expect(primaryTabs(true).map(t => t.id)).toEqual(['home', 'schedule', 'library']);
+    expect(primaryTabs(false).map(t => t.id)).toEqual(['home', 'setlists', 'library']);
+  });
+
+  it('lights Schedule for services and setlists in a church, as before elsewhere', () => {
+    expect(tabForView('services', true)).toBe('schedule');
+    expect(tabForView('setlist-view', true)).toBe('schedule');
+    expect(tabForView('setlists', true)).toBe('schedule');
+    expect(tabForView('schedule', false)).toBe('home');
+    expect(tabForView('setlist-view', false)).toBe('setlists');
+    expect(tabForView('library', true)).toBe('library');
   });
 });

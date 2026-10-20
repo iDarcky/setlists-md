@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMediaQuery, useIsTablet } from '@/lib/useMediaQuery';
 import CountBadge from '@/ui/CountBadge';
+import { primaryTabs, tabForView } from '@/lib/spaceDefaults';
 
 const HomeIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -75,16 +76,11 @@ const TeamIcon = () => (
   </svg>
 );
 
-const BASE_TABS = [
-  { id: 'home', label: 'Home' },
-  { id: 'setlists', label: 'Setlists' },
-  { id: 'library', label: 'Songs' },
-];
-
 function tabIcon(id, active) {
   if (id === 'home') return <HomeIcon />;
   if (id === 'library') return <SongsIcon />;
   if (id === 'team') return <TeamIcon />;
+  if (id === 'schedule') return <CalendarIcon />;
   return active ? <SetlistsLogo /> : <SetlistsOutlineIcon />;
 }
 
@@ -104,7 +100,7 @@ const GLASS = {
  * a pure primary action — a create menu on Home, + on Songs/Setlists, and Play
  * on a setlist. Workspace switching lives in the top bar.
  */
-export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView, onMarkAllRead, onClearAllNotifications, teamBadgeCount = 0 }) {
+export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetlist, onImportSetlist, onPlay, activeLibrary, scheduleView, onToggleScheduleView, onMarkAllRead, onClearAllNotifications, teamBadgeCount = 0, churchSpace = false, onNewService }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const fabRef = useRef(null);
 
@@ -118,13 +114,13 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
   // Team gets a tab only on the tablet shell, and only while a team/church
   // workspace is active (it manages the current workspace) — never in Personal.
   const inTeamWorkspace = !!activeLibrary && activeLibrary !== 'personal';
+  const base = primaryTabs(churchSpace);
   const tabs = (isTablet && inTeamWorkspace)
-    ? [...BASE_TABS, { id: 'team', label: 'Team' }]
-    : BASE_TABS;
+    ? [...base, { id: 'team', label: 'Team' }]
+    : base;
 
-  const activeId = tabs.some(t => t.id === activeView)
-    ? activeView
-    : (activeView === 'setlist-view' ? 'setlists' : 'home');
+  const tabId = tabForView(activeView, churchSpace);
+  const activeId = tabs.some(t => t.id === tabId) ? tabId : 'home';
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -162,6 +158,10 @@ export default function BottomNav({ activeView, onNavigate, onNewSong, onNewSetl
       : onMarkAllRead
         ? { kind: 'action', label: 'Mark all read', onClick: onMarkAllRead, icon: <CheckAllIcon /> }
         : { kind: 'action', label: 'Clear all', onClick: onClearAllNotifications, icon: <TrashMenuIcon /> };
+  } else if (activeView === 'schedule' && churchSpace) {
+    // A church's Schedule is where services are planned, so leaders get New
+    // service here; members have nothing to create and see no button.
+    fab = onNewService ? { kind: 'action', label: 'New service', onClick: onNewService, icon: <PlusIcon /> } : null;
   } else if (activeView === 'schedule' && onToggleScheduleView) {
     // Flip the schedule between list and calendar; the icon shows the view it
     // switches TO.

@@ -23,7 +23,7 @@ function toLocalDateStr(date) {
 
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
-export default function Schedule({ setlists, schedules = [], setlistMap = {}, onBack, onOpenSetlist, onOpenGrid, onOpenServices, onAddSetlist, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, schedules = [], setlistMap = {}, onBack, onOpenSetlist, onOpenGrid, onOpenServices, onOpenSetlists, onAddSetlist, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -127,6 +127,11 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
                 size="sm"
               />
             )}
+            {onOpenSetlists && (
+              <button type="button" onClick={onOpenSetlists} className="inline-flex items-center gap-1.5 text-label-12 font-semibold px-3 py-1.5 rounded-lg bg-[var(--modes-surface)] text-[var(--modes-text)] border border-[var(--modes-border)] cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors">
+                Setlists
+              </button>
+            )}
             {onOpenServices && canManageBand && (
               <button
                 type="button"
@@ -161,6 +166,21 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
             <span className="flex-1 min-w-0">
               <span className="block text-copy-15 font-semibold text-[var(--modes-text)]">Services</span>
               <span className="block text-label-13 text-[var(--modes-text-muted)]">Days, templates and who plays in each</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
+        )}
+        {/* In a church Schedule is the tab, so every setlist (undated ones
+            included) is reached from here rather than from a Setlists tab. */}
+        {onOpenSetlists && (
+          <button
+            type="button"
+            onClick={onOpenSetlists}
+            className="sm:hidden modes-card flex items-center gap-3 min-h-[56px] px-4 text-left cursor-pointer"
+          >
+            <span className="flex-1 min-w-0">
+              <span className="block text-copy-15 font-semibold text-[var(--modes-text)]">All setlists</span>
+              <span className="block text-label-13 text-[var(--modes-text-muted)]">Every set, including ones without a date</span>
             </span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
           </button>

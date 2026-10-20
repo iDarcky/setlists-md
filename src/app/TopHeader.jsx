@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { workspaceStatusLabel } from '@/lib/billingCheckout';
 import { searchSongs, searchSetlists } from '@/lib/search';
 import CountBadge from '@/ui/CountBadge';
+import { primaryTabs, tabForView } from '@/lib/spaceDefaults';
 
 // Don't hijack "/" while the user is typing in a field.
 function isEditableTarget(el) {
@@ -133,6 +134,8 @@ export default function TopHeader({
   hidePersonal = false,
   // Pending "Asking to join" requests, shown on the Team tab.
   teamBadgeCount = 0,
+  // A church Space shows Schedule where everyone else has Setlists.
+  churchSpace = false,
 }) {
   const [trayOpen, setTrayOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
@@ -203,9 +206,7 @@ export default function TopHeader({
   const inTeamWorkspace = !!activeLibrary && activeLibrary !== 'personal';
 
   const tabs = [
-    { id: 'home', label: 'Home' },
-    { id: 'setlists', label: 'Setlists' },
-    { id: 'library', label: 'Songs' },
+    ...primaryTabs(churchSpace),
     ...(inTeamWorkspace ? [{ id: 'team', label: 'Team' }] : []),
   ];
 
@@ -281,7 +282,7 @@ export default function TopHeader({
         ) : (
           <nav className="flex items-center gap-1 min-w-0">
             {tabs.map(({ id, label }) => {
-              const active = activeView === id;
+              const active = tabForView(activeView, churchSpace) === id;
               return (
                 <button key={id} onClick={() => onNavigate(id)} className={navBtn(active)}>
                   <span>{label}</span>
