@@ -16,7 +16,7 @@ import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDif
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
 import { isLockedOut } from '@/lib/appGate';
-import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal, isChurchSpace, tabForView } from '@/lib/spaceDefaults';
 
 const DEMO_SONG_IDS = Object.keys(DEMO_BASELINES);
 import { createBackupMirror } from '@/sync/backup';
@@ -172,8 +172,8 @@ export default function App() {
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
-  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams, pendingJoinCount = 0 } = useTeam();
-  const { schedules, updateSchedule } = useTeamSchedules(team?.id);
+  const { team, teams, members, setActiveTeam, isAdmin, canManageBand, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams, pendingJoinCount = 0 } = useTeam();
+  const { schedules, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
   const canEdit = canWriteLibrary;
@@ -1275,6 +1275,10 @@ export default function App() {
   const personalHasContent = activeLibrary === 'personal'
     ? (loaded ? hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS) : null)
     : storedPersonalHasContent;
+  // A church swaps the Setlists tab for Schedule (lib/spaceDefaults.js).
+  const churchSpace = isChurchSpace(team, activeLibrary);
+  // All setlists stays reachable in a church (from Schedule), so it keeps the tab chrome.
+  const tabViews = churchSpace ? ['home', 'library', 'schedule', 'setlists'] : ['home', 'library', 'setlists'];
   const hidePersonalSpace = shouldHidePersonal({
     showPersonalPref: settings?.showPersonalSpace,
     inChurch: teams.length > 0,
@@ -2470,7 +2474,8 @@ export default function App() {
       {!lockedOut && !['onboarding', 'signin', 'recovery'].includes(view) && (
         <DesktopLayout
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
-          activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
+          activeView={tabForView(view, churchSpace)}
+          churchSpace={churchSpace}
           onNavigate={goToMainView} 
           isFullscreen={view === 'setlist-read' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
           hideBanner={view === 'setlist-read'}
@@ -2508,7 +2513,7 @@ export default function App() {
           teamBadgeCount={pendingJoinCount}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
         >
-          {['home', 'library', 'setlists'].includes(view) && (
+          {tabViews.includes(view) && (
             <MobileTopBar
               key={view}
               view={view}
@@ -2533,6 +2538,7 @@ export default function App() {
               }
               hmMenu={!!settings?.hmMenu}
               accountPanel={!!settings?.accountPanel}
+              plain={churchSpace && view === 'schedule'}
             />
           )}
           {view === 'home' && (
@@ -2939,9 +2945,15 @@ export default function App() {
           {view === 'schedule' && (
             <Schedule
               setlists={setlists}
+              songs={songs}
               schedules={schedules}
+              onUpdateSchedule={updateSchedule}
+              onCreateSchedule={isTeamReadOnly ? null : createSchedule}
+              onDeleteSchedule={isTeamReadOnly ? null : deleteSchedule}
               setlistMap={teamSetlistMap}
-              onBack={goBack}
+              // A tab in a church Space: nothing to close back to.
+              onBack={churchSpace ? undefined : goBack}
+              onOpenSetlists={churchSpace ? () => goToMainView('setlists') : undefined}
               onOpenSetlist={goSetlistView}
               onOpenGrid={goScheduling}
               onOpenServices={goServices}
@@ -2974,6 +2986,8 @@ export default function App() {
           activeView={view}
           onNavigate={goToMainView}
           activeLibrary={activeLibrary}
+          churchSpace={churchSpace}
+          onNewService={isTeamReadOnly || !canManageBand ? null : () => goSetlistBuild()}
           onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
           onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
           onImportSetlist={isTeamReadOnly ? null : pickAndImportSetlist}
@@ -2991,7 +3005,7 @@ export default function App() {
           }
         />
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (
+      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && tabViews.includes(view) && !drawerOpen && (
         <EdgeSwipeHotspot onOpen={openDrawer} />
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (

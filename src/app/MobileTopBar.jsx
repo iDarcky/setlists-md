@@ -79,6 +79,9 @@ export default function MobileTopBar({
   searchScope = 'all',
   hmMenu = false,
   accountPanel = false,
+  // No search card: the Space's name on the left, bell + menu on the right
+  // (church Schedule, drawn that way in the "Schedule and services" canvas).
+  plain = false,
 }) {
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
@@ -140,6 +143,49 @@ export default function MobileTopBar({
       {/* Search card — hamburger left, workspace avatar right (opens switcher).
           Creating items is the job of the morphing FAB in the glass bottom bar. */}
       <div className="px-3 pt-3 pb-3 relative">
+        {plain ? (
+          <div className="flex items-center h-14 gap-1">
+            <button
+              ref={avatarBtnRef}
+              onClick={() => (accountPanel ? onOpenDrawer?.() : setWsOpen(o => !o))}
+              aria-haspopup={accountPanel ? 'dialog' : 'menu'}
+              aria-expanded={accountPanel ? undefined : wsOpen}
+              aria-label={accountPanel ? 'Account and Spaces' : `Switch Space, ${activeWorkspace.name}`}
+              className="flex-1 min-w-0 flex items-center gap-2.5 h-12 px-1 bg-transparent border-none cursor-pointer text-left active:opacity-80"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <WorkspaceBadge workspace={activeWorkspace} size={32} />
+              <span className="truncate text-copy-16 font-semibold text-[var(--text-1)]">{activeWorkspace.name}</span>
+              {!accountPanel && <ChevronIcon open={wsOpen} />}
+            </button>
+            {onOpenNotifications && (
+              <button
+                onClick={onOpenNotifications}
+                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                className="relative shrink-0 w-11 h-11 rounded-full flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] border-none"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <BellIcon />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--color-brand)] text-white text-[10px] font-bold leading-[16px] text-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+            {!accountPanel && (
+              <button
+                onClick={onOpenDrawer}
+                aria-label={menuBadgeCount > 0 ? `Open menu, ${menuBadgeCount} asking to join` : 'Open menu'}
+                className="relative shrink-0 w-11 h-11 rounded-full flex items-center justify-center bg-transparent text-[var(--text-1)] cursor-pointer active:bg-[var(--ds-gray-200)] border-none"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <HamburgerIcon />
+                <CountBadge count={menuBadgeCount} absolute />
+              </button>
+            )}
+          </div>
+        ) : (
         <div className="flex items-stretch h-14 rounded-xl bg-[var(--ds-gray-100)] overflow-hidden">
           {/* accountPanel drops the hamburger entirely — the avatar on the right
               becomes the single menu entry (iOS 26 style). */}
@@ -200,6 +246,8 @@ export default function MobileTopBar({
             </button>
           </div>
         </div>
+
+        )}
 
         {/* Switcher menu — sibling of the card so the card's overflow-hidden
             doesn't clip it. hmMenu: full-width sheet that scrolls after 3

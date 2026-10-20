@@ -77,3 +77,30 @@ export function shouldHidePersonal({
   if (activeIsPersonal || defaultIsPersonal) return false;
   return true;
 }
+
+/**
+ * A church Space swaps the Setlists tab for Schedule: a setlist there is the
+ * songs inside a service, so services are the way in (redesign doc, "Navigation
+ * on each device"). Bands and Personal keep Setlists.
+ */
+export function isChurchSpace(team, activeLibrary) {
+  if (!team || !activeLibrary || activeLibrary === 'personal') return false;
+  return team.kind === 'church' || team.plan === 'church';
+}
+
+/** The primary tabs, in order, before any Team tab. */
+export function primaryTabs(church) {
+  return [
+    { id: 'home', label: 'Home' },
+    church ? { id: 'schedule', label: 'Schedule' } : { id: 'setlists', label: 'Setlists' },
+    { id: 'library', label: 'Songs' },
+  ];
+}
+
+/** Which primary tab a view lights up. */
+export function tabForView(view, church) {
+  if (view === 'design') return 'settings';
+  if (view === 'schedule' || view === 'services' || view === 'scheduling') return church ? 'schedule' : 'home';
+  if (view === 'setlist-view' || view === 'setlists') return church ? 'schedule' : 'setlists';
+  return view;
+}

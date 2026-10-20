@@ -122,3 +122,15 @@ export function dateState({ date, service, setlists, schedules, setlistMap, user
   if (schedule.availability === 'unavailable') return { kind: 'declined', setlist, schedule };
   return { kind: 'playing', setlist, schedule };
 }
+
+/** The short label a day card has room for: "Sunday Morning" → "Morning", "Youth Night" → "Youth". */
+export function shortServiceName(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return words[0] || '';
+  return WEEKDAYS.some(d => d.toLowerCase() === words[0].toLowerCase()) ? words.slice(1).join(' ') : words[0];
+}
+
+/** Songs in a setlist (breaks are not songs). */
+export function songCountOf(setlist) {
+  return (setlist?.items || []).filter(it => it.type !== 'break').length;
+}

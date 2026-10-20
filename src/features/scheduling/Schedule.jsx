@@ -10,9 +10,7 @@ import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamServices } from '@/hooks/useTeamServices';
-import { myServiceDates, serviceIdsFor, memberIdsOf } from '@/lib/services';
-import MyDates from './MyDates';
-import PlanList from './PlanList';
+import ServicesSchedule from './ServicesSchedule';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();
@@ -23,7 +21,7 @@ function toLocalDateStr(date) {
 
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
-export default function Schedule({ setlists, schedules = [], setlistMap = {}, onBack, onOpenSetlist, onOpenGrid, onOpenServices, onAddSetlist, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, songs = [], schedules = [], setlistMap = {}, onUpdateSchedule, onCreateSchedule, onDeleteSchedule, onBack, onOpenSetlist, onOpenGrid, onOpenServices, onOpenSetlists, onAddSetlist, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -31,14 +29,9 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
   // Once the Space has services, members see only their services' dates.
   // Leaders keep the all-dates views underneath until planning moves too.
   const hasServices = servicesReady && services.length > 0;
-  const mine = serviceIdsFor(user?.id, serviceMembers);
-  const myServices = services.filter(s => mine.has(s.id));
-  const myEntries = hasServices ? myServiceDates(user?.id, services, serviceMembers) : [];
 
   const [weeksAhead, setWeeksAhead] = useState(8);
   const [bandSetlist, setBandSetlist] = useState(null);
-  // When the band picker opens from Plan, only that service's people are listed.
-  const [bandPool, setBandPool] = useState(null);
   const [pickerDate, setPickerDate] = useState(null);
 
   const handleSetView = (next) => onSetView?.(next);
@@ -112,6 +105,37 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
     );
   }
 
+  if (hasServices) {
+    return (
+      <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
+        <ServicesSchedule
+          user={user}
+          members={members}
+          canManageBand={canManageBand}
+          services={services}
+          serviceMembers={serviceMembers}
+          availability={availability}
+          setStatus={setStatus}
+          clearStatus={clearStatus}
+          setlists={setlists}
+          schedules={schedules}
+          setlistMap={setlistMap}
+          songs={songs}
+          clockFormat={clockFormat}
+          onBack={onBack}
+          onOpenServices={onOpenServices}
+          onOpenSetlists={onOpenSetlists}
+          onOpenGrid={onOpenGrid}
+          onOpenSetlist={onOpenSetlist}
+          onAddSetlist={onAddSetlist}
+          onUpdateSchedule={onUpdateSchedule}
+          onCreateSchedule={onCreateSchedule}
+          onDeleteSchedule={onDeleteSchedule}
+        />
+      </div>
+    );
+  }
+
   return (
     <div data-theme-variant="modes" className="relative h-full overflow-y-auto">
       <PageHeader
@@ -126,6 +150,11 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
                 options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
                 size="sm"
               />
+            )}
+            {onOpenSetlists && (
+              <button type="button" onClick={onOpenSetlists} className="inline-flex items-center gap-1.5 text-label-12 font-semibold px-3 py-1.5 rounded-lg bg-[var(--modes-surface)] text-[var(--modes-text)] border border-[var(--modes-border)] cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors">
+                Setlists
+              </button>
             )}
             {onOpenServices && canManageBand && (
               <button
@@ -165,40 +194,21 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
         )}
-        {/* Tablet/desktop: your own dates beside the plan, so a leader answers
-            and plans without scrolling between the two. */}
-        <div className={hasServices && canManageBand ? 'grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start' : 'contents'}>
-        {hasServices && (
-          <MyDates
-            entries={myEntries}
-            myServices={myServices}
-            availability={availability}
-            userId={user?.id}
-            setlists={setlists}
-            schedules={schedules}
-            setlistMap={setlistMap}
-            clockFormat={clockFormat}
-            onSetStatus={setStatus}
-            onClearStatus={clearStatus}
-            onOpenSetlist={onOpenSetlist}
-          />
+        {/* In a church Schedule is the tab, so every setlist (undated ones
+            included) is reached from here rather than from a Setlists tab. */}
+        {onOpenSetlists && (
+          <button
+            type="button"
+            onClick={onOpenSetlists}
+            className="sm:hidden modes-card flex items-center gap-3 min-h-[56px] px-4 text-left cursor-pointer"
+          >
+            <span className="flex-1 min-w-0">
+              <span className="block text-copy-15 font-semibold text-[var(--modes-text)]">All setlists</span>
+              <span className="block text-label-13 text-[var(--modes-text-muted)]">Every set, including ones without a date</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+          </button>
         )}
-
-        {hasServices && canManageBand && (
-          <PlanList
-            services={services}
-            serviceMembers={serviceMembers}
-            availability={availability}
-            setlists={setlists}
-            schedules={schedules}
-            setlistMap={setlistMap}
-            clockFormat={clockFormat}
-            onPlan={(sl, service) => { setBandPool(memberIdsOf(service.id, serviceMembers)); setBandSetlist(sl); }}
-            onCreate={onAddSetlist}
-          />
-        )}
-        </div>
-
         {!hasServices && <RecurringPicker onApply={handleApplyRecurring} />}
 
         {hasServices ? null : viewMode === 'list' ? (
@@ -233,15 +243,14 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
       {bandSetlist && (
         <div
           className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]"
-          onClick={() => { setBandSetlist(null); setBandPool(null); }}
+          onClick={() => { setBandSetlist(null); }}
         >
           <div className="h-full" onClick={e => e.stopPropagation()}>
             <BandPanel
               setlistId={bandSetlist.id}
               setlistDate={bandSetlist.date}
-              onClose={() => { setBandSetlist(null); setBandPool(null); }}
+              onClose={() => { setBandSetlist(null); }}
               readOnly={!canManageBand}
-              poolIds={bandPool}
             />
           </div>
         </div>
@@ -261,7 +270,7 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
           onSetStatus={handleSetStatus}
           onClear={handleClearStatus}
           onOpenSetlist={(sl) => { setPickerDate(null); onOpenSetlist?.(sl); }}
-          onOpenBand={(sl) => { setPickerDate(null); setBandPool(null); setBandSetlist(sl); }}
+          onOpenBand={(sl) => { setPickerDate(null); setBandSetlist(sl); }}
           onClose={() => setPickerDate(null)}
         />
       )}
