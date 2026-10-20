@@ -165,6 +165,9 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
         )}
+        {/* Tablet/desktop: your own dates beside the plan, so a leader answers
+            and plans without scrolling between the two. */}
+        <div className={hasServices && canManageBand ? 'grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start' : 'contents'}>
         {hasServices && (
           <MyDates
             entries={myEntries}
@@ -194,6 +197,7 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
             onCreate={onAddSetlist}
           />
         )}
+        </div>
 
         {!hasServices && <RecurringPicker onApply={handleApplyRecurring} />}
 

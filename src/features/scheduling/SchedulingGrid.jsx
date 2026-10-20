@@ -5,6 +5,8 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
+import { useTeamServices } from '@/hooks/useTeamServices';
+import { serviceColor, serviceDates as datesOfService, setlistFor, shortTime, memberIdsOf } from '@/lib/services';
 import { toast } from '@/ui/use-toast';
 import { INSTRUMENT_IDS, VOCAL_PARTS, labelFor, normalize } from '@/data/instruments';
 
@@ -57,12 +59,28 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
   const { map: setlistIdMap } = useTeamSetlistMap(team?.id);
 
   const [activeCell, setActiveCell] = useState(null); // { columnId }
+  // With services (20261020_team_services) the grid is per service: its dates
+  // as columns, its people as rows. 'all' keeps the every-Sunday grid.
+  const { services, serviceMembers, ready: servicesReady } = useTeamServices(team?.id);
+  const hasServices = servicesReady && services.length > 0;
+  const [serviceTab, setServiceTab] = useState(null);
+  const service = hasServices
+    ? (serviceTab === 'all' ? null : services.find(sv => sv.id === serviceTab) || services[0])
+    : null;
 
   // Columns: every Sunday from this week through year-end (the recurring
   // backbone), MERGED with any dated team setlist (so AM/PM and midweek
   // services each get their own column). Sundays without a service stay as
   // scaffold columns offering "+ Add setlist".
   const columns = useMemo(() => {
+    if (service) {
+      return datesOfService(service, { weeks: 12 }).map(date => {
+        const sl = setlistFor(service, date, setlists);
+        return sl
+          ? { type: 'service', id: sl.id, dbId: setlistIdMap[sl.id] || null, name: sl.name || service.name, date, sl }
+          : { type: 'empty', id: `empty-${date}`, date, prefill: { time: shortTime(service.start_time), service: service.name, name: service.name } };
+      });
+    }
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const firstSunday = new Date(today);
     firstSunday.setDate(today.getDate() - today.getDay()); // back to this week's Sunday
@@ -92,15 +110,16 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
       }
     }
     return [...serviceCols, ...emptyCols].sort((a, b) => a.ts - b.ts);
-  }, [setlists, setlistIdMap]);
+  }, [setlists, setlistIdMap, service]);
 
   const sortedMembers = useMemo(() => {
-    return [...members].sort((a, b) => {
+    const pool = service ? memberIdsOf(service.id, serviceMembers) : null;
+    return [...members].filter(m => !pool || pool.includes(m.user_id)).sort((a, b) => {
       const an = a.profile?.display_name || a.profile?.email || '';
       const bn = b.profile?.display_name || b.profile?.email || '';
       return an.localeCompare(bn);
     });
-  }, [members]);
+  }, [members, service, serviceMembers]);
 
   if (!team) return <TeamFeatureNotice onBack={onBack} />;
 
@@ -182,8 +201,31 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
       <PageHeader title="Scheduling" onBack={onBack} />
 
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 pt-6 pb-28 flex flex-col gap-4">
+        {hasServices && (
+          <div role="tablist" aria-label="Service" className="flex gap-2 overflow-x-auto pb-1">
+            {[...services, { id: 'all', name: 'Every Sunday' }].map(sv => {
+              const on = sv.id === 'all' ? !service : service?.id === sv.id;
+              return (
+                <button
+                  key={sv.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => setServiceTab(sv.id)}
+                  className={`shrink-0 h-9 px-3 rounded-lg inline-flex items-center gap-2 text-label-13 font-semibold cursor-pointer border ${on ? 'bg-[var(--modes-surface-strong)] text-[var(--modes-text)] border-[var(--modes-text-dim)]' : 'bg-transparent text-[var(--modes-text-muted)] border-[var(--modes-border)]'}`}
+                >
+                  {sv.id !== 'all' && <span aria-hidden="true" className="w-2 h-2 rounded-full" style={{ background: serviceColor(sv.color) }} />}
+                  {sv.name}
+                  {sv.id !== 'all' && <span className="font-medium text-[var(--modes-text-dim)]">{memberIdsOf(sv.id, serviceMembers).length}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
-          {canManageBand
+          {service
+            ? `The next 12 ${service.name} dates and the people on it. Tap a cell to put someone on the band or mark your own answer.`
+            : canManageBand
             ? 'Every Sunday this year, plus your scheduled services. Tap a cell to assign a role/vocal or mark your own availability.'
             : 'Every Sunday this year, plus your team’s services. Tap a cell on your own row to set your availability.'}
         </p>
@@ -214,7 +256,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
                           {onAddSetlist ? (
                             <button
                               type="button"
-                              onClick={() => onAddSetlist(c.date)}
+                              onClick={() => onAddSetlist(c.date, c.prefill)}
                               className="inline-flex items-center gap-1 text-copy-13 font-semibold text-[var(--color-brand)] bg-transparent border-none cursor-pointer p-0 hover:underline"
                             >
                               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -422,7 +464,7 @@ export default function SchedulingGrid({ setlists, onBack, onOpenSetlist, onAddS
             {active.col.type === 'empty' && onAddSetlist && (
               <button
                 type="button"
-                onClick={() => { onAddSetlist(active.col.date); setActiveCell(null); }}
+                onClick={() => { onAddSetlist(active.col.date, active.col.prefill); setActiveCell(null); }}
                 className="self-start inline-flex items-center gap-1.5 text-label-12 font-semibold text-[var(--color-brand)] bg-transparent border-none cursor-pointer px-0 hover:underline"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
