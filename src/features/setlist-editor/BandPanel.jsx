@@ -40,7 +40,7 @@ function availabilityLabel(status) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false, cardSections = false, setlists = [], overscheduleWarn = false, streakLimit = 3 }) {
+export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = false, inline = false, v2 = false, cardSections = false, setlists = [], overscheduleWarn = false, streakLimit = 3, poolIds = null }) {
   const confirm = useConfirm();
   const { team, members } = useTeam();
   const { schedules, createSchedule, updateSchedule, deleteSchedule, loading } = useTeamSchedules(team?.id);
@@ -106,6 +106,8 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
   const candidates = useMemo(() => {
     const inBand = new Set(setlistSchedules.map(s => s.user_id));
     let list = members.filter(m => !inBand.has(m.user_id));
+    // Planning a service (20261020_team_services): only the people on it.
+    if (poolIds) list = list.filter(m => poolIds.includes(m.user_id));
     // Attach availability for the setlist's date.
     list = list.map(m => {
       const status = setlistDate
@@ -129,7 +131,7 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
       return an.localeCompare(bn);
     });
     return list;
-  }, [members, setlistSchedules, availability, setlistDate, instrumentFilter]);
+  }, [members, setlistSchedules, availability, setlistDate, instrumentFilter, poolIds]);
 
   // v2 add-list refinements: free-text search + an "available only" toggle.
   const visibleCandidates = useMemo(() => {

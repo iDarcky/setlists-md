@@ -10,8 +10,9 @@ import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamServices } from '@/hooks/useTeamServices';
-import { myServiceDates, serviceIdsFor } from '@/lib/services';
+import { myServiceDates, serviceIdsFor, memberIdsOf } from '@/lib/services';
 import MyDates from './MyDates';
+import PlanList from './PlanList';
 
 function toLocalDateStr(date) {
   const y = date.getFullYear();
@@ -22,7 +23,7 @@ function toLocalDateStr(date) {
 
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
-export default function Schedule({ setlists, schedules = [], setlistMap = {}, onBack, onOpenSetlist, onOpenGrid, onOpenServices, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, schedules = [], setlistMap = {}, onBack, onOpenSetlist, onOpenGrid, onOpenServices, onAddSetlist, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -36,6 +37,8 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
 
   const [weeksAhead, setWeeksAhead] = useState(8);
   const [bandSetlist, setBandSetlist] = useState(null);
+  // When the band picker opens from Plan, only that service's people are listed.
+  const [bandPool, setBandPool] = useState(null);
   const [pickerDate, setPickerDate] = useState(null);
 
   const handleSetView = (next) => onSetView?.(next);
@@ -116,7 +119,7 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
         onClose={onBack}
         actions={
           <div className="flex items-center gap-2">
-            {(!hasServices || canManageBand) && (
+            {!hasServices && (
               <SegmentedControl
                 value={viewMode}
                 onChange={handleSetView}
@@ -179,12 +182,22 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
         )}
 
         {hasServices && canManageBand && (
-          <h2 className="text-heading-18 font-semibold text-[var(--modes-text)] m-0 mt-2">All dates</h2>
+          <PlanList
+            services={services}
+            serviceMembers={serviceMembers}
+            availability={availability}
+            setlists={setlists}
+            schedules={schedules}
+            setlistMap={setlistMap}
+            clockFormat={clockFormat}
+            onPlan={(sl, service) => { setBandPool(memberIdsOf(service.id, serviceMembers)); setBandSetlist(sl); }}
+            onCreate={onAddSetlist}
+          />
         )}
 
         {!hasServices && <RecurringPicker onApply={handleApplyRecurring} />}
 
-        {hasServices && !canManageBand ? null : viewMode === 'list' ? (
+        {hasServices ? null : viewMode === 'list' ? (
           <ScheduleListView
             weeksAhead={weeksAhead}
             onLoadMore={() => setWeeksAhead(w => w + 8)}
@@ -216,14 +229,15 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
       {bandSetlist && (
         <div
           className="fixed inset-0 z-[200] flex justify-end bg-black/20 backdrop-blur-[2px]"
-          onClick={() => setBandSetlist(null)}
+          onClick={() => { setBandSetlist(null); setBandPool(null); }}
         >
           <div className="h-full" onClick={e => e.stopPropagation()}>
             <BandPanel
               setlistId={bandSetlist.id}
               setlistDate={bandSetlist.date}
-              onClose={() => setBandSetlist(null)}
+              onClose={() => { setBandSetlist(null); setBandPool(null); }}
               readOnly={!canManageBand}
+              poolIds={bandPool}
             />
           </div>
         </div>
@@ -243,7 +257,7 @@ export default function Schedule({ setlists, schedules = [], setlistMap = {}, on
           onSetStatus={handleSetStatus}
           onClear={handleClearStatus}
           onOpenSetlist={(sl) => { setPickerDate(null); onOpenSetlist?.(sl); }}
-          onOpenBand={(sl) => { setPickerDate(null); setBandSetlist(sl); }}
+          onOpenBand={(sl) => { setPickerDate(null); setBandPool(null); setBandSetlist(sl); }}
           onClose={() => setPickerDate(null)}
         />
       )}
