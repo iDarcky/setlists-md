@@ -153,7 +153,7 @@ export default function MyDates({
           <h2 id="cyp-h" className="text-heading-18 font-semibold text-[var(--modes-text)] m-0">Can you play?</h2>
           <span className="text-label-13 text-[var(--modes-text-muted)]">{left === 0 ? 'All answered' : `${left} to answer`}</span>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 scroll-px-5 sm:mx-0 sm:px-0 sm:scroll-px-0 snap-x">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-5 px-5 scroll-px-5 snap-x sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible">
           {entries.map(e => {
             const st = statusOf(e.date);
             const d = parseDate(e.date);
