@@ -2538,6 +2538,7 @@ export default function App() {
               }
               hmMenu={!!settings?.hmMenu}
               accountPanel={!!settings?.accountPanel}
+              plain={churchSpace && view === 'schedule'}
             />
           )}
           {view === 'home' && (
