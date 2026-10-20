@@ -45,6 +45,9 @@ import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { useAuth } from '@/auth/useAuth';
 import { formatClockTime } from '@/lib/dateFormat';
 import { setlistStartMs, isSetlistUpcoming } from '@/lib/setlistTime';
+import { useTeamServices } from '@/hooks/useTeamServices';
+import { myServiceDates } from '@/lib/services';
+import { labelFor, normalize } from '@/data/instruments';
 
 // Order + metadata for the reorderable dashboard widgets. `requires` gates a
 // widget by context (auth / team); the customize sheet hides ineligible ones.
@@ -52,7 +55,6 @@ const WIDGET_META = [
   { id: 'nextup', label: 'Next up', requires: null },
   { id: 'thisweek', label: 'This week', requires: null },
   { id: 'schedule', label: 'My Schedule', requires: 'auth' },
-  { id: 'pending', label: 'Pending requests', requires: 'auth' },
   { id: 'upcoming', label: 'Upcoming setlists', requires: null },
   { id: 'availability', label: 'Team availability', requires: 'team' },
   { id: 'activity', label: 'Recent activity', requires: 'team' },
@@ -122,7 +124,36 @@ export default function Dashboard({
   const { map: setlistMap } = useTeamSetlistMap(team?.id);
   const resolveScheduleSetlist = (schedule) =>
     setlists.find(l => l.id === schedule.setlist_id || setlistMap[l.id] === schedule.setlist_id) || null;
-  const pendingRequests = (schedules || []).filter(s => s.user_id === user?.id && s.availability === 'pending');
+  // A request answered on this screen stays as a "You said … · Undo" line until
+  // the page is left, so a mis-tap can be taken back.
+  const [answered, setAnswered] = useState({}); // schedule id → 'available' | 'unavailable'
+  const askedRows = (schedules || []).filter(s => s.user_id === user?.id
+    && (s.availability === 'pending' || answered[s.id]));
+  const answerAsk = async (schedule, value) => {
+    setAnswered(prev => ({ ...prev, [schedule.id]: value }));
+    try { await updateSchedule(schedule.id, { availability: value }); } catch (err) {
+      console.error('[dashboard] answer failed:', err);
+      setAnswered(prev => { const n = { ...prev }; delete n[schedule.id]; return n; });
+    }
+  };
+  const undoAsk = async (schedule) => {
+    setAnswered(prev => { const n = { ...prev }; delete n[schedule.id]; return n; });
+    try { await updateSchedule(schedule.id, { availability: 'pending' }); } catch (err) { console.error('[dashboard] undo failed:', err); }
+  };
+
+  // Once the Space has services (20261020_team_services), Home is about YOUR
+  // services: next up is the next setlist you're playing, and a line points at
+  // the dates you haven't answered yet.
+  const { services, serviceMembers, ready: servicesReady } = useTeamServices(team?.id);
+  const hasServices = !!team && servicesReady && services.length > 0;
+  const unansweredDates = hasServices
+    ? new Set(myServiceDates(user?.id, services, serviceMembers)
+        .map(e => e.date)
+        .filter(d => !availability.some(a => a.user_id === user?.id && a.date === d))).size
+    : 0;
+  const playingSetlistRows = new Set((schedules || [])
+    .filter(s => s.user_id === user?.id && s.availability === 'available')
+    .map(s => s.setlist_id));
 
   // Day-detail modal opened from the My-schedule widget. Mirrors the wiring in
   // Schedule.jsx so the same DateStatusModal works on the dashboard.
@@ -176,6 +207,9 @@ export default function Dashboard({
     .filter(sl => isSetlistUpcoming(sl, now.getTime()))
     .sort((a, b) => setlistStartMs(a) - setlistStartMs(b))
     .slice(0, 6);
+  const nextUp = hasServices
+    ? upcomingSetlists.find(sl => playingSetlistRows.has(setlistMap[sl.id]) || playingSetlistRows.has(sl.id)) || null
+    : upcomingSetlists[0] || null;
 
   const songCountOf = (sl) => (sl.items || []).filter(i => i.songId).length;
 
@@ -248,26 +282,26 @@ export default function Dashboard({
 
   // ── Widget renderers (return null to render nothing) ─────────────────────
   const widgets = {
-    nextup: () => upcomingSetlists.length === 0 ? null : (
+    nextup: () => !nextUp ? null : (
       <section>
         <div
           className="modes-card-strong p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors"
-          onClick={() => onViewSetlist(upcomingSetlists[0])}
+          onClick={() => onViewSetlist(nextUp)}
           style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <div className="flex items-center gap-4 flex-1 min-w-0">
-            <DateChip date={upcomingSetlists[0].date} />
+            <DateChip date={nextUp.date} />
             <div className="min-w-0">
-              <div className="text-label-11 uppercase tracking-wider font-semibold text-[var(--color-brand-text)]">Next up</div>
-              <h3 className="text-heading-20 font-bold text-[var(--modes-text)] truncate m-0">{upcomingSetlists[0].name || 'Untitled Setlist'}</h3>
+              <div className="text-label-11 uppercase tracking-wider font-semibold text-[var(--color-brand-text)]">{hasServices ? "You're playing next" : 'Next up'}</div>
+              <h3 className="text-heading-20 font-bold text-[var(--modes-text)] truncate m-0">{nextUp.name || 'Untitled Setlist'}</h3>
               <div className="text-label-13 text-[var(--modes-text-muted)] truncate">
-                {formatDateFriendly(upcomingSetlists[0].date)} · {formatTimeFriendly(upcomingSetlists[0].time)}
-                {upcomingSetlists[0].location ? ` · ${upcomingSetlists[0].location}` : ''}
-                {' · '}{songCountOf(upcomingSetlists[0])} song{songCountOf(upcomingSetlists[0]) !== 1 ? 's' : ''}
+                {formatDateFriendly(nextUp.date)} · {formatTimeFriendly(nextUp.time)}
+                {nextUp.location ? ` · ${nextUp.location}` : ''}
+                {' · '}{songCountOf(nextUp)} song{songCountOf(nextUp) !== 1 ? 's' : ''}
               </div>
             </div>
           </div>
-          <Button variant="brand" className="shrink-0" onClick={(e) => { e.stopPropagation(); onPlaySetlist(upcomingSetlists[0]); }}>
+          <Button variant="brand" className="shrink-0" onClick={(e) => { e.stopPropagation(); onPlaySetlist(nextUp); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="mr-1.5"><path d="M8 5v14l11-7z"/></svg>
             Play
           </Button>
@@ -337,38 +371,62 @@ export default function Dashboard({
       </section>
     ),
 
-    pending: () => (!user || pendingRequests.length === 0) ? null : (
-      <section className="flex flex-col gap-3 sm:gap-4">
-        <SectionHeading title="Pending Requests" />
-        <div className="flex flex-col gap-3">
-          {pendingRequests.map(schedule => {
-            const sl = resolveScheduleSetlist(schedule);
-            const part = [schedule.role, schedule.vocal_part].filter(Boolean).join(' · ');
+    pending: () => (!user || askedRows.length === 0) ? null : (
+      <section className="flex flex-col gap-3" aria-label="Asked to play">
+        {askedRows.map(schedule => {
+          const sl = resolveScheduleSetlist(schedule);
+          const part = [schedule.role && labelFor(normalize(schedule.role) || schedule.role), schedule.vocal_part].filter(Boolean).join(' · ');
+          const when = sl?.date
+            ? `${formatDateFriendly(sl.date)} · ${formatTimeFriendly(sl.time)}`
+            : 'Date to be confirmed';
+          const done = answered[schedule.id];
+          if (done) {
             return (
-              <div key={schedule.id} className="modes-card p-4 flex items-center justify-between gap-3">
-                <div
-                  className={`flex flex-col min-w-0 ${sl ? 'cursor-pointer' : ''}`}
-                  role={sl ? 'button' : undefined}
-                  tabIndex={sl ? 0 : undefined}
-                  onClick={sl ? () => onViewSetlist(sl) : undefined}
-                  onKeyDown={sl ? (e) => { if (e.key === 'Enter') onViewSetlist(sl); } : undefined}
-                >
-                  <span className="text-copy-16 font-bold truncate text-[var(--modes-text)] hover:underline">{sl?.name || 'Team service'}</span>
-                  <span className="text-label-13 text-[var(--modes-text-muted)]">
-                    {sl?.date
-                      ? new Date(sl.date + 'T' + (sl.time || '00:00')).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
-                      : 'Date TBD'}{part ? ` • ${part}` : ''}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button size="sm" variant="secondary" onClick={() => updateSchedule(schedule.id, { availability: 'unavailable' })}>Decline</Button>
-                  <Button size="sm" variant="brand" onClick={() => updateSchedule(schedule.id, { availability: 'available' })}>Accept</Button>
-                </div>
+              <div key={schedule.id} className="modes-card px-4 py-3 flex items-center justify-between gap-3">
+                <span className="text-copy-14 text-[var(--modes-text-muted)] min-w-0 truncate">
+                  {done === 'available' ? "You said you'll play" : "You said you can't make it"} · {sl?.name || 'this service'}
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => undoAsk(schedule)}>Undo</Button>
               </div>
             );
-          })}
-        </div>
+          }
+          return (
+            <div key={schedule.id} className="modes-card p-4 flex flex-col gap-3" style={{ borderColor: 'var(--ds-amber-400)' }}>
+              <div
+                className={`flex flex-col gap-1 min-w-0 ${sl ? 'cursor-pointer' : ''}`}
+                role={sl ? 'button' : undefined}
+                tabIndex={sl ? 0 : undefined}
+                onClick={sl ? () => onViewSetlist(sl) : undefined}
+                onKeyDown={sl ? (e) => { if (e.key === 'Enter') onViewSetlist(sl); } : undefined}
+              >
+                <span className="text-label-11 uppercase tracking-wider font-semibold text-[var(--ds-amber-700)]">
+                  {part ? `You're asked to play ${part}` : "You're asked to play"}
+                </span>
+                <span className="text-copy-16 font-bold truncate text-[var(--modes-text)]">{sl?.name || 'Team service'}</span>
+                <span className="text-label-13 text-[var(--modes-text-muted)]">{when}</span>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="secondary" onClick={() => answerAsk(schedule, 'unavailable')}>Can't make it</Button>
+                <Button size="sm" variant="brand" onClick={() => answerAsk(schedule, 'available')}>I'll play</Button>
+              </div>
+            </div>
+          );
+        })}
       </section>
+    ),
+
+    canplay: () => (!hasServices || unansweredDates === 0 || !onOpenSchedule) ? null : (
+      <button
+        type="button"
+        onClick={onOpenSchedule}
+        className="modes-card w-full flex items-center gap-3 px-4 min-h-[56px] text-left cursor-pointer hover:bg-[var(--modes-surface-strong)]"
+      >
+        <span className="flex-1 min-w-0">
+          <span className="block text-copy-15 font-semibold text-[var(--modes-text)]">Can you play?</span>
+          <span className="block text-label-13 text-[var(--modes-text-muted)]">{unansweredDates} date{unansweredDates === 1 ? '' : 's'} to answer</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--modes-text-dim)]" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+      </button>
     ),
 
     upcoming: () => (upcomingSetlists.length <= 1) ? null : (
@@ -645,6 +703,11 @@ export default function Dashboard({
             <Button variant="brand" onClick={onSignIn}>Sign in / Sign up</Button>
           </div>
         )}
+
+        {/* Asked to play is always first and can't be hidden: it's a question
+            someone is waiting on. "Can you play?" sits right under it. */}
+        {widgets.pending()}
+        {widgets.canplay()}
 
         {/* Reorderable widgets */}
         {order.map(id => {
