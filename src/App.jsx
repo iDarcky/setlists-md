@@ -99,7 +99,7 @@ const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 // corner is deliberately cheap rather than self-explanatory, and this is where
 // it gets explained. See `LiveIntro`.
 const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
-const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
+const DesignSystem = lazy(() => import('@/features/design/DesignSystem'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
 // replaced is deleted). Lazy — only fetched when the user adds a song.
@@ -203,6 +203,7 @@ export default function App() {
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (window.location.pathname === '/copyright') return 'legal-copyright';
+      if (window.location.pathname === '/design') return 'design';
       // `/join/<code>` — a church's join link. Public: works before sign-in.
       if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
@@ -289,6 +290,8 @@ export default function App() {
   }, [settings?.seenLiveIntro]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
+  // The church a join link is joining, shown on the log-in / create screens.
+  const [authJoining, setAuthJoining] = useState(null);
   const [newSongModal, setNewSongModal] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -742,6 +745,8 @@ export default function App() {
         const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
         if (isAuthFlow) {
           // Keep the current auth view
+        } else if (view === 'design' && savedSettings.onboardingComplete) {
+          // /design: the design system page, opened by its address.
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
@@ -2342,10 +2347,11 @@ export default function App() {
               leaveJoinFlow();
               setView(resolveLandingView(settings?.landingView));
             }}
-            onPasswordSignIn={(mode = 'signin') => {
+            onPasswordSignIn={(mode = 'signin', church = null) => {
               // The code stays parked in localStorage; the resume effect brings
               // the flow back once AuthScreen signs in.
               leaveJoinFlow();
+              setAuthJoining(church);
               setAuthStartMode(mode === 'signup' ? 'signup' : 'signin');
               setView('signin');
             }}
@@ -2428,24 +2434,12 @@ export default function App() {
           }}
           onSignedIn={() => goToMainView('home')}
           defaultMode={authStartMode}
-          onShowLegal={(doc) => navigate(`legal-${doc}`)}
+          joining={loadPendingJoin()?.stage === 'auth' ? authJoining : null}
         />
       )}
       {(view === 'onboarding' || lockedOut) && (
         <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
         <WelcomeScreen
-          onTrySolo={() => {
-            // Demos are seeded on a first run already; this covers a replay
-            // from Settings after the library was emptied.
-            setSongs(prev => {
-              if (prev.length > 0) return prev;
-              const demos = seedDemoSongs();
-              saveSongs(demos);
-              return demos;
-            });
-            setSettings(prev => ({ ...prev, onboardingComplete: true, soloMode: true }));
-            setView('home');
-          }}
           onSignIn={() => {
             setSettings(prev => ({ ...prev, onboardingComplete: true }));
             setAuthStartMode('signin');
@@ -2810,7 +2804,7 @@ export default function App() {
             />
           )}
           {view === "design" && (
-            <LydianShowcase onBack={goBack} />
+            <DesignSystem onBack={goBack} />
           )}
           {view === "help" && (
             <HelpPage

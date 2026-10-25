@@ -8,6 +8,21 @@ it already exists.** If what exists is wrong, change it — don't add a sibling.
 `Button2` and `PageHeaderLegacy` were exactly that, and they survived a year
 because nothing ever forced the choice.
 
+
+## The new layer: `src/ui/shadcn/` (from 2026-10-25)
+
+The redesign (warm black + Geist) is built on **shadcn/ui**, copied into
+`src/ui/shadcn/` as plain JSX: `button`, `input`, `label`, `field`, `toggle`
+(chips), `badge`, `card`, `alert`, `dialog`, `drawer`, `sheet` (drawer on a
+phone, dialog from the iPad up), `spinner`, and `utils.cn`. Tokens live in
+`src/styles/ds.css`; `/design` shows every one of them in both themes.
+
+Screens move onto it one at a time and are rebuilt from scratch, not
+restyled. A screen on the new layer uses ONLY `@/ui/shadcn/*` and the
+`bg-background` / `text-foreground` / `border-border` … tokens, never the
+primitives below or the `--ds-*` / `--modes-*` variables. The primitives
+below stay until the last screen that uses them has moved.
+
 ---
 
 ## Buttons

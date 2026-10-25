@@ -178,3 +178,8 @@ export function findJoinRequest(rows, { teamId, requestId } = {}) {
     || list.find(r => r.team_id === teamId)
     || null;
 }
+
+/** A peek in the shape the joining screens take. */
+export function churchFromPeek(peek) {
+  return { name: peek?.team_name || '', logoUrl: peek?.logo_url || null, initials: peek?.initials || null };
+}

@@ -1,0 +1,131 @@
+/* ── Design system v2: warm black + Geist ─────────────────────────────────────
+   The tokens behind the shadcn/ui components in `src/ui/shadcn/`. Approved
+   2026-10-25 on the "Signed out and joining" canvas (Version 2 · warm black +
+   Geist). Screens move onto these one at a time; nothing older reads them.
+
+   Names follow shadcn (background, foreground, primary, border, input, ring…)
+   so its components drop in unchanged. Three are ours:
+     link      the green accent: links, focus, the picked chip's edge
+     selected  the soft green fill under a picked chip
+     raised    a step up from the page: badges, avatars, hover
+   The logo keeps --color-brand (#53796F) from index.css.
+
+   Dark is the default (`:root`); light is `[data-theme="light"]`. Midnight is
+   being removed (to-do row 75) and reads as dark until then. */
+
+:root,
+[data-theme="dark"],
+[data-theme="midnight"] {
+  --background: #11100E;
+  --foreground: #F3EFE8;
+  --card: #1A1816;
+  --card-foreground: #F3EFE8;
+  --raised: #23201D;
+  --muted-foreground: #A39C92;
+  --border: #2E2A26;
+  --input: #6B645B;
+  --chip-border: #3D3833;
+  --primary: #F3EFE8;
+  --primary-foreground: #11100E;
+  --link: #7AA89C;
+  --selected: rgba(122, 168, 156, 0.16);
+  --ring: #7AA89C;
+  --scrim: rgba(0, 0, 0, 0.6);
+
+  --danger: #B4413A;
+  --danger-fill: #2A1513;
+  --danger-text: #F0A39B;
+  --warning: #9A6412;
+  --warning-fill: #2A2010;
+  --warning-text: #E9BE6E;
+  --success: #357A4A;
+  --success-fill: #12241A;
+  --success-text: #8FD1A2;
+  --info: #446C93;
+  --info-fill: #121C26;
+  --info-text: #9EC1E4;
+}
+
+[data-theme="light"] {
+  --background: #F6F4EF;
+  --foreground: #1C1A17;
+  --card: #FFFFFF;
+  --card-foreground: #1C1A17;
+  --raised: #EFEBE3;
+  --muted-foreground: #6B655C;
+  --border: #D3CCC0;
+  --input: #8F887D;
+  --chip-border: #D3CCC0;
+  --primary: #1C1A17;
+  --primary-foreground: #F6F4EF;
+  --link: #3B5A52;
+  --selected: #DCE8E4;
+  --ring: #3B5A52;
+  --scrim: rgba(28, 26, 23, 0.4);
+
+  --danger: #B4413A;
+  --danger-fill: #F7E9E7;
+  --danger-text: #8A2F27;
+  --warning: #9A6412;
+  --warning-fill: #F8EEDC;
+  --warning-text: #7A520D;
+  --success: #357A4A;
+  --success-fill: #E3F1E6;
+  --success-text: #24623A;
+  --info: #446C93;
+  --info-fill: #E6EEF6;
+  --info-text: #2D5277;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-raised: var(--raised);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-chip-border: var(--chip-border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-link: var(--link);
+  --color-selected: var(--selected);
+  --color-ring: var(--ring);
+  --color-scrim: var(--scrim);
+  --color-danger: var(--danger);
+  --color-danger-fill: var(--danger-fill);
+  --color-danger-text: var(--danger-text);
+  --color-warning: var(--warning);
+  --color-warning-fill: var(--warning-fill);
+  --color-warning-text: var(--warning-text);
+  --color-success: var(--success);
+  --color-success-fill: var(--success-fill);
+  --color-success-text: var(--success-text);
+  --color-info: var(--info);
+  --color-info-fill: var(--info-fill);
+  --color-info-text: var(--info-text);
+}
+
+@theme {
+  /* Corners: buttons and fields, cards, drawers. */
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-sheet: 20px;
+
+  /* Five text sizes. Geist Sans comes from --font-sans in index.css. */
+  --text-display: 32px;
+  --text-display--line-height: 40px;
+  --text-display--letter-spacing: -1px;
+  --text-display--font-weight: 600;
+  --text-title: 24px;
+  --text-title--line-height: 32px;
+  --text-title--letter-spacing: -0.5px;
+  --text-title--font-weight: 600;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-small: 14px;
+  --text-small--line-height: 20px;
+  --text-caption: 13px;
+  --text-caption--line-height: 18px;
+}

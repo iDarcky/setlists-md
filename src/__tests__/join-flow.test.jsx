@@ -33,19 +33,19 @@ describe('JoinFlow', () => {
     api.peekJoinLink.mockResolvedValue(PEEK);
     const onPasswordSignIn = vi.fn();
     render(<JoinFlow code={CODE} onPasswordSignIn={onPasswordSignIn} />);
-    expect(await screen.findByText('Ana and 11 others are already in')).toBeInTheDocument();
+    expect(await screen.findByText('Ana and 11 others are already in.')).toBeInTheDocument();
     expect(screen.getByText('Grace Church')).toBeInTheDocument();
     // No emailed code until a custom SMTP server is set up (VITE_EMAIL_CODES).
     expect(screen.queryByRole('button', { name: 'Email me a code' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
-    expect(onPasswordSignIn).toHaveBeenCalledWith('signup');
+    expect(onPasswordSignIn).toHaveBeenCalledWith('signup', { name: 'Grace Church', logoUrl: null, initials: 'GC' });
     expect(JSON.parse(localStorage.getItem('setlists-md:pending-join'))).toMatchObject({ code: CODE, stage: 'auth' });
   });
 
   it('explains a reset link', async () => {
     api.peekJoinLink.mockResolvedValue({ status: 'invalid' });
     render(<JoinFlow code={CODE} />);
-    expect(await screen.findByText("This invite link doesn't work")).toBeInTheDocument();
+    expect(await screen.findByText('This invite link doesn’t work')).toBeInTheDocument();
   });
 
   it('signed in: asks to join with name and parts, then waits', async () => {
@@ -61,7 +61,7 @@ describe('JoinFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Vocals' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
     await waitFor(() => expect(api.requestToJoin).toHaveBeenCalledWith(CODE, 'Maria Pop', ['vocals', 'drums']));
-    expect(await screen.findByText('Waiting for approval')).toBeInTheDocument();
+    expect(await screen.findByText('Waiting for a leader')).toBeInTheDocument();
     // The email-prefix default name follows what they told the church.
     expect(auth.updateProfile).toHaveBeenCalledWith({ display_name: 'Maria Pop' });
   });
@@ -71,7 +71,7 @@ describe('JoinFlow', () => {
     api.peekJoinLink.mockResolvedValue({ ...PEEK, is_member: true, team_id: 't1' });
     const onJoined = vi.fn();
     render(<JoinFlow code={CODE} onJoined={onJoined} />);
-    expect(await screen.findByText("You're in Grace Church")).toBeInTheDocument();
+    expect(await screen.findByText('You’re in!')).toBeInTheDocument();
     expect(onJoined).toHaveBeenCalledWith('t1');
     expect(screen.getByRole('button', { name: 'Skip to Home' })).toBeInTheDocument();
   });
