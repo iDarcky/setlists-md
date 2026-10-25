@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
+import { Sheet } from '@/ui/shadcn/sheet';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime } from '@/lib/dateFormat';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { timeAgo } from '@/lib/homeData';
 import {
-  CalendarIcon, MusicIcon, TeamIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon,
+  CalendarIcon, MusicIcon, TeamIcon, ChevronRightIcon, CheckIcon,
   ClockIcon, PinIcon, PlayIcon,
 } from '@/app/navIcons';
 
 // Home, built from zero (canvas "Signed out and joining" → Home, v2). Pure
 // view: Home.jsx works out the data, /design renders this with samples.
 //
-// Order, top to bottom (phone): hello + sync, Needs you (leaders), Can you
-// play?, Next up, your two weeks, Who can play (leaders), Get set up, Recent activity
-// in the library. From 1024px the asks and the leader's lists move to a right
-// column.
+// Order, top to bottom (phone): hello + sync, Can you play? (the next five
+// Sundays and any ask), Needs you (leaders), Next up, Who can play (leaders),
+// Get set up, Recent activity. From 1024px the strip spans the top and the
+// leader's lists move to a right column.
 
 const day = (dateStr, opts) => new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', opts);
 const shortDate = d => day(d, { weekday: 'short', day: 'numeric', month: 'short' });
@@ -104,56 +105,103 @@ function NeedsYou({ items, onOpen }) {
 // ── Can you play? ───────────────────────────────────────────────────────────
 
 const ANSWERS = [
-  { value: 'available', label: 'Yes' },
+  { value: 'available', label: 'Yes, I can play' },
   { value: 'maybe', label: 'Maybe' },
-  { value: 'unavailable', label: 'No' },
+  { value: 'unavailable', label: 'No, I can’t' },
 ];
 
-function Asks({ asks, onAnswer, onOpen, limit = 3 }) {
-  const [all, setAll] = useState(false);
-  const [busy, setBusy] = useState(null);
-  if (!asks?.length) return null;
-  const shown = all ? asks : asks.slice(0, limit);
-  const answer = async (id, value) => {
-    setBusy(id);
-    try { await onAnswer?.(id, value); } finally { setBusy(null); }
-  };
+// What the bottom of a tile says. An unanswered ask outranks everything.
+function tileState(t) {
+  if (t.asks.length) return { label: 'Answer', cls: 'border border-dashed border-input text-muted-foreground' };
+  if (t.status === 'unavailable') return { label: 'Can’t', cls: 'bg-danger/15 text-danger' };
+  if (t.status === 'maybe') return { label: 'Maybe', cls: 'bg-warning/20 text-warning-text' };
+  if (t.playing) return { label: 'Playing', cls: 'bg-link text-background' };
+  if (t.status === 'available') return { label: 'Free', cls: 'bg-selected text-link' };
+  return { label: 'Tap', cls: 'border border-dashed border-input text-muted-foreground' };
+}
+
+function CanYouPlay({ tiles, onPick }) {
+  if (!tiles?.length) return null;
   return (
-    <section aria-label="Can you play?" className="overflow-hidden rounded-card border border-link bg-selected">
-      <div className="flex items-center justify-between px-4 pb-1.5 pt-3.5">
-        <Eyebrow accent>Can you play?</Eyebrow>
-        <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-link px-1.5 text-[12px] font-bold text-background">{asks.length}</span>
+    <section aria-label="Can you play?" className="flex flex-col gap-2">
+      <div className="flex items-center justify-between px-0.5">
+        <Eyebrow>Can you play?</Eyebrow>
       </div>
-      {shown.map(({ schedule, setlist }) => {
-        const part = [schedule.role, schedule.vocal_part].filter(Boolean).join(' · ');
-        return (
-          <div key={schedule.id} className="flex items-center gap-3 border-t border-border px-4 py-2.5 first-of-type:border-t-0">
-            <button type="button" onClick={() => onOpen?.(setlist)} className="flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col border-0 bg-transparent p-0 text-left font-sans text-foreground">
-              <span className="truncate text-[15px] font-semibold">{shortDate(setlist.date)}</span>
-              <span className="truncate text-[13px] text-muted-foreground">{[setlist.name, part].filter(Boolean).join(' · ')}</span>
+      <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 pt-2.5 [scrollbar-width:none] sm:mx-0 sm:px-0">
+        {tiles.map(t => {
+          const st = tileState(t);
+          const asked = t.asks.length > 0;
+          return (
+            <button
+              key={t.date}
+              type="button"
+              onClick={() => onPick?.(t)}
+              aria-label={`${t.weekday} ${t.day}${t.names.length ? `, ${t.names.join(' and ')}` : ''}: ${asked ? 'you are asked to play' : st.label}`}
+              className={cn(
+                'relative flex w-[92px] min-h-0 shrink-0 snap-start cursor-pointer flex-col items-center gap-0.5 rounded-card border border-border bg-card px-2 pb-2 pt-2.5 font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
+                asked && 'border-warning-text shadow-[inset_0_0_0_1px_var(--warning-text)]',
+              )}
+            >
+              {asked && (
+                <span className="absolute -top-2 left-1/2 flex h-4 -translate-x-1/2 items-center rounded-full bg-warning-text px-1.5 text-[10px] font-bold text-background">Asked</span>
+              )}
+              <span className="text-[11px] font-semibold uppercase text-muted-foreground">{t.weekday}</span>
+              <span className="text-[22px] font-semibold leading-[26px] tracking-[-0.5px]">{t.day}</span>
+              <span className="line-clamp-2 h-7 max-w-full text-center text-[11px] leading-[14px] text-muted-foreground">{t.names.join(' + ') || 'Nothing yet'}</span>
+              <span className={cn('mt-1.5 flex h-[22px] w-full items-center justify-center rounded-[6px] text-[11px] font-semibold', st.cls)}>{st.label}</span>
             </button>
-            <div className="flex shrink-0 gap-1.5" role="group" aria-label={`Answer for ${shortDate(setlist.date)}`}>
-              {ANSWERS.map(a => (
-                <button
-                  key={a.value}
-                  type="button"
-                  disabled={busy === schedule.id}
-                  onClick={() => answer(schedule.id, a.value)}
-                  className="h-9 min-h-0 cursor-pointer rounded-full border border-input bg-card px-3 font-sans text-[14px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-      {asks.length > limit && (
-        <button type="button" onClick={() => setAll(v => !v)} className="w-full min-h-0 cursor-pointer border-0 border-t border-border bg-transparent px-4 py-3 text-left font-sans text-[14px] font-medium text-link">
-          {all ? 'Show fewer' : `See all ${asks.length}`}
-        </button>
-      )}
+          );
+        })}
+      </div>
     </section>
+  );
+}
+
+/** The Yes / Maybe / No sheet for one day. */
+function AnswerDay({ tile, onClose, onAnswer, clockFormat }) {
+  const [busy, setBusy] = useState(null);
+  const title = tile ? new Date(`${tile.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+  const answer = async (value) => {
+    setBusy(value);
+    try { await onAnswer?.(tile, value); onClose(); } finally { setBusy(null); }
+  };
+  const current = tile && (tile.asks.length ? null : tile.status || (tile.playing ? 'available' : null));
+  return (
+    <Sheet open={!!tile} onOpenChange={(o) => { if (!o) onClose(); }} title={title} className="h-auto sm:max-w-[420px]">
+      {tile && (
+        <div className="flex flex-col gap-3">
+          {tile.setlists?.length > 0 && (
+            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[14px] text-muted-foreground">
+              {tile.setlists.map(sl => {
+                const ask = tile.asks.find(a => a.setlist.id === sl.id);
+                const part = ask ? [ask.schedule.role, ask.schedule.vocal_part].filter(Boolean).join(' · ') : '';
+                return (
+                  <li key={sl.id}>
+                    <span className="font-medium text-foreground">{sl.name || 'Setlist'}</span>
+                    {sl.time ? ` · ${clock(sl.time, clockFormat)}` : ''}
+                    {ask ? ` · you’re asked${part ? ` for ${part}` : ''}` : ''}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="flex flex-col gap-2">
+            {ANSWERS.map(a => (
+              <Button
+                key={a.value}
+                variant={(current || 'available') === a.value ? 'default' : 'outline'}
+                disabled={!!busy}
+                aria-pressed={current === a.value}
+                onClick={() => answer(a.value)}
+              >
+                {a.label}
+              </Button>
+            ))}
+          </div>
+          <p className="m-0 text-[13px] text-muted-foreground">Your answer covers everything on that day.</p>
+        </div>
+      )}
+    </Sheet>
   );
 }
 
@@ -217,86 +265,6 @@ function NextUp({ next, leader, clockFormat, onOpen, onMarkReady }) {
         <Button className="flex-1" onClick={() => onOpen?.(sl)}><PlayIcon />Open setlist</Button>
         {canMarkReady && <Button variant="outline" className="flex-1" onClick={() => onMarkReady(sl)}>Mark ready</Button>}
       </div>
-    </section>
-  );
-}
-
-// ── Your two weeks ──────────────────────────────────────────────────────────
-
-function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onOpen }) {
-  if (!days?.length) return null;
-  const sel = days.find(d => d.date === selected) || null;
-  const lines = sel
-    ? [
-        ...sel.services.map(sl => ({ sl, title: sl.name || 'Service', sub: [clock(sl.time, clockFormat), sel.play ? 'You play' : sel.asked ? 'Asked' : null].filter(Boolean).join(' · ') })),
-        ...sel.rehearsals.map(sl => ({ sl, title: `Rehearsal · ${sl.name || 'Service'}`, sub: [clock(sl.rehearsalTime, clockFormat), sl.rehearsalLocation].filter(Boolean).join(' · ') })),
-      ]
-    : [];
-  const navBtn = 'flex size-8 min-h-0 cursor-pointer items-center justify-center rounded-full border border-border bg-transparent p-0 text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring';
-  return (
-    <section aria-label="Your two weeks" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <Eyebrow>{offset === 0 ? 'Your next two weeks' : `${shortDate(days[0].date)} – ${shortDate(days[13].date)}`}</Eyebrow>
-        <div className="flex gap-1">
-          <button type="button" aria-label="Earlier" disabled={offset <= 0} onClick={() => onOffset?.(offset - 1)} className={cn(navBtn, 'disabled:opacity-40')}><ChevronLeftIcon /></button>
-          <button type="button" aria-label="Later" onClick={() => onOffset?.(offset + 1)} className={navBtn}><ChevronRightIcon /></button>
-        </div>
-      </div>
-      {[days.slice(0, 7), days.slice(7)].map((week, w) => (
-        <div key={w} className="grid grid-cols-7 gap-1">
-          {week.map(d => {
-            const on = d.date === selected;
-            const label = `${d.weekday} ${d.day}${d.play ? ', you play' : d.asked ? ', asked' : ''}${d.services.length || d.rehearsals.length ? '' : ', nothing on'}`;
-            return (
-              <button
-                key={d.date}
-                type="button"
-                aria-label={label}
-                aria-pressed={on}
-                onClick={() => onSelect?.(d.date)}
-                className={cn(
-                  'relative flex h-16 min-h-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[10px] border-0 bg-transparent p-0 font-sans outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  d.isToday && 'bg-raised',
-                  d.play && 'bg-selected',
-                  d.asked && 'shadow-[inset_0_0_0_1.5px_var(--warning-text)]',
-                  on && 'shadow-[inset_0_0_0_2px_var(--foreground)]',
-                  d.isPast && 'opacity-45',
-                )}
-              >
-                <span className="text-[11px] font-semibold text-muted-foreground">{d.weekday}</span>
-                <span className={cn('text-[17px] font-semibold', d.isToday ? 'text-link' : 'text-foreground')}>{d.day}</span>
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'size-1.5 rounded-full',
-                    d.play ? 'bg-link' : d.asked ? 'bg-warning-text' : d.services.length || d.rehearsals.length ? 'bg-input' : 'bg-transparent',
-                  )}
-                />
-              </button>
-            );
-          })}
-        </div>
-      ))}
-      <div className="flex flex-wrap gap-3.5 text-[12px] text-muted-foreground" aria-hidden="true">
-        <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] bg-selected" />You play</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] shadow-[inset_0_0_0_1.5px_var(--warning-text)]" />Asked</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-input" />Something on</span>
-      </div>
-      {sel && (
-        <div className="-mx-4 flex flex-col border-t border-border">
-          {lines.length === 0 ? (
-            <p className="m-0 px-4 pt-3 text-[14px] text-muted-foreground">{shortDate(sel.date)}: nothing on.</p>
-          ) : lines.map((l, i) => (
-            <button key={i} type="button" onClick={() => onOpen?.(l.sl)} className={cn(rowButton, 'min-h-[52px] border-t-0 py-2')}>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[15px] font-medium">{shortDate(sel.date)} · {l.title}</span>
-                {l.sub && <span className="truncate text-[13px] text-muted-foreground">{l.sub}</span>}
-              </span>
-              <span className="text-input"><ChevronRightIcon /></span>
-            </button>
-          ))}
-        </div>
-      )}
     </section>
   );
 }
@@ -413,9 +381,8 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
  * @param {{state, label}} [p.sync]
  * @param {boolean} [p.leader]
  * @param {Array} [p.needs]               from needsYou()
- * @param {Array} [p.asks]                from myAsks()
+ * @param {Array} [p.canPlay]             from canYouPlay(), each with its `setlists`
  * @param {object} [p.next]               { setlist, part, band, days }
- * @param {object} [p.strip]              { days, offset, onOffset, selected, onSelect }
  * @param {Array} [p.whoCanPlay]          from whoCanPlay()
  * @param {Array} [p.setup]               [{ id, label, hint, done, onClick }]
  * @param {Array} [p.activity]            from recentActivity() / activityFromSongs()
@@ -423,12 +390,13 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
  */
 export default function HomeView({
   name, dateLabel, sync, leader = false, clockFormat = '12h',
-  needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
-  strip, whoCanPlay, onOpenSchedule, setup, activity, now, onOpenActivity, onOpenSongs,
+  needs, onNeed, canPlay, onAnswerDay, next, onOpenSetlist, onMarkReady,
+  whoCanPlay, onOpenSchedule, setup, activity, now, onOpenActivity, onOpenSongs,
   showNothingPlanned = false, embedded = false, layout = 'auto',
 }) {
   // One tree, picked by width (rendering both and hiding one would mount the
-  // asks' own state twice). `layout` pins it for /design's frames.
+  // answer sheet twice). `layout` pins it for /design's frames.
+  const [picked, setPicked] = useState(null);
   const wideScreen = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'auto' ? wideScreen : layout === 'wide';
   const hello = (
@@ -441,9 +409,8 @@ export default function HomeView({
     </header>
   );
   const needsEl = leader && <NeedsYou items={needs} onOpen={onNeed} />;
-  const asksEl = <Asks asks={asks} onAnswer={onAnswer} onOpen={onOpenSetlist} />;
+  const canPlayEl = <CanYouPlay tiles={canPlay} onPick={setPicked} />;
   const nextEl = <NextUp next={next} leader={leader} clockFormat={clockFormat} onOpen={onOpenSetlist} onMarkReady={onMarkReady} />;
-  const stripEl = strip && <TwoWeeks {...strip} clockFormat={clockFormat} onOpen={onOpenSetlist} />;
   const whoEl = leader && <WhoCanPlay rows={whoCanPlay} onOpen={onOpenSetlist} onOpenSchedule={onOpenSchedule} />;
   const setupEl = <GetSetUp items={setup} />;
   const emptyEl = showNothingPlanned && <NothingPlanned onBrowse={onOpenSongs} />;
@@ -453,18 +420,20 @@ export default function HomeView({
     <div data-slot="home" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       <div className={cn('mx-auto flex w-full max-w-[1040px] flex-col gap-3 pb-8', wide ? 'px-8 pt-8' : layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-4')}>
         {hello}
+        {wide && canPlayEl}
         {wide ? (
-          // From 1024px: the service and your weeks on the left, asks and lists on the right.
+          // From 1024px: the service on the left, the leader's lists on the right.
           <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
-            <div className="flex min-w-0 flex-col gap-4">{needsEl}{nextEl}{emptyEl}{stripEl}</div>
-            <div className="flex min-w-0 flex-col gap-4">{asksEl}{whoEl}{setupEl}{activityEl}</div>
+            <div className="flex min-w-0 flex-col gap-4">{needsEl}{nextEl}{emptyEl}</div>
+            <div className="flex min-w-0 flex-col gap-4">{whoEl}{setupEl}{activityEl}</div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {needsEl}{asksEl}{nextEl}{emptyEl}{stripEl}{whoEl}{setupEl}{activityEl}
+            {canPlayEl}{needsEl}{nextEl}{emptyEl}{whoEl}{setupEl}{activityEl}
           </div>
         )}
       </div>
+      <AnswerDay tile={picked} onClose={() => setPicked(null)} onAnswer={onAnswerDay} clockFormat={clockFormat} />
     </div>
   );
 }

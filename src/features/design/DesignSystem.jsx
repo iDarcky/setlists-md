@@ -17,7 +17,7 @@ import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
-import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
+import { myAsks, myServices, canYouPlay, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -189,13 +189,14 @@ const H_ACTIVITY = recentActivity([
 ], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
 
 function HomeDemo({ leader = false, empty = false, layout }) {
-  const [offset, setOffset] = useState(0);
-  const [picked, setPicked] = useState('2026-11-01');
+  const [mine, setMine] = useState([{ date: '2026-11-15', status: 'available' }, { date: '2026-11-29', status: 'maybe' }]);
   const asks = empty ? [] : myAsks({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
   const plays = empty ? [] : myServices({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
-  const days = twoWeeks({ now: H_NOW, offset, setlists: empty ? [] : H_SETLISTS, plays, asks });
-  const band = [['Joe Doe', true], ['Ana M', true], ['Rob K', true], ['Lia S', true], ['Tim P', false]].map(([name, yes], i) => ({ id: i, name, yes }));
   const ask = leader ? asks.slice(0, 1) : asks;
+  const canPlay = canYouPlay({ now: H_NOW, setlists: H_SETLISTS, asks: ask, plays, mine })
+    .map(t => ({ ...t, setlists: H_SETLISTS.filter(sl => sl.date === t.date) }));
+  const answerDay = (t, status) => setMine(m => [...m.filter(r => r.date !== t.date), { date: t.date, status }]);
+  const band = [['Joe Doe', true], ['Ana M', true], ['Rob K', true], ['Lia S', true], ['Tim P', false]].map(([name, yes], i) => ({ id: i, name, yes }));
   return (
     <HomeView
       layout={layout}
@@ -204,12 +205,11 @@ function HomeDemo({ leader = false, empty = false, layout }) {
       sync={{ state: 'ok', label: 'Up to date' }}
       leader={leader}
       needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW }) : []}
-      asks={ask}
-      onAnswer={noop}
+      canPlay={canPlay}
+      onAnswerDay={answerDay}
       next={empty ? null : { setlist: H_SETLISTS[0], part: leader ? null : 'Keys', band, days: 7 }}
       onOpenSetlist={noop}
       onMarkReady={noop}
-      strip={{ days, offset, onOffset: setOffset, selected: picked, onSelect: setPicked }}
       whoCanPlay={leader ? whoCanPlay({ setlists: H_SETLISTS, availability: [
         ...Array(6).fill({ date: '2026-11-01', status: 'available' }), { date: '2026-11-01', status: 'maybe' }, { date: '2026-11-01', status: 'unavailable' },
         ...Array(3).fill({ date: '2026-11-06', status: 'available' }), ...Array(2).fill({ date: '2026-11-06', status: 'maybe' }),
@@ -490,7 +490,7 @@ export default function DesignSystem({ onBack }) {
           <LegalSheet doc={legal} onClose={() => setLegal(null)} />
         </Section>
 
-        <Section title="Home" sub="Asks first, then your next service and your two weeks. Leaders also get Needs you and Who can play. Live components with sample data.">
+        <Section title="Home" sub="Can you play? strip first (next five Sundays and any ask), then your next service. Leaders also get Needs you and Who can play. Live components with sample data.">
           <HomeGallery />
         </Section>
 
