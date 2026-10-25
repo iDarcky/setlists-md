@@ -16,6 +16,8 @@ import {
 import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
+import HomeView from '@/features/home/HomeView';
+import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -153,6 +155,95 @@ function NavGallery() {
           </Frame>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Home ────────────────────────────────────────────────────────────────────
+
+// Sample church: today is Sunday 25 October 2026. Joe plays keys on 1 Nov and
+// has three asks; the leader view adds join requests and empty services.
+const H_NOW = new Date(2026, 9, 25, 9, 0).getTime();
+const hs = (id, name, date, time, extra = {}) => ({ id, name, date, time, location: 'Main hall', items: [{ songId: 'x' }], status: 'ready', ...extra });
+const H_SETLISTS = [
+  hs('s1', 'Sunday Morning', '2026-11-01', '10:00', { rehearsalDate: '2026-10-31', rehearsalTime: '18:00', status: 'draft' }),
+  hs('s2', 'Youth Night', '2026-11-06', '19:00', { items: [] }),
+  hs('s3', 'Sunday Morning', '2026-11-08', '10:00'),
+  hs('s4', 'Sunday Morning', '2026-11-22', '10:00'),
+];
+const H_SCHEDULES = [
+  { id: 'k1', user_id: 'joe', setlist_id: 's1', availability: 'available', role: 'Keys' },
+  { id: 'k2', user_id: 'joe', setlist_id: 's2', availability: 'pending', role: 'Keys' },
+  { id: 'k3', user_id: 'joe', setlist_id: 's3', availability: 'pending', role: 'Keys' },
+  { id: 'k4', user_id: 'joe', setlist_id: 's4', availability: 'pending', role: 'Vocals' },
+  ...['am', 'rk', 'ls'].map((u, i) => ({ id: `b${i}`, user_id: u, setlist_id: 's1', availability: 'available' })),
+  { id: 'b9', user_id: 'tp', setlist_id: 's1', availability: 'pending' },
+];
+const hAgo = h => new Date(H_NOW - h * 3600000).toISOString();
+const H_ACTIVITY = recentActivity([
+  { id: 1, action: 'song_edited', entity_id: 'h', entity_name: 'Holy Forever', actor_id: 'am', created_at: hAgo(2) },
+  { id: 2, action: 'setlist_created', entity_id: 's2', entity_name: 'Youth Night', actor_id: 'joe', created_at: hAgo(5) },
+  { id: 3, action: 'song_added', entity_id: 'f', entity_name: 'Firm Foundation', actor_id: 'rk', created_at: hAgo(26) },
+  { id: 4, action: 'song_removed', entity_id: 'o', entity_name: 'Oceans', actor_id: 'am', created_at: hAgo(50) },
+  { id: 5, action: 'member_joined', entity_id: 'tp', actor_id: 'tp', created_at: hAgo(80) },
+], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
+
+function HomeDemo({ leader = false, empty = false, layout }) {
+  const [offset, setOffset] = useState(0);
+  const [picked, setPicked] = useState('2026-11-01');
+  const asks = empty ? [] : myAsks({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
+  const plays = empty ? [] : myServices({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
+  const days = twoWeeks({ now: H_NOW, offset, setlists: empty ? [] : H_SETLISTS, plays, asks });
+  const band = [['Joe Doe', true], ['Ana M', true], ['Rob K', true], ['Lia S', true], ['Tim P', false]].map(([name, yes], i) => ({ id: i, name, yes }));
+  const ask = leader ? asks.slice(0, 1) : asks;
+  return (
+    <HomeView
+      layout={layout}
+      name="Joe"
+      dateLabel="Sunday, 25 October"
+      sync={{ state: 'ok', label: 'Up to date' }}
+      leader={leader}
+      needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW }) : []}
+      asks={ask}
+      onAnswer={noop}
+      next={empty ? null : { setlist: H_SETLISTS[0], part: leader ? null : 'Keys', band, days: 7 }}
+      onOpenSetlist={noop}
+      onMarkReady={noop}
+      strip={{ days, offset, onOffset: setOffset, selected: picked, onSelect: setPicked }}
+      whoCanPlay={leader ? whoCanPlay({ setlists: H_SETLISTS, availability: [
+        ...Array(6).fill({ date: '2026-11-01', status: 'available' }), { date: '2026-11-01', status: 'maybe' }, { date: '2026-11-01', status: 'unavailable' },
+        ...Array(3).fill({ date: '2026-11-06', status: 'available' }), ...Array(2).fill({ date: '2026-11-06', status: 'maybe' }),
+        ...Array(2).fill({ date: '2026-11-08', status: 'available' }), { date: '2026-11-08', status: 'unavailable' },
+      ], memberCount: 10, now: H_NOW }) : null}
+      onOpenSchedule={noop}
+      setup={empty ? [
+        { id: 'join', label: 'Join Grace Church', done: true },
+        { id: 'install', label: 'Put the app on your home screen', done: false, onClick: noop },
+        { id: 'push', label: 'Turn on notifications', hint: 'So you hear when you are asked to play', done: false, onClick: noop },
+      ] : null}
+      activity={H_ACTIVITY}
+      now={H_NOW}
+      onOpenActivity={noop}
+      onOpenSongs={noop}
+      showNothingPlanned={empty}
+      embedded
+    />
+  );
+}
+
+function HomeGallery() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap gap-6">
+        {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }]].map(([label, props]) => THEMES.map(t => (
+          <Frame key={label + t.id} theme={t.id} width={390} height={1760} scale={0.6} label={`${label} · ${t.label}`}>
+            <HomeDemo layout="phone" {...props} />
+          </Frame>
+        )))}
+      </div>
+      <Frame theme="dark" width={1200} height={1100} scale={0.8} label="Desktop · leader">
+        <HomeDemo layout="wide" leader />
+      </Frame>
     </div>
   );
 }
@@ -397,6 +488,10 @@ export default function DesignSystem({ onBack }) {
         <Section title="Drawer and dialog" sub="A bottom drawer on a phone, a centred dialog from the iPad up. Same component.">
           <div><Button variant="outline" onClick={() => setLegal('terms')}>Open the Terms</Button></div>
           <LegalSheet doc={legal} onClose={() => setLegal(null)} />
+        </Section>
+
+        <Section title="Home" sub="Asks first, then your next service and your two weeks. Leaders also get Needs you and Who can play. Live components with sample data.">
+          <HomeGallery />
         </Section>
 
         <Section title="Navigation" sub="One top bar: the church on the left, the bell and you on the right. The pill floats at the bottom on a phone and an iPad held upright, and sits in the top bar from 1024px. You is a page.">

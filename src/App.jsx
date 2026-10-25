@@ -28,7 +28,7 @@ import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
 import { APP_HEIGHT } from '@/lib/appViewport';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
-import Dashboard from '@/features/dashboard/Dashboard';
+import Home from '@/features/home/Home';
 import Library from '@/features/library/Library';
 import Settings from '@/features/settings/Settings';
 import Account from '@/features/settings/Account';
@@ -1773,6 +1773,14 @@ export default function App() {
       : { title: 'Service removed', description: `“${oldName}” cleared from its setlists` });
   }, []);
 
+  // Home's "Mark ready" on the next service: the same status the builder's
+  // Draft/Ready picker writes, saved through the usual auto-save.
+  const markSetlistReady = (target) => {
+    if (isTeamReadOnly || !target) return;
+    setSetlists(prev => prev.map(sl => (sl.id === target.id ? { ...sl, status: 'ready', updatedAt: Date.now() } : sl)));
+    toast({ title: 'Marked ready', description: target.name || undefined });
+  };
+
   const handleAddSongsToSetlist = (songIds, setlistId) => {
     const target = setlists.find(s => s.id === setlistId);
     if (!target) return;
@@ -2485,34 +2493,26 @@ export default function App() {
           topBarOnPhone={['home', 'library', 'setlists', 'schedule'].includes(view)}
           hideBottomSpacer={!PILL_VIEWS.includes(view)}
         >
-          {view === 'home' && (
-            <Dashboard
-            songs={songs}
+          {view === 'home' && settings && (
+            <Home
+              songs={songs}
               setlists={setlists}
               settings={settings}
-              onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
-              onViewSetlist={goSetlistView}
-              onPlaySetlist={(sl) => goSetlistRead(sl)}
-              onGoLibrary={goLibrary}
-              onGoSetlists={goSetlists}
-              onOpenSchedule={goSchedule}
-              hasCloud={!!syncState?.provider}
-              checklistActions={{
-                openFirstSong: () => {
-                  const song = songs.find(s => s.title === 'Amazing Grace') || songs[0];
-                  if (song) goChart(song);
-                },
-                newSong: () => openNewSongModal(),
-                newSetlist: () => goSetlistBuild(),
-                signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
-              }}
-              onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
-              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              displayName={displayName}
               syncState={syncState}
-              canEdit={canEdit}
-              onSignIn={!user ? () => { setAuthStartMode('signin'); navigate('signin'); } : undefined}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              setlistMap={teamSetlistMap}
+              onOpenSetlist={goSetlistView}
+              onEditSetlist={isTeamReadOnly ? null : goSetlistBuild}
+              onMarkReady={isTeamReadOnly ? null : markSetlistReady}
+              onOpenSong={goChart}
+              onOpenSongs={goLibrary}
+              onOpenSchedule={goSchedule}
+              onOpenTeam={goTeam}
+              install={!isStandalone && (isIOS || canInstall)
+                ? { onInstall: async () => { if (isIOS) openIOSHint(); else await promptInstall(); } }
+                : null}
             />
           )}
           {view === 'library' && (
