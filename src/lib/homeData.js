@@ -84,40 +84,38 @@ export function daysUntil(setlist, now = Date.now()) {
 }
 
 /**
- * The "Can you play?" strip on Home: the next `count` Sundays (today counts),
- * plus any other day the user has an unanswered ask on, so an ask on a Friday
- * is never hidden. Availability is stored per DAY (`team_availability`), so one
- * answer covers everything on that date.
- * `mine` is the user's own availability rows; `asks` and `plays` come from
- * myAsks() / myServices(). `rows` on a tile is every schedule row of the user's
- * on that day, which an answer updates as well.
+ * Two weeks of days for the strip, starting on the first day of this week
+ * (`weekStart` 'sunday' | 'monday'), moved by `offset` fortnights.
+ * A day is `play` when the user said yes to a service on it, `asked` when they
+ * have an unanswered ask on it. `services` and `rehearsals` are the setlists
+ * on that day, for the line under the strip.
  */
-export function canYouPlay({ now = Date.now(), setlists = [], asks = [], plays = [], mine = [], count = 5, weekday = 0 }) {
+export function twoWeeks({ now = Date.now(), weekStart = 'sunday', offset = 0, setlists = [], plays = [], asks = [] }) {
   const today = new Date(now); today.setHours(0, 0, 0, 0);
-  const dates = new Set();
-  const d = new Date(today);
-  while (d.getDay() !== weekday) d.setDate(d.getDate() + 1);
-  for (let i = 0; i < count; i++) {
-    dates.add(toDateStr(d));
-    d.setDate(d.getDate() + 7);
-  }
-  asks.forEach(a => a.setlist?.date && dates.add(a.setlist.date));
-  const status = Object.fromEntries(mine.map(r => [r.date, r.status]));
-  return [...dates].sort().map(date => {
-    const dt = new Date(`${date}T12:00:00`);
-    const dayAsks = asks.filter(a => a.setlist.date === date);
-    const dayPlays = plays.filter(p => p.setlist.date === date);
-    return {
+  const shift = weekStart === 'monday' ? (today.getDay() + 6) % 7 : today.getDay();
+  const start = new Date(today);
+  start.setDate(start.getDate() - shift + offset * 14);
+  const playDays = new Set(plays.map(p => p.setlist?.date).filter(Boolean));
+  const askDays = new Set(asks.map(a => a.setlist?.date).filter(Boolean));
+  const todayStr = toDateStr(today);
+  const days = [];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const date = toDateStr(d);
+    days.push({
       date,
-      weekday: dt.toLocaleDateString('en-US', { weekday: 'short' }),
-      day: dt.getDate(),
-      names: [...new Set(setlists.filter(sl => sl.date === date).map(sl => sl.name || 'Setlist'))],
-      status: status[date] || null,
-      asks: dayAsks,
-      playing: dayPlays.length > 0,
-      rows: [...dayAsks, ...dayPlays].map(x => x.schedule),
-    };
-  });
+      day: d.getDate(),
+      weekday: d.toLocaleDateString('en-US', { weekday: 'short' }),
+      isToday: date === todayStr,
+      isPast: date < todayStr,
+      play: playDays.has(date),
+      asked: askDays.has(date),
+      services: setlists.filter(sl => sl.date === date),
+      rehearsals: setlists.filter(sl => sl.rehearsalDate === date),
+    });
+  }
+  return days;
 }
 
 /**

@@ -17,7 +17,10 @@ import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
-import { myAsks, myServices, canYouPlay, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
+import ScheduleView from '@/features/schedule/ScheduleView';
+import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
+import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft, canYouPlay } from '@/lib/scheduleData';
+import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -189,14 +192,13 @@ const H_ACTIVITY = recentActivity([
 ], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
 
 function HomeDemo({ leader = false, empty = false, layout }) {
-  const [mine, setMine] = useState([{ date: '2026-11-15', status: 'available' }, { date: '2026-11-29', status: 'maybe' }]);
+  const [offset, setOffset] = useState(0);
+  const [picked, setPicked] = useState('2026-11-01');
   const asks = empty ? [] : myAsks({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
   const plays = empty ? [] : myServices({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
-  const ask = leader ? asks.slice(0, 1) : asks;
-  const canPlay = canYouPlay({ now: H_NOW, setlists: H_SETLISTS, asks: ask, plays, mine })
-    .map(t => ({ ...t, setlists: H_SETLISTS.filter(sl => sl.date === t.date) }));
-  const answerDay = (t, status) => setMine(m => [...m.filter(r => r.date !== t.date), { date: t.date, status }]);
+  const days = twoWeeks({ now: H_NOW, offset, setlists: empty ? [] : H_SETLISTS, plays, asks });
   const band = [['Joe Doe', true], ['Ana M', true], ['Rob K', true], ['Lia S', true], ['Tim P', false]].map(([name, yes], i) => ({ id: i, name, yes }));
+  const ask = leader ? asks.slice(0, 1) : asks;
   return (
     <HomeView
       layout={layout}
@@ -205,11 +207,12 @@ function HomeDemo({ leader = false, empty = false, layout }) {
       sync={{ state: 'ok', label: 'Up to date' }}
       leader={leader}
       needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW }) : []}
-      canPlay={canPlay}
-      onAnswerDay={answerDay}
+      asks={ask}
+      onAnswer={noop}
       next={empty ? null : { setlist: H_SETLISTS[0], part: leader ? null : 'Keys', band, days: 7 }}
       onOpenSetlist={noop}
       onMarkReady={noop}
+      strip={{ days, offset, onOffset: setOffset, selected: picked, onSelect: setPicked }}
       whoCanPlay={leader ? whoCanPlay({ setlists: H_SETLISTS, availability: [
         ...Array(6).fill({ date: '2026-11-01', status: 'available' }), { date: '2026-11-01', status: 'maybe' }, { date: '2026-11-01', status: 'unavailable' },
         ...Array(3).fill({ date: '2026-11-06', status: 'available' }), ...Array(2).fill({ date: '2026-11-06', status: 'maybe' }),
@@ -244,6 +247,64 @@ function HomeGallery() {
       <Frame theme="dark" width={1200} height={1100} scale={0.8} label="Desktop · leader">
         <HomeDemo layout="wide" leader />
       </Frame>
+    </div>
+  );
+}
+
+// ── Schedule ────────────────────────────────────────────────────────────────
+
+const S_NAMES = { joe: 'Joe Doe', am: 'Ana M', rk: 'Rob K', ls: 'Lia S', tp: 'Tim P' };
+const S_SETLISTS = [
+  ...H_SETLISTS,
+  hs('s5', 'Sunday Morning', '2026-12-06', '10:00'),
+  hs('p1', 'Sunday Morning', '2026-10-18', '10:00'),
+  hs('p2', 'Youth Night', '2026-10-16', '19:00'),
+];
+const S_SCHEDULES = [...H_SCHEDULES, { id: 'k9', user_id: 'joe', setlist_id: 'p1', availability: 'available', role: 'Keys' }];
+const S_AVAIL = [{ user_id: 'joe', date: '2026-12-06', status: 'unavailable' }, { user_id: 'rk', date: '2026-11-08', status: 'available' }, { user_id: 'mv', date: '2026-11-08', status: 'available' }];
+
+function ScheduleDemo({ leader = false, layout }) {
+  const [tab, setTab] = useState('upcoming');
+  const [filter, setFilter] = useState('all');
+  const [sheet, setSheet] = useState(false);
+  const [mine, setMine] = useState({ '2026-11-01': 'available', '2026-12-06': 'unavailable', '2026-11-20': 'maybe' });
+  const ctx = { schedules: S_SCHEDULES, userId: 'joe', availability: S_AVAIL };
+  const rowFor = (sl) => {
+    const summary = bandSummary(sl, ctx);
+    return { setlist: sl, me: myStatus(sl, ctx), summary, songCount: (sl.items || []).filter(i => i.songId).length * 5,
+      faces: summary.rows.map(r => ({ id: r.id, name: S_NAMES[r.user_id] || 'Member', yes: r.availability === 'available' })) };
+  };
+  const all = groupByMonth(S_SETLISTS, { now: H_NOW, past: tab === 'past' });
+  const keep = (r) => !leader || tab === 'past' || filter === 'all' || (filter === 'needs' ? needsPeople(r.summary) : isDraft(r.setlist));
+  const groups = all.map(g => ({ month: g.month, rows: g.setlists.map(rowFor).filter(keep) })).filter(g => g.rows.length);
+  const up = all.flatMap(g => g.setlists.map(rowFor));
+  const args = { schedules: S_SCHEDULES, userId: 'joe', setlists: S_SETLISTS, now: H_NOW };
+  const canPlay = canYouPlay({ now: H_NOW, setlists: S_SETLISTS, asks: myAsks(args), plays: myServices(args), mine: Object.entries(mine).map(([date, status]) => ({ date, status })) })
+    .map(t => ({ ...t, setlists: S_SETLISTS.filter(sl => sl.date === t.date) }));
+  return (
+    <>
+      <ScheduleView
+        layout={layout} embedded leader={leader} tab={tab} onTab={setTab} filter={filter} onFilter={setFilter} showBand={leader}
+        counts={{ needs: up.filter(r => needsPeople(r.summary)).length, drafts: up.filter(r => isDraft(r.setlist)).length }}
+        groups={groups} onOpen={noop} onAnswer={noop} onNew={leader ? noop : null} onAvailability={() => setSheet(true)}
+        canPlay={canPlay} onAnswerDay={(t, st) => setMine(m => ({ ...m, [t.date]: st }))}
+      />
+      <AvailabilitySheet
+        open={sheet} onOpenChange={setSheet} mine={mine} busyDates={new Set(S_SETLISTS.map(s => s.date))} now={H_NOW}
+        onSet={(d, st) => setMine(m => ({ ...m, [d]: st }))} onClear={(d) => setMine(({ [d]: _, ...rest }) => rest)}
+      />
+    </>
+  );
+}
+
+function ScheduleGallery() {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {[['Member', {}], ['Leader', { leader: true }]].map(([label, props]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={390} height={1000} scale={0.6} label={`${label} · ${t.label}`}>
+          <ScheduleDemo layout="phone" {...props} />
+        </Frame>
+      )))}
     </div>
   );
 }
@@ -490,8 +551,12 @@ export default function DesignSystem({ onBack }) {
           <LegalSheet doc={legal} onClose={() => setLegal(null)} />
         </Section>
 
-        <Section title="Home" sub="Can you play? strip first (next five Sundays and any ask), then your next service. Leaders also get Needs you and Who can play. Live components with sample data.">
+        <Section title="Home" sub="Asks first, then your next service and your two weeks. Leaders also get Needs you and Who can play. Live components with sample data.">
           <HomeGallery />
+        </Section>
+
+        <Section title="Schedule" sub="Every setlist coming up, with where you stand. Leaders see the band and Draft/Ready, and filter what needs people. My availability opens a month to tap through.">
+          <ScheduleGallery />
         </Section>
 
         <Section title="Navigation" sub="One top bar: the church on the left, the bell and you on the right. The pill floats at the bottom on a phone and an iPad held upright, and sits in the top bar from 1024px. You is a page.">

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  toDateStr, myAsks, myServices, nextUp, daysUntil, canYouPlay, whoCanPlay, needsYou, latestSongs, bandFor, recentActivity, activityFromSongs, timeAgo,
+  toDateStr, myAsks, myServices, nextUp, daysUntil, twoWeeks, whoCanPlay, needsYou, latestSongs, bandFor, recentActivity, activityFromSongs, timeAgo,
 } from '@/lib/homeData';
 
 // Sunday 25 October 2026, 09:00 local.
@@ -54,16 +54,21 @@ describe('homeData', () => {
     expect(daysUntil({ date: '2026-10-25' }, NOW)).toBe(0);
   });
 
-  it('lays out the next five Sundays plus any weekday ask', () => {
-    const asks = [{ schedule: { id: 'x' }, setlist: { id: 'yn', name: 'Youth Night', date: '2026-11-06' } }];
+  it('builds two weeks from the start of this week, with plays, asks and rehearsals', () => {
+    const asks = myAsks({ schedules: SCHEDULES, userId: 'me', setlists: SETLISTS, setlistMap: MAP, now: NOW });
     const plays = myServices({ schedules: SCHEDULES, userId: 'me', setlists: SETLISTS, setlistMap: MAP, now: NOW });
-    const tiles = canYouPlay({ now: NOW, setlists: SETLISTS, asks, plays, mine: [{ date: '2026-11-08', status: 'unavailable' }] });
-    expect(tiles.map(t => t.date)).toEqual(['2026-10-25', '2026-11-01', '2026-11-06', '2026-11-08', '2026-11-15', '2026-11-22']);
-    const byDate = Object.fromEntries(tiles.map(t => [t.date, t]));
-    expect(byDate['2026-11-01']).toMatchObject({ playing: true, names: ['nov1'], weekday: 'Sun', day: 1 });
-    expect(byDate['2026-11-01'].rows.map(r => r.id)).toEqual(['a']);
-    expect(byDate['2026-11-06'].asks).toHaveLength(1);
-    expect(byDate['2026-11-08'].status).toBe('unavailable');
+    const days = twoWeeks({ now: NOW, setlists: SETLISTS, plays, asks });
+    expect(days).toHaveLength(14);
+    expect(days[0].date).toBe('2026-10-25');
+    expect(days[0].isToday).toBe(true);
+    const byDate = Object.fromEntries(days.map(d => [d.date, d]));
+    expect(byDate['2026-11-01'].play).toBe(true);
+    expect(byDate['2026-10-31'].rehearsals.map(s => s.id)).toEqual(['nov1']);
+    expect(days.at(-1).date).toBe('2026-11-07');
+    // Monday weeks start the day after; the next fortnight follows on.
+    expect(twoWeeks({ now: NOW, weekStart: 'monday' })[0].date).toBe('2026-10-19');
+    expect(twoWeeks({ now: NOW, offset: 1 })[0].date).toBe('2026-11-08');
+    expect(twoWeeks({ now: NOW, offset: 1, asks, setlists: SETLISTS })[0].asked).toBe(true);
   });
 
   it('counts who can play per service date', () => {

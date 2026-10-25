@@ -112,7 +112,7 @@ const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
 const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
 const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
-const Schedule = lazy(() => import('@/features/scheduling/Schedule'));
+const Schedule = lazy(() => import('@/features/schedule/Schedule'));
 const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
 const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
@@ -252,11 +252,6 @@ export default function App() {
     members,
     setlistMap: teamSetlistMap,
   }), [user?.id, currentSetlist?.id, schedules, members, teamSetlistMap]);
-  // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
-  // toggle it (alongside the desktop header switch). Defaults to list on phones.
-  const [scheduleView, setScheduleView] = useState(() =>
-    (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) ? 'list' : 'calendar'
-  );
   // True while the setlist builder has unsaved edits — drives the discard
   // guard on header nav + browser back (the builder reports it via callback).
   const setlistDirtyRef = useRef(false);
@@ -1298,7 +1293,6 @@ export default function App() {
   ];
 
   const goLibrary = () => goToMainView('library');
-  const goSetlists = () => goToMainView('setlists');
 
   // Safety net: if a member ends up on an editing surface in a read-only team
   // library (e.g. they switched into the workspace while the editor was open),
@@ -2912,12 +2906,12 @@ export default function App() {
           {view === 'schedule' && (
             <Schedule
               setlists={setlists}
-              onBack={goBack}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
-              onOpenGrid={goScheduling}
-              onOpenSetlists={goSetlists}
-              viewMode={scheduleView}
-              onSetView={setScheduleView}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              onOpenBand={goScheduling}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />

@@ -5,7 +5,7 @@ import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamActivity } from '@/hooks/useTeamActivity';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import {
-  myAsks, myServices, nextUp, daysUntil, bandFor, canYouPlay, whoCanPlay, needsYou, recentActivity, activityFromSongs,
+  myAsks, myServices, nextUp, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
 } from '@/lib/homeData';
 import HomeView from './HomeView';
 
@@ -31,11 +31,13 @@ export default function Home({
   const { user } = useAuth();
   const { team, members, isAdmin, canManageBand, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
-  const { availability, setStatus } = useTeamAvailability(team?.id);
+  const { availability } = useTeamAvailability(leader ? team?.id : null);
   const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
   const push = usePushSubscription();
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
+  const [offset, setOffset] = useState(0);
+  const [picked, setPicked] = useState(null);
   const userId = user?.id;
   const inTeam = !!team;
 
@@ -57,20 +59,12 @@ export default function Home({
     };
   }, [setlists, schedules, userId, setlistMap, now, inTeam, leader, members]);
 
-  // The strip: the next five Sundays and any day you're asked about. Only in
-  // a church, where availability lives.
-  const canPlay = useMemo(() => {
-    if (!inTeam || !userId) return null;
-    const mine = availability.filter(a => a.user_id === userId);
-    return canYouPlay({ now, setlists, asks, plays, mine })
-      .map(t => ({ ...t, setlists: setlists.filter(sl => sl.date === t.date) }));
-  }, [inTeam, userId, availability, now, setlists, asks, plays]);
-  // One answer covers the day: the availability row, and every schedule row of
-  // yours on that date (an ask answered, or a yes taken back).
-  const answerDay = async (tile, value) => {
-    await setStatus(tile.date, value);
-    await Promise.all(tile.rows.filter(r => r.availability !== value).map(r => updateSchedule?.(r.id, { availability: value })));
-  };
+  // Personal library: every dated setlist is "yours".
+  const stripPlays = inTeam ? plays : setlists.filter(sl => sl.date).map(setlist => ({ setlist }));
+  const days = twoWeeks({ now, weekStart: settings?.firstDayOfWeek === 'monday' ? 'monday' : 'sunday', offset, setlists, plays: stripPlays, asks });
+  // The day under the strip: the one picked, else the first day ahead with something on.
+  const firstBusy = days.find(d => !d.isPast && (d.play || d.asked || d.services.length || d.rehearsals.length));
+  const selected = picked && days.some(d => d.date === picked) ? picked : (firstBusy || days.find(d => d.isToday) || days[0])?.date;
 
   const needs = leader ? needsYou({ joinRequests, setlists, schedules, setlistMap, now }) : [];
   const onNeed = (it) => {
@@ -115,11 +109,12 @@ export default function Home({
       clockFormat={settings?.clockFormat || '12h'}
       needs={needs}
       onNeed={onNeed}
-      canPlay={canPlay}
-      onAnswerDay={answerDay}
+      asks={asks}
+      onAnswer={(id, availabilityValue) => updateSchedule?.(id, { availability: availabilityValue })}
       next={next}
       onOpenSetlist={onOpenSetlist}
       onMarkReady={onMarkReady}
+      strip={{ days, offset, onOffset: setOffset, selected, onSelect: setPicked }}
       whoCanPlay={leader ? whoCanPlay({ setlists, availability, memberCount: (members || []).length, now }) : null}
       onOpenSchedule={onOpenSchedule}
       setup={setup}
