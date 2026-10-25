@@ -45,11 +45,12 @@ function itemsFromTextContent(textContent) {
  */
 export async function pdfToChart(data) {
   const pdfjs = await loadPdfjs();
-  const doc = await pdfjs.getDocument({
+  const loadingTask = pdfjs.getDocument({
     data: data instanceof Uint8Array ? data : new Uint8Array(data),
     useSystemFonts: true,
     isEvalSupported: false, // the app's CSP has no 'unsafe-eval'
-  }).promise;
+  });
+  const doc = await loadingTask.promise;
 
   try {
     const warnings = [];
@@ -77,7 +78,8 @@ export async function pdfToChart(data) {
     const built = buildChartFromItems(items);
     return { ...built, warnings: [...warnings, ...built.warnings], pages: doc.numPages };
   } finally {
-    doc.destroy();
+    // pdfjs 6 dropped PDFDocumentProxy#destroy; the loading task owns teardown.
+    loadingTask.destroy();
   }
 }
 
