@@ -2,6 +2,7 @@ import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/navIcons';
+import { labelFor } from '@/data/instruments';
 
 // Band: the leader's people × setlists grid (canvas → Schedule → Band).
 // Tapping a cell only fills a plan: an empty cell becomes an ask, a filled one
@@ -110,7 +111,7 @@ export default function BandView({
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-raised text-[10px] font-semibold">{churchInitials(p.name)}</span>
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-[14px] font-medium">{p.name}</span>
-                {p.part && <span className="truncate text-[12px] text-muted-foreground">{p.part}</span>}
+                {p.part && <span className="truncate text-[12px] text-muted-foreground">{labelFor(p.part) || p.part}</span>}
               </span>
             </span>
             {p.cells.map((cell, i) => <Cell key={cell.setlistId} cell={cell} person={p} column={columns[i]} onTap={onTap} />)}
