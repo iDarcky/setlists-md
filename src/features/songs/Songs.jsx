@@ -11,7 +11,7 @@ import { AddSongSheet, TagSheet, ChurchPickerSheet } from './SongsSheets';
 // to another church they lead (only offered when they lead two or more).
 
 export default function Songs({
-  songs = [], setlists = [], readOnly = false, onOpenSong,
+  songs = [], setlists = [], readOnly = false, onOpenSong, onEditSong,
   onSearchCatalog, onImport, onBlank, onTagSongs, onDeleteSongs, onMoveSongs, onCopySongs, otherChurches = [],
 }) {
   const [now] = useState(() => Date.now());
@@ -34,6 +34,7 @@ export default function Songs({
       song,
       keyName: songKey(song),
       line: playLine(stats[song.id], now),
+      stat: stats[song.id],
       next: next.ids.has(song.id),
     }));
   }, [songs, q, sort, stats, filters, now, next]);
@@ -56,6 +57,7 @@ export default function Songs({
         onFilters={setFilters}
         options={options}
         onOpen={onOpenSong}
+        onEdit={leader ? onEditSong : null}
         onAdd={leader ? () => setAddOpen(true) : null}
         onTag={leader && onTagSongs ? (ids) => setTagIds(ids) : null}
         onDelete={leader ? onDeleteSongs : null}
