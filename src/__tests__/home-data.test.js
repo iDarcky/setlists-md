@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  toDateStr, myAsks, myServices, nextUp, daysUntil, twoWeeks, whoCanPlay, needsYou, latestSongs, bandFor,
+  toDateStr, myAsks, myServices, nextUp, daysUntil, twoWeeks, whoCanPlay, needsYou, latestSongs, bandFor, recentActivity, activityFromSongs, timeAgo,
 } from '@/lib/homeData';
 
 // Sunday 25 October 2026, 09:00 local.
@@ -98,5 +98,22 @@ describe('homeData', () => {
   it('lists the latest songs by update time', () => {
     const songs = [{ id: 1, updatedAt: 5 }, { id: 2 }, { id: 3, updatedAt: 9 }];
     expect(latestSongs(songs).map(s => s.id)).toEqual([3, 1]);
+  });
+
+  it('collapses repeated activity and names you', () => {
+    const rows = [
+      { id: 1, action: 'song_edited', entity_id: 'r1', entity_name: 'Holy Forever', actor_id: 'ana', created_at: '2026-10-25T08:00:00' },
+      { id: 2, action: 'availability_set', entity_id: 'x', actor_id: 'ana', created_at: '2026-10-25T07:30:00' },
+      { id: 3, action: 'song_edited', entity_id: 'r1', entity_name: 'Holy Forever', actor_id: 'ana', created_at: '2026-10-25T07:00:00' },
+      { id: 4, action: 'setlist_removed', entity_id: 'r2', entity_name: 'Youth', actor_id: 'me', created_at: '2026-10-24T07:00:00' },
+      { id: 5, action: 'member_joined', entity_id: 'tim', actor_id: 'tim', created_at: '2026-10-23T07:00:00' },
+    ];
+    const items = recentActivity(rows, { nameFor: id => ({ ana: 'Ana M', tim: 'Tim P' })[id], userId: 'me' });
+    expect(items.map(i => `${i.actor} ${i.verb} ${i.object ?? ''}`.trim())).toEqual([
+      'Ana M edited Holy Forever', 'You deleted Youth', 'Tim P joined',
+    ]);
+    expect(items[1].removed).toBe(true);
+    expect(activityFromSongs([{ id: 'a', title: 'A', updatedAt: 3 }])[0]).toMatchObject({ actor: 'You', verb: 'edited', object: 'A' });
+    expect(timeAgo(NOW - 3 * 3600000, NOW)).toBe('3 h ago');
   });
 });

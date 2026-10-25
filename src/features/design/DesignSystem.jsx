@@ -17,7 +17,7 @@ import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
-import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou } from '@/lib/homeData';
+import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -179,10 +179,14 @@ const H_SCHEDULES = [
   ...['am', 'rk', 'ls'].map((u, i) => ({ id: `b${i}`, user_id: u, setlist_id: 's1', availability: 'available' })),
   { id: 'b9', user_id: 'tp', setlist_id: 's1', availability: 'pending' },
 ];
-const H_SONGS = [
-  { id: 'f', title: 'Firm Foundation', artist: 'Cody Carnes', key: 'C' },
-  { id: 'h', title: 'Holy Forever', artist: 'Chris Tomlin', key: 'A' },
-];
+const hAgo = h => new Date(H_NOW - h * 3600000).toISOString();
+const H_ACTIVITY = recentActivity([
+  { id: 1, action: 'song_edited', entity_id: 'h', entity_name: 'Holy Forever', actor_id: 'am', created_at: hAgo(2) },
+  { id: 2, action: 'setlist_created', entity_id: 's2', entity_name: 'Youth Night', actor_id: 'joe', created_at: hAgo(5) },
+  { id: 3, action: 'song_added', entity_id: 'f', entity_name: 'Firm Foundation', actor_id: 'rk', created_at: hAgo(26) },
+  { id: 4, action: 'song_removed', entity_id: 'o', entity_name: 'Oceans', actor_id: 'am', created_at: hAgo(50) },
+  { id: 5, action: 'member_joined', entity_id: 'tp', actor_id: 'tp', created_at: hAgo(80) },
+], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
 
 function HomeDemo({ leader = false, empty = false, layout }) {
   const [offset, setOffset] = useState(0);
@@ -217,8 +221,9 @@ function HomeDemo({ leader = false, empty = false, layout }) {
         { id: 'install', label: 'Put the app on your home screen', done: false, onClick: noop },
         { id: 'push', label: 'Turn on notifications', hint: 'So you hear when you are asked to play', done: false, onClick: noop },
       ] : null}
-      latest={H_SONGS}
-      onOpenSong={noop}
+      activity={H_ACTIVITY}
+      now={H_NOW}
+      onOpenActivity={noop}
       onOpenSongs={noop}
       showNothingPlanned={empty}
       embedded
@@ -231,7 +236,7 @@ function HomeGallery() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-6">
         {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }]].map(([label, props]) => THEMES.map(t => (
-          <Frame key={label + t.id} theme={t.id} width={390} height={1500} scale={0.6} label={`${label} · ${t.label}`}>
+          <Frame key={label + t.id} theme={t.id} width={390} height={1760} scale={0.6} label={`${label} · ${t.label}`}>
             <HomeDemo layout="phone" {...props} />
           </Frame>
         )))}

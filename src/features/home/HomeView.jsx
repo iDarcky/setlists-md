@@ -4,6 +4,7 @@ import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime } from '@/lib/dateFormat';
 import { useMediaQuery } from '@/lib/useMediaQuery';
+import { timeAgo } from '@/lib/homeData';
 import {
   CalendarIcon, MusicIcon, TeamIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon,
   ClockIcon, PinIcon, PlayIcon,
@@ -13,7 +14,7 @@ import {
 // view: Home.jsx works out the data, /design renders this with samples.
 //
 // Order, top to bottom (phone): hello + sync, Needs you (leaders), Can you
-// play?, Next up, your two weeks, Who can play (leaders), Get set up, Latest
+// play?, Next up, your two weeks, Who can play (leaders), Get set up, Recent activity
 // in the library. From 1024px the asks and the leader's lists move to a right
 // column.
 
@@ -332,7 +333,7 @@ function WhoCanPlay({ rows, onOpen, onOpenSchedule }) {
   );
 }
 
-// ── Get set up / nothing planned / latest songs ─────────────────────────────
+// ── Get set up / nothing planned / recent activity ─────────────────────────────
 
 function GetSetUp({ items }) {
   if (!items?.length || items.every(i => i.done)) return null;
@@ -367,20 +368,37 @@ function NothingPlanned({ onBrowse }) {
   );
 }
 
-function Latest({ songs, onOpenSong, onOpenSongs }) {
-  if (!songs?.length) return null;
+function Activity({ items, now, onOpen, onOpenSongs }) {
+  if (!items?.length) return null;
   return (
-    <Section title="Latest in the library" action={onOpenSongs && <TextLink onClick={onOpenSongs}>Songs</TextLink>}>
+    <Section title="Recent activity" action={onOpenSongs && <TextLink onClick={onOpenSongs}>Songs</TextLink>}>
       <List>
-        {songs.map(s => (
-          <button key={s.id} type="button" onClick={() => onOpenSong?.(s)} className={rowButton}>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[15px] font-medium">{s.title}</span>
-              {s.artist && <span className="truncate text-[13px] text-muted-foreground">{s.artist}</span>}
-            </span>
-            {s.key && <span className="font-mono text-[13px] font-semibold text-[var(--chord)]">{s.key}</span>}
-          </button>
-        ))}
+        {items.map(it => {
+          const body = (
+            <>
+              <span
+                aria-hidden="true"
+                className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold', it.actor === 'You' ? 'bg-selected text-link' : 'bg-raised text-foreground')}
+              >
+                {churchInitials(it.actor)}
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[14px]">
+                  <span className="font-medium">{it.actor}</span>
+                  <span className="text-muted-foreground"> {it.verb}</span>
+                  {it.object && <span className={cn('font-medium', it.removed && 'line-through decoration-muted-foreground')}> {it.object}</span>}
+                </span>
+                <span className="text-[12px] text-muted-foreground">{timeAgo(it.at, now)}</span>
+              </span>
+            </>
+          );
+          const canOpen = onOpen && !it.removed && it.kind !== 'member';
+          return canOpen ? (
+            <button key={it.id} type="button" onClick={() => onOpen(it)} className={rowButton}>{body}</button>
+          ) : (
+            <div key={it.id} className={cn(rowButton, 'cursor-default hover:bg-transparent')}>{body}</div>
+          );
+        })}
       </List>
     </Section>
   );
@@ -400,13 +418,13 @@ function Latest({ songs, onOpenSong, onOpenSongs }) {
  * @param {object} [p.strip]              { days, offset, onOffset, selected, onSelect }
  * @param {Array} [p.whoCanPlay]          from whoCanPlay()
  * @param {Array} [p.setup]               [{ id, label, hint, done, onClick }]
- * @param {Array} [p.latest]              songs
+ * @param {Array} [p.activity]            from recentActivity() / activityFromSongs()
  * @param {boolean} [p.showNothingPlanned]
  */
 export default function HomeView({
   name, dateLabel, sync, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
-  strip, whoCanPlay, onOpenSchedule, setup, latest, onOpenSong, onOpenSongs,
+  strip, whoCanPlay, onOpenSchedule, setup, activity, now, onOpenActivity, onOpenSongs,
   showNothingPlanned = false, embedded = false, layout = 'auto',
 }) {
   // One tree, picked by width (rendering both and hiding one would mount the
@@ -429,7 +447,7 @@ export default function HomeView({
   const whoEl = leader && <WhoCanPlay rows={whoCanPlay} onOpen={onOpenSetlist} onOpenSchedule={onOpenSchedule} />;
   const setupEl = <GetSetUp items={setup} />;
   const emptyEl = showNothingPlanned && <NothingPlanned onBrowse={onOpenSongs} />;
-  const latestEl = <Latest songs={latest} onOpenSong={onOpenSong} onOpenSongs={onOpenSongs} />;
+  const activityEl = <Activity items={activity} now={now} onOpen={onOpenActivity} onOpenSongs={onOpenSongs} />;
 
   return (
     <div data-slot="home" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
@@ -439,11 +457,11 @@ export default function HomeView({
           // From 1024px: the service and your weeks on the left, asks and lists on the right.
           <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
             <div className="flex min-w-0 flex-col gap-4">{needsEl}{nextEl}{emptyEl}{stripEl}</div>
-            <div className="flex min-w-0 flex-col gap-4">{asksEl}{whoEl}{setupEl}{latestEl}</div>
+            <div className="flex min-w-0 flex-col gap-4">{asksEl}{whoEl}{setupEl}{activityEl}</div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {needsEl}{asksEl}{nextEl}{emptyEl}{stripEl}{whoEl}{setupEl}{latestEl}
+            {needsEl}{asksEl}{nextEl}{emptyEl}{stripEl}{whoEl}{setupEl}{activityEl}
           </div>
         )}
       </div>

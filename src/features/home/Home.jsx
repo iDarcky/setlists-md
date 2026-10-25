@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
+import { useTeamActivity } from '@/hooks/useTeamActivity';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import {
-  myAsks, myServices, nextUp, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, latestSongs,
+  myAsks, myServices, nextUp, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
 } from '@/lib/homeData';
 import HomeView from './HomeView';
 
@@ -31,6 +32,7 @@ export default function Home({
   const { team, members, isAdmin, canManageBand, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
   const { availability } = useTeamAvailability(leader ? team?.id : null);
+  const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
   const push = usePushSubscription();
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
@@ -79,6 +81,22 @@ export default function Home({
       : []),
   ] : null;
 
+  const nameOf = (uid) => {
+    const m = (members || []).find(x => x.user_id === uid);
+    return m?.profile?.display_name || m?.profile?.email?.split('@')[0] || null;
+  };
+  const activity = inTeam ? recentActivity(activityRows, { nameFor: nameOf, userId }) : activityFromSongs(songs);
+  // Activity rows name the server row; find the local copy by row map, then by name.
+  const openActivity = (it) => {
+    if (it.kind === 'song') {
+      const song = songs.find(s => s.id === it.songId) || songs.find(s => s.title === it.object);
+      if (song) onOpenSong?.(song);
+    } else if (it.kind === 'setlist') {
+      const sl = setlists.find(x => setlistMap[x.id] === it.rowId) || setlists.find(x => x.name === it.object);
+      if (sl) onOpenSetlist?.(sl);
+    }
+  };
+
   const first = (displayName || '').trim().split(/\s+/)[0] || 'there';
   const dateLabel = new Date(now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -100,8 +118,9 @@ export default function Home({
       whoCanPlay={leader ? whoCanPlay({ setlists, availability, memberCount: (members || []).length, now }) : null}
       onOpenSchedule={onOpenSchedule}
       setup={setup}
-      latest={latestSongs(songs, 3)}
-      onOpenSong={onOpenSong}
+      activity={activity}
+      now={now}
+      onOpenActivity={openActivity}
       onOpenSongs={onOpenSongs}
       showNothingPlanned={!next && asks.length === 0}
     />

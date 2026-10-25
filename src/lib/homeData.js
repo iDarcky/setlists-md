@@ -163,3 +163,63 @@ export function needsYou({ joinRequests = [], setlists = [], schedules = [], set
 export function latestSongs(songs = [], limit = 3) {
   return [...songs].filter(s => s.updatedAt).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, limit);
 }
+
+const ACTIVITY_VERBS = {
+  song_added: ['song', 'added'],
+  song_edited: ['song', 'edited'],
+  song_removed: ['song', 'removed'],
+  setlist_created: ['setlist', 'created'],
+  setlist_edited: ['setlist', 'updated'],
+  setlist_removed: ['setlist', 'deleted'],
+  member_joined: ['member', 'joined'],
+};
+
+/**
+ * What changed in the library lately, from `team_activity` rows (newest
+ * first). Repeats of one event on one thing collapse to the newest, so ten
+ * saves of a song read as one "edited". Schedule and availability rows are
+ * left out: Home already shows those as asks and the strip.
+ * `entity_id` is the server ROW id, so the item carries the name as well —
+ * the caller finds the local song or setlist by row map or by name.
+ * @returns {Array<{ id, kind, actorId, actor, verb, object, rowId, at, removed }>}
+ */
+export function recentActivity(rows = [], { nameFor = () => null, userId, limit = 5 } = {}) {
+  const seen = new Set();
+  const out = [];
+  for (const r of rows) {
+    const known = ACTIVITY_VERBS[r.action];
+    if (!known) continue;
+    const key = `${r.action}:${r.entity_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const [kind, verb] = known;
+    const actor = r.actor_id && r.actor_id === userId ? 'You' : nameFor(r.actor_id) || 'Someone';
+    out.push({
+      id: r.id, kind, actorId: r.actor_id, actor, verb,
+      object: kind === 'member' ? null : r.entity_name || null,
+      rowId: r.entity_id, at: new Date(r.created_at).getTime(),
+      removed: verb === 'removed' || verb === 'deleted',
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/** Without a team there is no activity log: your own latest edits stand in. */
+export function activityFromSongs(songs = [], limit = 5) {
+  return latestSongs(songs, limit).map(s => ({
+    id: s.id, kind: 'song', actor: 'You', verb: 'edited', object: s.title, songId: s.id, at: s.updatedAt, removed: false,
+  }));
+}
+
+/** "just now", "5 min ago", "3 h ago", "2 d ago", then a date. */
+export function timeAgo(at, now = Date.now()) {
+  const m = Math.round((now - at) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h ago`;
+  const d = Math.round(h / 24);
+  if (d < 7) return `${d} d ago`;
+  return new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
