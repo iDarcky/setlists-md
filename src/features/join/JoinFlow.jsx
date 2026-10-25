@@ -381,7 +381,7 @@ function YoureIn({ peek, onGoSchedule, onSkipHome }) {
  *                                        the church home and loads it
  * @param {Function} onGoSchedule(teamId) "Say which dates you can play"
  * @param {Function} onSkipHome(teamId)   "Skip to Home"
- * @param {Function} onExit()             leave the flow (bad link, or wait in Personal)
+ * @param {Function} onExit()             leave the flow (bad link, Not now)
  * @param {Function} [onPasswordSignIn]   the regular email + password screen
  */
 export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onExit, onPasswordSignIn }) {
@@ -578,7 +578,6 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
             Waiting for a leader
           </div>
         </div>
-        <Button variant="secondary" size="lg" className="w-full" onClick={leave}>Look around while you wait</Button>
       </Shell>
     );
   }
