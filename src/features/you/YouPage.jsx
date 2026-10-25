@@ -84,7 +84,7 @@ export default function YouPage({
   return (
     <div
       data-slot="you-page"
-      className={cn('min-h-full bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}
+      className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}
     >
       <div className="mx-auto flex w-full max-w-[600px] flex-col px-4 pb-10 sm:px-6 sm:pt-8">
         {/* Back only on a phone: from the iPad up the pill and the top bar are
