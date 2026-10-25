@@ -62,6 +62,8 @@ describe('JoinFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
     await waitFor(() => expect(api.requestToJoin).toHaveBeenCalledWith(CODE, 'Maria Pop', ['vocals', 'drums']));
     expect(await screen.findByText('Waiting for approval')).toBeInTheDocument();
+    // No way into the app until a leader approves (to-do row 74).
+    expect(screen.queryByText('Look around while you wait')).not.toBeInTheDocument();
     // The email-prefix default name follows what they told the church.
     expect(auth.updateProfile).toHaveBeenCalledWith({ display_name: 'Maria Pop' });
   });
