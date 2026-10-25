@@ -1,48 +1,28 @@
 import React, { useRef, useEffect } from 'react';
 import { APP_HEIGHT } from '@/lib/appViewport';
-import TopHeader from './TopHeader';
 import { useMediaQuery, useIsTablet } from '@/lib/useMediaQuery';
 
 export default function DesktopLayout({
   children,
   activeView,
   scrollKey,
-  onNavigate,
   isFullscreen = false,
-  hasUnreadNotifications,
-  notifications,
-  onMarkRead,
-  onNotificationAction,
   drawerOpen = false,
   drawerPresentation = 'drawer',
-  displayName,
-  plan,
-  avatarUrl,
   hideBottomSpacer = false,
-  activeLibrary,
-  setActiveLibrary,
-  team,
-  teams,
-  onChangeWorkspace,
-  onOpenHelp,
-  onNewWorkspace,
-  newWorkspaceLocked = false,
-  supportContact,
-  songs = [],
-  setlists = [],
-  onSelectSong,
-  onSelectSetlist,
-  showGlobalSearch = false,
-  hidePersonal = false,
-  teamBadgeCount = 0,
+  // The app's top bar (AppTopBar). `topBarOnPhone` says whether this view
+  // shows it below 640px too — on a phone only the main places carry it.
+  topBar = null,
+  topBarOnPhone = false,
 }) {
   const mainRef = useRef(null);
   const isMobile = useMediaQuery('(max-width: 639.98px)');
   const isTablet = useIsTablet();
   const applyDrawerTransform = drawerOpen && isMobile;
-  // The bottom nav is present on mobile and tablet — both need scroll room so
-  // the floating bar never covers the last rows of content.
-  const showBottomSpacer = !hideBottomSpacer && (isMobile || isTablet);
+  // The nav pill floats at the bottom below 1024px — that width needs scroll
+  // room so the pill never covers the last rows of content.
+  const pillAtBottom = useMediaQuery('(max-width: 1023.98px)');
+  const showBottomSpacer = !hideBottomSpacer && pillAtBottom;
 
   // Scroll to top whenever the view changes. Keyed on `scrollKey` (the REAL
   // route + entity id) rather than `activeView`, because activeView collapses
@@ -61,42 +41,11 @@ export default function DesktopLayout({
     // height was stated, and the one the reader's scroller inherits from. See
     // `lib/appViewport.js`.
     <div className="w-full flex flex-col overflow-hidden" style={{ height: APP_HEIGHT }}>
-      {/*
-        Desktop / tablet top header (sm+). Replaces the old left sidebar and the
-        church "TeamBanner" — the workspace switcher in the header now owns
-        Personal ↔ team/church switching. Hidden on mobile, which keeps the
-        bespoke MobileTopBar + BottomNav shell.
-      */}
-      {!isFullscreen && !(isTablet && activeView === 'editor') && (
-        <TopHeader
-          className="hidden sm:grid"
-          hidePrimaryNav={isTablet}
-          activeView={activeView}
-          onNavigate={onNavigate}
-          hasUnreadNotifications={hasUnreadNotifications}
-          notifications={notifications}
-          onMarkRead={onMarkRead}
-          onNotificationAction={onNotificationAction}
-          displayName={displayName}
-          plan={plan}
-          avatarUrl={avatarUrl}
-          activeLibrary={activeLibrary}
-          setActiveLibrary={setActiveLibrary}
-          team={team}
-          teams={teams}
-          onManageTeams={onChangeWorkspace}
-          onOpenHelp={onOpenHelp}
-          onNewWorkspace={onNewWorkspace}
-          newWorkspaceLocked={newWorkspaceLocked}
-          supportContact={supportContact}
-          songs={songs}
-          setlists={setlists}
-          onSelectSong={onSelectSong}
-          onSelectSetlist={onSelectSetlist}
-          showSearch={showGlobalSearch}
-          hidePersonal={hidePersonal}
-          teamBadgeCount={teamBadgeCount}
-        />
+      {/* The top bar. From 640px it is on every screen that is not full
+          screen (the tablet editor keeps its own chrome); on a phone only on
+          the views that ask for it. */}
+      {topBar && !isFullscreen && !(isTablet && activeView === 'editor') && (
+        <div className={topBarOnPhone ? 'contents' : 'hidden sm:contents'}>{topBar}</div>
       )}
 
       {/*

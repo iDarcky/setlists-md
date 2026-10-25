@@ -33,10 +33,12 @@ import Library from '@/features/library/Library';
 import Settings from '@/features/settings/Settings';
 import Account from '@/features/settings/Account';
 import Setlists from '@/features/setlists/Setlists';
-import BottomNav from '@/app/BottomNav';
 import DesktopLayout from '@/app/DesktopLayout';
-import MobileTopBar from '@/app/MobileTopBar';
-import MobileDrawer from '@/app/MobileDrawer';
+import { AppTopBar } from '@/app/AppTopBar';
+import { NavPill } from '@/app/NavPill';
+import { navItemFor } from '@/app/navItems';
+import { ChurchSheet } from '@/app/ChurchSheet';
+import YouPage from '@/features/you/YouPage';
 import NotificationTray from '@/features/notifications/NotificationTray';
 import NotificationsPage from '@/features/notifications/NotificationsPage';
 import ConflictResolver from '@/features/sync/ConflictResolver';
@@ -294,12 +296,8 @@ export default function App() {
   const [authJoining, setAuthJoining] = useState(null);
   const [newSongModal, setNewSongModal] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerOpenKey, setDrawerOpenKey] = useState(0);
-  const openDrawer = () => {
-    setDrawerOpenKey(k => k + 1);
-    setDrawerOpen(true);
-  };
+  // The church switcher, opened from the church name in the top bar.
+  const [churchSheetOpen, setChurchSheetOpen] = useState(false);
   const [notifTrayOpen, setNotifTrayOpen] = useState(false);
   // Account-wall modal state — surfaced after the user saves their first
   // local item (song or setlist) without being signed in.
@@ -1235,7 +1233,6 @@ export default function App() {
     markRead: handleMarkNotificationRead,
     dismiss: handleDismissNotification,
     clearAll: handleClearAllNotifications,
-    markAllRead: handleMarkAllNotificationsRead,
     onAction: handleNotificationAction,
   } = useNotificationFeed({
     schedules, setlists, members, teamNotifications, user, settings, setSettings,
@@ -1403,7 +1400,6 @@ export default function App() {
   // it we surface a "limit reached / contact support" affordance instead.
   const eligibleToCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
   const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
-  const newWorkspaceLocked = eligibleToCreateWorkspace && atWorkspaceLimit;
   const goSchedule = () => navigate('schedule');
   const goScheduling = () => navigate('scheduling');
 
@@ -2240,16 +2236,6 @@ export default function App() {
     }
   };
 
-  // Open a .zip picker then import — used by the mobile/tablet BottomNav menu,
-  // which (unlike the desktop list header) has no file input of its own.
-  const pickAndImportSetlist = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.zip';
-    input.onchange = (e) => { const f = e.target.files?.[0]; if (f) handleImportSetlist(f); };
-    input.click();
-  };
-
   if (view === 'share-view') {
     return (
       <ErrorBoundary>
@@ -2383,6 +2369,32 @@ export default function App() {
   } else if (profile?.is_pro) {
     plan = 'Pro';
   }
+  // ── The new navigation (canvas "Navigation options": pill B, menu B) ──
+  // Views that carry the nav pill. Everything else (a song, a service, the
+  // reader, the editor) has its own "← Back".
+  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'notifications', 'upgrade', 'you'];
+  // Schedule needs a church; on its own, Personal's Schedule is its setlists.
+  const goNavItem = (id) => goToMainView(
+    id === 'songs' ? 'library' : id === 'schedule' && activeLibrary === 'personal' ? 'setlists' : id,
+  );
+  const activeWorkspace = workspaces.find(w => w.id === activeLibrary);
+  const appTopBar = (
+    <AppTopBar
+      church={{ name: activeWorkspace?.name || currentWorkspaceName, logoUrl: activeWorkspace?.id === 'personal' ? null : activeWorkspace?.avatarUrl }}
+      onOpenChurches={workspaces.length > 1 ? () => setChurchSheetOpen(true) : undefined}
+      unread={hasUnreadNotifications}
+      onOpenNotifications={() => navigate('notifications')}
+      me={{ name: displayName, url: profile?.avatar_url || null }}
+      meBadge={pendingJoinCount}
+      onOpenYou={() => navigate('you')}
+      add={isTeamReadOnly ? undefined
+        : view === 'library' ? { label: 'New song', onClick: () => openNewSongModal() }
+        : ['schedule', 'scheduling', 'setlists'].includes(view) ? { label: 'New setlist', onClick: () => goSetlistBuild() }
+        : undefined}
+      pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
+    />
+  );
+
   const handleSignOut = async () => {
     const ok = await confirm({
       title: 'Sign out?',
@@ -2459,70 +2471,11 @@ export default function App() {
         <DesktopLayout
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
-          onNavigate={goToMainView} 
           isFullscreen={view === 'setlist-read' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
-          hideBanner={view === 'setlist-read'}
-          hasUnreadNotifications={hasUnreadNotifications} 
-          notifications={mergedNotifications} 
-          onMarkRead={handleMarkNotificationRead} 
-          onNotificationAction={handleNotificationAction} 
-          drawerOpen={drawerOpen}
-          drawerPresentation={settings?.accountPanel ? 'sheet' : 'drawer'} 
-          displayName={displayName}
-          plan={plan}
-          avatarUrl={profile?.avatar_url}
-          activeLibrary={activeLibrary}
-          setActiveLibrary={switchWorkspace}
-          team={team}
-          teams={teams}
-          onChangeWorkspace={goTeam}
-          onOpenHelp={() => navigate('help')}
-          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
-          newWorkspaceLocked={newWorkspaceLocked}
-          supportContact={SUPPORT_CONTACT}
-          syncState={syncState}
-          onSyncNow={() => triggerSync({ silent: false })}
-          isOnline={isOnline}
-          songs={songs}
-          setlists={setlists}
-          onSelectSong={goChart}
-          onSelectSetlist={goSetlistView}
-          // The header search hides on screens that already have their own
-          // search input: Dashboard (home), Library, Setlists, and the setlist
-          // builder (its library picker). Fullscreen views don't render the
-          // header at all.
-          showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
-          hidePersonal={hidePersonalSpace}
-          teamBadgeCount={pendingJoinCount}
-          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
+          topBar={appTopBar}
+          topBarOnPhone={['home', 'library', 'setlists', 'schedule'].includes(view)}
+          hideBottomSpacer={!PILL_VIEWS.includes(view)}
         >
-          {['home', 'library', 'setlists'].includes(view) && (
-            <MobileTopBar
-              key={view}
-              view={view}
-            songs={songs}
-              setlists={setlists}
-              onOpenDrawer={openDrawer}
-              menuBadgeCount={activeLibrary !== 'personal' ? pendingJoinCount : 0}
-              onOpenNotifications={user ? () => navigate('notifications') : undefined}
-              unreadCount={user ? mergedNotifications.filter(n => !n.read).length : 0}
-              onSelectSong={goChart}
-              onSelectSetlist={goSetlistView}
-              activeLibrary={activeLibrary}
-              workspaces={workspaces}
-              setActiveLibrary={switchWorkspace}
-              onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
-              newWorkspaceLocked={newWorkspaceLocked}
-              supportContact={SUPPORT_CONTACT}
-              searchScope={
-                view === 'library' && settings?.songsLibraryPlus ? 'songs'
-                : view === 'setlists' && settings?.setlistsLibraryPlus ? 'setlists'
-                : 'all'
-              }
-              hmMenu={!!settings?.hmMenu}
-              accountPanel={!!settings?.accountPanel}
-            />
-          )}
           {view === 'home' && (
             <Dashboard
             songs={songs}
@@ -2812,6 +2765,29 @@ export default function App() {
               }}
             />
           )}
+          {view === "you" && settings && (
+            <YouPage
+              me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
+              signedIn={isSignedIn}
+              church={activeLibrary !== 'personal' ? { name: currentWorkspaceName } : null}
+              teamBadge={pendingJoinCount}
+              onBack={goBack}
+              onProfile={() => goToMainView('settings', { settingsPanel: 'account' })}
+              onTeam={goTeam}
+              onSettings={() => goToMainView('settings')}
+              theme={settings?.theme}
+              onThemeChange={(theme) => setSettings(prev => ({ ...prev, theme }))}
+              onHelp={() => navigate('help')}
+              onWhatsNew={() => goToMainView('settings', { settingsPanel: 'whatsnew' })}
+              hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
+              onInstall={!isStandalone && (isIOS || canInstall)
+                ? async () => { if (isIOS) openIOSHint(); else await promptInstall(); }
+                : undefined}
+              onDesign={() => navigate('design')}
+              onSignOut={handleSignOut}
+              onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
+            />
+          )}
           {view === "notifications" && (
             <NotificationsPage
               notifications={mergedNotifications}
@@ -2930,6 +2906,7 @@ export default function App() {
               onBack={goBack}
               onOpenSetlist={goSetlistView}
               onOpenGrid={goScheduling}
+              onOpenSetlists={goSetlists}
               viewMode={scheduleView}
               onSetView={setScheduleView}
               clockFormat={settings?.clockFormat || '12h'}
@@ -2946,80 +2923,22 @@ export default function App() {
           )}
         </DesktopLayout>
       )}
-      {/* Mobile glass nav lives at the App root (not inside <main>) so the
-          drawer's transform/will-change doesn't capture its fixed positioning
-          or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'notifications'].includes(view) && !drawerOpen && (
-        <BottomNav
-          teamBadgeCount={pendingJoinCount}
-          activeView={view}
-          onNavigate={goToMainView}
-          activeLibrary={activeLibrary}
-          onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-          onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
-          onImportSetlist={isTeamReadOnly ? null : pickAndImportSetlist}
-          scheduleView={scheduleView}
-          onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
-          onMarkAllRead={hasUnreadNotifications ? handleMarkAllNotificationsRead : null}
-          onClearAllNotifications={view === 'notifications' && mergedNotifications.some(n => n.type !== 'schedule_request') ? handleClearAllNotifications : null}
-          // The Setlists branch is gone with the docked pane: it fired off the
-          // pane's selection, and with no pane nothing can select a setlist
-          // from the list any more — the row opens the setlist instead.
-          onPlay={
-            view === 'setlist-view' && currentSetlist
-              ? () => goSetlistRead(currentSetlist)
-              : null
-          }
-        />
+      {/* The nav pill floats at the bottom below 1024px (phone, iPad
+          portrait); from 1024px it sits in the top bar. Rendered at the App
+          root so nothing inside <main> captures its fixed positioning. */}
+      {!lockedOut && PILL_VIEWS.includes(view) && (
+        <div className="lg:hidden">
+          <NavPill placement="bottom" active={navItemFor(view)} onSelect={goNavItem} />
+        </div>
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (
-        <EdgeSwipeHotspot onOpen={openDrawer} />
-      )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
-        <MobileDrawer
-          open={drawerOpen}
-          openKey={drawerOpenKey}
-          onClose={() => setDrawerOpen(false)}
-          userName={displayName}
-          email={displayEmail}
-          plan={plan}
-          isSignedIn={isSignedIn}
-          hasUnreadNotifications={hasUnreadNotifications}
-          hmMenu={!!settings?.hmMenu}
-          accountPanel={!!settings?.accountPanel}
+      {!lockedOut && accountsEnabled && (
+        <ChurchSheet
+          open={churchSheetOpen}
+          onOpenChange={setChurchSheetOpen}
           workspaces={workspaces}
-          setActiveLibrary={switchWorkspace}
-          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
-          avatarUrl={profile?.avatar_url || null}
-          onOpenAccount={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'account' }); }}
-          onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
-          onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
-          onOpenNotifications={() => { setDrawerOpen(false); navigate('notifications'); }}
-          onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
-          onOpenWhatsNew={() => {
-            setDrawerOpen(false);
-            goToMainView('settings', { settingsPanel: 'whatsnew' });
-          }}
-          hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
-          onSignOut={async () => { setDrawerOpen(false); await handleSignOut(); }}
-          onUpgrade={() => { setDrawerOpen(false); navigate('upgrade'); }}
-          onSignIn={() => { setDrawerOpen(false); setAuthStartMode('signin'); navigate('signin'); }}
-          onCreateAccount={() => { setDrawerOpen(false); setAuthStartMode('signup'); navigate('signin'); }}
-          onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
-          teamBadgeCount={pendingJoinCount}
-          teams={teams}
-          activeLibrary={activeLibrary}
-          canInstall={canInstall}
-          isIOS={isIOS}
-          isStandalone={isStandalone}
-          onInstall={async () => {
-            setDrawerOpen(false);
-            if (isIOS) {
-              openIOSHint();
-            } else if (canInstall) {
-              await promptInstall();
-            }
-          }}
+          activeId={activeLibrary}
+          onPick={switchWorkspace}
+          onNew={canCreateWorkspace ? goNewWorkspace : undefined}
         />
       )}
       {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
@@ -3123,47 +3042,4 @@ export default function App() {
   );
 }
 
-// Fixed strip on the left edge of mobile viewport — captures a swipe-right
-// gesture to open the drawer. Rendered only on main tabs while drawer is closed.
-function EdgeSwipeHotspot({ onOpen }) {
-  const startRef = useRef(null);
-  const firedRef = useRef(false);
-
-  const onTouchStart = (e) => {
-    const t = e.touches?.[0];
-    if (!t) return;
-    startRef.current = { x: t.clientX, y: t.clientY };
-    firedRef.current = false;
-  };
-  const onTouchMove = (e) => {
-    if (firedRef.current || !startRef.current) return;
-    const t = e.touches?.[0];
-    if (!t) return;
-    const dx = t.clientX - startRef.current.x;
-    const dy = Math.abs(t.clientY - startRef.current.y);
-    if (dx > 40 && dy < 30) {
-      firedRef.current = true;
-      onOpen();
-    }
-  };
-  const reset = () => { startRef.current = null; };
-
-  return (
-    <div
-      aria-hidden="true"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={reset}
-      onTouchCancel={reset}
-      className="fixed top-0 left-0 z-[150] sm:hidden"
-      style={{
-        width: '24px',
-        height: APP_HEIGHT,
-        // Keep the strip transparent but touch-reachable
-        background: 'transparent',
-        touchAction: 'pan-y',
-      }}
-    />
-  );
-}
 
