@@ -53,9 +53,19 @@ export function hasOwnPersonalContent(songs, setlists, demoIds = []) {
 }
 
 /**
+ * TEMPORARY (2026-10-25, owner's call): anyone in a church or band does not
+ * get Personal at all, whatever it holds, while we decide what Personal is
+ * for. Nothing is deleted: its songs stay on this device (and on the server
+ * with cloud sync) and come back when this is switched off. People in no
+ * shared Space still have it, because it is the only library they have.
+ */
+export const PERSONAL_BLOCKED_IN_CHURCH = true;
+
+/**
  * Hide "Personal" from the Space switcher? Only for someone who belongs to a
  * church, has nothing of their own there, and hasn't asked to see it. Anything
- * uncertain keeps it visible:
+ * uncertain keeps it visible (unless `blocked`, which hides it for every
+ * church member — see PERSONAL_BLOCKED_IN_CHURCH):
  *   - `showPersonalPref === true`  (Settings → "Show my own songs and setlists")
  *   - not in any shared Space
  *   - personal content exists, or isn't known yet (`null`)
@@ -63,6 +73,7 @@ export function hasOwnPersonalContent(songs, setlists, demoIds = []) {
  *   - Personal is the open Space, or the chosen home Space
  */
 export function shouldHidePersonal({
+  blocked = false,
   showPersonalPref,
   inChurch,
   hasPersonalContent,
@@ -70,8 +81,9 @@ export function shouldHidePersonal({
   activeIsPersonal = false,
   defaultIsPersonal = false,
 }) {
-  if (showPersonalPref === true) return false;
   if (!inChurch) return false;
+  if (blocked) return true;
+  if (showPersonalPref === true) return false;
   if (hasPersonalContent !== false) return false;
   if (personalCloud) return false;
   if (activeIsPersonal || defaultIsPersonal) return false;

@@ -16,7 +16,7 @@ import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDif
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
 import { isLockedOut } from '@/lib/appGate';
-import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal, PERSONAL_BLOCKED_IN_CHURCH } from '@/lib/spaceDefaults';
 
 const DEMO_SONG_IDS = Object.keys(DEMO_BASELINES);
 import { createBackupMirror } from '@/sync/backup';
@@ -393,6 +393,14 @@ export default function App() {
     if (!id) return;
     setSettings(prev => (prev && !prev.defaultSpaceId ? { ...prev, defaultSpaceId: id } : prev));
   }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
+
+  // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
+  // whoever is in it once their memberships load is moved to their church.
+  useEffect(() => {
+    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || activeLibrary !== 'personal') return;
+    const id = churchDefaultSpaceId({ current: null, teams });
+    if (id) setActiveLibrary(id);
+  }, [teamLoading, teams, activeLibrary]);
 
   // Does the personal library hold anything of the user's own? While it is
   // the open library the answer is in state; otherwise read it from IndexedDB
@@ -1275,6 +1283,7 @@ export default function App() {
     ? (loaded ? hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS) : null)
     : storedPersonalHasContent;
   const hidePersonalSpace = shouldHidePersonal({
+    blocked: PERSONAL_BLOCKED_IN_CHURCH,
     showPersonalPref: settings?.showPersonalSpace,
     inChurch: teams.length > 0,
     hasPersonalContent: personalHasContent,
