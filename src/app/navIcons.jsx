@@ -57,3 +57,15 @@ export const SignOutIcon = ({ size = 20 }) => (
 export const BackIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="2" {...base}><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
 );
+export const ClockIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+);
+export const PinIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" /></svg>
+);
+export const PlayIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" /></svg>
+);
+export const ChevronLeftIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="2" {...base}><path d="m15 6-6 6 6 6" /></svg>
+);
