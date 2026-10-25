@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
+import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
@@ -29,7 +30,6 @@ import { resolveOpeningMode } from '@/lib/openingMode';
 import { APP_HEIGHT } from '@/lib/appViewport';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Home from '@/features/home/Home';
-import Library from '@/features/library/Library';
 import Settings from '@/features/settings/Settings';
 import Account from '@/features/settings/Account';
 import Setlists from '@/features/setlists/Setlists';
@@ -113,6 +113,7 @@ const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
 const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
 const Schedule = lazy(() => import('@/features/schedule/Schedule'));
+const Songs = lazy(() => import('@/features/songs/Songs'));
 const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
 const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
@@ -1619,6 +1620,12 @@ export default function App() {
 
   // Candidate destinations for moving/copying a song — every workspace except
   // the one currently active.
+  // Churches the user can change songs in (owner, admin or leader). Move and
+  // Copy on Songs only appear when there is another one to send songs to.
+  const ledChurches = teams
+    .filter(t => t.owner_id === user?.id || roleCanWriteLibrary(t.myRole))
+    .map(t => ({ id: t.id, name: t.name }));
+
   const moveCopyWorkspaces = [
     { id: 'personal', name: 'Personal' },
     ...teams.map(t => ({ id: t.id, name: t.name })),
@@ -1773,39 +1780,6 @@ export default function App() {
     if (isTeamReadOnly || !target) return;
     setSetlists(prev => prev.map(sl => (sl.id === target.id ? { ...sl, status: 'ready', updatedAt: Date.now() } : sl)));
     toast({ title: 'Marked ready', description: target.name || undefined });
-  };
-
-  const handleAddSongsToSetlist = (songIds, setlistId) => {
-    const target = setlists.find(s => s.id === setlistId);
-    if (!target) return;
-    let added = 0;
-    setSetlists(prev => prev.map(sl => {
-      if (sl.id !== setlistId) return sl;
-      const existing = new Set((sl.items || []).filter(i => i.songId).map(i => i.songId));
-      const newItems = songIds
-        .filter(id => !existing.has(id))
-        .map(id => {
-          const song = songs.find(s => s.id === id);
-          if (!song) return null;
-          const arr = (song.arrangements || []).find(a => a.id === song.defaultArrangementId) || song.arrangements?.[0];
-          return {
-            songId: id,
-            songTitle: song.title,
-            arrangementId: arr?.id,
-            arrangementName: arr?.name,
-            note: '',
-            transpose: 0,
-            capo: arr?.capo || 0,
-          };
-        })
-        .filter(Boolean);
-      added = newItems.length;
-      return { ...sl, items: [...(sl.items || []), ...newItems] };
-    }));
-    toast({
-      title: 'Added to setlist',
-      description: `${added} song${added === 1 ? '' : 's'} → ${target.name || 'setlist'}`,
-    });
   };
 
   // Bulk add/remove tags across a selection (songsLibraryPlus). Reference-
@@ -2399,7 +2373,6 @@ export default function App() {
       meBadge={pendingJoinCount}
       onOpenYou={() => navigate('you')}
       add={isTeamReadOnly ? undefined
-        : view === 'library' ? { label: 'New song', onClick: () => openNewSongModal() }
         : ['schedule', 'scheduling', 'setlists'].includes(view) ? { label: 'New setlist', onClick: () => goSetlistBuild() }
         : undefined}
       pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
@@ -2510,38 +2483,19 @@ export default function App() {
             />
           )}
           {view === 'library' && (
-            <Library
-            songs={songs}
-              loaded={loaded}
-              onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-              onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
-              readOnly={isTeamReadOnly}
+            <Songs
+              songs={songs}
               setlists={setlists}
-              activeLibrary={activeLibrary}
-              workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
-              onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
-              onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
+              readOnly={isTeamReadOnly}
+              onOpenSong={goChart}
+              onSearchCatalog={isTeamReadOnly ? null : () => openNewSongModal()}
+              onImport={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
-              plus={!!settings?.songsLibraryPlus}
-              tableColumns={settings?.tableColumns}
-              onSetTableColumns={setTableColumns}
-              onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
-              onCopySongs={teams.length > 0 ? handleCopySongs : null}
-              chartDefaults={{
-                defaultColumns: settings?.defaultColumns,
-                defaultFontSize: settings?.defaultFontSize,
-                showInlineNotes: settings?.showInlineNotes !== false,
-                inlineNoteStyle: settings?.inlineNoteStyle || 'dashes',
-                displayRole: settings?.displayRole || 'leader',
-                duplicateSections: settings?.duplicateSections || 'full',
-                chartLayout: settings?.chartLayout || 'columns',
-
-                settings,
-
-                onUpdateSettings: (key, value) => setSettings(prev => ({ ...prev, [key]: value })),
-              }}
-              canEdit={canEdit}
+              onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
+              onMoveSongs={isTeamReadOnly ? null : handleMoveSongs}
+              onCopySongs={isTeamReadOnly ? null : handleCopySongs}
+              otherChurches={ledChurches.filter(t => t.id !== activeLibrary)}
             />
           )}
           {view === 'setlists' && (

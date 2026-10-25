@@ -56,7 +56,7 @@ export function songFacetValues(song, facetKey) {
 // Fixed display order where the value set is bounded.
 const TEMPO_ORDER = ['Slow', 'Mid', 'Fast'];
 const KEY_ROOT_ORDER = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
-function keyRank(k) {
+export function keyRank(k) {
   // Sort by root note order, then minor after major of the same root.
   const root = k.replace(/m.*$/i, '').replace(/(maj|min|sus|add|dim|aug).*$/i, '');
   const i = KEY_ROOT_ORDER.indexOf(root);
