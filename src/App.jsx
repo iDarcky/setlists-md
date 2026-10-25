@@ -8,11 +8,17 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
+import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin } from '@/lib/joinLink';
+import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
 import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDiff } from './tempoHistory';
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
+import { isLockedOut } from '@/lib/appGate';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
+
+const DEMO_SONG_IDS = Object.keys(DEMO_BASELINES);
 import { createBackupMirror } from '@/sync/backup';
 import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
@@ -21,7 +27,7 @@ import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
 import { APP_HEIGHT } from '@/lib/appViewport';
-import OnboardingFlow from '@/features/onboarding/OnboardingFlow';
+import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Dashboard from '@/features/dashboard/Dashboard';
 import Library from '@/features/library/Library';
 import Settings from '@/features/settings/Settings';
@@ -74,6 +80,7 @@ const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
 const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
+const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
 // PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
 // 2026-08-11 and the three old surfaces were deleted on 2026-10-11.
@@ -155,7 +162,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 }
 
 export default function App() {
-  const { user, profile, signOut, updateProfile } = useAuth();
+  const { user, profile, signOut, updateProfile, loading: authLoading, isConfigured: accountsEnabled } = useAuth();
   // The personal library's workspace on Supabase (step 4). Entitled by the
   // PROFILE's tier — never the active team's — so a free account inside a
   // church workspace does not get a personal cloud it loses on switching back.
@@ -164,7 +171,7 @@ export default function App() {
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
-  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading } = useTeam();
+  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams, pendingJoinCount = 0 } = useTeam();
   const { schedules, updateSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
@@ -196,12 +203,22 @@ export default function App() {
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (window.location.pathname === '/copyright') return 'legal-copyright';
+      // `/join/<code>` — a church's join link. Public: works before sign-in.
+      if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
       if (shareTokenFromUrl()) return 'share-view';
     }
     return 'loading';
   });
   const [shareToken] = useState(() => shareTokenFromUrl());
+  // The join-link code this session is working on: from the URL, or resumed
+  // from localStorage after a sign-in redirect (see the resume effect below).
+  const [joinCode, setJoinCode] = useState(() => (
+    typeof window !== 'undefined' ? parseJoinPath(window.location.pathname) : null
+  ));
+  // After joining, switch into the new Space as soon as TeamProvider has it:
+  // { teamId, view }. Membership loads asynchronously after approval.
+  const [pendingSpaceSwitch, setPendingSpaceSwitch] = useState(null);
   const [currentSong, setCurrentSong] = useState(null);
   // Arrangement to open in the editor (the one the user was viewing). Reset
   // whenever we enter the editor unless an explicit id is passed.
@@ -359,13 +376,108 @@ export default function App() {
   useEffect(() => {
     if (!loaded || !user?.id || teamLoading) return;
     if (defaultSpaceAppliedForRef.current === user.id) return;
-    const target = settings?.defaultSpaceId;
-    if (!target) return; // nothing set yet (or cloud prefs not hydrated) — wait
+    const { done, switchTo } = homeSpaceStep({ target: settings?.defaultSpaceId, activeLibrary, teams });
+    if (!done) return; // no home yet, or its membership hasn't loaded — wait
     defaultSpaceAppliedForRef.current = user.id;
-    if (target !== 'personal' && activeLibrary === 'personal' && teams.some(t => t.id === target)) {
-      setActiveLibrary(target);
-    }
+    if (switchTo) setActiveLibrary(switchTo);
   }, [loaded, user?.id, teamLoading, teams, activeLibrary, settings?.defaultSpaceId]);
+
+  // Church-first: someone in a church who never picked a home Space gets that
+  // church as home (the effect above then opens into it). Waits for the
+  // profile so cloud preferences are hydrated first — the functional update
+  // only fills a gap, so a cloud 'personal' still wins.
+  useEffect(() => {
+    if (!loaded || !user?.id || teamLoading || !profile) return;
+    if (settings?.defaultSpaceId) return;
+    const id = churchDefaultSpaceId({ current: settings?.defaultSpaceId, teams });
+    if (!id) return;
+    setSettings(prev => (prev && !prev.defaultSpaceId ? { ...prev, defaultSpaceId: id } : prev));
+  }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
+
+  // Does the personal library hold anything of the user's own? While it is
+  // the open library the answer is in state; otherwise read it from IndexedDB
+  // (null until known — unknown never hides anything).
+  const [storedPersonalHasContent, setStoredPersonalHasContent] = useState(null);
+  useEffect(() => {
+    if (activeLibrary === 'personal') return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [ps, psl] = await Promise.all([loadSongs('personal'), loadSetlists('personal')]);
+        if (!cancelled) setStoredPersonalHasContent(hasOwnPersonalContent(ps, psl, DEMO_SONG_IDS));
+      } catch {
+        if (!cancelled) setStoredPersonalHasContent(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeLibrary, user?.id]);
+
+  // ── Join link: resume after sign-in ───────────────────────────────────────
+  // OAuth comes back through /auth/callback and a magic link opens `/` in a
+  // new tab — both lose the `/join/<code>` URL. JoinFlow parks the code in
+  // localStorage (stage 'auth') before sign-in; once a user exists and the app
+  // has settled on an ordinary screen, reopen the flow.
+  useEffect(() => {
+    if (!loaded || !user?.id) return;
+    if (['join', 'auth-callback', 'recovery', 'google-drive-callback', 'share-view', 'loading', 'signin'].includes(view)) return;
+    const pending = loadPendingJoin();
+    if (!shouldResumeJoin({ pathCode: null, pending, signedIn: true })) return;
+    setJoinCode(pending.code);
+    setView('join');
+  }, [loaded, user?.id, view]);
+
+  // ── Welcome gate ──────────────────────────────────────────────────────────
+  // The main app is for signed-in users and people who chose Try solo. Any
+  // other way in (Back from Log in, signing out, a stale landing view) lands
+  // on the welcome screen instead, with nothing behind it to go back to.
+  const lockedOut = isLockedOut({
+    view,
+    loaded,
+    authLoading,
+    configured: accountsEnabled,
+    signedIn: !!user?.id,
+    soloMode: !!settings?.soloMode,
+  });
+  useEffect(() => {
+    if (!lockedOut) return;
+    historyRef.current = [];
+    setView('onboarding');
+  }, [lockedOut]);
+
+  // Switch into a just-joined Space once its membership has loaded.
+  useEffect(() => {
+    if (!pendingSpaceSwitch) return;
+    if (!teams.some(t => t.id === pendingSpaceSwitch.teamId)) return;
+    const { teamId, view: target } = pendingSpaceSwitch;
+    setPendingSpaceSwitch(null);
+    if (teamId !== activeLibrary) setActiveLibrary(teamId);
+    if (target) setView(target);
+  }, [pendingSpaceSwitch, teams, activeLibrary]);
+
+  // Someone who asked to join and then left the Waiting screen: keep watching
+  // their request, and when a leader decides, say so wherever they are.
+  const watchJoin = !!user?.id && view !== 'join' && loadPendingJoin()?.stage === 'requested';
+  const { requests: myJoinRequests } = useMyJoinRequests(user?.id, { enabled: watchJoin });
+  const announcedJoinRef = useRef(new Set());
+  useEffect(() => {
+    if (!watchJoin) return;
+    const decided = myJoinRequests.filter(r => r.status !== 'pending' && !announcedJoinRef.current.has(r.id));
+    if (decided.length === 0) return;
+    // Only announce decisions on requests this device is waiting on; the rest
+    // are history.
+    const stillPending = myJoinRequests.some(r => r.status === 'pending');
+    const fresh = decided.filter(r => r.decided_at && Date.now() - Date.parse(r.decided_at) < 7 * 24 * 3600 * 1000);
+    decided.forEach(r => announcedJoinRef.current.add(r.id));
+    if (!stillPending) clearPendingJoin();
+    const approved = fresh.find(r => r.status === 'approved');
+    if (approved) {
+      handleJoinedSpace(approved.team_id, { switchTo: activeLibrary === 'personal' ? 'home' : null });
+      toast({ title: `You're in ${approved.team_name || 'the team'}`, description: 'A leader approved your request.' });
+    } else if (fresh.some(r => r.status === 'declined')) {
+      toast({ title: 'Join request not approved', description: 'Talk to your worship leader if that is a mistake.' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchJoin, myJoinRequests]);
 
   // Queue sync conflicts for the user to resolve. The cloud copy has already
   // been adopted into local state by the engine; the divergent local copy
@@ -627,7 +739,7 @@ export default function App() {
 
         // Determine initial view based on onboarding state. `share-view` is a
         // public, no-auth route — never override it with onboarding/landing.
-        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view';
+        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
         if (isAuthFlow) {
           // Keep the current auth view
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
@@ -1137,9 +1249,44 @@ export default function App() {
     goToMainView('home');
   };
 
+  // A join request was approved (or the user turned out to be a member
+  // already): load the new membership, and — when asked — open the Space on
+  // `switchTo` as soon as it arrives. Someone who came in through a church's
+  // link has met the app; the first-run tour is not for them.
+  const handleJoinedSpace = (teamId, { switchTo = null } = {}) => {
+    refreshTeams?.();
+    const teamIds = teams.map(t => t.id);
+    setSettings(prev => (prev ? {
+      ...prev,
+      onboardingComplete: true,
+      defaultSpaceId: defaultAfterJoin({ current: prev.defaultSpaceId, joinedTeamId: teamId, teamIds }),
+    } : prev));
+    if (teamId && switchTo) setPendingSpaceSwitch({ teamId, view: switchTo });
+  };
+
+  const leaveJoinFlow = () => {
+    if (window.location.pathname.startsWith('/join')) {
+      window.history.replaceState({}, document.title, '/');
+    }
+    setJoinCode(null);
+  };
+
+  const personalHasContent = activeLibrary === 'personal'
+    ? (loaded ? hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS) : null)
+    : storedPersonalHasContent;
+  const hidePersonalSpace = shouldHidePersonal({
+    showPersonalPref: settings?.showPersonalSpace,
+    inChurch: teams.length > 0,
+    hasPersonalContent: personalHasContent,
+    personalCloud: personalCloudAllowed,
+    activeIsPersonal: activeLibrary === 'personal',
+    defaultIsPersonal: settings?.defaultSpaceId === 'personal',
+  });
+
   // Workspace list shared by the mobile top bar and the account panel.
+  // Personal is left out for church members with nothing of their own in it.
   const workspaces = [
-    { id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null },
+    ...(hidePersonalSpace ? [] : [{ id: 'personal', name: 'Personal Space', avatarUrl: profile?.avatar_url || null }]),
     ...teams.map(t => ({ id: t.id, name: t.name, avatarUrl: t.logo_url || null, status: t.subscription_status })),
   ];
 
@@ -2174,6 +2321,40 @@ export default function App() {
     );
   }
 
+  if (view === 'join' && joinCode) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-200)]" />}>
+          <JoinFlow
+            code={joinCode}
+            onJoined={(teamId) => handleJoinedSpace(teamId)}
+            onGoSchedule={(teamId) => {
+              leaveJoinFlow();
+              setView('home');
+              if (teamId) setPendingSpaceSwitch({ teamId, view: 'schedule' });
+            }}
+            onSkipHome={(teamId) => {
+              leaveJoinFlow();
+              setView('home');
+              if (teamId) setPendingSpaceSwitch({ teamId, view: 'home' });
+            }}
+            onExit={() => {
+              leaveJoinFlow();
+              setView(resolveLandingView(settings?.landingView));
+            }}
+            onPasswordSignIn={(mode = 'signin') => {
+              // The code stays parked in localStorage; the resume effect brings
+              // the flow back once AuthScreen signs in.
+              leaveJoinFlow();
+              setAuthStartMode(mode === 'signup' ? 'signup' : 'signin');
+              setView('signin');
+            }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
   const lazyFallback = (
     <div className="min-h-screen bg-[var(--ds-background-200)] flex items-center justify-center">
       <div className="text-copy-14 text-[var(--text-2)]">Loading…</div>
@@ -2210,6 +2391,9 @@ export default function App() {
     try {
       await signOut();
       toast({ title: 'Signed out' });
+      // Back to the welcome screen (the gate does the rest): signing out
+      // isn't a way to keep using the app without an account.
+      setSettings(prev => ({ ...prev, soloMode: false }));
       goToMainView('home');
     } catch (err) {
       toast({ title: 'Sign-out failed', description: err.message, variant: 'error' });
@@ -2230,33 +2414,46 @@ export default function App() {
       <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen
-          onBack={goBack}
+          onBack={() => {
+            // Came here from a church's join link: Back returns to that
+            // invitation, not to the welcome screen.
+            const pending = loadPendingJoin();
+            if (!user?.id && pending?.stage === 'auth' && pending.code) {
+              window.history.replaceState({}, document.title, `/join/${pending.code}`);
+              setJoinCode(pending.code);
+              setView('join');
+              return;
+            }
+            goBack();
+          }}
           onSignedIn={() => goToMainView('home')}
           defaultMode={authStartMode}
           onShowLegal={(doc) => navigate(`legal-${doc}`)}
         />
       )}
-      {view === 'onboarding' && (
+      {(view === 'onboarding' || lockedOut) && (
         <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
-        <OnboardingFlow
-          onComplete={(quiz) => {
-            // Inject demos if not already present (covers the first-run path).
+        <WelcomeScreen
+          onTrySolo={() => {
+            // Demos are seeded on a first run already; this covers a replay
+            // from Settings after the library was emptied.
             setSongs(prev => {
               if (prev.length > 0) return prev;
               const demos = seedDemoSongs();
               saveSongs(demos);
               return demos;
             });
-            setSettings(prev => ({
-              ...prev,
-              ...quiz,
-              onboardingComplete: true,
-            }));
+            setSettings(prev => ({ ...prev, onboardingComplete: true, soloMode: true }));
             setView('home');
           }}
           onSignIn={() => {
             setSettings(prev => ({ ...prev, onboardingComplete: true }));
             setAuthStartMode('signin');
+            setView('signin');
+          }}
+          onCreateAccount={() => {
+            setSettings(prev => ({ ...prev, onboardingComplete: true }));
+            setAuthStartMode('signup');
             setView('signin');
           }}
         />
@@ -2268,7 +2465,7 @@ export default function App() {
           onDone={() => setView('home')}
         />
       )}
-      {!['onboarding', 'signin', 'recovery'].includes(view) && (
+      {!lockedOut && !['onboarding', 'signin', 'recovery'].includes(view) && (
         <DesktopLayout
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
@@ -2305,6 +2502,8 @@ export default function App() {
           // builder (its library picker). Fullscreen views don't render the
           // header at all.
           showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
+          hidePersonal={hidePersonalSpace}
+          teamBadgeCount={pendingJoinCount}
           hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
         >
           {['home', 'library', 'setlists'].includes(view) && (
@@ -2314,6 +2513,7 @@ export default function App() {
             songs={songs}
               setlists={setlists}
               onOpenDrawer={openDrawer}
+              menuBadgeCount={activeLibrary !== 'personal' ? pendingJoinCount : 0}
               onOpenNotifications={user ? () => navigate('notifications') : undefined}
               unreadCount={user ? mergedNotifications.filter(n => !n.read).length : 0}
               onSelectSong={goChart}
@@ -2761,6 +2961,7 @@ export default function App() {
           or break the glass backdrop-filter. */}
       {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'notifications'].includes(view) && !drawerOpen && (
         <BottomNav
+          teamBadgeCount={pendingJoinCount}
           activeView={view}
           onNavigate={goToMainView}
           activeLibrary={activeLibrary}
@@ -2815,6 +3016,7 @@ export default function App() {
           onSignIn={() => { setDrawerOpen(false); setAuthStartMode('signin'); navigate('signin'); }}
           onCreateAccount={() => { setDrawerOpen(false); setAuthStartMode('signup'); navigate('signin'); }}
           onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
+          teamBadgeCount={pendingJoinCount}
           teams={teams}
           activeLibrary={activeLibrary}
           canInstall={canInstall}

@@ -1,5 +1,5 @@
 /* Onboarding flow animations.
-   Imported once from OnboardingFlow.jsx. */
+   Imported once from WelcomeScreen.jsx. */
 
 @keyframes sm-onboard-chord-pop {
   0%   { opacity: 0; transform: translateY(-3px) scale(0.94); }

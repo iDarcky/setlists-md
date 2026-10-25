@@ -598,7 +598,7 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   service-role-only `app_config` (holds the VAPID keys — values are inserted
   operationally, never committed), a `notify_on_schedule_request` trigger
   (being rostered now writes a durable notification), and `pg_cron`+`pg_net`
-  jobs: `notify-worker` (every minute → the edge function) and a daily
+  jobs: `notify-worker` (every five minutes since 20261019 → the edge function) and a daily
   `cron-history-cleanup`.
 
 - `20260910_sync_versions.sql` — **server foundations for the replica sync
@@ -904,7 +904,7 @@ sync engine (SYNC-REDESIGN §4.3, §5.7).
 
 - **Pipeline**: DB triggers (`schedule_request` on roster insert,
   `schedule_decline`) write `team_notifications` rows → the `notify-worker`
-  edge function (pg_cron, every minute) sends RFC 8291/8292 Web Push to each
+  edge function (pg_cron, every five minutes) sends RFC 8291/8292 Web Push to each
   recipient's `push_subscriptions` and marks `pushed_at` (at-most-once; dead
   subscriptions pruned on 404/410). It also generates `schedule_maybe_nudge`
   rows server-side (one per schedule, ever).
@@ -931,13 +931,14 @@ sync engine (SYNC-REDESIGN §4.3, §5.7).
 
 ## Current Focus & Roadmap
 
-**Planning lives in `docs/PLAN.md`** — the single **sequenced** roadmap: what to
-do, in what order, and why. It separates the two streams that were previously
-tangled (**A** ship-the-beta ops vs **B** build-the-product engineering), carries
-the component-pass order, and collects every open decision in one table (§7).
-The per-area detail is §6, explicitly *not* sequenced — read a section when you
-start that component's pass. Keep this file (`CLAUDE.md`) for dev/agent memory
-only: stack, architecture, schema, the finish/release workflows, and gotchas.
+**Planning lives in `docs/PLAN.md`** — one page: **Now** (P0 fixes and the
+beta critical path) → **Next** (the new flows decided in the October 2026
+app-flow review, before the 1 February 2027 beta) → **Later**, plus the
+decisions still open. `PLAN §x.y` references in code comments and older docs
+point at the previous plan, archived as `docs/archive/PLAN-2026-10-11.md`;
+its Stream B (foundation) and per-area backlog are still useful reference.
+Keep this file (`CLAUDE.md`) for dev/agent memory only: stack, architecture,
+schema, the finish/release workflows, and gotchas.
 
 **Starting a fresh session?** If `docs/NEXT-SESSION.md` exists, read it first —
 it's the short-lived handoff for whatever pass is in flight, and it links

@@ -2,6 +2,25 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.19.0 — Join your church with one link
+*October 2026*
+
+### Added
+- **One link to join your church** — leaders share a single join link (or its QR code) from the Team screen. Anyone who opens it can create an account or log in, and lands in your church once a leader approves them. The link can be reset if it ends up in the wrong place, or switched off.
+- **Approve requests in one place** — the Team screen lists everyone asking to join, with Approve and Decline on each and an Approve all button. A badge on Team shows when someone is waiting.
+- **A simple first screen** — new people see three choices: Create account, Log in, or Try it solo. The four-step setup quiz is gone.
+
+### Improved
+- **Your church opens first** — if a church is your home, the app opens there instead of in Personal.
+- **Email invites open your mail app** — inviting someone by email now opens a message addressed to them with the join link, since the app doesn't send email itself.
+- **Seats count members only** — people still waiting to join no longer use up a seat; they're shown beside the count.
+
+### Fixed
+- **Back no longer drops you into Personal** — leaving Log in or Create account returns to the welcome screen, and signing out goes there too.
+
+### Security
+- **Importing a PDF is safe again** — updated the PDF reader to close a flaw where a specially made PDF could run code when imported.
+
 ## 0.18.0 — Sync rebuilt, tempo history, and a reader that does what it said
 *October 2026*
 

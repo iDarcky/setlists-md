@@ -3,7 +3,8 @@ import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
 import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
-import { canPlanServices, canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
+import { canPlanServices, canWriteLibrary as roleCanWriteLibrary, canApproveJoins } from '@/lib/teamRoles';
+import { useTeamJoinRequests } from '@/hooks/useTeamJoinRequests';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -23,6 +24,17 @@ export function TeamProvider({ children }) {
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(false);
   const loadedForUserRef = useRef(null);
+  // Bumped to re-read memberships (e.g. a join request was just approved) or
+  // the active roster (someone was approved in) without a reload.
+  const [teamsReloadKey, setTeamsReloadKey] = useState(0);
+  const [membersReloadKey, setMembersReloadKey] = useState(0);
+  const silentReloadRef = useRef(false);
+  const refreshTeams = useCallback(() => {
+    loadedForUserRef.current = null;
+    silentReloadRef.current = true;
+    setTeamsReloadKey(k => k + 1);
+  }, []);
+  const reloadMembers = useCallback(() => setMembersReloadKey(k => k + 1), []);
 
   // The user's personal tier drives whether they may create/own workspaces.
   // (The legacy `profiles.plan` column was dropped in 20260522_plans_migration;
@@ -52,8 +64,10 @@ export function TeamProvider({ children }) {
     if (loadedForUserRef.current === user.id) return;
     loadedForUserRef.current = user.id;
 
+    const silent = silentReloadRef.current;
+    silentReloadRef.current = false;
     (async () => {
-      setLoading(true);
+      if (!silent) setLoading(true);
       try {
         // All of the user's team memberships (no longer capped at one).
         const { data: memberships } = await supabase
@@ -82,10 +96,10 @@ export function TeamProvider({ children }) {
       } catch (err) {
         console.error('[team] Failed to load teams:', err);
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     })();
-  }, [user?.id]);
+  }, [user?.id, teamsReloadKey]);
 
   // Load members + invites for the active team whenever it changes.
   useEffect(() => {
@@ -168,7 +182,21 @@ export function TeamProvider({ children }) {
     })();
 
     return () => { ignore = true; };
-  }, [activeTeamId, user?.id]);
+  }, [activeTeamId, user?.id, membersReloadKey]);
+
+  // Join link + "Asking to join" for the active Space. Owner, admins and
+  // leaders only — must agree with `get_user_join_manager_teams()` in
+  // 20261019_join_links.sql, or the list just comes back empty.
+  const myActiveRole = team ? members.find(m => m.user_id === user?.id)?.role : null;
+  const canManageJoinLink = !!team && team.kind !== 'personal'
+    && (team.owner_id === user?.id || canApproveJoins(myActiveRole));
+  const {
+    requests: joinRequests,
+    approve: approveJoinRequest,
+    decline: declineJoinRequest,
+    approveAll: approveAllJoinRequests,
+    refresh: refreshJoinRequests,
+  } = useTeamJoinRequests(activeTeamId, { enabled: canManageJoinLink, onMembersChanged: reloadMembers });
 
   // Reset on sign-out.
   useEffect(() => {
@@ -221,6 +249,15 @@ export function TeamProvider({ children }) {
     return {
       myRole,
       canWriteLibrary,
+      refreshTeams,
+      reloadMembers,
+      canManageJoinLink,
+      joinRequests,
+      pendingJoinCount: joinRequests.length,
+      approveJoinRequest,
+      declineJoinRequest,
+      approveAllJoinRequests,
+      refreshJoinRequests,
       teams,
       activeTeamId,
       setActiveTeam,
@@ -513,7 +550,7 @@ export function TeamProvider({ children }) {
         setInvites([]);
       },
     };
-  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam]);
+  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }

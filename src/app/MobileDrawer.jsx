@@ -9,6 +9,7 @@ import {
 } from '@/features/settings/AccountPanel';
 import BrandWordmark from '@/ui/BrandWordmark';
 import { workspaceStatusLabel } from '@/lib/billingCheckout';
+import CountBadge from '@/ui/CountBadge';
 
 const CloseIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -193,6 +194,8 @@ export default function MobileDrawer({
   onCreateAccount,
   onSignOut,
   onOpenTeam,
+  // Pending "Asking to join" requests for the open Space (owner/admin/leader).
+  teamBadgeCount = 0,
   canInstall = false,
   isIOS = false,
   isStandalone = false,
@@ -371,6 +374,7 @@ export default function MobileDrawer({
               {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
                 <GroupRow first onClick={onOpenTeam}>
                   <span className="flex-1 text-copy-15 font-medium text-[var(--drawer-text)]">Your Team</span>
+                  <CountBadge count={teamBadgeCount} label={`${teamBadgeCount} asking to join`} />
                   <PanelChevron />
                 </GroupRow>
               )}
@@ -466,7 +470,7 @@ export default function MobileDrawer({
             <div className="mt-auto pt-8 flex flex-col gap-2">
               <Row icon={SettingsIcon} label="Settings" onClick={onOpenSettings} />
               {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
-                <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
+                <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} accessory={<CountBadge count={teamBadgeCount} label={`${teamBadgeCount} asking to join`} />} />
               )}
               {!isStandalone && (canInstall || isIOS) && onInstall && (
                 <Row icon={InstallIcon} label={isIOS ? 'Add to Home Screen' : 'Install app'} onClick={onInstall} />
@@ -564,7 +568,7 @@ export default function MobileDrawer({
           {/* "Your Team" manages the current workspace — only show it while a
               team/church workspace is active, not in Personal. */}
           {isSignedIn && activeLibrary && activeLibrary !== 'personal' && onOpenTeam && (
-            <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} />
+            <Row icon={TeamDrawerIcon} label="Your Team" onClick={onOpenTeam} accessory={<CountBadge count={teamBadgeCount} label={`${teamBadgeCount} asking to join`} />} />
           )}
           {onOpenWhatsNew && (
             <Row

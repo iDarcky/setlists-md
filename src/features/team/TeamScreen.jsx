@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import QRCode from 'qrcode';
 import { supabase } from '@/auth/supabase';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
@@ -12,6 +13,9 @@ import { useConfirm } from '@/ui/useConfirmHook';
 import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
 import { TEAM_ROLES } from '@/lib/teamRoles';
 import { displayTokens } from '@/data/instruments';
+import { Switch } from '@/ui/Switch';
+import { joinUrl, joinPartLabel, inviteMailto } from '@/lib/joinLink';
+import { getTeamJoinLink, resetTeamJoinLink, setTeamJoinLinkEnabled } from '@/features/join/joinApi';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -373,7 +377,7 @@ function InviteRow({ invite, isAdmin, onCancel }) {
   );
 }
 
-function InviteForm({ onInvite, seatsLeft }) {
+function InviteForm({ team, onInvite, seatsLeft, pendingInvites = 0 }) {
   const [userId, setUserId] = useState('');
   const [role, setRole] = useState('member');
   const [busy, setBusy] = useState(false);
@@ -385,10 +389,30 @@ function InviteForm({ onInvite, seatsLeft }) {
     setBusy(true);
     setMessage(null);
     try {
-      await onInvite(userId.trim(), role);
+      const email = userId.trim();
+      const res = await onInvite(email, role);
       setUserId('');
       setRole('member');
-      setMessage({ kind: 'info', text: 'Member added successfully.' });
+      // `invite_user_to_team` only adds someone who already has an account;
+      // anyone else becomes a PENDING invite that is claimed when they sign in
+      // with exactly this address. The app sends no email, so open the
+      // leader's own mail app with the join link in it — the link also works
+      // when they sign in with a different address (they ask, you approve).
+      if (res?.status === 'invited') {
+        let url = '';
+        try {
+          const link = await getTeamJoinLink(team.id);
+          if (link?.code && link.enabled) url = joinUrl(window.location.origin, link.code);
+        } catch { /* join links not set up yet: fall back to the plain note */ }
+        if (url) {
+          window.location.href = inviteMailto({ email: res.email || email, teamName: team.name, url });
+          setMessage({ kind: 'info', text: `Your email app opened with the join link for ${res.email || email}. Press send. If they sign in with another address, they'll ask to join and you approve them here.` });
+        } else {
+          setMessage({ kind: 'info', text: `Invite saved for ${res.email || email}. They'll join when they sign in with this exact email. No email was sent, so let them know.` });
+        }
+      } else {
+        setMessage({ kind: 'info', text: `${email} is in the team now.` });
+      }
     } catch (err) {
       setMessage({ kind: 'error', text: err.message || 'Could not add member.' });
     } finally {
@@ -404,6 +428,7 @@ function InviteForm({ onInvite, seatsLeft }) {
         </span>
         <span className="text-label-11 text-[var(--modes-text-dim)]">
           {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
+          {pendingInvites > 0 && ` · ${pendingInvites} invite${pendingInvites !== 1 ? 's' : ''} waiting`}
         </span>
       </div>
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -429,6 +454,275 @@ function InviteForm({ onInvite, seatsLeft }) {
           <span className="ml-1">{busy ? 'Adding…' : 'Add'}</span>
         </Button>
       </form>
+      {message && (
+        <div
+          className={`text-copy-13 px-3 py-2 rounded-lg mt-2 ${
+            message.kind === 'error'
+              ? 'bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]'
+              : 'bg-[var(--ds-teal-100)] text-[var(--ds-teal-1000)]'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Join link + "Asking to join" ───────────────────────────────────────────
+// One resettable link per Space (20261019_join_links). Anyone with it can ASK;
+// the owner, an admin or a leader approves. Shown to those three only.
+
+const LinkIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>
+);
+
+function JoinLinkCard({ team }) {
+  const confirm = useConfirm();
+  const [link, setLink] = useState(null); // { code, enabled }
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(null); // 'reset' | 'toggle'
+  const [copied, setCopied] = useState(false);
+  const [qr, setQr] = useState(null);
+  const [showQr, setShowQr] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getTeamJoinLink(team.id)
+      .then(res => { if (!cancelled) { setLink(res); setError(null); } })
+      .catch(err => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
+  }, [team.id]);
+
+  const url = link?.code ? joinUrl(window.location.origin, link.code) : '';
+
+  useEffect(() => {
+    if (!url || !showQr) return;
+    let cancelled = false;
+    QRCode.toDataURL(url, { margin: 1, width: 220 })
+      .then(d => { if (!cancelled) setQr(d); })
+      .catch(() => { if (!cancelled) setQr(null); });
+    return () => { cancelled = true; };
+  }, [url, showQr]);
+
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard blocked — the link is selectable */ }
+  };
+
+  const share = async () => {
+    try {
+      await navigator.share({
+        title: `Join ${team.name}`,
+        text: `Join ${team.name} on Setlists.md`,
+        url,
+      });
+    } catch { /* dismissed */ }
+  };
+
+  const reset = async () => {
+    const ok = await confirm({
+      title: 'Reset the join link?',
+      description: 'The current link stops working right away. Anyone who already asked to join stays in the list. You will need to share the new link.',
+      confirmLabel: 'Reset link',
+      cancelLabel: 'Keep link',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setBusy('reset');
+    try {
+      setLink(await resetTeamJoinLink(team.id));
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggle = async (enabled) => {
+    setBusy('toggle');
+    setLink(prev => (prev ? { ...prev, enabled } : prev));
+    try {
+      setLink(await setTeamJoinLinkEnabled(team.id, enabled));
+      setError(null);
+    } catch (err) {
+      setLink(prev => (prev ? { ...prev, enabled: !enabled } : prev));
+      setError(err.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const enabled = !!link?.enabled;
+
+  return (
+    <div className="modes-card p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-2 text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
+          <LinkIcon /> Join link
+        </span>
+        {link && (
+          <label className="inline-flex items-center gap-2 text-label-12 text-[var(--modes-text-muted)] cursor-pointer">
+            {enabled ? 'On' : 'Off'}
+            <Switch checked={enabled} disabled={busy === 'toggle'} onCheckedChange={toggle} aria-label="Join link on or off" />
+          </label>
+        )}
+      </div>
+      <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
+        Anyone with this link can ask to join. You approve each person, and they join as a Member.
+      </p>
+
+      {error && !link && (
+        <div className="text-copy-13 px-3 py-2 rounded-lg bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]">{error}</div>
+      )}
+      {!link && !error && <div className="text-copy-13 text-[var(--modes-text-dim)]">Loading link…</div>}
+
+      {link && (
+        <>
+          <div
+            className="flex items-center gap-2 px-3 h-11 rounded-lg border border-[var(--modes-border)] bg-[var(--modes-surface)]"
+            style={{ opacity: enabled ? 1 : 0.55 }}
+          >
+            <input
+              readOnly
+              value={url}
+              onFocus={e => e.target.select()}
+              aria-label="Join link"
+              className="flex-1 min-w-0 bg-transparent border-none outline-none text-copy-14 text-[var(--modes-text)] truncate"
+            />
+          </div>
+          {!enabled && (
+            <div className="text-copy-13 text-[var(--modes-text-muted)]">The link is off — nobody can ask to join with it until you turn it back on.</div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {canShare && (
+              <Button variant="brand" size="sm" onClick={share} disabled={!enabled}>Share</Button>
+            )}
+            <Button variant={canShare ? 'secondary' : 'brand'} size="sm" onClick={copy} disabled={!enabled}>
+              {copied ? 'Copied' : 'Copy link'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowQr(v => !v)} disabled={!enabled}>
+              {showQr ? 'Hide QR code' : 'QR code'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={reset} loading={busy === 'reset'} disabled={!!busy} className="text-[var(--ds-red-700)]">
+              Reset link
+            </Button>
+          </div>
+          {showQr && enabled && qr && (
+            <div className="flex flex-col items-center gap-2 pt-1">
+              <img src={qr} alt={`QR code for the ${team.name} join link`} width="220" height="220" className="rounded-lg bg-white p-2" />
+              <span className="text-label-11 text-[var(--modes-text-dim)]">Put it on the screen at rehearsal — phones can scan it.</span>
+            </div>
+          )}
+          {error && (
+            <div className="text-copy-13 px-3 py-2 rounded-lg bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]">{error}</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function JoinRequestRow({ request, onApprove, onDecline, busy }) {
+  const name = request.display_name || request.email?.split('@')[0] || 'Someone';
+  const initial = name.slice(0, 2).toUpperCase();
+  const parts = request.parts || [];
+  return (
+    <div className="modes-card flex items-start gap-3 px-4 py-3">
+      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden text-label-14 font-bold bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
+        {request.avatar_url ? <img src={request.avatar_url} alt="" className="w-full h-full object-cover" /> : initial}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{name}</div>
+        {request.email && <div className="text-label-11 text-[var(--modes-text-dim)] truncate">{request.email}</div>}
+        {parts.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {parts.map(p => (
+              <span key={p} className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
+                {joinPartLabel(p)}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Button variant="ghost" size="sm" onClick={() => onDecline(request)} disabled={!!busy}>Decline</Button>
+        <Button variant="brand" size="sm" onClick={() => onApprove(request)} loading={busy === 'approve'} disabled={!!busy}>Approve</Button>
+      </div>
+    </div>
+  );
+}
+
+function JoinRequestsSection({ requests, onApprove, onDecline, onApproveAll }) {
+  const confirm = useConfirm();
+  const [busyId, setBusyId] = useState(null); // `${id}:approve` | `${id}:decline` | 'all'
+  const [message, setMessage] = useState(null);
+
+  if (!requests || requests.length === 0) return null;
+
+  const run = async (key, fn) => {
+    setBusyId(key);
+    setMessage(null);
+    try {
+      await fn();
+    } catch (err) {
+      setMessage({ kind: 'error', text: err.message || 'Something went wrong.' });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const approveAll = () => run('all', async () => {
+    const res = await onApproveAll();
+    if (res?.at_capacity) {
+      setMessage({ kind: 'error', text: `Approved ${res.approved}. The team is full — ${res.remaining} still waiting. Upgrade the plan or remove someone to let them in.` });
+    } else if (res) {
+      setMessage({ kind: 'info', text: `Approved ${res.approved + (res.already_member || 0)}.` });
+    }
+  });
+
+  const decline = async (r) => {
+    const ok = await confirm({
+      title: `Decline ${r.display_name || 'this request'}?`,
+      description: 'They will see that the request was not approved. They can ask again tomorrow.',
+      confirmLabel: 'Decline',
+      variant: 'danger',
+    });
+    if (ok) run(`${r.id}:decline`, () => onDecline(r.id));
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-3 px-1">
+        <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold m-0">
+          Asking to join · {requests.length}
+        </h3>
+        {requests.length > 1 && (
+          <Button variant="secondary" size="sm" onClick={approveAll} loading={busyId === 'all'} disabled={!!busyId}>
+            Approve all
+          </Button>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        {requests.map(r => (
+          <JoinRequestRow
+            key={r.id}
+            request={r}
+            busy={busyId === 'all' ? 'all' : busyId?.startsWith(`${r.id}:`) ? busyId.split(':')[1] : null}
+            onApprove={(req) => run(`${req.id}:approve`, () => onApprove(req.id))}
+            onDecline={decline}
+          />
+        ))}
+      </div>
       {message && (
         <div
           className={`text-copy-13 px-3 py-2 rounded-lg mt-2 ${
@@ -800,10 +1094,12 @@ function EditTeamForm({ team, onUpdate }) {
   );
 }
 
-function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onRoleChange, onInvite, onCancelInvite, onLeave, onDelete, onUpdate, isDefaultSpace = false, onToggleDefaultSpace }) {
+function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onRoleChange, onInvite, onCancelInvite, onLeave, onDelete, onUpdate, isDefaultSpace = false, onToggleDefaultSpace, canManageJoinLink = false, joinRequests = [], onApproveJoin, onDeclineJoin, onApproveAllJoins }) {
   const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('members');
-  const seatsLeft = (team.max_seats || 10) - members.length - (invites?.length || 0);
+  // Seats are taken by members only, the same rule the server applies; an
+  // invite nobody has used yet takes none.
+  const seatsLeft = Math.max(0, (team.max_seats || 10) - members.length);
 
   return (
     <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
@@ -886,8 +1182,17 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
         {/* Tab Content */}
         {activeTab === 'members' && (
           <div className="flex flex-col gap-6">
+            {canManageJoinLink && (
+              <JoinRequestsSection
+                requests={joinRequests}
+                onApprove={onApproveJoin}
+                onDecline={onDeclineJoin}
+                onApproveAll={onApproveAllJoins}
+              />
+            )}
+            {canManageJoinLink && <JoinLinkCard team={team} />}
             {isAdmin && (
-              <InviteForm onInvite={onInvite} seatsLeft={seatsLeft} />
+              <InviteForm team={team} onInvite={onInvite} seatsLeft={seatsLeft} pendingInvites={invites?.length || 0} />
             )}
             <div>
               <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">
@@ -974,7 +1279,7 @@ function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemov
 
 export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace }) {
   const { user } = useAuth();
-  const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam } = useTeam();
+  const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests } = useTeam();
 
   // Whether the create form is showing. A user can belong to several
   // workspaces, so the form is reachable even when a team is already active
@@ -1083,6 +1388,11 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
           onDelete={async () => {
             await deleteTeam();
           }}
+          canManageJoinLink={!!canManageJoinLink}
+          joinRequests={joinRequests || []}
+          onApproveJoin={approveJoinRequest}
+          onDeclineJoin={declineJoinRequest}
+          onApproveAllJoins={approveAllJoinRequests}
           isDefaultSpace={defaultSpaceId === team.id}
           onToggleDefaultSpace={onSetDefaultSpace
             ? () => onSetDefaultSpace(defaultSpaceId === team.id ? 'personal' : team.id)

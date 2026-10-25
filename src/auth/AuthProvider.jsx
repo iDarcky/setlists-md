@@ -112,6 +112,13 @@ export function AuthProvider({ children }) {
           options: { emailRedirectTo: ROOT_REDIRECT_URL },
         });
       },
+      // Six-digit email code (the same email also carries the magic link).
+      // Verifying in-page keeps a join flow in its tab instead of opening a
+      // new one from the mail app.
+      verifyEmailOtp: (email, token) => {
+        guard();
+        return supabase.auth.verifyOtp({ email, token, type: 'email' });
+      },
       signInWithPassword: (email, password) => {
         guard();
         return supabase.auth.signInWithPassword({ email, password });

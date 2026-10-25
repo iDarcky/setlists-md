@@ -188,15 +188,15 @@ export function WorkerHealthRow() {
   if (health === null) return null; // loading — keep the panel calm
   const lastRun = health.worker_last_run ? new Date(health.worker_last_run) : null;
   const ageMin = lastRun ? Math.round((Date.now() - lastRun.getTime()) / 60000) : null;
-  // The worker runs every minute; >10 min of silence means it's stuck.
-  const stale = ageMin == null || ageMin > 10;
+  // The worker runs every five minutes; >20 min of silence means it's stuck.
+  const stale = ageMin == null || ageMin > 20;
 
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0">
         <div className="text-copy-14 font-medium text-[var(--ds-gray-1000)]">Notification worker</div>
         <div className="text-copy-13 text-[var(--ds-gray-700)]">
-          Sends push notifications and schedule nudges every minute.
+          Sends push notifications and schedule nudges every five minutes.
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
