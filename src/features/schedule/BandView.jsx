@@ -121,10 +121,10 @@ export default function BandView({
           {columns.map(c => <span key={c.setlist.id} className="flex items-center justify-center border-l border-border text-[14px] font-semibold">{c.inBand}</span>)}
         </div>
         <div role="row" className="grid" style={{ gridTemplateColumns: cols }}>
-          <span role="rowheader" className="flex h-11 items-center px-3 text-[13px] font-medium text-danger">Missing</span>
+          <span role="rowheader" className="flex min-h-11 items-center px-3 text-[13px] font-medium text-danger">Missing</span>
           {columns.map(c => (
-            <span key={c.setlist.id} className={cn('flex items-center justify-center border-l border-border px-0.5 text-center text-[11px] font-semibold leading-tight', c.missing?.length !== 0 ? 'text-danger' : 'text-muted-foreground')}>
-              {!c.rowId ? 'Not synced' : c.missing === null ? 'No band' : c.missing.length ? c.missing.slice(0, 2).join(', ') + (c.missing.length > 2 ? ` +${c.missing.length - 2}` : '') : '–'}
+            <span key={c.setlist.id} className={cn('flex flex-col items-center justify-center gap-0.5 border-l border-border px-0.5 py-2 text-center text-[11px] font-semibold leading-tight', c.missing?.length !== 0 ? 'text-danger' : 'text-muted-foreground')}>
+              {!c.rowId ? 'Not synced' : c.missing === null ? 'No band' : c.missing.length ? c.missing.map(m => <span key={m}>{m}</span>) : '–'}
             </span>
           ))}
         </div>
