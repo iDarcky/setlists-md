@@ -87,7 +87,10 @@ export default function YouPage({
       className={cn('min-h-full bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}
     >
       <div className="mx-auto flex w-full max-w-[600px] flex-col px-4 pb-10 sm:px-6 sm:pt-8">
-        <div className="flex h-14 items-center sm:h-auto" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
+        {/* Back only on a phone: from the iPad up the pill and the top bar are
+            always on screen, and a Back floating in the middle of a wide
+            page reads as a stray. */}
+        <div className="flex h-14 items-center sm:hidden" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
           <button
             type="button"
             onClick={onBack}

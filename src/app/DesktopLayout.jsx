@@ -68,7 +68,7 @@ export default function DesktopLayout({
         // edge instead — the owner's "line on the right of the reader where the
         // scroll bar used to be" (2026-08-04). Full-screen surfaces own the
         // whole screen and manage their own scrolling, so they don't need it.
-        className={`flex-1 min-h-0 overflow-y-auto overscroll-contain bg-[var(--ds-background-100)] relative w-full transition-transform duration-300 ease-out${
+        className={`flex-1 min-h-0 overflow-y-auto overscroll-contain bg-background relative w-full transition-transform duration-300 ease-out${
           isFullscreen ? '' : ' [scrollbar-gutter:stable]'
         }`}
         style={{
