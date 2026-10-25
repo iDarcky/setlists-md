@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
-import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin } from '@/lib/joinLink';
+import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -457,26 +457,22 @@ export default function App() {
     if (target) setView(target);
   }, [pendingSpaceSwitch, teams, activeLibrary]);
 
-  // Someone who asked to join and then left the Waiting screen: keep watching
-  // their request, and when a leader decides, say so wherever they are.
+  // Someone who asked to join and then left the Waiting screen (a launch
+  // reopens it, but they may have gone to Log in, say): keep watching that
+  // one request, and when a leader decides, say so wherever they are.
   const watchJoin = !!user?.id && view !== 'join' && loadPendingJoin()?.stage === 'requested';
   const { requests: myJoinRequests } = useMyJoinRequests(user?.id, { enabled: watchJoin });
   const announcedJoinRef = useRef(new Set());
   useEffect(() => {
     if (!watchJoin) return;
-    const decided = myJoinRequests.filter(r => r.status !== 'pending' && !announcedJoinRef.current.has(r.id));
-    if (decided.length === 0) return;
-    // Only announce decisions on requests this device is waiting on; the rest
-    // are history.
-    const stillPending = myJoinRequests.some(r => r.status === 'pending');
-    const fresh = decided.filter(r => r.decided_at && Date.now() - Date.parse(r.decided_at) < 7 * 24 * 3600 * 1000);
-    decided.forEach(r => announcedJoinRef.current.add(r.id));
-    if (!stillPending) clearPendingJoin();
-    const approved = fresh.find(r => r.status === 'approved');
-    if (approved) {
-      handleJoinedSpace(approved.team_id, { switchTo: activeLibrary === 'personal' ? 'home' : null });
-      toast({ title: `You're in ${approved.team_name || 'the team'}`, description: 'A leader approved your request.' });
-    } else if (fresh.some(r => r.status === 'declined')) {
+    const decision = joinDecisionFor(myJoinRequests, loadPendingJoin());
+    if (!decision || announcedJoinRef.current.has(decision.id)) return;
+    announcedJoinRef.current.add(decision.id);
+    clearPendingJoin();
+    if (decision.status === 'approved') {
+      handleJoinedSpace(decision.team_id, { switchTo: activeLibrary === 'personal' ? 'home' : null });
+      toast({ title: `You're in ${decision.team_name || 'the team'}`, description: 'A leader approved your request.' });
+    } else {
       toast({ title: 'Join request not approved', description: 'Talk to your worship leader if that is a mistake.' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -73,7 +73,6 @@ export function WelcomeView({ onCreateAccount, onLogIn, embedded }) {
         <Button onClick={onCreateAccount}>Create account</Button>
         <Button variant="outline" onClick={onLogIn}>Log in</Button>
       </AuthActions>
-      <p className="m-0 text-center text-small text-muted-foreground">Got a link from your church? Open it to join.</p>
     </AuthLayout>
   );
 }
@@ -102,7 +101,7 @@ export function CreateAccountView({ values, onChange, onSubmit, onBack, onLogIn,
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor={`${uid}-name`}>Your name</FieldLabel>
-            <Input id={`${uid}-name`} autoComplete="name" placeholder="Maria Ionescu" value={values.name}
+            <Input id={`${uid}-name`} autoComplete="name" placeholder="Joe Doe" value={values.name}
               onChange={e => onChange('name', e.target.value)} onFocus={scrollFieldIntoView} />
           </Field>
           <Field>

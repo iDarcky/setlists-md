@@ -191,7 +191,7 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
         updateProfile?.({ display_name: cleanName }).catch(() => {});
       }
       if (res?.status === 'pending') {
-        savePendingJoin(code, 'requested');
+        savePendingJoin(code, 'requested', Date.now(), { requestId: res.request_id });
         setSubmitted({ requestId: res.request_id, teamId: res.team_id, name: cleanName, parts });
         setStep('waiting');
       } else if (res?.status === 'member') {

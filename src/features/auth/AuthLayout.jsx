@@ -8,8 +8,8 @@ import { churchInitials } from '@/lib/joinLink';
 // form. The switch is at 640px of the screen's OWN width (a container query). No card around the form, headings left-aligned.
 
 const BackIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M15 18l-6-6 6-6" />
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M19 12H5M11 18l-6-6 6-6" />
   </svg>
 );
 
@@ -20,7 +20,7 @@ const TickIcon = () => (
 );
 
 /**
- * @param {Function} [onBack]   shows the back arrow (phone) / "Back" (iPad up)
+ * @param {Function} [onBack]   shows "← Back" in the top-left corner
  * @param {boolean}  [embedded] fills its parent instead of the window (/design)
  */
 export function AuthLayout({ onBack, embedded = false, className, children }) {
@@ -45,12 +45,11 @@ export function AuthLayout({ onBack, embedded = false, className, children }) {
           <button
             type="button"
             onClick={onBack}
-            aria-label="Back"
-            className="absolute left-3 flex h-11 min-w-11 cursor-pointer items-center justify-center gap-1 rounded-control border-0 bg-transparent font-sans text-[15px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring @min-[640px]:left-5 @min-[640px]:pl-1.5 @min-[640px]:pr-3"
+            className="absolute left-3.5 flex h-11 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring @min-[640px]:left-5"
             style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
           >
             <BackIcon />
-            <span className="hidden @min-[640px]:inline" aria-hidden="true">Back</span>
+            Back
           </button>
         )}
         <div className={cn('flex w-full flex-1 flex-col gap-6 @min-[640px]:max-w-[400px] @min-[640px]:flex-none', className)}>

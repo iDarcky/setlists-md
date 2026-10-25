@@ -126,12 +126,12 @@ function Frame({ theme, width, height, scale = 1, label, children }) {
 }
 
 function AboutYouDemo(props) {
-  const [name, setName] = useState('Maria Ionescu');
+  const [name, setName] = useState('Joe Doe');
   const [parts, setParts] = useState(['vocals', 'keys']);
   return <AboutYouView church={CHURCH} name={name} onNameChange={setName} parts={parts} onPartsChange={setParts} onSubmit={noop} onNotNow={noop} {...props} />;
 }
 
-const FILLED = { name: 'Maria Ionescu', email: 'maria@example.com', password: 'password1', confirm: 'password1' };
+const FILLED = { name: 'Joe Doe', email: 'joe@example.com', password: 'password1', confirm: 'password1' };
 
 const SCREENS = [
   ['Welcome', () => <WelcomeView embedded onCreateAccount={noop} onLogIn={noop} />],
@@ -141,7 +141,7 @@ const SCREENS = [
   ['Join: invite', () => <JoinInviteView embedded church={CHURCH} alreadyIn="Daniel and 11 others are already in" onCreateAccount={noop} onLogIn={noop} onNotNow={noop} />],
   ['Join: log in', () => <LogInView embedded joining={CHURCH} values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Join: about you', () => <AboutYouDemo embedded />],
-  ['Join: waiting', () => <WaitingView embedded church={CHURCH} name="Maria Ionescu" parts={['vocals', 'keys']} onSignOut={noop} />],
+  ['Join: waiting', () => <WaitingView embedded church={CHURCH} name="Joe Doe" parts={['vocals', 'keys']} onSignOut={noop} />],
   ['Join: you’re in', () => (
     <YoureInView
       embedded
@@ -337,7 +337,7 @@ export default function DesignSystem({ onBack }) {
             <Alert variant="success">Sent. Check your email for a link.</Alert>
             <Card>
               <CardLabel>What you sent</CardLabel>
-              <span className="text-body font-semibold">Maria Ionescu</span>
+              <span className="text-body font-semibold">Joe Doe</span>
               <div className="flex gap-1.5"><Badge>Vocals</Badge><Badge>Keys</Badge></div>
             </Card>
           </BothThemes>

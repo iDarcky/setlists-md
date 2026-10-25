@@ -3,18 +3,22 @@ import { cva } from 'class-variance-authority';
 import { cn } from './utils';
 
 // `chip` is the pick-all-that-fit chip: quiet outline off, soft green fill
-// with a green edge and a tick on.
+// with a green edge and a tick on. `option` is the same pick as a full-width
+// row with a check box at the end that is always there, so picking one never
+// changes any row's size or moves the ones after it (put them in a grid).
 const toggleVariants = cva(
   'inline-flex items-center justify-center gap-1.5 whitespace-nowrap font-sans font-medium cursor-pointer outline-none transition-[background-color,border-color,color] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
         chip: 'rounded-control border border-chip-border bg-transparent text-muted-foreground hover:text-foreground data-[state=on]:border-link data-[state=on]:bg-selected data-[state=on]:text-foreground',
+        option: 'w-full justify-between rounded-control border border-chip-border bg-transparent text-foreground hover:bg-raised data-[state=on]:border-link data-[state=on]:bg-selected',
       },
       size: {
         // min-h-0: the chip is 40px (36 from the iPad up); the ::after makes
         // the tap area 48px tall, over index.css's 44px floor for buttons.
         default: "relative h-10 min-h-0 px-3.5 text-small sm:h-9 sm:px-3 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
+        option: 'min-h-0 h-12 pl-3.5 pr-3 text-[15px] sm:h-11',
       },
     },
     defaultVariants: { variant: 'chip', size: 'default' },
@@ -27,11 +31,31 @@ const Tick = () => (
   </svg>
 );
 
-function Toggle({ className, variant, size, children, ...props }) {
+function CheckBox({ on }) {
   return (
-    <TogglePrimitive.Root data-slot="toggle" className={cn(toggleVariants({ variant, size }), className)} {...props}>
-      {props.pressed && <Tick />}
-      {children}
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex size-5 shrink-0 items-center justify-center rounded-[6px] border',
+        on ? 'border-link bg-link text-background' : 'border-input',
+      )}
+    >
+      {on && <Tick />}
+    </span>
+  );
+}
+
+function Toggle({ className, variant, size, children, ...props }) {
+  const option = variant === 'option';
+  return (
+    <TogglePrimitive.Root
+      data-slot="toggle"
+      className={cn(toggleVariants({ variant, size: size || (option ? 'option' : undefined) }), className)}
+      {...props}
+    >
+      {!option && props.pressed && <Tick />}
+      {option ? <span className="truncate">{children}</span> : children}
+      {option && <CheckBox on={!!props.pressed} />}
     </TogglePrimitive.Root>
   );
 }

@@ -60,9 +60,9 @@ export function AboutYouView({ church, name, onNameChange, parts, onPartsChange,
           <FieldSet>
             <FieldLegend>What do you play or sing?</FieldLegend>
             <FieldDescription>Pick all that fit.</FieldDescription>
-            <div className="mt-1 flex flex-wrap gap-2">
+            <div className="mt-1 grid grid-cols-2 gap-2">
               {JOIN_PARTS.map(p => (
-                <Toggle key={p.id} pressed={parts.includes(p.id)} onPressedChange={() => onPartsChange(toggleJoinPart(parts, p.id))}>
+                <Toggle key={p.id} variant="option" pressed={parts.includes(p.id)} onPressedChange={() => onPartsChange(toggleJoinPart(parts, p.id))}>
                   {p.label}
                 </Toggle>
               ))}
@@ -101,9 +101,8 @@ export function WaitingView({ church, name, parts, onSignOut, embedded }) {
           Waiting for a leader to say yes
         </div>
       </Card>
-      <AuthActions className="gap-0.5">
-        <p className="m-0 text-center text-small text-muted-foreground">Using someone else’s phone?</p>
-        <Button variant="ghost" className="text-link hover:bg-transparent hover:text-link" onClick={onSignOut}>Sign out</Button>
+      <AuthActions>
+        <Button variant="ghost" className="hover:bg-transparent" onClick={onSignOut}>Sign out</Button>
       </AuthActions>
     </AuthLayout>
   );
