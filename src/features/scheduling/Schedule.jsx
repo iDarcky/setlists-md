@@ -19,7 +19,7 @@ function toLocalDateStr(date) {
 
 // view mode (list/calendar) is controlled by App so the BottomNav FAB can toggle
 // it alongside the desktop header switch.
-export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
+export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, onOpenSetlists, viewMode = 'calendar', onSetView, clockFormat = '12h', firstDayOfWeek = 'sunday' }) {
   const { team, members, canManageBand } = useTeam();
   const { user } = useAuth();
   const { availability, setStatus, clearStatus } = useTeamAvailability(team?.id);
@@ -112,6 +112,15 @@ export default function Schedule({ setlists, onBack, onOpenSetlist, onOpenGrid, 
               options={[{ value: 'list', label: 'List' }, { value: 'calendar', label: 'Calendar' }]}
               size="sm"
             />
+            {onOpenSetlists && (
+              <button
+                type="button"
+                onClick={onOpenSetlists}
+                className="inline-flex items-center gap-1.5 text-label-12 font-semibold px-3 py-1.5 rounded-lg bg-[var(--modes-surface)] text-[var(--modes-text)] border border-[var(--modes-border)] cursor-pointer hover:bg-[var(--modes-surface-strong)] transition-colors"
+              >
+                Setlists
+              </button>
+            )}
             {onOpenGrid && (
               <button
                 type="button"

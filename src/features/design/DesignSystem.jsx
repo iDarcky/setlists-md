@@ -13,6 +13,10 @@ import {
   JoinInviteView, AboutYouView, WaitingView, YoureInView, DeclinedView, BadLinkView,
 } from '@/features/join/JoinViews';
 
+import { AppTopBar } from '@/app/AppTopBar';
+import { NavPill } from '@/app/NavPill';
+import YouPage from '@/features/you/YouPage';
+
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
 // /design — the design system, built from the real components. Every swatch,
@@ -102,6 +106,53 @@ function ChipsDemo() {
           {label}
         </Toggle>
       ))}
+    </div>
+  );
+}
+
+// ── Navigation ──────────────────────────────────────────────────────────────
+
+const ME = { name: 'Joe Doe', email: 'joe@example.com' };
+
+function NavDemo({ theme }) {
+  const [active, setActive] = useState('home');
+  return (
+    <div className="flex flex-col gap-4">
+      <Frame theme={theme} width={390} height={300} scale={0.8} label={`Phone · ${theme}`}>
+        <div className="absolute inset-0 bg-background text-foreground">
+          <AppTopBar layout="compact" church={CHURCH} onOpenChurches={noop} unread onOpenNotifications={noop} me={ME} meBadge={1} onOpenYou={noop} add={{ label: 'New song', onClick: noop }} />
+          <NavPill embedded active={active} onSelect={setActive} />
+        </div>
+      </Frame>
+      <div data-theme={theme} className="overflow-x-auto rounded-card border border-border bg-background text-foreground [&>header]:min-w-[640px]">
+        <AppTopBar
+          layout="wide"
+          church={CHURCH} unread onOpenNotifications={noop} me={ME} onOpenYou={noop}
+          add={{ label: 'New song', onClick: noop }}
+          pill={<NavPill placement="top" active={active} onSelect={setActive} />}
+        />
+      </div>
+    </div>
+  );
+}
+
+function NavGallery() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-6">
+        {THEMES.map(t => <NavDemo key={t.id} theme={t.id} />)}
+      </div>
+      <div className="flex flex-wrap gap-6">
+        {THEMES.map(t => (
+          <Frame key={t.id} theme={t.id} width={390} height={844} scale={0.6} label={`You · ${t.label}`}>
+            <YouPage
+              embedded me={ME} church={CHURCH} teamBadge={1} theme={t.id}
+              onBack={noop} onProfile={noop} onTeam={noop} onSettings={noop} onThemeChange={noop}
+              onHelp={noop} onWhatsNew={noop} onInstall={noop} onDesign={noop} onSignOut={noop}
+            />
+          </Frame>
+        ))}
+      </div>
     </div>
   );
 }
@@ -346,6 +397,10 @@ export default function DesignSystem({ onBack }) {
         <Section title="Drawer and dialog" sub="A bottom drawer on a phone, a centred dialog from the iPad up. Same component.">
           <div><Button variant="outline" onClick={() => setLegal('terms')}>Open the Terms</Button></div>
           <LegalSheet doc={legal} onClose={() => setLegal(null)} />
+        </Section>
+
+        <Section title="Navigation" sub="One top bar: the church on the left, the bell and you on the right. The pill floats at the bottom on a phone and an iPad held upright, and sits in the top bar from 1024px. You is a page.">
+          <NavGallery />
         </Section>
 
         <Section title="Screens: signed out and joining" sub="The real screens, with sample data. Tap around: they are live components.">
