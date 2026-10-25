@@ -17,6 +17,9 @@ import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
+import ScheduleView from '@/features/schedule/ScheduleView';
+import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
+import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft } from '@/lib/scheduleData';
 import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
@@ -244,6 +247,60 @@ function HomeGallery() {
       <Frame theme="dark" width={1200} height={1100} scale={0.8} label="Desktop · leader">
         <HomeDemo layout="wide" leader />
       </Frame>
+    </div>
+  );
+}
+
+// ── Schedule ────────────────────────────────────────────────────────────────
+
+const S_NAMES = { joe: 'Joe Doe', am: 'Ana M', rk: 'Rob K', ls: 'Lia S', tp: 'Tim P' };
+const S_SETLISTS = [
+  ...H_SETLISTS,
+  hs('s5', 'Sunday Morning', '2026-12-06', '10:00'),
+  hs('p1', 'Sunday Morning', '2026-10-18', '10:00'),
+  hs('p2', 'Youth Night', '2026-10-16', '19:00'),
+];
+const S_SCHEDULES = [...H_SCHEDULES, { id: 'k9', user_id: 'joe', setlist_id: 'p1', availability: 'available', role: 'Keys' }];
+const S_AVAIL = [{ user_id: 'joe', date: '2026-12-06', status: 'unavailable' }, { user_id: 'rk', date: '2026-11-08', status: 'available' }, { user_id: 'mv', date: '2026-11-08', status: 'available' }];
+
+function ScheduleDemo({ leader = false, layout }) {
+  const [tab, setTab] = useState('upcoming');
+  const [filter, setFilter] = useState('all');
+  const [sheet, setSheet] = useState(false);
+  const [mine, setMine] = useState({ '2026-11-01': 'available', '2026-12-06': 'unavailable', '2026-11-20': 'maybe' });
+  const ctx = { schedules: S_SCHEDULES, userId: 'joe', availability: S_AVAIL };
+  const rowFor = (sl) => {
+    const summary = bandSummary(sl, ctx);
+    return { setlist: sl, me: myStatus(sl, ctx), summary, songCount: (sl.items || []).filter(i => i.songId).length * 5,
+      faces: summary.rows.map(r => ({ id: r.id, name: S_NAMES[r.user_id] || 'Member', yes: r.availability === 'available' })) };
+  };
+  const all = groupByMonth(S_SETLISTS, { now: H_NOW, past: tab === 'past' });
+  const keep = (r) => !leader || tab === 'past' || filter === 'all' || (filter === 'needs' ? needsPeople(r.summary) : isDraft(r.setlist));
+  const groups = all.map(g => ({ month: g.month, rows: g.setlists.map(rowFor).filter(keep) })).filter(g => g.rows.length);
+  const up = all.flatMap(g => g.setlists.map(rowFor));
+  return (
+    <>
+      <ScheduleView
+        layout={layout} embedded leader={leader} tab={tab} onTab={setTab} filter={filter} onFilter={setFilter} showBand={leader}
+        counts={{ needs: up.filter(r => needsPeople(r.summary)).length, drafts: up.filter(r => isDraft(r.setlist)).length }}
+        groups={groups} onOpen={noop} onAnswer={noop} onNew={leader ? noop : null} onAvailability={() => setSheet(true)}
+      />
+      <AvailabilitySheet
+        open={sheet} onOpenChange={setSheet} mine={mine} busyDates={new Set(S_SETLISTS.map(s => s.date))} now={H_NOW}
+        onSet={(d, st) => setMine(m => ({ ...m, [d]: st }))} onClear={(d) => setMine(({ [d]: _, ...rest }) => rest)}
+      />
+    </>
+  );
+}
+
+function ScheduleGallery() {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {[['Member', {}], ['Leader', { leader: true }]].map(([label, props]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={390} height={1000} scale={0.6} label={`${label} · ${t.label}`}>
+          <ScheduleDemo layout="phone" {...props} />
+        </Frame>
+      )))}
     </div>
   );
 }
@@ -492,6 +549,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Home" sub="Asks first, then your next service and your two weeks. Leaders also get Needs you and Who can play. Live components with sample data.">
           <HomeGallery />
+        </Section>
+
+        <Section title="Schedule" sub="Every setlist coming up, with where you stand. Leaders see the band and Draft/Ready, and filter what needs people. My availability opens a month to tap through.">
+          <ScheduleGallery />
         </Section>
 
         <Section title="Navigation" sub="One top bar: the church on the left, the bell and you on the right. The pill floats at the bottom on a phone and an iPad held upright, and sits in the top bar from 1024px. You is a page.">
