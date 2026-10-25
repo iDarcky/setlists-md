@@ -8,6 +8,7 @@ import {
   myAsks, myServices, nextUp, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
 } from '@/lib/homeData';
 import HomeView from './HomeView';
+import { partLabel } from '@/data/instruments';
 
 // Home: works out what to show from the library, the schedule and the team,
 // and hands it to HomeView. Schedules and the row-id map come from App, which
@@ -53,7 +54,7 @@ export default function Home({
     };
     return {
       setlist: n.setlist,
-      part: n.schedule ? [n.schedule.role, n.schedule.vocal_part].filter(Boolean).join(' · ') : null,
+      part: n.schedule ? partLabel(n.schedule) || null : null,
       band: rows.map(r => ({ id: r.id, name: nameOf(r.user_id), yes: r.availability === 'available' })),
       days: daysUntil(n.setlist, now),
     };
