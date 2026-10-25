@@ -19,7 +19,8 @@ import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
 import ScheduleView from '@/features/schedule/ScheduleView';
 import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
-import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft, canYouPlay } from '@/lib/scheduleData';
+import BandView from '@/features/schedule/BandView';
+import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft, canYouPlay, bandGrid, planKey, planSummary } from '@/lib/scheduleData';
 import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
@@ -263,8 +264,26 @@ const S_SETLISTS = [
 const S_SCHEDULES = [...H_SCHEDULES, { id: 'k9', user_id: 'joe', setlist_id: 'p1', availability: 'available', role: 'Keys' }];
 const S_AVAIL = [{ user_id: 'joe', date: '2026-12-06', status: 'unavailable' }, { user_id: 'rk', date: '2026-11-08', status: 'available' }, { user_id: 'mv', date: '2026-11-08', status: 'available' }];
 
-function ScheduleDemo({ leader = false, layout }) {
-  const [tab, setTab] = useState('upcoming');
+const S_MEMBERS = [['joe', 'Keys'], ['am', 'Vocals'], ['rk', 'Drums'], ['ls', 'Bass'], ['tp', 'Guitar']]
+  .map(([user_id, part]) => ({ user_id, instruments: [part] }));
+
+function BandDemo() {
+  const [plan, setPlan] = useState({ [planKey('s2', 'rk')]: 'add' });
+  const upcoming = groupByMonth(S_SETLISTS, { now: H_NOW }).flatMap(g => g.setlists).slice(0, 4);
+  const map = Object.fromEntries(S_SETLISTS.map(sl => [sl.id, sl.id]));
+  const grid = bandGrid({ setlists: upcoming, members: S_MEMBERS, schedules: S_SCHEDULES, setlistMap: map, availability: S_AVAIL, plan, nameOf: m => S_NAMES[m.user_id] });
+  const tap = (sid, uid) => setPlan(({ [planKey(sid, uid)]: had, ...rest }) => (had ? rest
+    : { ...rest, [planKey(sid, uid)]: grid.people.find(p => p.userId === uid).cells.find(c => c.setlistId === sid).schedule ? 'remove' : 'add' }));
+  return (
+    <BandView
+      columns={grid.columns} people={grid.people} range="1 – 22 November" canNext onTap={tap} onOpen={noop}
+      plan={planSummary(plan)} onSend={() => setPlan({})} onClear={() => setPlan({})}
+    />
+  );
+}
+
+function ScheduleDemo({ leader = false, layout, initialTab = 'upcoming' }) {
+  const [tab, setTab] = useState(initialTab);
   const [filter, setFilter] = useState('all');
   const [sheet, setSheet] = useState(false);
   const [mine, setMine] = useState({ '2026-11-01': 'available', '2026-12-06': 'unavailable', '2026-11-20': 'maybe' });
@@ -288,6 +307,7 @@ function ScheduleDemo({ leader = false, layout }) {
         counts={{ needs: up.filter(r => needsPeople(r.summary)).length, drafts: up.filter(r => isDraft(r.setlist)).length }}
         groups={groups} onOpen={noop} onAnswer={noop} onNew={leader ? noop : null} onAvailability={() => setSheet(true)}
         canPlay={canPlay} onAnswerDay={(t, st) => setMine(m => ({ ...m, [t.date]: st }))}
+        band={tab === 'band' ? <BandDemo /> : null}
       />
       <AvailabilitySheet
         open={sheet} onOpenChange={setSheet} mine={mine} busyDates={new Set(S_SETLISTS.map(s => s.date))} now={H_NOW}
@@ -300,7 +320,7 @@ function ScheduleDemo({ leader = false, layout }) {
 function ScheduleGallery() {
   return (
     <div className="flex flex-wrap gap-6">
-      {[['Member', {}], ['Leader', { leader: true }]].map(([label, props]) => THEMES.map(t => (
+      {[['Member', {}], ['Leader', { leader: true }], ['Band', { leader: true, initialTab: 'band' }]].map(([label, props]) => THEMES.map(t => (
         <Frame key={label + t.id} theme={t.id} width={390} height={1000} scale={0.6} label={`${label} · ${t.label}`}>
           <ScheduleDemo layout="phone" {...props} />
         </Frame>
