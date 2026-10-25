@@ -8,7 +8,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { parseSongMd, songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
-import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin } from '@/lib/joinLink';
+import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -99,7 +99,7 @@ const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 // corner is deliberately cheap rather than self-explanatory, and this is where
 // it gets explained. See `LiveIntro`.
 const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
-const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
+const DesignSystem = lazy(() => import('@/features/design/DesignSystem'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
 // replaced is deleted). Lazy — only fetched when the user adds a song.
@@ -203,6 +203,7 @@ export default function App() {
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (window.location.pathname === '/copyright') return 'legal-copyright';
+      if (window.location.pathname === '/design') return 'design';
       // `/join/<code>` — a church's join link. Public: works before sign-in.
       if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
@@ -289,6 +290,8 @@ export default function App() {
   }, [settings?.seenLiveIntro]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
+  // The church a join link is joining, shown on the log-in / create screens.
+  const [authJoining, setAuthJoining] = useState(null);
   const [newSongModal, setNewSongModal] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -462,26 +465,22 @@ export default function App() {
     if (target) setView(target);
   }, [pendingSpaceSwitch, teams, activeLibrary]);
 
-  // Someone who asked to join and then left the Waiting screen: keep watching
-  // their request, and when a leader decides, say so wherever they are.
+  // Someone who asked to join and then left the Waiting screen (a launch
+  // reopens it, but they may have gone to Log in, say): keep watching that
+  // one request, and when a leader decides, say so wherever they are.
   const watchJoin = !!user?.id && view !== 'join' && loadPendingJoin()?.stage === 'requested';
   const { requests: myJoinRequests } = useMyJoinRequests(user?.id, { enabled: watchJoin });
   const announcedJoinRef = useRef(new Set());
   useEffect(() => {
     if (!watchJoin) return;
-    const decided = myJoinRequests.filter(r => r.status !== 'pending' && !announcedJoinRef.current.has(r.id));
-    if (decided.length === 0) return;
-    // Only announce decisions on requests this device is waiting on; the rest
-    // are history.
-    const stillPending = myJoinRequests.some(r => r.status === 'pending');
-    const fresh = decided.filter(r => r.decided_at && Date.now() - Date.parse(r.decided_at) < 7 * 24 * 3600 * 1000);
-    decided.forEach(r => announcedJoinRef.current.add(r.id));
-    if (!stillPending) clearPendingJoin();
-    const approved = fresh.find(r => r.status === 'approved');
-    if (approved) {
-      handleJoinedSpace(approved.team_id, { switchTo: activeLibrary === 'personal' ? 'home' : null });
-      toast({ title: `You're in ${approved.team_name || 'the team'}`, description: 'A leader approved your request.' });
-    } else if (fresh.some(r => r.status === 'declined')) {
+    const decision = joinDecisionFor(myJoinRequests, loadPendingJoin());
+    if (!decision || announcedJoinRef.current.has(decision.id)) return;
+    announcedJoinRef.current.add(decision.id);
+    clearPendingJoin();
+    if (decision.status === 'approved') {
+      handleJoinedSpace(decision.team_id, { switchTo: activeLibrary === 'personal' ? 'home' : null });
+      toast({ title: `You're in ${decision.team_name || 'the team'}`, description: 'A leader approved your request.' });
+    } else {
       toast({ title: 'Join request not approved', description: 'Talk to your worship leader if that is a mistake.' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -750,6 +749,8 @@ export default function App() {
         const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
         if (isAuthFlow) {
           // Keep the current auth view
+        } else if (view === 'design' && savedSettings.onboardingComplete) {
+          // /design: the design system page, opened by its address.
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
@@ -2351,10 +2352,11 @@ export default function App() {
               leaveJoinFlow();
               setView(resolveLandingView(settings?.landingView));
             }}
-            onPasswordSignIn={(mode = 'signin') => {
+            onPasswordSignIn={(mode = 'signin', church = null) => {
               // The code stays parked in localStorage; the resume effect brings
               // the flow back once AuthScreen signs in.
               leaveJoinFlow();
+              setAuthJoining(church);
               setAuthStartMode(mode === 'signup' ? 'signup' : 'signin');
               setView('signin');
             }}
@@ -2437,24 +2439,12 @@ export default function App() {
           }}
           onSignedIn={() => goToMainView('home')}
           defaultMode={authStartMode}
-          onShowLegal={(doc) => navigate(`legal-${doc}`)}
+          joining={loadPendingJoin()?.stage === 'auth' ? authJoining : null}
         />
       )}
       {(view === 'onboarding' || lockedOut) && (
         <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
         <WelcomeScreen
-          onTrySolo={() => {
-            // Demos are seeded on a first run already; this covers a replay
-            // from Settings after the library was emptied.
-            setSongs(prev => {
-              if (prev.length > 0) return prev;
-              const demos = seedDemoSongs();
-              saveSongs(demos);
-              return demos;
-            });
-            setSettings(prev => ({ ...prev, onboardingComplete: true, soloMode: true }));
-            setView('home');
-          }}
           onSignIn={() => {
             setSettings(prev => ({ ...prev, onboardingComplete: true }));
             setAuthStartMode('signin');
@@ -2819,7 +2809,7 @@ export default function App() {
             />
           )}
           {view === "design" && (
-            <LydianShowcase onBack={goBack} />
+            <DesignSystem onBack={goBack} />
           )}
           {view === "help" && (
             <HelpPage
