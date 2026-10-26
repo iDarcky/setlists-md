@@ -24,6 +24,9 @@ import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
 import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft } from '@/lib/scheduleData';
 import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
+import NotificationsPanel from '@/features/notifications/NotificationsPanel';
+import { buildNotifs } from '@/lib/notifData';
+
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
 // /design — the design system, built from the real components. Every swatch,
@@ -370,6 +373,66 @@ function SongsGallery() {
   );
 }
 
+const N_FEED = [
+  { id: 'schedule-a', type: 'schedule_request', scheduleId: 'na', setlistId: 's5' },
+  { id: 'n1', type: 'schedule_decline', title: 'Rob K can’t play Sun 8 Nov', message: 'Sunday Morning · Drums', createdAt: hAgo(2), read: false },
+  { id: 'n2', type: 'setlist_ready', title: 'Sunday Morning is ready', message: 'Ana M marked it ready · 6 songs', createdAt: hAgo(5), read: false },
+  { id: 'n3', type: 'song_added', title: 'New song: Goodness of God', message: 'Added by Ana M', createdAt: hAgo(40), read: true },
+  { id: 'n4', type: 'member_joined', title: 'Lia S joined Grace Church', message: 'Vocals', createdAt: hAgo(150), read: true },
+];
+const N_JOIN = [{ id: 'r1', display_name: 'Tim Popescu', parts: ['electric-guitar', 'vocals'], created_at: hAgo(1) }];
+
+function NotificationsDemoPanel({ empty = false, push = true }) {
+  const [hidePush, setHidePush] = useState(!push);
+  const data = buildNotifs({
+    feed: empty ? [] : N_FEED, joinRequests: empty ? [] : N_JOIN,
+    schedules: [{ id: 'na', role: 'acoustic-guitar' }], setlists: S_SETLISTS,
+    matchesSetlistId: (sl, id) => sl.id === id, now: H_NOW,
+  });
+  return (
+    <NotificationsPanel
+      data={data} now={H_NOW}
+      push={{ show: !hidePush, onEnable: noop, onDismiss: () => setHidePush(true) }}
+      onMarkAllRead={noop} onAnswer={noop} onApprove={noop} onDecline={noop} onOpen={noop} onSettings={noop}
+    />
+  );
+}
+
+function NotificationsDemo(props) {
+  return (
+    <div className="h-full overflow-y-auto bg-background p-4">
+      <div className="pb-1 text-[17px] font-semibold text-foreground">Notifications</div>
+      <NotificationsDemoPanel {...props} />
+    </div>
+  );
+}
+
+// The real bell: a drawer below 640px, a dropdown above (follows the window).
+function BellDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="w-full max-w-[720px] rounded-card border border-border">
+      <AppTopBar
+        church={CHURCH} unread me={ME} onOpenYou={noop}
+        notifications={{ open, onOpenChange: setOpen, content: <NotificationsDemoPanel /> }}
+      />
+    </div>
+  );
+}
+
+function NotificationsGallery() {
+  return (
+    <div className="flex flex-wrap gap-6">
+      <BellDemo />
+      {[['Phone', 390, 1060, {}], ['Empty', 390, 520, { empty: true, push: false }]].map(([label, w, h, props]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={w} height={h} scale={0.6} label={`${label} · ${t.label}`}>
+          <NotificationsDemo {...props} />
+        </Frame>
+      )))}
+    </div>
+  );
+}
+
 // ── Screen gallery ──────────────────────────────────────────────────────────
 
 function Frame({ theme, width, height, scale = 1, label, children }) {
@@ -622,6 +685,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Songs" sub="One list: search, quick chips, the sort, then each song with how often and when it was last played, and its key. Leaders long-press or tap Select to tag, delete, or move/copy to another church they lead.">
           <SongsGallery />
+        </Section>
+
+        <Section title="Notifications" sub="The bell: a drawer on a phone, a dropdown from the iPad up. Needs you first (answer right there), then Today, This week, Earlier. Cleared after 30 days.">
+          <NotificationsGallery />
         </Section>
 
         <Section title="Navigation" sub="One top bar: the church on the left, the bell and you on the right. The pill floats at the bottom on a phone and an iPad held upright, and sits in the top bar from 1024px. You is a page.">

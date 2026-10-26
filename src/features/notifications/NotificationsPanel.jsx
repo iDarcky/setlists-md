@@ -62,15 +62,16 @@ function Item({ it, now, onAnswer, onApprove, onDecline, onOpen }) {
 }
 
 const Label = ({ children }) => (
-  <div className="px-1 pb-2 pt-4 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground first:pt-0">{children}</div>
+  <div className="px-1 pb-2 pt-4 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</div>
 );
 const Group = ({ children }) => <div className="overflow-hidden rounded-card border border-border bg-card">{children}</div>;
 
 /**
  * @param {{ needs, groups }} data          from buildNotifs()
+ * @param {number} now                      the clock the time labels read
  * @param {{ show: boolean, onEnable, onDismiss }} [push]  the lock-screen card
  */
-export default function NotificationsPanel({ data, now = Date.now(), push, onMarkAllRead, onAnswer, onApprove, onDecline, onOpen, onSettings, compact = false }) {
+export default function NotificationsPanel({ data, now, push, onMarkAllRead, onAnswer, onApprove, onDecline, onOpen, onSettings, compact = false }) {
   const empty = !data.needs.length && !data.groups.length;
   return (
     <div className="flex flex-col font-sans text-foreground">

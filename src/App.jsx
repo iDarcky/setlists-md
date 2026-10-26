@@ -41,6 +41,7 @@ import { ChurchSheet } from '@/app/ChurchSheet';
 import YouPage from '@/features/you/YouPage';
 import NotificationTray from '@/features/notifications/NotificationTray';
 import NotificationsPage from '@/features/notifications/NotificationsPage';
+import NotificationsBell from '@/features/notifications/NotificationsBell';
 import ConflictResolver from '@/features/sync/ConflictResolver';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import { usePreferenceSync } from '@/app/usePreferenceSync';
@@ -293,6 +294,7 @@ export default function App() {
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
   const [notifTrayOpen, setNotifTrayOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
   // Account-wall modal state — surfaced after the user saves their first
   // local item (song or setlist) without being signed in.
   const [accountWallTrigger, setAccountWallTrigger] = useState(null);
@@ -1235,6 +1237,7 @@ export default function App() {
     markRead: handleMarkNotificationRead,
     dismiss: handleDismissNotification,
     clearAll: handleClearAllNotifications,
+    markAllRead: handleMarkAllNotificationsRead,
     onAction: handleNotificationAction,
   } = useNotificationFeed({
     schedules, setlists, members, teamNotifications, user, settings, setSettings,
@@ -2345,7 +2348,26 @@ export default function App() {
       church={{ name: activeWorkspace?.name || currentWorkspaceName, logoUrl: activeWorkspace?.id === 'personal' ? null : activeWorkspace?.avatarUrl }}
       onOpenChurches={workspaces.length > 1 ? () => setChurchSheetOpen(true) : undefined}
       unread={hasUnreadNotifications}
-      onOpenNotifications={() => navigate('notifications')}
+      notifications={{
+        open: bellOpen,
+        onOpenChange: setBellOpen,
+        content: (
+          <NotificationsBell
+            feed={mergedNotifications}
+            schedules={schedules}
+            setlists={setlists}
+            matchesSetlistId={matchesSetlistId}
+            settings={settings}
+            setSettings={setSettings}
+            onUpdateSchedule={updateSchedule}
+            onMarkRead={handleMarkNotificationRead}
+            onMarkAllRead={handleMarkAllNotificationsRead}
+            onOpenSetlist={goSetlistView}
+            onSettings={() => goToMainView('settings', { settingsPanel: 'notifications' })}
+            onClose={() => setBellOpen(false)}
+          />
+        ),
+      }}
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
       onOpenYou={() => navigate('you')}

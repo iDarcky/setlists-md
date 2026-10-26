@@ -29,7 +29,7 @@ const startOfDay = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); ret
 
 /**
  * @returns {{ needs: Item[], groups: Array<{ label: string, items: Item[] }>, unread: number }}
- * Item = { id, kind: 'ask'|'join'|'info', title, sub, time, unread, scheduleId?, requestId?, avatar?, tone? }
+ * Item = { id, kind: 'ask'|'join'|'info', title, sub, time, unread, scheduleId?, requestId?, setlistId?, avatar?, tone? }
  */
 export function buildNotifs({ feed = [], joinRequests = [], schedules = [], setlists = [], matchesSetlistId, now = Date.now() }) {
   const scheduleById = new Map(schedules.map(s => [s.id, s]));
@@ -65,6 +65,8 @@ export function buildNotifs({ feed = [], joinRequests = [], schedules = [], setl
       time,
       unread: !n.read,
       tone: n.type === 'schedule_decline' ? 'no' : null,
+      setlistId: n.setlistId || null,
+      sourceId: n.id,
       avatar: { icon: n.type?.startsWith('song') ? 'music' : n.type?.startsWith('member') || n.type?.startsWith('join') ? 'team' : 'cal' },
     });
   }
