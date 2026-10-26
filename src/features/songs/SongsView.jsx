@@ -4,6 +4,8 @@ import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Input } from '@/ui/shadcn/input';
 import { useLongPress } from '@/lib/useLongPress';
+import { useMediaQuery } from '@/lib/useMediaQuery';
+import { SongsTable, SongPreview } from './SongsDesk';
 import { SORTS, filterCount } from '@/lib/songsData';
 import { PlusIcon, ChevronDownIcon, CheckIcon } from '@/app/navIcons';
 
@@ -130,8 +132,12 @@ export function FilterSheet({ open, onOpenChange, sort, onSort, filters, onFilte
 export default function SongsView({
   leader = false, total = 0, rows = [], nextLabel = '', query = '', onQuery,
   sort = 'az', onSort, filters, onFilters, options = { keys: [], themes: [] },
-  onOpen, onAdd, onTag, onDelete, onMove, onCopy, embedded = false, layout = 'auto',
+  onOpen, onEdit, onAdd, onTag, onDelete, onMove, onCopy, embedded = false, layout = 'auto',
 }) {
+  const desk = useMediaQuery('(min-width: 1024px)');
+  const wide = layout === 'desk' || (layout === 'auto' && desk);
+  const [pickedId, setPickedId] = useState(null);
+  const picked = rows.find(r => r.song.id === pickedId) || rows[0] || null;
   const [sheet, setSheet] = useState(false);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
@@ -150,9 +156,9 @@ export default function SongsView({
 
   return (
     <div data-slot="songs" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      <div className={cn('mx-auto flex w-full max-w-[680px] flex-col gap-3', selecting ? 'pb-40' : 'pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
+      <div className={cn('mx-auto flex w-full flex-col gap-3', wide ? 'max-w-[1180px]' : 'max-w-[680px]', selecting ? 'pb-40' : 'pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
-          <h1 className="m-0 text-[24px] font-semibold leading-8 tracking-[-0.5px]">
+          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>
             Songs {total > 0 && <span className="text-[15px] font-medium tracking-normal text-muted-foreground">{total}</span>}
           </h1>
           {selecting ? (
@@ -172,13 +178,14 @@ export default function SongsView({
           </div>
         ) : (
           <>
-            <label className="relative block">
+            <div className={cn('flex flex-col gap-3', wide && 'flex-row items-center gap-2.5')}>
+            <label className={cn('relative block', wide && 'w-[340px] shrink-0')}>
               <span className="sr-only">Search songs</span>
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"><SearchIcon /></span>
               <Input type="search" value={query} onChange={(e) => onQuery?.(e.target.value)} placeholder="Search title, artist, lyrics" className="pl-10" />
             </label>
             {!selecting && (
-              <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+              <div className={cn('flex gap-1.5', wide ? 'flex-wrap' : '-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0')}>
                 <button type="button" onClick={() => setSheet(true)} className={cn(chipBase, filters.keys.length && chipOn)}>{chipKey}<ChevronDownIcon size={14} /></button>
                 <button type="button" onClick={() => setSheet(true)} className={cn(chipBase, filters.themes.length && chipOn)}>{chipTheme}<ChevronDownIcon size={14} /></button>
                 <button type="button" aria-pressed={filters.stale} onClick={() => onFilters?.({ ...filters, stale: !filters.stale })} className={cn(chipBase, filters.stale && chipOn)}>Not played lately</button>
@@ -187,6 +194,7 @@ export default function SongsView({
                 </button>
               </div>
             )}
+            </div>
             <div className="flex items-center justify-between px-0.5 text-[13px] text-muted-foreground">
               <span>{rows.length === total ? `${total} song${total === 1 ? '' : 's'}` : `${rows.length} of ${total}`}</span>
               <span className="flex items-center gap-3">
@@ -202,6 +210,21 @@ export default function SongsView({
               <div className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
                 <b className="text-[17px]">No songs match</b>
                 <p className="m-0 text-[15px] text-muted-foreground">Try fewer filters or another search.</p>
+              </div>
+            ) : wide ? (
+              <div className="grid grid-cols-[minmax(0,1fr)_360px] items-start gap-5">
+                <SongsTable
+                  rows={rows}
+                  picked={picked?.song.id}
+                  selecting={selecting}
+                  selected={selected}
+                  onPick={(song) => setPickedId(song.id)}
+                  onOpen={onOpen}
+                  onToggle={toggle}
+                  sort={sort}
+                  onSort={onSort}
+                />
+                <SongPreview row={picked} nextLabel={nextLabel} onOpen={onOpen} onEdit={leader ? onEdit : null} />
               </div>
             ) : (
               <div className="overflow-hidden rounded-card border border-border bg-card">

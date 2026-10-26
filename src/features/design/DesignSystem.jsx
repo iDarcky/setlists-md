@@ -345,6 +345,12 @@ const SO_SONGS = [
   so('lp', 'Laudă-L pe Domnul', 'Worship RO', 'E', 120, 'Praise'),
   so('wm', 'Way Maker', 'Sinach', 'E', 68, 'Praise'),
 ];
+SO_SONGS[0].ccli = '4768151';
+SO_SONGS[0].arrangements[0].time = '3/4';
+SO_SONGS[0].arrangements[0].sections = [
+  { type: 'Verse 1', lines: ['[G]Amazing grace, how [G7]sweet the [C]sound', 'That [G]saved a wretch like [D]me', '[G]I once was lost, but [G7]now am [C]found', 'Was [G]blind but [D]now I [G]see'] },
+  { type: 'Chorus', lines: ['My [C]chains are gone, I\'ve been set [G]free', 'My God, my [D]Saviour has ransomed [Em]me'] },
+];
 const soSet = (date, ids) => ({ id: `so-${date}`, date, time: '10:00', items: ids.map(songId => ({ songId })) });
 const SO_SETLISTS = [
   soSet('2026-10-25', ['wm', 'gg']), soSet('2026-10-18', ['bl', 'wm', 'gg']), soSet('2026-10-11', ['hf', 'wm']),
@@ -361,12 +367,12 @@ function SongsDemo({ leader = true, empty = false, layout }) {
   const stats = playStats(SO_SETLISTS, now);
   const next = nextSetlistSongs(SO_SETLISTS, now);
   const found = query ? songs.filter(s => s.title.toLowerCase().includes(query.toLowerCase())) : sortSongs(songs, sort, stats);
-  const rows = filterSongs(found, filters, stats, now).map(song => ({ song, keyName: songKey(song), line: playLine(stats[song.id], now), next: next.ids.has(song.id) }));
+  const rows = filterSongs(found, filters, stats, now).map(song => ({ song, keyName: songKey(song), line: playLine(stats[song.id], now), stat: stats[song.id], next: next.ids.has(song.id) }));
   return (
     <SongsView
       layout={layout} embedded leader={leader} total={songs.length} rows={rows} nextLabel={next.label}
       query={query} onQuery={setQuery} sort={sort} onSort={setSort} filters={filters} onFilters={setFilters}
-      options={filterOptions(songs)} onOpen={noop} onAdd={noop} onTag={noop} onDelete={noop} onCopy={noop} onMove={noop}
+      options={filterOptions(songs)} onOpen={noop} onEdit={noop} onAdd={noop} onTag={noop} onDelete={noop} onCopy={noop} onMove={noop}
     />
   );
 }
@@ -379,6 +385,11 @@ function SongsGallery() {
           <SongsDemo layout="phone" {...props} />
         </Frame>
       )))}
+      {THEMES.map(t => (
+        <Frame key={`desk${t.id}`} theme={t.id} width={1280} height={1100} scale={0.55} label={`Desktop · ${t.label}`}>
+          <SongsDemo layout="desk" />
+        </Frame>
+      ))}
     </div>
   );
 }

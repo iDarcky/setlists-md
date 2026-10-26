@@ -2487,6 +2487,7 @@ export default function App() {
               setlists={setlists}
               readOnly={isTeamReadOnly}
               onOpenSong={goChart}
+              onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
               onSearchCatalog={isTeamReadOnly ? null : () => openNewSongModal()}
               onImport={isTeamReadOnly ? null : () => openNewSongModal('import')}
               onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
