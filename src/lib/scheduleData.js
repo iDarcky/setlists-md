@@ -102,3 +102,64 @@ export function canYouPlay({ now = Date.now(), setlists = [], asks = [], plays =
     };
   });
 }
+
+// ── Band grid ───────────────────────────────────────────────────────────────
+
+/** The parts a band is checked against, in the order the Missing row names them. */
+export const PARTS = ['Drums', 'Bass', 'Keys', 'Guitar', 'Vocals'];
+
+/**
+ * One cell of the leader's people × setlists grid. A schedule row (asked or
+ * answered) outranks the person's day availability.
+ *   in · asked · maybe · cant · free · none
+ */
+export function cellState(schedule, dayStatus) {
+  if (schedule) {
+    return { available: 'in', pending: 'asked', maybe: 'maybe', unavailable: 'cant' }[schedule.availability] || 'asked';
+  }
+  return { available: 'free', maybe: 'maybe', unavailable: 'cant' }[dayStatus] || 'none';
+}
+
+export const planKey = (setlistId, userId) => `${setlistId}:${userId}`;
+
+/**
+ * The Band grid. `plan` is the leader's unsent taps: { [planKey]: 'add' | 'remove' }.
+ * An add shows as a fresh ask, a remove keeps its state but is marked. A column
+ * counts who said yes and names the parts nobody covers (in or asked), from
+ * the parts the church's members play.
+ * Returns { columns: [{ setlist, rowId, inBand, missing }], people: [{ userId, name, part, cells }] }.
+ */
+export function bandGrid({ setlists = [], members = [], schedules = [], setlistMap = {}, availability = [], plan = {}, nameOf = (m) => m.user_id }) {
+  const teamParts = PARTS.filter(p => members.some(m => (m.instruments || []).includes(p)));
+  const people = members.map(m => ({ userId: m.user_id, name: nameOf(m), part: (m.instruments || [])[0] || '', parts: m.instruments || [], cells: [] }));
+  const columns = setlists.map(sl => {
+    const rows = bandFor(sl, schedules, setlistMap);
+    const covered = new Set();
+    let inBand = 0;
+    let anyone = false;
+    for (const p of people) {
+      const schedule = rows.find(r => r.user_id === p.userId) || null;
+      const day = availability.find(a => a.user_id === p.userId && a.date === sl.date)?.status;
+      const planned = plan[planKey(sl.id, p.userId)] || null;
+      const state = planned === 'add' && !schedule ? 'asked' : cellState(schedule, day);
+      p.cells.push({ setlistId: sl.id, schedule, state, planned });
+      const counts = planned !== 'remove' && (state === 'in' || (state === 'asked' && (schedule || planned === 'add')));
+      if (counts) {
+        anyone = true;
+        if (state === 'in') inBand++;
+        const role = schedule?.role || p.part;
+        if (role) covered.add(role);
+        else p.parts.forEach(x => covered.add(x));
+      }
+    }
+    const missing = anyone ? teamParts.filter(x => !covered.has(x)) : null;
+    return { setlist: sl, rowId: setlistMap[sl.id] || null, inBand, missing };
+  });
+  return { columns, people };
+}
+
+/** What a plan will do: asks to send and band places to take back. */
+export function planSummary(plan = {}) {
+  const v = Object.values(plan);
+  return { adds: v.filter(x => x === 'add').length, removes: v.filter(x => x === 'remove').length };
+}

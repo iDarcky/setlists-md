@@ -180,13 +180,15 @@ function FilterChip({ on, onClick, children, count }) {
  * @param {{needs:number, drafts:number}} [p.counts]
  * @param {Array<{month, rows}>} p.groups   rows: { setlist, me, summary, faces, songCount }
  * @param {Array} [p.canPlay]   canYouPlay() tiles, each with its `setlists`
+ * @param {React.ReactNode} [p.band]   the Band grid, shown on the Band tab
  */
 export default function ScheduleView({
   leader = false, tab = 'upcoming', onTab, showBand = false, filter = 'all', onFilter, counts = {},
   groups = [], clockFormat = '12h', onOpen, onAnswer, onNew, onAvailability,
-  canPlay, onAnswerDay, embedded = false, layout = 'auto',
+  canPlay, onAnswerDay, band = null, embedded = false, layout = 'auto',
 }) {
   const past = tab === 'past';
+  const isBand = tab === 'band' && band;
   const [picked, setPicked] = useState(null);
   return (
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
@@ -202,7 +204,7 @@ export default function ScheduleView({
             {leader && onNew && <Button size="sm" onClick={onNew}><PlusIcon size={16} />New</Button>}
           </div>
         </header>
-        {!past && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}
+        {!past && !isBand && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}
         <Segmented
           value={tab}
           onChange={onTab}
@@ -212,14 +214,14 @@ export default function ScheduleView({
             { value: 'past', label: 'Past' },
           ]}
         />
-        {leader && !past && (
+        {leader && !past && !isBand && (
           <div className="flex flex-wrap gap-1.5">
             <FilterChip on={filter === 'all'} onClick={() => onFilter?.('all')}>All</FilterChip>
             <FilterChip on={filter === 'needs'} onClick={() => onFilter?.('needs')} count={counts.needs}>Needs people</FilterChip>
             <FilterChip on={filter === 'drafts'} onClick={() => onFilter?.('drafts')} count={counts.drafts}>Drafts</FilterChip>
           </div>
         )}
-        {groups.length === 0 ? (
+        {isBand ? band : groups.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
             <b className="text-[17px]">{past ? 'Nothing played yet' : filter !== 'all' ? 'Nothing here' : 'Nothing planned yet'}</b>
             <p className="m-0 max-w-[320px] text-[15px] leading-[21px] text-muted-foreground">
