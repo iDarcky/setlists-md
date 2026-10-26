@@ -82,6 +82,13 @@ describe('homeData', () => {
     expect(rows[0]).toMatchObject({ yes: 1, maybe: 1, no: 1, noAnswer: 2, total: 5 });
   });
 
+  it('counts an accepted setlist as yes, over the day answer', () => {
+    const availability = [{ user_id: 'me', date: '2026-11-01', status: 'unavailable' }];
+    const rows = whoCanPlay({ setlists: SETLISTS, availability, schedules: SCHEDULES, setlistMap: MAP, memberCount: 5, now: NOW });
+    // me accepted nov1; other is still pending, so not an answer.
+    expect(rows[0]).toMatchObject({ yes: 1, no: 0, noAnswer: 4 });
+  });
+
   it('collects what needs a leader: joins, no band, no songs', () => {
     const items = needsYou({
       joinRequests: [{ display_name: 'Ana M.' }, { email: 'tim@example.com' }],

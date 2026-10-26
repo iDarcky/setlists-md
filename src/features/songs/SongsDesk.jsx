@@ -3,6 +3,7 @@ import { Button } from '@/ui/shadcn/button';
 import { CheckIcon, PlayIcon } from '@/app/navIcons';
 import { songTempo } from '@/lib/songsData';
 import { mostPlayedKey } from '@/keyHistory';
+import { splitMulti } from '@/lib/songFacets';
 
 // Songs from 1024px: a table with the columns that matter for planning, and
 // the picked song on the right (canvas → Songs → Desktop). Pure view parts,
@@ -55,30 +56,6 @@ export function SongsTable({ rows = [], picked, selecting, selected, onPick, onO
   );
 }
 
-// "[G]Amazing [D]grace" → chord over each piece of lyric, so the chords sit
-// where they belong in any font.
-function ChordLine({ line }) {
-  const parts = line.split(/(\[[^\]]+\])/).filter(Boolean);
-  const segs = [];
-  let chord = '';
-  for (const p of parts) {
-    if (/^\[[^\]]+\]$/.test(p)) { if (chord) segs.push({ chord, text: '' }); chord = p.slice(1, -1); }
-    else { segs.push({ chord, text: p }); chord = ''; }
-  }
-  if (chord) segs.push({ chord, text: '' });
-  const hasChords = segs.some(s => s.chord);
-  return (
-    <div className="flex flex-wrap">
-      {segs.map((s, i) => (
-        <span key={i} className="inline-flex flex-col whitespace-pre">
-          {hasChords && <span className="h-[18px] pr-1 font-mono text-[13px] font-semibold text-[var(--chord)]">{s.chord}</span>}
-          <span>{s.text}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function arrangementOf(song) {
   const arrs = song?.arrangements || [];
   return arrs.find(a => a.id === song.defaultArrangementId) || arrs[0] || song || {};
@@ -94,9 +71,18 @@ export function SongPreview({ row, nextLabel, onOpen, onEdit }) {
   }
   const { song, stat, next } = row;
   const arr = arrangementOf(song);
-  const meta = [arr.key && `Key ${arr.key}`, arr.tempo && `${arr.tempo} BPM`, arr.time, song.ccli && `CCLI ${song.ccli}`].filter(Boolean).join(' · ');
+  const meta = [arr.key && `Key ${arr.key}`, arr.tempo && `${arr.tempo} BPM`, arr.time].filter(Boolean).join(' · ');
   const usual = mostPlayedKey(song.keyHistory) || arr.key || '—';
-  const sections = (arr.sections || []).slice(0, 2);
+  const order = (arr.structure?.length ? arr.structure : (arr.sections || []).map(sec => sec.type)).filter(Boolean);
+  const arrs = song.arrangements || [];
+  const details = [
+    ['Length', arr.duration || song.duration],
+    ['Arrangements', arrs.length > 1 && arrs.map(x => x.name || 'Default').join(', ')],
+    ['Theme', splitMulti(song.themes, song.genres).join(', ')],
+    ['Tags', (song.tags || []).join(', ')],
+    ['Capo', arr.capo ? String(arr.capo) : ''],
+    ['CCLI', song.ccli],
+  ].filter(([, v]) => v);
   return (
     <aside aria-label="Song preview" className="sticky top-4 flex flex-col gap-3.5 rounded-card border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
@@ -115,15 +101,23 @@ export function SongPreview({ row, nextLabel, onOpen, onEdit }) {
           </div>
         ))}
       </div>
-      {sections.length > 0 && (
-        <div className="flex flex-col gap-0.5 text-[14px] leading-[1.5]">
-          {sections.map((sec, i) => (
-            <div key={i} className="flex flex-col gap-0.5">
-              <span className="mt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground first:mt-0">{sec.type}</span>
-              {(sec.lines || []).filter(l => typeof l === 'string' && l.trim()).slice(0, 4).map((l, j) => <ChordLine key={j} line={l} />)}
+      {order.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>
+          <div className="flex flex-wrap gap-1.5">
+            {order.map((name, i) => <span key={i} className="flex h-7 items-center rounded-full bg-raised px-2.5 text-[13px] font-medium">{name}</span>)}
+          </div>
+        </div>
+      )}
+      {details.length > 0 && (
+        <dl className="m-0 flex flex-col text-[14px]">
+          {details.map(([k, v]) => (
+            <div key={k} className="flex gap-3 border-t border-border py-2 first:border-t-0">
+              <dt className="w-[104px] shrink-0 text-muted-foreground">{k}</dt>
+              <dd className="m-0 min-w-0 flex-1">{v}</dd>
             </div>
           ))}
-        </div>
+        </dl>
       )}
       <div className="flex gap-2">
         <Button className="flex-1" onClick={() => onOpen?.(song)}><PlayIcon size={14} />Open</Button>

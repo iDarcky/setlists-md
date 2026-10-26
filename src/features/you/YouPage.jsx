@@ -2,7 +2,7 @@ import { cn } from '@/ui/shadcn/utils';
 import { Avatar } from '@/app/AppTopBar';
 import {
   BackIcon, ChevronRightIcon, UserIcon, TeamIcon, GearIcon, MoonIcon, HelpIcon,
-  SparkIcon, PhoneIcon, SwatchIcon, SignOutIcon,
+  SparkIcon, PhoneIcon, SwatchIcon, SignOutIcon, InfoIcon,
 } from '@/app/navIcons';
 
 // "You": the one menu, opened from the avatar (canvas "Signed out and
@@ -78,7 +78,7 @@ const GroupLabel = ({ children }) => (
 export default function YouPage({
   me, signedIn = true, church, teamBadge = 0,
   onBack, onProfile, onTeam, onSettings, theme, onThemeChange, onHelp,
-  onWhatsNew, hasNewChangelog = false, onInstall, onDesign, onSignOut, onLogIn,
+  onWhatsNew, onAbout, hasNewChangelog = false, onInstall, onDesign, onSignOut, onLogIn,
   embedded = false,
 }) {
   return (
@@ -122,6 +122,7 @@ export default function YouPage({
           {onInstall && <Row icon={<PhoneIcon />} label="Put the app on your phone" onClick={onInstall} />}
           {onWhatsNew && <Row icon={<SparkIcon />} label="What’s new" badge={hasNewChangelog ? 1 : 0} onClick={onWhatsNew} />}
           <Row icon={<HelpIcon />} label="Help and feedback" onClick={onHelp} />
+          {onAbout && <Row icon={<InfoIcon />} label="About" onClick={onAbout} />}
           {onDesign && <Row icon={<SwatchIcon />} label="Design system" onClick={onDesign} />}
         </Group>
 

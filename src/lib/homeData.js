@@ -119,19 +119,28 @@ export function twoWeeks({ now = Date.now(), weekStart = 'sunday', offset = 0, s
 }
 
 /**
- * Leaders: how many people can play on each of the next few services, from
- * the team's per-date availability. `noAnswer` counts members with no row.
+ * Leaders: how many people can play on each of the next few services. A
+ * person's answer to a setlist on that date (accepted = yes, declined = no)
+ * wins over their per-date availability; `noAnswer` counts members with
+ * neither.
  */
-export function whoCanPlay({ setlists = [], availability = [], memberCount = 0, now = Date.now(), limit = 3 }) {
+export function whoCanPlay({ setlists = [], availability = [], schedules = [], setlistMap = {}, memberCount = 0, now = Date.now(), limit = 3 }) {
   const seen = new Set();
   return upcomingSetlists(setlists, now)
     .filter(sl => (seen.has(sl.date) ? false : seen.add(sl.date)))
     .slice(0, limit)
     .map(sl => {
-      const rows = availability.filter(a => a.date === sl.date);
-      const yes = rows.filter(a => a.status === 'available').length;
-      const maybe = rows.filter(a => a.status === 'maybe').length;
-      const no = rows.filter(a => a.status === 'unavailable').length;
+      const byUser = new Map();
+      availability.filter(a => a.date === sl.date).forEach((a, i) => byUser.set(a.user_id ?? `day-${i}`, a.status));
+      setlists.filter(o => o.date === sl.date).forEach(o => {
+        for (const s of bandFor(o, schedules, setlistMap)) {
+          if (s.availability && s.availability !== 'pending') byUser.set(s.user_id, s.availability);
+        }
+      });
+      const status = [...byUser.values()];
+      const yes = status.filter(v => v === 'available').length;
+      const maybe = status.filter(v => v === 'maybe').length;
+      const no = status.filter(v => v === 'unavailable').length;
       return { setlist: sl, yes, maybe, no, noAnswer: Math.max(0, memberCount - yes - maybe - no), total: Math.max(memberCount, yes + maybe + no) };
     });
 }

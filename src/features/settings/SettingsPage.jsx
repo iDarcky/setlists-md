@@ -35,7 +35,7 @@ const SETTINGS_PAGES = ['hub', 'profile', 'appearance', 'notifications', 'plan',
 
 export default function SettingsPage({
   panel = 'hub', onChangePanel, onBack, settings, onUpdate,
-  isSignedIn, displayName, displayEmail, onSignOut, onLogIn,
+  isSignedIn, displayName, displayEmail, onLogIn,
   activeLibrary, setlists = [], songs = [], trash = [],
   onRemapService, onDownloadSongs, onDownloadBackup, onRestoreSong, onPurgeSong, onEmptyTrash,
   onUpgrade, onShowLegal, onHelp,
@@ -81,16 +81,16 @@ export default function SettingsPage({
 
   const myMember = church && user ? members.find(m => m.user_id === user.id) : null;
   const tokens = useMemo(() => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))), [myMember?.instruments]);
-  const instrument = tokens.find(t => !t.startsWith('vocals'))?.split(':')[0] || null;
+  const picked = useMemo(() => tokens.filter(t => !t.startsWith('vocals')), [tokens]);
   const vocal = tokens.find(t => t.startsWith('vocals:'))?.split(':')[1] || null;
   const [partsBusy, setPartsBusy] = useState(false);
   const [partsError, setPartsError] = useState('');
-  // One instrument plus one sung part (owner, 2026-08-07): see Account.jsx history.
-  const saveParts = async (nextInstrument, nextVocal) => {
+  // Any number of instruments plus one sung part (owner, 2026-10-26).
+  const saveParts = async (nextPicked, nextVocal) => {
     setPartsBusy(true);
     setPartsError('');
     try {
-      await updateMyInstruments([nextInstrument, nextVocal ? `vocals:${nextVocal}` : null].filter(Boolean));
+      await updateMyInstruments([...nextPicked, nextVocal ? `vocals:${nextVocal}` : null].filter(Boolean));
     } catch (err) {
       setPartsError(err?.message || 'Couldn’t save that. Try again.');
     } finally { setPartsBusy(false); }
@@ -153,11 +153,10 @@ export default function SettingsPage({
             ) : null}
             nameDraft={nameDraft} onNameDraft={(v) => { setNameDraft(v); setNameSaved(false); }} onSaveName={saveName} nameBusy={nameBusy} nameSaved={nameSaved}
             church={church && myMember ? { name: church.name } : null}
-            instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} instrument={instrument} vocal={vocal}
-            onInstrument={(id) => saveParts(id, vocal)} onVocal={(id) => saveParts(instrument, id)}
+            instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} picked={picked} vocal={vocal}
+            onInstrument={(id) => saveParts(picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id], vocal)} onVocal={(id) => saveParts(picked, id)}
             partsBusy={partsBusy} partsError={partsError}
             onChangePassword={isSignedIn ? () => { setPwError(''); setPwOpen(true); } : undefined}
-            onSignOut={onSignOut}
             onDeleteAccount={isSignedIn ? () => { setDelError(''); setDelOpen(true); } : undefined}
             onBack={toHub}
           />
@@ -253,7 +252,7 @@ export default function SettingsPage({
     default:
       return (
         <SettingsHubView
-          me={me} signedIn={isSignedIn}
+          signedIn={isSignedIn}
           summary={{
             appearance: ({ light: 'Light', dark: 'Dark', midnight: 'Dark', default: 'Auto' })[settings?.theme || 'dark'],
             notifications: !push.supported ? null : push.subscribed ? 'On' : 'Off',

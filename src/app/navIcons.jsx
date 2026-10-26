@@ -42,6 +42,9 @@ export const MoonIcon = ({ size = 20 }) => (
 export const HelpIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
 );
+export const InfoIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg>
+);
 export const SparkIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" /></svg>
 );

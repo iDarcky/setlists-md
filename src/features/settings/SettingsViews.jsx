@@ -129,7 +129,6 @@ const CardIcon = () => <Svg><rect x="2.5" y="5" width="19" height="14" rx="2.5" 
 const DataIcon = () => <Svg><ellipse cx="12" cy="5.5" rx="8" ry="3" /><path d="M4 5.5v13c0 1.66 3.6 3 8 3s8-1.34 8-3v-13M4 12c0 1.66 3.6 3 8 3s8-1.34 8-3" /></Svg>;
 const LabsIcon = () => <Svg><path d="M9 3h6M10 3v6l-5.5 9.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" /><path d="M7.5 15h9" /></Svg>;
 const TrashIcon = () => <Svg><path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></Svg>;
-const InfoIcon = () => <Svg><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></Svg>;
 
 // ── The hub ─────────────────────────────────────────────────────────────────
 
@@ -138,21 +137,10 @@ const InfoIcon = () => <Svg><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12
  * @param {{ name }} [church]   shown only to the church's admins
  * @param {{ library?: boolean }} [own]  your own library (no church): its Data row
  */
-export function SettingsHubView({ me, signedIn = true, summary = {}, church, own, onOpen, onLogIn, onBack, embedded }) {
+export function SettingsHubView({ signedIn = true, summary = {}, church, own, onOpen, onLogIn, onBack, embedded }) {
   return (
     <SettingsShell title="Settings" onBack={onBack} embedded={embedded}>
-      {signedIn ? (
-        <Group className="mt-2">
-          <button type="button" onClick={() => onOpen('profile')} className={cn(rowBase, 'min-h-[72px] cursor-pointer outline-none hover:bg-raised focus-visible:bg-raised')}>
-            <Avatar name={me?.name} url={me?.url} size={44} />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[17px] font-semibold">{me?.name}</span>
-              <span className="truncate text-[13px] text-muted-foreground">Profile · photo, name, what you play</span>
-            </span>
-            <span className="text-input"><ChevronRightIcon /></span>
-          </button>
-        </Group>
-      ) : (
+      {!signedIn && (
         <Group className="mt-2"><NavRow icon={<UserIcon />} label="Log in or create an account" onClick={onLogIn} /></Group>
       )}
 
@@ -183,7 +171,6 @@ export function SettingsHubView({ me, signedIn = true, summary = {}, church, own
       <GroupLabel>App</GroupLabel>
       <Group>
         <NavRow icon={<LabsIcon />} label="Labs" detail="Try things early" onClick={() => onOpen('labs')} />
-        <NavRow icon={<InfoIcon />} label="About" detail={summary.version} onClick={() => onOpen('about')} />
       </Group>
     </SettingsShell>
   );
@@ -192,20 +179,21 @@ export function SettingsHubView({ me, signedIn = true, summary = {}, church, own
 // ── Profile ─────────────────────────────────────────────────────────────────
 
 /**
- * @param {Array<{id,label}>} instruments    one may be picked
+ * @param {Array<{id,label}>} instruments    any number may be picked
  * @param {Array<{id,label}>} vocalParts     "I sing" — one part, or none
- * @param {string|null} instrument / vocal   the picks
+ * @param {string[]} picked                  the instruments picked
+ * @param {string|null} vocal                the sung part
  * @param {React.ReactNode} [photo]          the uploader (needs Supabase)
  */
 export function ProfileView({
   me, photo, nameDraft, onNameDraft, onSaveName, nameBusy = false, nameSaved = false,
-  church, instruments = [], vocalParts = [], instrument = null, vocal = null, onInstrument, onVocal, partsBusy = false, partsError = '',
-  onChangePassword, onSignOut, onDeleteAccount, onBack, embedded,
+  church, instruments = [], vocalParts = [], picked = [], vocal = null, onInstrument, onVocal, partsBusy = false, partsError = '',
+  onChangePassword, onDeleteAccount, onBack, embedded,
 }) {
   const uid = useId();
   const dirty = (nameDraft || '').trim() !== (me?.name || '').trim();
   return (
-    <SettingsShell title="Profile" onBack={onBack} backLabel="Settings" embedded={embedded}>
+    <SettingsShell title="Profile" onBack={onBack} embedded={embedded}>
       <div className="flex flex-col items-center gap-2 pb-2 pt-3">
         {photo || <Avatar name={me?.name} url={me?.url} size={88} />}
         {me?.email && <span className="text-[14px] text-muted-foreground">{me.email}</span>}
@@ -224,12 +212,12 @@ export function ProfileView({
           <GroupLabel>What you play at {church.name}</GroupLabel>
           <div className="grid grid-cols-2 gap-2">
             {instruments.map(i => (
-              <Toggle key={i.id} variant="option" disabled={partsBusy} pressed={instrument === i.id} onPressedChange={() => onInstrument?.(instrument === i.id ? null : i.id)}>
+              <Toggle key={i.id} variant="option" disabled={partsBusy} pressed={picked.includes(i.id)} onPressedChange={() => onInstrument?.(i.id)}>
                 {i.label}
               </Toggle>
             ))}
           </div>
-          <Note>Pick one. Charts open with your instrument’s tabs.</Note>
+          <Note>Pick all you play. Charts open with the first one’s tabs.</Note>
           <GroupLabel>Do you sing?</GroupLabel>
           <div className="grid grid-cols-2 gap-2">
             {vocalParts.map(p => (
@@ -245,7 +233,6 @@ export function ProfileView({
       <GroupLabel>Account</GroupLabel>
       <Group>
         {onChangePassword && <NavRow icon={<KeyIcon />} label="Change password" onClick={onChangePassword} />}
-        <NavRow icon={<SignOutIcon />} label="Sign out" onClick={onSignOut} />
       </Group>
       {onDeleteAccount && (
         <>
@@ -319,7 +306,6 @@ export function AppearanceView({ theme, onTheme, firstDay = 'sunday', onFirstDay
           <Segmented label="Times" value={clock} options={[{ id: '12h', label: '9:30 AM' }, { id: '24h', label: '09:30' }]} onChange={onClock} />
         </Row>
       </Group>
-      <Note>Chart colours and text size are in the song itself: tap Aa while reading.</Note>
     </SettingsShell>
   );
 }
@@ -501,7 +487,7 @@ export function LabsView({ flags = [], onFlag, onBack, embedded }) {
 
 export function AboutView({ version, onWhatsNew, onHelp, onLegal, onBack, embedded }) {
   return (
-    <SettingsShell title="About" onBack={onBack} backLabel="Settings" embedded={embedded}>
+    <SettingsShell title="About" onBack={onBack} embedded={embedded}>
       <Group className="mt-2 flex items-center gap-3.5 p-5">
         <img src="/setlists-md-mark.svg" alt="" aria-hidden="true" width="48" height="48" className="rounded-[12px]" />
         <span className="flex flex-col gap-0.5">
