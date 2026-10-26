@@ -4,10 +4,13 @@ import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime } from '@/lib/dateFormat';
 import { CalendarIcon, PlusIcon } from '@/app/navIcons';
+import { CanYouPlay, AnswerDay } from './CanYouPlay';
 
 // Schedule, built from zero (canvas → Schedule page). Pure view: Schedule.jsx
 // works out the rows, /design renders this with samples.
 //
+// Top: the "Can you play?" strip (next five Sundays + any day you're asked),
+// with "All dates" opening My availability.
 // Members: every setlist coming up, each with where they stand (You · Keys,
 // Asked with Yes/Maybe/No in the row, Can't, Not playing), and My
 // availability. Leaders: the same list with band faces and Draft/Ready, and
@@ -176,13 +179,15 @@ function FilterChip({ on, onClick, children, count }) {
  * @param {'all'|'needs'|'drafts'} [p.filter]   leaders only
  * @param {{needs:number, drafts:number}} [p.counts]
  * @param {Array<{month, rows}>} p.groups   rows: { setlist, me, summary, faces, songCount }
+ * @param {Array} [p.canPlay]   canYouPlay() tiles, each with its `setlists`
  */
 export default function ScheduleView({
   leader = false, tab = 'upcoming', onTab, showBand = false, filter = 'all', onFilter, counts = {},
   groups = [], clockFormat = '12h', onOpen, onAnswer, onNew, onAvailability,
-  embedded = false, layout = 'auto',
+  canPlay, onAnswerDay, embedded = false, layout = 'auto',
 }) {
   const past = tab === 'past';
+  const [picked, setPicked] = useState(null);
   return (
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       <div className={cn('mx-auto flex w-full max-w-[680px] flex-col gap-3 pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
@@ -197,6 +202,7 @@ export default function ScheduleView({
             {leader && onNew && <Button size="sm" onClick={onNew}><PlusIcon size={16} />New</Button>}
           </div>
         </header>
+        {!past && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}
         <Segmented
           value={tab}
           onChange={onTab}
@@ -231,6 +237,7 @@ export default function ScheduleView({
           </section>
         ))}
       </div>
+      <AnswerDay tile={picked} onClose={() => setPicked(null)} onAnswer={onAnswerDay} clockFormat={clockFormat} />
     </div>
   );
 }

@@ -4,7 +4,7 @@
 // band lookups go through `bandFor` (homeData), which knows the row map.
 
 import { setlistStartMs, isSetlistUpcoming } from './setlistTime';
-import { bandFor } from './homeData';
+import { bandFor, toDateStr } from './homeData';
 
 const monthOf = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -65,3 +65,40 @@ export function bandSummary(setlist, { schedules = [], setlistMap = {}, availabi
 /** Leader filters: a setlist needs people when it has no band or someone said no. */
 export const needsPeople = (summary) => summary.total === 0 || summary.no > 0;
 export const isDraft = (setlist) => setlist.status === 'draft';
+
+/**
+ * The "Can you play?" strip on Schedule: the next `count` Sundays (today counts),
+ * plus any other day the user has an unanswered ask on, so an ask on a Friday
+ * is never hidden. Availability is stored per DAY (`team_availability`), so one
+ * answer covers everything on that date.
+ * `mine` is the user's own availability rows; `asks` and `plays` come from
+ * myAsks() / myServices(). `rows` on a tile is every schedule row of the user's
+ * on that day, which an answer updates as well.
+ */
+export function canYouPlay({ now = Date.now(), setlists = [], asks = [], plays = [], mine = [], count = 5, weekday = 0 }) {
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const dates = new Set();
+  const d = new Date(today);
+  while (d.getDay() !== weekday) d.setDate(d.getDate() + 1);
+  for (let i = 0; i < count; i++) {
+    dates.add(toDateStr(d));
+    d.setDate(d.getDate() + 7);
+  }
+  asks.forEach(a => a.setlist?.date && dates.add(a.setlist.date));
+  const status = Object.fromEntries(mine.map(r => [r.date, r.status]));
+  return [...dates].sort().map(date => {
+    const dt = new Date(`${date}T12:00:00`);
+    const dayAsks = asks.filter(a => a.setlist.date === date);
+    const dayPlays = plays.filter(p => p.setlist.date === date);
+    return {
+      date,
+      weekday: dt.toLocaleDateString('en-US', { weekday: 'short' }),
+      day: dt.getDate(),
+      names: [...new Set(setlists.filter(sl => sl.date === date).map(sl => sl.name || 'Setlist'))],
+      status: status[date] || null,
+      asks: dayAsks,
+      playing: dayPlays.length > 0,
+      rows: [...dayAsks, ...dayPlays].map(x => x.schedule),
+    };
+  });
+}

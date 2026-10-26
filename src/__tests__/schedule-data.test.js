@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { groupByMonth, myStatus, bandSummary, needsPeople } from '@/lib/scheduleData';
+import { groupByMonth, myStatus, bandSummary, needsPeople, canYouPlay } from '@/lib/scheduleData';
+import { myServices } from '@/lib/homeData';
 
 // Sunday 25 October 2026, 09:00 local.
 const NOW = new Date(2026, 9, 25, 9, 0).getTime();
@@ -39,5 +40,17 @@ describe('scheduleData', () => {
     expect(s).toMatchObject({ yes: 1, no: 1, total: 2, free: 1 });
     expect(needsPeople(s)).toBe(true);
     expect(needsPeople(bandSummary(SETLISTS[3], {}))).toBe(true);
+  });
+
+  it('lays out the next five Sundays plus any weekday ask', () => {
+    const asks = [{ schedule: { id: 'x' }, setlist: { id: 'yn', name: 'Youth Night', date: '2026-11-06' } }];
+    const plays = myServices({ schedules: SCHEDULES, userId: 'me', setlists: SETLISTS, setlistMap: MAP, now: NOW });
+    const tiles = canYouPlay({ now: NOW, setlists: SETLISTS, asks, plays, mine: [{ date: '2026-11-08', status: 'unavailable' }] });
+    expect(tiles.map(t => t.date)).toEqual(['2026-10-25', '2026-11-01', '2026-11-06', '2026-11-08', '2026-11-15', '2026-11-22']);
+    const byDate = Object.fromEntries(tiles.map(t => [t.date, t]));
+    expect(byDate['2026-11-01']).toMatchObject({ playing: true, names: ['nov1'], weekday: 'Sun', day: 1 });
+    expect(byDate['2026-11-01'].rows.map(r => r.id)).toEqual(['a']);
+    expect(byDate['2026-11-06'].asks).toHaveLength(1);
+    expect(byDate['2026-11-08'].status).toBe('unavailable');
   });
 });

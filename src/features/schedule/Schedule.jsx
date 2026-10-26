@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
-import { bandFor } from '@/lib/homeData';
-import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft } from '@/lib/scheduleData';
+import { bandFor, myAsks, myServices } from '@/lib/homeData';
+import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft, canYouPlay } from '@/lib/scheduleData';
 import ScheduleView from './ScheduleView';
 import AvailabilitySheet from './AvailabilitySheet';
 
@@ -73,6 +73,13 @@ export default function Schedule({
     () => Object.fromEntries(availability.filter(a => a.user_id === userId).map(a => [a.date, a.status])),
     [availability, userId],
   );
+  // The strip: the next five Sundays and any day you're asked about.
+  const canPlay = useMemo(() => {
+    if (!team || !userId) return null;
+    const args = { schedules, userId, setlists, setlistMap, now };
+    return canYouPlay({ now, setlists, asks: myAsks(args), plays: myServices(args), mine: availability.filter(a => a.user_id === userId) })
+      .map(t => ({ ...t, setlists: setlists.filter(sl => sl.date === t.date) }));
+  }, [team, userId, schedules, setlists, setlistMap, now, availability]);
   const busyDates = useMemo(() => new Set(setlists.map(sl => sl.date).filter(Boolean)), [setlists]);
 
   return (
@@ -91,6 +98,8 @@ export default function Schedule({
         onAnswer={answerAsk}
         onNew={leader ? onNewSetlist : null}
         onAvailability={team ? () => setSheet(true) : null}
+        canPlay={canPlay}
+        onAnswerDay={(tile, value) => answerDay(tile.date, value)}
       />
       {team && (
         <AvailabilitySheet

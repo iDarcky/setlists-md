@@ -19,7 +19,7 @@ import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
 import ScheduleView from '@/features/schedule/ScheduleView';
 import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
-import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft } from '@/lib/scheduleData';
+import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft, canYouPlay } from '@/lib/scheduleData';
 import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } from '@/lib/homeData';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
@@ -278,12 +278,16 @@ function ScheduleDemo({ leader = false, layout }) {
   const keep = (r) => !leader || tab === 'past' || filter === 'all' || (filter === 'needs' ? needsPeople(r.summary) : isDraft(r.setlist));
   const groups = all.map(g => ({ month: g.month, rows: g.setlists.map(rowFor).filter(keep) })).filter(g => g.rows.length);
   const up = all.flatMap(g => g.setlists.map(rowFor));
+  const args = { schedules: S_SCHEDULES, userId: 'joe', setlists: S_SETLISTS, now: H_NOW };
+  const canPlay = canYouPlay({ now: H_NOW, setlists: S_SETLISTS, asks: myAsks(args), plays: myServices(args), mine: Object.entries(mine).map(([date, status]) => ({ date, status })) })
+    .map(t => ({ ...t, setlists: S_SETLISTS.filter(sl => sl.date === t.date) }));
   return (
     <>
       <ScheduleView
         layout={layout} embedded leader={leader} tab={tab} onTab={setTab} filter={filter} onFilter={setFilter} showBand={leader}
         counts={{ needs: up.filter(r => needsPeople(r.summary)).length, drafts: up.filter(r => isDraft(r.setlist)).length }}
         groups={groups} onOpen={noop} onAnswer={noop} onNew={leader ? noop : null} onAvailability={() => setSheet(true)}
+        canPlay={canPlay} onAnswerDay={(t, st) => setMine(m => ({ ...m, [t.date]: st }))}
       />
       <AvailabilitySheet
         open={sheet} onOpenChange={setSheet} mine={mine} busyDates={new Set(S_SETLISTS.map(s => s.date))} now={H_NOW}
