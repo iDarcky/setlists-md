@@ -9,6 +9,7 @@ import {
   CalendarIcon, MusicIcon, TeamIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon,
   ClockIcon, PinIcon, PlayIcon,
 } from '@/app/navIcons';
+import { partLabel } from '@/data/instruments';
 
 // Home, built from zero (canvas "Signed out and joining" → Home, v2). Pure
 // view: Home.jsx works out the data, /design renders this with samples.
@@ -125,7 +126,7 @@ function Asks({ asks, onAnswer, onOpen, limit = 3 }) {
         <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-link px-1.5 text-[12px] font-bold text-background">{asks.length}</span>
       </div>
       {shown.map(({ schedule, setlist }) => {
-        const part = [schedule.role, schedule.vocal_part].filter(Boolean).join(' · ');
+        const part = partLabel(schedule);
         return (
           <div key={schedule.id} className="flex items-center gap-3 border-t border-border px-4 py-2.5 first-of-type:border-t-0">
             <button type="button" onClick={() => onOpen?.(setlist)} className="flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col border-0 bg-transparent p-0 text-left font-sans text-foreground">

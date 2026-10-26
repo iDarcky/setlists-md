@@ -5,6 +5,7 @@
 
 import { setlistStartMs, isSetlistUpcoming } from './setlistTime';
 import { bandFor, toDateStr } from './homeData';
+import { partLabel } from '@/data/instruments';
 
 const monthOf = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -35,7 +36,7 @@ export function groupByMonth(setlists = [], { now = Date.now(), past = false } =
  */
 export function myStatus(setlist, { schedules = [], setlistMap = {}, userId, availability = [] } = {}) {
   const row = bandFor(setlist, schedules, setlistMap).find(s => s.user_id === userId);
-  const part = row ? [row.role, row.vocal_part].filter(Boolean).join(' · ') : '';
+  const part = partLabel(row);
   if (row?.availability === 'available') return { kind: 'playing', part, schedule: row };
   if (row?.availability === 'pending') return { kind: 'asked', part, schedule: row };
   if (row?.availability === 'maybe') return { kind: 'maybe', part, schedule: row };

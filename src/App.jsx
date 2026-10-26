@@ -1726,7 +1726,14 @@ export default function App() {
       ...prev,
       songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: now }))],
     }));
-    toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
+    showUndoToast({
+      title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}`,
+      onUndo: () => {
+        setSongs(prev => [...prev, ...removed.filter(r => !prev.some(s => s.id === r.id))]);
+        setTrash(prev => prev.filter(e => !idSet.has(e.song?.id)));
+        setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => !idSet.has(t.id)) }));
+      },
+    });
   };
 
   // ----- Trash bin (recover soft-deleted songs within 30 days) -----
