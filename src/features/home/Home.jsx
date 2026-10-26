@@ -116,7 +116,7 @@ export default function Home({
       onOpenSetlist={onOpenSetlist}
       onMarkReady={onMarkReady}
       strip={{ days, offset, onOffset: setOffset, selected, onSelect: setPicked }}
-      whoCanPlay={leader ? whoCanPlay({ setlists, availability, memberCount: (members || []).length, now }) : null}
+      whoCanPlay={leader ? whoCanPlay({ setlists, availability, schedules, setlistMap, memberCount: (members || []).length, now }) : null}
       onOpenSchedule={onOpenSchedule}
       setup={setup}
       activity={activity}
