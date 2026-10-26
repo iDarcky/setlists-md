@@ -27,6 +27,10 @@ import { myAsks, myServices, twoWeeks, whoCanPlay, needsYou, recentActivity } fr
 
 import NotificationsPanel from '@/features/notifications/NotificationsPanel';
 import { buildNotifs } from '@/lib/notifData';
+import {
+  SettingsHubView, ProfileView, AppearanceView, NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView,
+} from '@/features/settings/SettingsViews';
+import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -457,6 +461,66 @@ function NotificationsGallery() {
   );
 }
 
+const ST_REMIND = [[0, 'At start'], [30, '30 min'], [60, '1 hour'], [180, '3 hours'], [1440, '1 day'], [2880, '2 days'], [10080, '1 week']].map(([value, label]) => ({ value, label }));
+const ST_ME = { name: 'Joe Doe', email: 'joe@example.com' };
+
+function SettingsDemo({ page, leader = true }) {
+  const [theme, setTheme] = useState('dark');
+  const [day, setDay] = useState('sunday');
+  const [clock, setClock] = useState('12h');
+  const [inst, setInst] = useState('acoustic-guitar');
+  const [vocal, setVocal] = useState('tenor');
+  const [svc, setSvc] = useState([1440]);
+  const [reh, setReh] = useState([180]);
+  const [name, setName] = useState('Joe Doe');
+  const [labs, setLabs] = useState({ rosterOverscheduleWarning: true });
+  const back = noop;
+  switch (page) {
+    case 'profile':
+      return <ProfileView embedded me={ST_ME} nameDraft={name} onNameDraft={setName} onSaveName={noop} church={CHURCH}
+        instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} instrument={inst} vocal={vocal} onInstrument={setInst} onVocal={setVocal}
+        onChangePassword={noop} onSignOut={noop} onDeleteAccount={noop} onBack={back} />;
+    case 'appearance':
+      return <AppearanceView embedded theme={theme} onTheme={setTheme} firstDay={day} onFirstDay={setDay} clock={clock} onClock={setClock} onBack={back} />;
+    case 'notifications':
+      return <NotificationsSettingsView embedded push={{ supported: true, subscribed: true }} onPush={noop} reminderOptions={ST_REMIND}
+        serviceReminders={svc} onServiceReminders={setSvc} rehearsalReminders={reh} onRehearsalReminders={setReh} onBack={back} />;
+    case 'plan':
+      return <PlanView embedded church={CHURCH} plan={{ label: 'Church', status: 'Active', seats: 'Up to 30 people' }} isOwner billingLive onManage={noop} onComparePlans={noop} onBack={back} />;
+    case 'services':
+      return <ServicesView embedded services={[{ name: 'Sunday Morning', count: 24 }, { name: 'Sunday Evening', count: 9 }, { name: 'Youth Night', count: 6 }]} onRename={noop} onRemove={noop} onBack={back} />;
+    case 'data':
+      return <DataView embedded songCount={142} setlistCount={57} onBackup={noop} onExport={noop}
+        trash={[{ id: 'a', title: 'Oceans', artist: 'Hillsong United', daysLeft: 27 }, { id: 'b', title: 'Old hymn draft', daysLeft: 3 }]}
+        onRestore={noop} onPurge={noop} onEmptyTrash={noop} onBack={back} />;
+    case 'labs':
+      return <LabsView embedded flags={[
+        { id: 'rosterOverscheduleWarning', label: 'Warn before over-scheduling', sub: 'When picking the band, flag someone who has played several services in a row.', on: !!labs.rosterOverscheduleWarning },
+        { id: 'pasteIntoChart', label: 'Paste into the chart', sub: 'A paste lands in the section you aim at.', on: !!labs.pasteIntoChart },
+      ]} onFlag={(id, on) => setLabs(p => ({ ...p, [id]: on }))} onBack={back} />;
+    case 'about':
+      return <AboutView embedded version="0.20.0" onWhatsNew={noop} onHelp={noop} onLegal={noop} onBack={back} />;
+    default:
+      return <SettingsHubView embedded me={ST_ME} church={leader ? CHURCH : null}
+        summary={{ appearance: 'Dark', notifications: 'On', plan: 'Church', services: '3', data: '142 songs', version: 'v0.20.0' }}
+        onOpen={noop} onBack={back} />;
+  }
+}
+
+function SettingsGallery() {
+  const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
+    ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
+  return (
+    <div className="flex flex-wrap gap-6">
+      {pages.map(([label, page, props = {}]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={390} height={page === 'profile' ? 1180 : 844} scale={0.6} label={`${label} · ${t.label}`}>
+          <SettingsDemo page={page} {...props} />
+        </Frame>
+      )))}
+    </div>
+  );
+}
+
 // ── Screen gallery ──────────────────────────────────────────────────────────
 
 function Frame({ theme, width, height, scale = 1, label, children }) {
@@ -709,6 +773,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Songs" sub="One list: search, quick chips, the sort, then each song with how often and when it was last played, and its key. Leaders long-press or tap Select to tag, delete, or move/copy to another church they lead.">
           <SongsGallery />
+        </Section>
+
+        <Section title="Settings" sub="Four groups: you (Profile), this device, the church (leaders only) and the app. Every row opens its own page. Chart settings are in the reader's Aa.">
+          <SettingsGallery />
         </Section>
 
         <Section title="Notifications" sub="The bell: a drawer on a phone, a dropdown from the iPad up. Needs you first (answer right there), then Today, This week, Earlier. Cleared after 30 days.">
