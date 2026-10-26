@@ -87,7 +87,10 @@ export function TeamProvider({ children }) {
           .select('*')
           .in('id', teamIds);
 
-        const ordered = teamRows || [];
+        // Each team carries the user's own role in it, so a screen can ask
+        // "which churches do I lead?" without another query.
+        const roleOf = Object.fromEntries(memberships.map(m => [m.team_id, m.role]));
+        const ordered = (teamRows || []).map(t => ({ ...t, myRole: roleOf[t.id] || null }));
         setTeams(ordered);
         // Keep the current active team if it's still valid, else pick the first.
         setActiveTeamId(prev =>

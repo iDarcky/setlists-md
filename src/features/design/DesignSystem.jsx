@@ -18,6 +18,8 @@ import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
 import ScheduleView from '@/features/schedule/ScheduleView';
+import SongsView from '@/features/songs/SongsView';
+import { playStats, nextSetlistSongs, playLine, sortSongs, filterSongs, filterOptions, songKey, NO_FILTERS } from '@/lib/songsData';
 import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
 import BandView from '@/features/schedule/BandView';
 import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft, canYouPlay, bandGrid, planKey, planSummary } from '@/lib/scheduleData';
@@ -329,6 +331,58 @@ function ScheduleGallery() {
   );
 }
 
+// ── Songs ───────────────────────────────────────────────────────────────────
+
+const so = (id, title, artist, key, tempo, themes) => ({ id, title, artist, themes, arrangements: [{ id: `${id}a`, key, tempo }] });
+const SO_SONGS = [
+  so('ag', 'Amazing Grace (My Chains Are Gone)', 'Chris Tomlin', 'G', 70, 'Grace, Cross'),
+  so('bl', 'Build My Life', 'Housefires', 'G', 68, 'Praise'),
+  so('ff', 'Firm Foundation', 'Cody Carnes', 'C', 76, 'Hope'),
+  so('gg', 'Goodness of God', 'Bethel Music', 'A', 63, 'Praise, Grace'),
+  so('gi', 'Graves Into Gardens', 'Elevation Worship', 'B', 70, 'Hope'),
+  so('hf', 'Holy Forever', 'Chris Tomlin', 'A', 72, 'Praise'),
+  so('lh', 'Living Hope', 'Phil Wickham', 'D', 72, 'Hope, Cross'),
+  so('lp', 'Laudă-L pe Domnul', 'Worship RO', 'E', 120, 'Praise'),
+  so('wm', 'Way Maker', 'Sinach', 'E', 68, 'Praise'),
+];
+const soSet = (date, ids) => ({ id: `so-${date}`, date, time: '10:00', items: ids.map(songId => ({ songId })) });
+const SO_SETLISTS = [
+  soSet('2026-10-25', ['wm', 'gg']), soSet('2026-10-18', ['bl', 'wm', 'gg']), soSet('2026-10-11', ['hf', 'wm']),
+  soSet('2026-10-04', ['lh', 'gg']), soSet('2026-09-27', ['lp', 'wm']), soSet('2026-08-09', ['ag', 'bl']), soSet('2026-05-24', ['gi']),
+  soSet('2026-11-01', ['bl', 'gg', 'hf', 'lh', 'wm', 'ff']),
+];
+
+function SongsDemo({ leader = true, empty = false, layout }) {
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('az');
+  const [filters, setFilters] = useState(NO_FILTERS);
+  const songs = empty ? [] : SO_SONGS;
+  const now = H_NOW + 3600000 * 8;
+  const stats = playStats(SO_SETLISTS, now);
+  const next = nextSetlistSongs(SO_SETLISTS, now);
+  const found = query ? songs.filter(s => s.title.toLowerCase().includes(query.toLowerCase())) : sortSongs(songs, sort, stats);
+  const rows = filterSongs(found, filters, stats, now).map(song => ({ song, keyName: songKey(song), line: playLine(stats[song.id], now), next: next.ids.has(song.id) }));
+  return (
+    <SongsView
+      layout={layout} embedded leader={leader} total={songs.length} rows={rows} nextLabel={next.label}
+      query={query} onQuery={setQuery} sort={sort} onSort={setSort} filters={filters} onFilters={setFilters}
+      options={filterOptions(songs)} onOpen={noop} onAdd={noop} onTag={noop} onDelete={noop} onCopy={noop} onMove={noop}
+    />
+  );
+}
+
+function SongsGallery() {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {[['Leader', {}], ['Member', { leader: false }], ['Empty', { empty: true }]].map(([label, props]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={390} height={label === 'Empty' ? 600 : 1000} scale={0.6} label={`${label} · ${t.label}`}>
+          <SongsDemo layout="phone" {...props} />
+        </Frame>
+      )))}
+    </div>
+  );
+}
+
 // ── Screen gallery ──────────────────────────────────────────────────────────
 
 function Frame({ theme, width, height, scale = 1, label, children }) {
@@ -577,6 +631,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Schedule" sub="Every setlist coming up, with where you stand. Leaders see the band and Draft/Ready, and filter what needs people. My availability opens a month to tap through.">
           <ScheduleGallery />
+        </Section>
+
+        <Section title="Songs" sub="One list: search, quick chips, the sort, then each song with how often and when it was last played, and its key. Leaders long-press or tap Select to tag, delete, or move/copy to another church they lead.">
+          <SongsGallery />
         </Section>
 
         <Section title="Navigation" sub="One top bar: the church on the left, the bell and you on the right. The pill floats at the bottom on a phone and an iPad held upright, and sits in the top bar from 1024px. You is a page.">
