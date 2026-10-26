@@ -5,7 +5,7 @@ import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
 import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { parseSongMd, songToMd, generateId } from './parser';
+import { songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
@@ -105,7 +105,6 @@ const DesignSystem = lazy(() => import('@/features/design/DesignSystem'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
 // replaced is deleted). Lazy — only fetched when the user adds a song.
-const AddSongModal = lazy(() => import('@/features/import/AddSongModal'));
 const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
@@ -290,7 +289,6 @@ export default function App() {
   const [authStartMode, setAuthStartMode] = useState('signin');
   // The church a join link is joining, shown on the log-in / create screens.
   const [authJoining, setAuthJoining] = useState(null);
-  const [newSongModal, setNewSongModal] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
@@ -1820,62 +1818,34 @@ export default function App() {
     for (const id of ids) await handleCopySongToLibrary(id, target);
   };
 
-  const handleImportParsedSongs = (parsedSongs) => {
-    if (!parsedSongs || parsedSongs.length === 0) return;
+  // Import (Songs → Add → Import): the songs the leader ticked in the review
+  // list. A song the library already has is updated in place — same id, play
+  // histories kept — so every setlist that points at it keeps working.
+  const handleAddImportedSongs = (list) => {
+    if (!list || list.length === 0) return;
     if (guardTeamReadOnly()) return;
-    setNewSongModal(null);
-    // Stable identity across re-imports (batch): if a song with this title
-    // already exists, adopt its id + play histories so Save UPDATES it in place and
-    // keeps every setlist reference intact, instead of minting a new id that
-    // orphans past setlists. Same rule as the single-paste import path.
-    const queue = parsedSongs.map(s => {
-      const existing = matchSongByTitle(songs, s.title);
-      return existing
-        ? { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory }
-        : s;
+    const now = Date.now();
+    setSongs(prev => {
+      const next = [...prev];
+      for (const s of list) {
+        const existing = matchSongByTitle(next, s.title);
+        if (existing) {
+          const i = next.findIndex(x => x.id === existing.id);
+          next[i] = { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory, updatedAt: now };
+        } else {
+          next.push({ ...s, updatedAt: now });
+        }
+      }
+      return next;
     });
-    if (queue.length === 1) {
-      navigate('editor', { song: queue[0] });
-      return;
-    }
-    // Queue the songs as drafts — each one only persists when the user
-    // hits Save in the editor; Skip drops it without writing to the library.
-    setImportQueue({ remaining: queue, total: queue.length });
-    navigate('editor', { song: queue[0] });
+    toast({ title: list.length === 1 ? `Added "${list[0].title || 'Untitled'}"` : `Added ${list.length} songs` });
   };
 
-  const handleImportSetlistFile = async (file) => {
-    setNewSongModal(null);
-    await handleImportSetlist(file);
-  };
-
-  // A catalog song is the one import path whose chart is already known-good —
-  // we shipped it. So it skips the editor: saved straight to the library and
-  // opened in the hub, with an Undo toast instead of a review step.
-  const handleAddCatalogSong = (mdText, entry) => {
+  // One imported song, opened in the editor before it is saved ("Edit first").
+  const handleEditImportedSong = (s) => {
     if (guardTeamReadOnly()) return;
-    let song;
-    try {
-      const parsed = parseSongMd(mdText);
-      song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
-    } catch {
-      toast({ title: 'Could not add song', description: 'That chart failed to parse.', variant: 'error' });
-      return;
-    }
-    setSongs(prev => [...prev, song]);
-    setNewSongModal(null);
-    toast({
-      title: `Added "${song.title}"`,
-      description: entry?.license === 'public-domain' ? 'Public domain — yours to edit and transpose.' : undefined,
-    });
-    goChart(song);
-  };
-
-  // No default: opening the modal from a + button must not presume the user
-  // wants a file. Only an explicit 'import' request (the editor's empty-state
-  // Import button) pops the OS picker on open.
-  const openNewSongModal = (initialTab) => {
-    setNewSongModal({ initialTab });
+    const existing = matchSongByTitle(songs, s.title);
+    goEditor(existing ? { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory } : s);
   };
 
   // Setlist CRUD
@@ -2496,8 +2466,9 @@ export default function App() {
               readOnly={isTeamReadOnly}
               onOpenSong={goChart}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
-              onSearchCatalog={isTeamReadOnly ? null : () => openNewSongModal()}
-              onImport={isTeamReadOnly ? null : () => openNewSongModal('import')}
+              onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
+              onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
+              onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
               onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
@@ -2921,21 +2892,6 @@ export default function App() {
           }}
         />
       )}
-      {newSongModal && (
-        <Suspense fallback={null}>
-          <AddSongModal
-            autoOpenPicker={newSongModal.initialTab === 'import'}
-            songs={songs}
-            onClose={() => setNewSongModal(null)}
-            onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
-            onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
-            onImportSongs={handleImportParsedSongs}
-            onImportSetlistFile={handleImportSetlistFile}
-            onAddCatalogSong={handleAddCatalogSong}
-          />
-        </Suspense>
-      )}
-
       {/* Workspace destination picker for move/copy from the song kebab. */}
       {moveCopyDialog && (
         <WorkspacePickerDialog

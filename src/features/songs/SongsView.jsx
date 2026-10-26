@@ -221,7 +221,7 @@ export default function SongsView({
           <div className="mt-6 flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
             <b className="text-[17px]">{leader ? 'Your song library is empty' : 'No songs yet'}</b>
             <p className="m-0 max-w-[300px] text-[15px] leading-[21px] text-muted-foreground">
-              {leader ? 'Add the songs your church sings: find a public-domain hymn, import the files you already have, or type one in.' : 'When your leaders add songs, they show up here.'}
+              {leader ? 'Add the songs your church sings: import the files you already have, or type one in.' : 'When your leaders add songs, they show up here.'}
             </p>
             {leader && onAdd && <Button className="mt-1.5 w-full max-w-[300px]" onClick={onAdd}><PlusIcon size={16} />Add a song</Button>}
           </div>
