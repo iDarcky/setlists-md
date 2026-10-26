@@ -39,8 +39,7 @@ import { NavPill } from '@/app/NavPill';
 import { navItemFor } from '@/app/navItems';
 import { ChurchSheet } from '@/app/ChurchSheet';
 import YouPage from '@/features/you/YouPage';
-import NotificationTray from '@/features/notifications/NotificationTray';
-import NotificationsPage from '@/features/notifications/NotificationsPage';
+import NotificationsBell from '@/features/notifications/NotificationsBell';
 import ConflictResolver from '@/features/sync/ConflictResolver';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import { usePreferenceSync } from '@/app/usePreferenceSync';
@@ -292,7 +291,7 @@ export default function App() {
   const [importQueue, setImportQueue] = useState(null);
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
-  const [notifTrayOpen, setNotifTrayOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
   // Account-wall modal state — surfaced after the user saves their first
   // local item (song or setlist) without being signed in.
   const [accountWallTrigger, setAccountWallTrigger] = useState(null);
@@ -1233,9 +1232,7 @@ export default function App() {
     notifications: mergedNotifications,
     hasUnread: hasUnreadNotifications,
     markRead: handleMarkNotificationRead,
-    dismiss: handleDismissNotification,
-    clearAll: handleClearAllNotifications,
-    onAction: handleNotificationAction,
+    markAllRead: handleMarkAllNotificationsRead,
   } = useNotificationFeed({
     schedules, setlists, members, teamNotifications, user, settings, setSettings,
     matchesSetlistId, markTeamNotifRead, dismissTeamNotif, dismissAllTeamNotifs,
@@ -2333,7 +2330,7 @@ export default function App() {
   // ── The new navigation (canvas "Navigation options": pill B, menu B) ──
   // Views that carry the nav pill. Everything else (a song, a service, the
   // reader, the editor) has its own "← Back".
-  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'notifications', 'upgrade', 'you'];
+  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'upgrade', 'you'];
   // Schedule needs a church; on its own, Personal's Schedule is its setlists.
   const goNavItem = (id) => goToMainView(
     id === 'songs' ? 'library' : id === 'schedule' && activeLibrary === 'personal' ? 'setlists' : id,
@@ -2344,7 +2341,26 @@ export default function App() {
       church={{ name: activeWorkspace?.name || currentWorkspaceName, logoUrl: activeWorkspace?.id === 'personal' ? null : activeWorkspace?.avatarUrl }}
       onOpenChurches={workspaces.length > 1 ? () => setChurchSheetOpen(true) : undefined}
       unread={hasUnreadNotifications}
-      onOpenNotifications={() => navigate('notifications')}
+      notifications={{
+        open: bellOpen,
+        onOpenChange: setBellOpen,
+        content: (
+          <NotificationsBell
+            feed={mergedNotifications}
+            schedules={schedules}
+            setlists={setlists}
+            matchesSetlistId={matchesSetlistId}
+            settings={settings}
+            setSettings={setSettings}
+            onUpdateSchedule={updateSchedule}
+            onMarkRead={handleMarkNotificationRead}
+            onMarkAllRead={handleMarkAllNotificationsRead}
+            onOpenSetlist={goSetlistView}
+            onSettings={() => goToMainView('settings', { settingsPanel: 'notifications' })}
+            onClose={() => setBellOpen(false)}
+          />
+        ),
+      }}
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
       onOpenYou={() => navigate('you')}
@@ -2723,17 +2739,6 @@ export default function App() {
               onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
             />
           )}
-          {view === "notifications" && (
-            <NotificationsPage
-              notifications={mergedNotifications}
-              onBack={goBack}
-              onMarkRead={handleMarkNotificationRead}
-              onDismiss={handleDismissNotification}
-              onClearAll={handleClearAllNotifications}
-              onUpdateSchedule={updateSchedule}
-              onAction={(action) => handleNotificationAction?.(action)}
-            />
-          )}
           {view === "settings" && settings && (
             <Settings
               settings={settings}
@@ -2875,21 +2880,6 @@ export default function App() {
           activeId={activeLibrary}
           onPick={switchWorkspace}
           onNew={canCreateWorkspace ? goNewWorkspace : undefined}
-        />
-      )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
-        <NotificationTray
-          open={notifTrayOpen}
-          onClose={() => setNotifTrayOpen(false)}
-          notifications={mergedNotifications}
-          onUpdateSchedule={updateSchedule}
-          onMarkRead={handleMarkNotificationRead}
-          onDismiss={handleDismissNotification}
-          onClearAll={handleClearAllNotifications}
-          onAction={(action) => {
-            setNotifTrayOpen(false);
-            handleNotificationAction?.(action);
-          }}
         />
       )}
       {/* Workspace destination picker for move/copy from the song kebab. */}

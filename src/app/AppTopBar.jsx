@@ -1,4 +1,7 @@
 import { cn } from '@/ui/shadcn/utils';
+import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
+import { Sheet } from '@/ui/shadcn/sheet';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 import { churchInitials } from '@/lib/joinLink';
 import { BellIcon, ChevronDownIcon, PlusIcon } from './navIcons';
 
@@ -54,6 +57,9 @@ const iconButton = 'relative flex size-11 min-h-0 cursor-pointer items-center ju
  * @param {Function} [onOpenChurches]  only when there is more than one to pick
  * @param {boolean} [unread]           dot on the bell
  * @param {Function} [onOpenNotifications]
+ * @param {{ open: boolean, onOpenChange: Function, content: React.ReactNode }} [notifications]
+ *   the bell's own panel: a dropdown from 640px, a bottom drawer on a phone.
+ *   Wins over onOpenNotifications.
  * @param {{ name: string, url?: string }} me
  * @param {number} [meBadge]           dot on the avatar (join requests waiting)
  * @param {Function} onOpenYou
@@ -61,8 +67,15 @@ const iconButton = 'relative flex size-11 min-h-0 cursor-pointer items-center ju
  * @param {React.ReactNode} [pill]     the nav pill, shown from 1024px
  * @param {'auto'|'compact'|'wide'} [layout]
  */
-export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications, me, meBadge = 0, onOpenYou, add, pill, layout = 'auto', className }) {
+export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications, notifications, me, meBadge = 0, onOpenYou, add, pill, layout = 'auto', className }) {
   const L = LAYOUTS[layout] || LAYOUTS.auto;
+  const wide = useMediaQuery('(min-width: 640px)');
+  const bell = (onClick) => (
+    <button type="button" onClick={onClick} aria-label={unread ? 'Notifications, new' : 'Notifications'} className={iconButton}>
+      <BellIcon />
+      {unread && <span aria-hidden="true" className="absolute right-[11px] top-[10px] size-2 rounded-full bg-link shadow-[0_0_0_2px_var(--background)]" />}
+    </button>
+  );
   const churchInner = (
     <>
       <ChurchMark name={church?.name} logoUrl={church?.logoUrl} />
@@ -110,12 +123,24 @@ export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications,
             </button>
           </>
         )}
-        {onOpenNotifications && (
-          <button type="button" onClick={onOpenNotifications} aria-label={unread ? 'Notifications, new' : 'Notifications'} className={iconButton}>
-            <BellIcon />
-            {unread && <span aria-hidden="true" className="absolute right-[11px] top-[10px] size-2 rounded-full bg-link shadow-[0_0_0_2px_var(--background)]" />}
-          </button>
-        )}
+        {notifications ? (
+          wide ? (
+            <Popover open={notifications.open} onOpenChange={notifications.onOpenChange}>
+              <PopoverTrigger asChild>{bell(undefined)}</PopoverTrigger>
+              <PopoverContent align="end" className="max-h-[min(640px,calc(100dvh-80px))] w-[400px] overflow-y-auto p-4">
+                <div className="pb-1 text-[17px] font-semibold">Notifications</div>
+                {notifications.content}
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <>
+              {bell(() => notifications.onOpenChange(true))}
+              <Sheet open={notifications.open} onOpenChange={notifications.onOpenChange} title="Notifications">
+                {notifications.content}
+              </Sheet>
+            </>
+          )
+        ) : onOpenNotifications && bell(onOpenNotifications)}
         <button type="button" onClick={onOpenYou} aria-label="You: profile and settings" className={iconButton}>
           <Avatar name={me?.name} url={me?.url} />
           {meBadge > 0 && <span aria-hidden="true" className="absolute right-[7px] top-[7px] size-2.5 rounded-full bg-danger shadow-[0_0_0_2px_var(--background)]" />}

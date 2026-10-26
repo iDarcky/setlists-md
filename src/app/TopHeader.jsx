@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import NotificationTray from '@/features/notifications/NotificationTray';
 import SongCard from '@/features/library/SongCard';
 import Highlight from '@/ui/Highlight';
 import { cn } from '@/lib/utils';
@@ -108,9 +107,7 @@ export default function TopHeader({
   plan = 'Free',
   avatarUrl = null,
   hasUnreadNotifications,
-  notifications,
-  onMarkRead,
-  onNotificationAction,
+  onOpenNotifications,
   onManageTeams,
   onOpenHelp,
   onNewWorkspace,
@@ -134,7 +131,6 @@ export default function TopHeader({
   // Pending "Asking to join" requests, shown on the Team tab.
   teamBadgeCount = 0,
 }) {
-  const [trayOpen, setTrayOpen] = useState(false);
   const [wsOpen, setWsOpen] = useState(false);
   const wsRef = useRef(null);
 
@@ -486,7 +482,7 @@ export default function TopHeader({
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
           </button>
-          <button onClick={() => setTrayOpen(true)} className={iconBtn} aria-label="Notifications">
+          <button onClick={onOpenNotifications} className={iconBtn} aria-label="Notifications">
             <BellIcon />
             {hasUnreadNotifications && (
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--ds-red-600)]" />
@@ -502,16 +498,6 @@ export default function TopHeader({
         </div>
       </header>
 
-      <NotificationTray
-        open={trayOpen}
-        onClose={() => setTrayOpen(false)}
-        notifications={notifications || []}
-        onMarkRead={onMarkRead}
-        onAction={(action) => {
-          onNotificationAction?.(action);
-          setTrayOpen(false);
-        }}
-      />
     </>
   );
 }
