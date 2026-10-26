@@ -6,7 +6,7 @@ import OfflineBanner from "@/ui/OfflineBanner";
 import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { songToMd, generateId } from './parser';
-import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
+import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
@@ -30,7 +30,6 @@ import { resolveOpeningMode } from '@/lib/openingMode';
 import { APP_HEIGHT } from '@/lib/appViewport';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Home from '@/features/home/Home';
-import Settings from '@/features/settings/Settings';
 import Account from '@/features/settings/Account';
 import Setlists from '@/features/setlists/Setlists';
 import DesktopLayout from '@/app/DesktopLayout';
@@ -40,6 +39,7 @@ import { navItemFor } from '@/app/navItems';
 import { ChurchSheet } from '@/app/ChurchSheet';
 import YouPage from '@/features/you/YouPage';
 import NotificationsBell from '@/features/notifications/NotificationsBell';
+import SettingsPage from '@/features/settings/SettingsPage';
 import ConflictResolver from '@/features/sync/ConflictResolver';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import { usePreferenceSync } from '@/app/usePreferenceSync';
@@ -596,7 +596,7 @@ export default function App() {
   // or disconnecting in Settings needs no re-creation. It only ever WRITES;
   // `handleRestoreFromBackup` is the one read, on request.
   const backupRef = useRef(null);
-  const [backupState, setBackupState] = useState({ state: 'idle', provider: null, lastBackup: null });
+  const [, setBackupState] = useState({ state: 'idle', provider: null, lastBackup: null });
   if (!backupRef.current) {
     backupRef.current = createBackupMirror((status) => setBackupState(prev => ({ ...prev, ...status })));
   }
@@ -921,36 +921,6 @@ export default function App() {
     };
   }, [loaded, songs, setlists, tombstones, activeLibrary]);
 
-  // Backup folder actions (Settings → Cloud Sync). Restore adds what the
-  // folder holds and the library lacks — by id, so a song backed up from this
-  // account comes back as itself, not as a duplicate. Existing items are
-  // never overwritten: the folder is a copy, the library is the truth.
-  const handleBackupNow = useCallback(async () => {
-    const r = await backupRef.current?.backupNow(songs, setlists);
-    if (r?.skipped) return null;
-    if (r?.errors?.length) {
-      toast({ title: 'Backup had problems', description: r.errors[0].message, variant: 'error' });
-    } else if (r) {
-      const n = (r.uploaded?.songs || 0) + (r.uploaded?.setlists || 0);
-      toast({ title: 'Backed up', description: n ? `${n} file${n === 1 ? '' : 's'} written.` : 'The folder already matched your library.' });
-    }
-    return r;
-  }, [songs, setlists]);
-  const handleRestoreFromBackup = useCallback(async () => {
-    const r = await backupRef.current?.restore();
-    if (!r) return null;
-    const haveSongs = new Set(songs.map(s => s.id));
-    const haveSetlists = new Set(setlists.map(s => s.id));
-    const newSongs = r.songs.filter(s => !haveSongs.has(s.id));
-    const newSetlists = r.setlists.filter(s => !haveSetlists.has(s.id));
-    if (newSongs.length) setSongs(prev => [...prev, ...newSongs.filter(s => !prev.some(p => p.id === s.id))]);
-    if (newSetlists.length) setSetlists(prev => [...prev, ...newSetlists.filter(s => !prev.some(p => p.id === s.id))]);
-    const desc = newSongs.length + newSetlists.length
-      ? `Added ${newSongs.length} song${newSongs.length === 1 ? '' : 's'} and ${newSetlists.length} setlist${newSetlists.length === 1 ? '' : 's'} the library did not have.`
-      : 'Everything in the folder is already in your library.';
-    toast({ title: 'Restore finished', description: desc, variant: r.errors?.length ? 'error' : undefined });
-    return { songs: newSongs.length, setlists: newSetlists.length, errors: r.errors };
-  }, [songs, setlists]);
 
   // Document-level appearance: theme, Labs palette, orientation lock.
   useAppearance(settings);
@@ -1170,31 +1140,6 @@ export default function App() {
     pushHistory(snapshot());
     setSettingsPanel(nextPanel);
   };
-
-  // Fully close Settings — pop history until we land on a non-settings view,
-  // so the desktop modal × button always exits regardless of how many
-  // sub-panels the user drilled through.
-  const closeSettings = useCallback(() => {
-    while (historyRef.current.length > 0) {
-      const prev = historyRef.current.pop();
-      if (prev && prev.view !== 'settings') {
-        setView(prev.view);
-        setCurrentSong(prev.song);
-        setCurrentSetlist(prev.setlist);
-        if (prev.settingsPanel !== undefined) setSettingsPanel(prev.settingsPanel);
-        setAccountWallTrigger(prev.accountWall ?? null);
-        setShowFounderNote(!!prev.founderNote);
-        setShowIOSHint(!!prev.iosHint);
-        if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
-        setSessionStats(prev.sessionStats ?? null);
-        setReaderMode(prev.readerMode || 'live');
-        return;
-      }
-    }
-    // Nothing else in history — fall back to home.
-    setView('home');
-    setSettingsPanel('hub');
-  }, []);
 
   // Modal openers — each one pushes history first so hardware Back closes
   // the modal instead of bypassing it. Modal close handlers call
@@ -2007,12 +1952,6 @@ export default function App() {
     toast({ title: 'Saved as a new arrangement', description: 'The original is back the way it was.' });
   }, [isTeamReadOnly]);
 
-  // Manual trigger for the Settings → Sync "Setlist links" panel. Same heal the
-  // load path runs; useful right after re-importing a missing song.
-  const handleRepairSetlistLinks = useCallback(() => {
-    setSetlists(prev => healSetlistLinks(prev, songs).setlists);
-  }, [songs]);
-
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
     // A member's library is READ-ONLY, and the sync engine already refuses to
     // push their writes. Without this guard the write still lands in local
@@ -2149,16 +2088,6 @@ export default function App() {
     if (changed > 0) {
       toast({ title: `${addList.length ? 'Tagged' : 'Untagged'} ${changed} setlist${changed === 1 ? '' : 's'}` });
     }
-  };
-
-  const handleClearAll = async () => {
-    await clearAll();
-    setSongs([]);
-    setSetlists([]);
-    setTombstones({ songs: [], setlists: [] });
-    setTrash([]);
-    historyRef.current = [];
-    setView('home');
   };
 
   // Setlist export/import
@@ -2723,7 +2652,7 @@ export default function App() {
               church={activeLibrary !== 'personal' ? { name: currentWorkspaceName } : null}
               teamBadge={pendingJoinCount}
               onBack={goBack}
-              onProfile={() => goToMainView('settings', { settingsPanel: 'account' })}
+              onProfile={() => goToMainView('settings', { settingsPanel: 'profile' })}
               onTeam={goTeam}
               onSettings={() => goToMainView('settings')}
               theme={settings?.theme}
@@ -2740,16 +2669,22 @@ export default function App() {
             />
           )}
           {view === "settings" && settings && (
-            <Settings
-              settings={settings}
-              onUpdate={setSettings}
-              onBack={goBack}
-              onClose={closeSettings}
+            <SettingsPage
               panel={settingsPanel}
               onChangePanel={goSettingsPanel}
-              onShowHelp={() => navigate('help')}
-              onReplayOnboarding={() => { setSettings(prev => ({ ...prev, onboardingComplete: false })); navigate('onboarding'); }}
-              onClearAll={handleClearAll}
+              onBack={goBack}
+              settings={settings}
+              onUpdate={setSettings}
+              isSignedIn={isSignedIn}
+              displayName={displayName}
+              displayEmail={displayEmail}
+              onSignOut={handleSignOut}
+              onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
+              activeLibrary={activeLibrary}
+              setlists={setlists}
+              songs={songs}
+              trash={trash}
+              onRemapService={handleRemapService}
               onDownloadSongs={() => {
                 songs.forEach(s => {
                   const md = songToMd(s);
@@ -2783,36 +2718,12 @@ export default function App() {
                   toast({ title: 'Backup failed', description: err?.message || String(err), variant: 'error' });
                 }
               }}
-              songCount={songs.length}
-              setlistCount={setlists.length}
-              syncState={syncState}
-              onSyncStateChange={setSyncState}
-              onSyncNow={() => triggerSync({ silent: false })}
-              backupState={backupState}
-              onBackupStateChange={setBackupState}
-              onBackupNow={handleBackupNow}
-              onRestoreFromBackup={handleRestoreFromBackup}
-              cloudAllowed={personalCloudAllowed}
-              onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
-              onUpgrade={() => navigate('upgrade')}
-              onShowLegal={(doc) => navigate(`legal-${doc}`)}
-              plan={plan}
-              isSignedIn={isSignedIn}
-              displayName={displayName}
-              displayEmail={displayEmail}
-              onSignOut={handleSignOut}
-              onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
-              onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
-              activeLibrary={activeLibrary}
-              team={team}
-              setlists={setlists}
-            songs={songs}
-              onRepairSetlistLinks={handleRepairSetlistLinks}
-              onRemapService={handleRemapService}
-              trash={trash}
               onRestoreSong={handleRestoreSong}
               onPurgeSong={handlePurgeSong}
               onEmptyTrash={handleEmptyTrash}
+              onUpgrade={() => navigate('upgrade')}
+              onShowLegal={(doc) => navigate(`legal-${doc}`)}
+              onHelp={() => navigate('help')}
             />
           )}
           {view === "account" && settings && (
