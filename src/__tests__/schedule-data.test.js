@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { groupByMonth, myStatus, bandSummary, needsPeople } from '@/lib/scheduleData';
+import { groupByMonth, myStatus, bandSummary, needsPeople, canYouPlay, bandGrid, cellState, planKey, planSummary } from '@/lib/scheduleData';
+import { myServices } from '@/lib/homeData';
 
 // Sunday 25 October 2026, 09:00 local.
 const NOW = new Date(2026, 9, 25, 9, 0).getTime();
@@ -39,5 +40,38 @@ describe('scheduleData', () => {
     expect(s).toMatchObject({ yes: 1, no: 1, total: 2, free: 1 });
     expect(needsPeople(s)).toBe(true);
     expect(needsPeople(bandSummary(SETLISTS[3], {}))).toBe(true);
+  });
+
+  it('lays out the next five Sundays plus any weekday ask', () => {
+    const asks = [{ schedule: { id: 'x' }, setlist: { id: 'yn', name: 'Youth Night', date: '2026-11-06' } }];
+    const plays = myServices({ schedules: SCHEDULES, userId: 'me', setlists: SETLISTS, setlistMap: MAP, now: NOW });
+    const tiles = canYouPlay({ now: NOW, setlists: SETLISTS, asks, plays, mine: [{ date: '2026-11-08', status: 'unavailable' }] });
+    expect(tiles.map(t => t.date)).toEqual(['2026-10-25', '2026-11-01', '2026-11-06', '2026-11-08', '2026-11-15', '2026-11-22']);
+    const byDate = Object.fromEntries(tiles.map(t => [t.date, t]));
+    expect(byDate['2026-11-01']).toMatchObject({ playing: true, names: ['nov1'], weekday: 'Sun', day: 1 });
+    expect(byDate['2026-11-01'].rows.map(r => r.id)).toEqual(['a']);
+    expect(byDate['2026-11-06'].asks).toHaveLength(1);
+    expect(byDate['2026-11-08'].status).toBe('unavailable');
+  });
+
+  it('builds the band grid with states, a plan and the missing parts', () => {
+    const members = [
+      { user_id: 'me', instruments: ['Keys'] },
+      { user_id: 'ana', instruments: ['Vocals'] },
+      { user_id: 'rob', instruments: ['Drums'] },
+    ];
+    const plan = { [planKey('nov8', 'rob')]: 'add', [planKey('nov1', 'me')]: 'remove' };
+    const { columns, people } = bandGrid({ setlists: [SETLISTS[1], SETLISTS[2]], members, schedules: SCHEDULES, setlistMap: MAP, availability: AVAIL, plan });
+    const me = people.find(p => p.userId === 'me');
+    expect(me.cells.map(c => [c.state, c.planned])).toEqual([['in', 'remove'], ['asked', null]]);
+    const rob = people.find(p => p.userId === 'rob');
+    expect(rob.cells.map(c => c.state)).toEqual(['free', 'asked']);
+    expect(people.find(p => p.userId === 'ana').cells[0].state).toBe('cant');
+    // nov1: my yes is being taken back, Ana said no → nobody left.
+    expect(columns[0]).toMatchObject({ inBand: 0, missing: null });
+    // nov8: I'm asked (Keys), Rob is about to be (Drums) → Vocals missing.
+    expect(columns[1]).toMatchObject({ rowId: 'row-nov8', inBand: 0, missing: ['Vocals'] });
+    expect(planSummary(plan)).toEqual({ adds: 1, removes: 1 });
+    expect(cellState(null, 'available')).toBe('free');
   });
 });
