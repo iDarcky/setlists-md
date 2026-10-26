@@ -2659,6 +2659,7 @@ export default function App() {
               onThemeChange={(theme) => setSettings(prev => ({ ...prev, theme }))}
               onHelp={() => navigate('help')}
               onWhatsNew={() => goToMainView('settings', { settingsPanel: 'whatsnew' })}
+              onAbout={() => goToMainView('settings', { settingsPanel: 'about' })}
               hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
               onInstall={!isStandalone && (isIOS || canInstall)
                 ? async () => { if (isIOS) openIOSHint(); else await promptInstall(); }
@@ -2678,7 +2679,6 @@ export default function App() {
               isSignedIn={isSignedIn}
               displayName={displayName}
               displayEmail={displayEmail}
-              onSignOut={handleSignOut}
               onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               activeLibrary={activeLibrary}
               setlists={setlists}

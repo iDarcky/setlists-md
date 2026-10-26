@@ -163,7 +163,7 @@ function NavGallery() {
             <YouPage
               embedded me={ME} church={CHURCH} teamBadge={1} theme={t.id}
               onBack={noop} onProfile={noop} onTeam={noop} onSettings={noop} onThemeChange={noop}
-              onHelp={noop} onWhatsNew={noop} onInstall={noop} onDesign={noop} onSignOut={noop}
+              onHelp={noop} onWhatsNew={noop} onAbout={noop} onInstall={noop} onDesign={noop} onSignOut={noop}
             />
           </Frame>
         ))}
@@ -468,7 +468,7 @@ function SettingsDemo({ page, leader = true }) {
   const [theme, setTheme] = useState('dark');
   const [day, setDay] = useState('sunday');
   const [clock, setClock] = useState('12h');
-  const [inst, setInst] = useState('acoustic-guitar');
+  const [inst, setInst] = useState(['acoustic-guitar']);
   const [vocal, setVocal] = useState('tenor');
   const [svc, setSvc] = useState([1440]);
   const [reh, setReh] = useState([180]);
@@ -478,8 +478,8 @@ function SettingsDemo({ page, leader = true }) {
   switch (page) {
     case 'profile':
       return <ProfileView embedded me={ST_ME} nameDraft={name} onNameDraft={setName} onSaveName={noop} church={CHURCH}
-        instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} instrument={inst} vocal={vocal} onInstrument={setInst} onVocal={setVocal}
-        onChangePassword={noop} onSignOut={noop} onDeleteAccount={noop} onBack={back} />;
+        instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} picked={inst} vocal={vocal} onInstrument={(id) => setInst(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])} onVocal={setVocal}
+        onChangePassword={noop} onDeleteAccount={noop} onBack={back} />;
     case 'appearance':
       return <AppearanceView embedded theme={theme} onTheme={setTheme} firstDay={day} onFirstDay={setDay} clock={clock} onClock={setClock} onBack={back} />;
     case 'notifications':
@@ -501,7 +501,7 @@ function SettingsDemo({ page, leader = true }) {
     case 'about':
       return <AboutView embedded version="0.20.0" onWhatsNew={noop} onHelp={noop} onLegal={noop} onBack={back} />;
     default:
-      return <SettingsHubView embedded me={ST_ME} church={leader ? CHURCH : null}
+      return <SettingsHubView embedded church={leader ? CHURCH : null}
         summary={{ appearance: 'Dark', notifications: 'On', plan: 'Church', services: '3', data: '142 songs', version: 'v0.20.0' }}
         onOpen={noop} onBack={back} />;
   }
@@ -775,7 +775,7 @@ export default function DesignSystem({ onBack }) {
           <SongsGallery />
         </Section>
 
-        <Section title="Settings" sub="Four groups: you (Profile), this device, the church (leaders only) and the app. Every row opens its own page. Chart settings are in the reader's Aa.">
+        <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">
           <SettingsGallery />
         </Section>
 
