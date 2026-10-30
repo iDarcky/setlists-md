@@ -359,6 +359,20 @@ function GetSetUp({ items }) {
   );
 }
 
+// Sync has been failing for minutes: say what that means for the band, and
+// what to try. Edits are still safe on this device.
+export function SyncProblem({ onRetry }) {
+  return (
+    <section role="alert" className="flex flex-col gap-3 rounded-card border border-danger/30 bg-danger-fill px-4 py-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="m-0 text-[17px] font-semibold text-danger-text">Your changes aren’t reaching the church</h2>
+        <p className="m-0 text-[15px] leading-[21px] text-muted-foreground">They’re saved on this device, but the band won’t see them until sync works again. If trying again doesn’t help, close the app and open it again.</p>
+      </div>
+      {onRetry && <Button size="sm" className="self-start" onClick={onRetry}>Try again</Button>}
+    </section>
+  );
+}
+
 function NothingPlanned({ onBrowse }) {
   return (
     <section className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
@@ -412,6 +426,7 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
  * @param {string} p.name                 first name for "Hi …"
  * @param {string} p.dateLabel            "Sunday, 25 October"
  * @param {{state, label}} [p.sync]
+ * @param {{onRetry}} [p.syncProblem]  sync failing for minutes
  * @param {boolean} [p.leader]
  * @param {Array} [p.needs]               from needsYou()
  * @param {Array} [p.asks]                from myAsks()
@@ -423,7 +438,7 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
  * @param {boolean} [p.showNothingPlanned]
  */
 export default function HomeView({
-  name, dateLabel, sync, leader = false, clockFormat = '12h',
+  name, dateLabel, sync, syncProblem, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
   strip, whoCanPlay, onOpenSchedule, setup, activity, now, onOpenActivity, onOpenSongs,
   showNothingPlanned = false, embedded = false, layout = 'auto',
@@ -454,6 +469,7 @@ export default function HomeView({
     <div data-slot="home" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       <div className={cn('mx-auto flex w-full max-w-[1040px] flex-col gap-3 pb-8', wide ? 'px-8 pt-8' : layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-4')}>
         {hello}
+        {syncProblem && <SyncProblem {...syncProblem} />}
         {wide ? (
           // From 1024px: the service and your weeks on the left, asks and lists on the right.
           <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
