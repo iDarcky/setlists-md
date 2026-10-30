@@ -38,16 +38,19 @@ export function buildOrder(setlist, songs = [], nameOf = () => '') {
     const startsAt = addClock(setlist.time, elapsed);
     if (!item || item.type === 'break') {
       const minutes = item?.duration || 0;
-      rows.push({ kind: 'moment', idx, title: item?.label || 'Moment', minutes, note: item?.note || '', startsAt });
+      rows.push({ kind: 'moment', idx, title: item?.label || 'Moment', minutes, note: item?.note || '', startsAt, offset: elapsed, seconds: minutes * 60 });
       elapsed += minutes * 60;
       return;
     }
     n += 1;
     const song = findSong(songs, item);
     const secs = durationToSeconds(song?.duration);
-    if (secs > 0) elapsed += secs; else { elapsed += GUESS_SECONDS; estimated = true; }
+    const seconds = secs > 0 ? secs : GUESS_SECONDS;
+    if (!(secs > 0)) estimated = true;
+    const offset = elapsed;
+    elapsed += seconds;
     rows.push({
-      kind: 'song', idx, n, startsAt,
+      kind: 'song', idx, n, startsAt, offset, seconds,
       songId: item.songId,
       missing: !song,
       title: song?.title || item.songTitle || 'Missing song',
@@ -122,4 +125,34 @@ export function changesSinceReady(setlist, songs = []) {
   const moments = (xs) => xs.filter(x => x.type === 'break').map(x => x.label).join('|');
   if (moments(before) !== moments(now)) out.push('Moments changed');
   return out;
+}
+
+// ── Where are we now ────────────────────────────────────────────────────────
+// Follows the PLANNED clock: the service time plus each row's length. It does
+// not know if the band runs long; it says where the plan says you should be.
+
+/**
+ * @returns {{ state: 'before'|'during'|'after'|'none', idx?, left?, progress?, startsIn? }}
+ *   idx is the row's item index; left/startsIn are seconds.
+ */
+export function nowInOrder(setlist, order, now = Date.now()) {
+  if (!setlist?.date || !setlist?.time || !order?.rows?.length) return { state: 'none' };
+  const start = new Date(`${setlist.date}T${setlist.time}`).getTime();
+  if (Number.isNaN(start)) return { state: 'none' };
+  const t = (now - start) / 1000;
+  if (t < 0) return { state: 'before', startsIn: -t };
+  for (const r of order.rows) {
+    if (t >= r.offset && t < r.offset + r.seconds) {
+      return { state: 'during', idx: r.idx, left: r.offset + r.seconds - t, progress: r.seconds ? (t - r.offset) / r.seconds : 0 };
+    }
+  }
+  return { state: 'after' };
+}
+
+/** "3 min left" / "under a minute left" / "starts in 12 min" / "starts in 2 h 05". */
+export function minutesLabel(seconds) {
+  const m = Math.ceil(seconds / 60);
+  if (m <= 1) return 'under a minute';
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`;
 }

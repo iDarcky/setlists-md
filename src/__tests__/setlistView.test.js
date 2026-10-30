@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildOrder, addClock, totalLabel, daysAway, daysLabel, changesSinceReady, readySnapshot } from '@/lib/setlistView';
+import { buildOrder, addClock, totalLabel, daysAway, daysLabel, changesSinceReady, readySnapshot, nowInOrder } from '@/lib/setlistView';
 
 const songs = [
   { id: 'a', title: 'Way Maker', defaultArrangementId: 'x', arrangements: [{ id: 'x', key: 'E', tempo: 68, time: '4/4', duration: '5:00', sections: [] }] },
@@ -49,5 +49,19 @@ describe('changesSinceReady', () => {
     expect(changesSinceReady(now, songs)).toEqual(['Added C', 'Removed A', 'B now in A']);
     const swapped = { ...base, readyItems, items: [{ songId: 'b' }, { type: 'break', label: 'Offering' }, { songId: 'a' }] };
     expect(changesSinceReady(swapped, songs)).toEqual(['Order changed']);
+  });
+});
+
+describe('nowInOrder', () => {
+  const songs2 = [{ id: 'a', title: 'A', defaultArrangementId: 'x', arrangements: [{ id: 'x', key: 'C', duration: '5:00', sections: [] }] }];
+  const sl = { date: '2026-11-01', time: '10:00', items: [{ type: 'break', label: 'Welcome', duration: 2 }, { songId: 'a' }] };
+  const order = buildOrder(sl, songs2);
+  const at = (hhmm) => new Date(`2026-11-01T${hhmm}`).getTime();
+  it('follows the planned clock', () => {
+    expect(nowInOrder(sl, order, at('09:50:00')).state).toBe('before');
+    expect(nowInOrder(sl, order, at('10:01:00'))).toMatchObject({ state: 'during', idx: 0 });
+    const mid = nowInOrder(sl, order, at('10:04:30'));
+    expect(mid).toMatchObject({ state: 'during', idx: 1, left: 150 });
+    expect(nowInOrder(sl, order, at('10:08:00')).state).toBe('after');
   });
 });

@@ -5,7 +5,8 @@ import { useAuth } from '@/auth/useAuth';
 import { bandFor } from '@/lib/homeData';
 import { partLabel } from '@/data/instruments';
 import { formatClockTime } from '@/lib/dateFormat';
-import { buildOrder, daysAway, daysLabel, changesSinceReady } from '@/lib/setlistView';
+import { buildOrder, daysAway, daysLabel, changesSinceReady, nowInOrder } from '@/lib/setlistView';
+import { useNow } from '@/hooks/useNow';
 import { SHARE_ENABLED } from '@/lib/setlistShare';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { toast } from '@/ui/use-toast';
@@ -53,6 +54,9 @@ export default function SetlistPage({
   const me = mineRow ? { part: partLabel(mineRow), status: changing ? 'pending' : mineRow.availability } : null;
 
   const days = daysAway(setlist.date, now);
+  // On the day itself the order follows the clock (the run sheet does too).
+  const clock = useNow(30000, days === 0);
+  const live = days === 0 ? nowInOrder(setlist, order, clock) : { state: 'none' };
   const head = {
     date: setlist.date ? [dayLabel(setlist.date, { weekday: 'short', day: 'numeric', month: 'short' }), daysLabel(days)].filter(Boolean).join(' · ') : '',
     time: setlist.time ? formatClockTime(setlist.time, fmt) + (setlist.endTime ? `–${formatClockTime(setlist.endTime, fmt)}` : '') : '',
@@ -117,6 +121,7 @@ export default function SetlistPage({
         onMenu={() => setMenuOpen(true)}
         onBand={leader ? onEdit : null}
         changes={changesSinceReady(setlist, songs)}
+        nowIdx={live.state === 'during' ? live.idx : null}
         bandSlot={leader && team && createSchedule ? (
           <BandSection setlist={setlist} setlists={setlists} schedules={schedules} setlistMap={setlistMap}
             team={team} members={members} nameOf={nameOf}
@@ -139,7 +144,7 @@ export default function SetlistPage({
           )}
         </div>
       </Sheet>
-      <RunSheet open={runOpen} onClose={() => setRunOpen(false)} title={setlist.name || 'Setlist'} order={order} clockFormat={fmt} />
+      <RunSheet open={runOpen} onClose={() => setRunOpen(false)} title={setlist.name || 'Setlist'} order={order} setlist={setlist} clockFormat={fmt} />
       {canShare && shareOpen && (
         <ShareSetlistDialog setlist={setlist} songs={songs} ownerId={user?.id} onClose={() => setShareOpen(false)} />
       )}
