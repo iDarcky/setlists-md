@@ -79,7 +79,7 @@ async function maybeWarnQuota(warnedRef) {
 const SongHub = lazy(() => import('@/features/song/SongHub'));
 const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
-const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
+const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -2525,24 +2525,23 @@ export default function App() {
             />
           )}
           {view === 'setlist-view' && currentSetlist && (
-            <SetlistOverview
+            <SetlistPage
               key={currentSetlist.id}
               setlist={currentSetlist}
-            songs={songs}
+              songs={songs}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              setlistMap={teamSetlistMap}
+              settings={settings}
+              canEdit={canEdit && !isTeamReadOnly}
               onBack={goBack}
-              onEdit={isTeamReadOnly ? null : () => goSetlistBuild(currentSetlist)}
+              onEdit={() => goSetlistBuild(currentSetlist)}
+              onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
+              onMarkReady={() => markSetlistReady(currentSetlist)}
+              onDelete={() => handleDeleteSetlist(currentSetlist.id)}
               onExportZip={() => handleExportSetlist(currentSetlist)}
               onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
-              clockFormat={settings?.clockFormat || '12h'}
-              v2={settings?.setlistOverviewV2}
-              setlists={setlists}
-              overscheduleWarn={settings?.rosterOverscheduleWarning}
-              streakLimit={settings?.rosterStreakLimit || 3}
-              onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
-              onOpenSong={(song) => goChart(song)}
-              onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
-              canEdit={canEdit}
             />
           )}
           {view === 'setlist-build' && (
@@ -2778,7 +2777,7 @@ export default function App() {
       {/* The nav pill floats at the bottom below 1024px (phone, iPad
           portrait); from 1024px it sits in the top bar. Rendered at the App
           root so nothing inside <main> captures its fixed positioning. */}
-      {!lockedOut && PILL_VIEWS.includes(view) && (
+      {!lockedOut && PILL_VIEWS.includes(view) && view !== 'setlist-view' && (
         <div className="lg:hidden">
           <NavPill placement="bottom" active={navItemFor(view)} onSelect={goNavItem} />
         </div>
