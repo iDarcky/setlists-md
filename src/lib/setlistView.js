@@ -84,3 +84,42 @@ export function daysLabel(days) {
   if (days === -1) return 'yesterday';
   return days > 0 ? `in ${days} days` : `${-days} days ago`;
 }
+
+// ── Changed since Ready ─────────────────────────────────────────────────────
+// Mark ready keeps a small copy of the order; the page compares against it so
+// the band can see what moved after the leader said it was final.
+
+/** What Mark ready stores on the setlist. */
+export function readySnapshot(setlist) {
+  return (setlist?.items || []).map(it => (it?.type === 'break'
+    ? { type: 'break', label: it.label || '' }
+    : { songId: it.songId, title: it.songTitle || '', transpose: it.transpose || 0 }));
+}
+
+/**
+ * Lines like "Added Living Hope", "Way Maker now in F", "Order changed".
+ * Empty when nothing changed or the setlist was never marked ready.
+ */
+export function changesSinceReady(setlist, songs = []) {
+  const before = setlist?.readyItems;
+  if (setlist?.status !== 'ready' || !Array.isArray(before)) return [];
+  const now = readySnapshot(setlist);
+  const title = (x) => songs.find(s => s.id === x.songId)?.title || x.title || 'a song';
+  const ids = (xs) => xs.filter(x => x.songId).map(x => x.songId);
+  const was = ids(before), is = ids(now);
+  const out = [];
+  for (const x of now) if (x.songId && !was.includes(x.songId)) out.push(`Added ${title(x)}`);
+  for (const x of before) if (x.songId && !is.includes(x.songId)) out.push(`Removed ${title(x)}`);
+  for (const x of now) {
+    const old = x.songId && before.find(b => b.songId === x.songId);
+    if (old && (old.transpose || 0) !== (x.transpose || 0)) {
+      const base = resolveSongView(songs.find(s => s.id === x.songId))?.key;
+      out.push(base ? `${title(x)} now in ${transposeKey(base, x.transpose || 0)}` : `${title(x)} changed key`);
+    }
+  }
+  const kept = was.filter(id => is.includes(id));
+  if (kept.join() !== is.filter(id => was.includes(id)).join()) out.push('Order changed');
+  const moments = (xs) => xs.filter(x => x.type === 'break').map(x => x.label).join('|');
+  if (moments(before) !== moments(now)) out.push('Moments changed');
+  return out;
+}

@@ -533,12 +533,12 @@ const SL_BAND = [['Joe Doe', 'Keys', 'available'], ['Ana M', 'Vocals', 'availabl
   .map(([name, part, status], i) => ({ id: String(i), name, part, status }));
 const SL_HEAD = { date: 'Sun 1 Nov · in 6 days', time: '10:00', place: 'Main hall', rehearsal: 'Sat 31 Oct 18:00' };
 
-function SetlistDemo({ leader = false, ask = false, ready = false }) {
+function SetlistDemo({ leader = false, ask = false, ready = false, changed = false }) {
   const setlist = { ...SL, status: ready ? 'ready' : 'draft' };
   const order = buildOrder(setlist, SL_SONGS, (u) => SL_NAMES[u] || '');
   const me = leader ? null : { part: 'Keys', status: ask ? 'pending' : 'available' };
   return (
-    <SetlistView embedded setlist={setlist} order={order} head={SL_HEAD} me={me} band={SL_BAND} leader={leader}
+    <SetlistView embedded setlist={setlist} order={order} head={SL_HEAD} me={me} band={SL_BAND} leader={leader} changes={changed ? ['Added Living Hope', 'Way Maker now in F', 'Order changed'] : []}
       onBack={noop} onPlay={noop} onEdit={leader ? noop : null} onMarkReady={leader ? noop : null} onAnswer={noop} onRunSheet={noop} onMenu={noop} />
   );
 }
@@ -546,7 +546,7 @@ function SetlistDemo({ leader = false, ask = false, ready = false }) {
 function SetlistGallery() {
   return (
     <div className="flex flex-wrap items-start gap-6">
-      {[['Member', 390, 1000, { ready: true }], ['Asked', 390, 1000, { ask: true }], ['Leader', 390, 1000, { leader: true }]].map(([label, w, h, props]) => THEMES.map(t => (
+      {[['Member', 390, 1000, { ready: true }], ['Changed since Ready', 390, 1000, { ready: true, changed: true }], ['Asked', 390, 1000, { ask: true }], ['Leader', 390, 1000, { leader: true }]].map(([label, w, h, props]) => THEMES.map(t => (
         <Frame key={label + t.id} theme={t.id} width={w} height={h} scale={0.6} label={`${label} · ${t.label}`}>
           <SetlistDemo {...props} />
         </Frame>

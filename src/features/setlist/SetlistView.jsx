@@ -146,7 +146,7 @@ function Mine({ me, onAnswer }) {
  */
 export default function SetlistView({
   setlist, order, head, me, band = [], leader = false, embedded = false,
-  onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand, bandSlot = null,
+  onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand, bandSlot = null, changes = [],
 }) {
   const [tab, setTab] = useState('order');
   const [moment, setMoment] = useState(null);
@@ -187,6 +187,15 @@ export default function SetlistView({
           </div>
 
           <Mine me={me} onAnswer={onAnswer} />
+          {changes.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-card bg-warning/12 px-4 py-3">
+              <b className="text-[15px] font-semibold">Changed since Ready</b>
+              <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5 text-[14px] text-muted-foreground">
+                {changes.slice(0, 5).map(c => <li key={c}>{c}</li>)}
+                {changes.length > 5 && <li>and {changes.length - 5} more</li>}
+              </ul>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button className="h-12 flex-1 text-[16px]" disabled={!order.songCount} onClick={() => onPlay?.(0)}><PlayIcon />Play</Button>

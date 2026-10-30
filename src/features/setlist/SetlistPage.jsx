@@ -5,7 +5,7 @@ import { useAuth } from '@/auth/useAuth';
 import { bandFor } from '@/lib/homeData';
 import { partLabel } from '@/data/instruments';
 import { formatClockTime } from '@/lib/dateFormat';
-import { buildOrder, daysAway, daysLabel } from '@/lib/setlistView';
+import { buildOrder, daysAway, daysLabel, changesSinceReady } from '@/lib/setlistView';
 import { SHARE_ENABLED } from '@/lib/setlistShare';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { toast } from '@/ui/use-toast';
@@ -116,6 +116,7 @@ export default function SetlistPage({
         onRunSheet={order.rows.length ? () => setRunOpen(true) : null}
         onMenu={() => setMenuOpen(true)}
         onBand={leader ? onEdit : null}
+        changes={changesSinceReady(setlist, songs)}
         bandSlot={leader && team && createSchedule ? (
           <BandSection setlist={setlist} setlists={setlists} schedules={schedules} setlistMap={setlistMap}
             team={team} members={members} nameOf={nameOf}
