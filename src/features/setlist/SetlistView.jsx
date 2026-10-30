@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Avatar } from '@/app/AppTopBar';
-import { BackIcon, ClockIcon, PinIcon, PlayIcon, MoreIcon, EditIcon, ListIcon } from '@/app/navIcons';
+import { BackIcon, ClockIcon, PinIcon, PlayIcon, MoreIcon, EditIcon, ListIcon, ChevronRightIcon } from '@/app/navIcons';
+import { Sheet } from '@/ui/shadcn/sheet';
+import { Markdown } from '@/ui/Markdown';
 import { totalLabel } from '@/lib/setlistView';
 
 // The setlist page, View (canvas → Setlist). Everyone reads it; leaders also
@@ -22,8 +24,8 @@ const Chip = ({ className, children }) => (
 
 function OrderRow({ row, onOpen }) {
   if (row.kind === 'moment') {
-    return (
-      <div className="flex min-h-[58px] items-center gap-3 border-t border-border py-2 first:border-t-0">
+    const body = (
+      <>
         <span className="w-5 shrink-0" />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[15px] font-medium text-muted-foreground">{row.title}</span>
@@ -31,8 +33,13 @@ function OrderRow({ row, onOpen }) {
             Moment{row.minutes ? ` · ${row.minutes} min` : ''}{row.note && <> · <span className="text-foreground">{firstLine(row.note)}</span></>}
           </span>
         </span>
-      </div>
+      </>
     );
+    const cls = 'flex min-h-[58px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-foreground first:border-t-0';
+    // A moment with a note opens it; one without has nothing more to show.
+    return row.note
+      ? <button type="button" onClick={() => onOpen(row)} className={cn(cls, 'cursor-pointer outline-none focus-visible:bg-raised')}>{body}<ChevronRightIcon /></button>
+      : <div className={cls}>{body}</div>;
   }
   const sub = [row.leads && `${row.leads} leads`, row.time, row.capo ? `capo ${row.capo}` : ''].filter(Boolean).join(' · ');
   return (
@@ -142,9 +149,10 @@ export default function SetlistView({
   onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand,
 }) {
   const [tab, setTab] = useState('order');
+  const [moment, setMoment] = useState(null);
   const ready = setlist.status === 'ready';
   const tabs = [['order', 'Order', order.songCount ? `${order.songCount} ${order.songCount === 1 ? 'song' : 'songs'} · ${totalLabel(order.totalSeconds, order.estimated)}` : ''], ['band', 'Band', band.length || '']];
-  const orderEl = <Order order={order} onOpenRow={(r) => onPlay?.(r.idx)} empty={leader ? 'No songs yet. Tap Edit to add some.' : 'No songs yet.'} />;
+  const orderEl = <Order order={order} onOpenRow={(r) => (r.kind === 'moment' ? setMoment(r) : onPlay?.(r.idx))} empty={leader ? 'No songs yet. Tap Edit to add some.' : 'No songs yet.'} />;
   const bandEl = <Band band={band} leader={leader} onBand={onBand} />;
 
   return (
@@ -211,6 +219,14 @@ export default function SetlistView({
           <span className="text-center text-[12px] text-muted-foreground">The band sees it’s final</span>
         </div>
       )}
+      <Sheet open={!!moment} onOpenChange={(o) => { if (!o) setMoment(null); }} title={moment?.title || 'Moment'} className="h-auto max-h-[85dvh] sm:max-w-[520px]">
+        {moment && (
+          <div className="flex flex-col gap-3">
+            {moment.minutes > 0 && <span className="text-[13px] text-muted-foreground">{moment.minutes} min</span>}
+            <Markdown text={moment.note} className="text-[16px] leading-6" />
+          </div>
+        )}
+      </Sheet>
     </div>
   );
 }
