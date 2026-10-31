@@ -7,7 +7,7 @@ import UndoToastContent from '@/ui/UndoToastContent';
 export function showUndoToast({ title, onUndo }) {
   const t = toast({
     duration: 5000,
-    className: 'p-2 pr-8 w-fit min-w-0 self-end',
+    className: 'w-fit min-w-0 py-2 pl-3 pr-11',
     title: (
       <UndoToastContent
         label={title}

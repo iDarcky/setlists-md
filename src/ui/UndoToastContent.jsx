@@ -25,19 +25,19 @@ export default function UndoToastContent({ label, onUndo, onExpire }) {
   const C = 2 * Math.PI * R;
   const offset = C * (1 - remaining / DURATION);
   return (
-    <div className="flex items-center gap-2">
-      <span className="relative shrink-0 w-5 h-5 grid place-items-center">
-        <svg width="20" height="20" viewBox="0 0 20 20" className="-rotate-90">
-          <circle cx="10" cy="10" r={R} fill="none" stroke="var(--ds-gray-400)" strokeWidth="2" />
-          <circle cx="10" cy="10" r={R} fill="none" stroke="var(--color-brand)" strokeWidth="2" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} />
+    <div className="flex items-center gap-3 font-sans">
+      <span className="relative grid size-6 shrink-0 place-items-center">
+        <svg width="24" height="24" viewBox="0 0 20 20" className="-rotate-90">
+          <circle cx="10" cy="10" r={R} fill="none" stroke="var(--border)" strokeWidth="2" />
+          <circle cx="10" cy="10" r={R} fill="none" stroke="var(--link)" strokeWidth="2" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={offset} />
         </svg>
-        <span className="absolute text-[9px] font-bold tabular-nums text-[var(--ds-gray-1000)] leading-none">{secs}</span>
+        <span className="absolute text-[10px] font-semibold leading-none tabular-nums text-foreground">{secs}</span>
       </span>
-      <span className="text-label-12 font-medium text-[var(--ds-gray-1000)] whitespace-nowrap">{label}</span>
+      <span className="whitespace-nowrap text-[15px] font-medium text-foreground">{label}</span>
       <button
         type="button"
         onClick={onUndo}
-        className="ml-0.5 h-6 px-2 rounded-md border border-[var(--ds-gray-400)] text-label-12 font-semibold text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-100)] cursor-pointer bg-transparent"
+        className="h-9 min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 font-sans text-[15px] font-semibold text-link hover:bg-raised"
       >
         Undo
       </button>

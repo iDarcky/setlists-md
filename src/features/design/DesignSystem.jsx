@@ -34,6 +34,11 @@ import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
 import RunSheet from '@/features/setlist/RunSheet';
+import { toast } from '@/ui/use-toast';
+import { showUndoToast } from '@/lib/undoToast';
+import { useConfirm } from '@/ui/useConfirmHook';
+import PromptDialog from '@/ui/PromptDialog';
+import ErrorBoundary from '@/app/ErrorBoundary';
 import BandSection from '@/features/setlist/BandSection';
 import { buildOrder } from '@/lib/setlistView';
 
@@ -628,6 +633,35 @@ function SetlistBandGallery() {
   );
 }
 
+function Thrower({ message }) { throw new Error(message); }
+
+function PopupsGallery() {
+  const confirm = useConfirm();
+  const [prompt, setPrompt] = useState(false);
+  const fire = [
+    ['Toast', () => toast({ title: 'Marked ready', description: 'Sunday Morning' })],
+    ['Error toast', () => toast({ title: 'Couldn’t save your answer', description: 'Check your connection and try again.', variant: 'error' })],
+    ['Undo toast', () => showUndoToast({ title: 'Setlist deleted', onUndo: () => {} })],
+    ['Confirm', () => confirm({ title: 'Discard changes?', description: 'What you changed on this setlist is lost.', confirmLabel: 'Discard', variant: 'danger' })],
+    ['Prompt', () => setPrompt(true)],
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap gap-2">
+        {fire.map(([l, fn]) => <Button key={l} variant="outline" onClick={fn}>{l}</Button>)}
+      </div>
+      {prompt && <PromptDialog open title="New arrangement" label="Name" placeholder="e.g. Acoustic" initialValue="Acoustic" confirmLabel="Add" onSubmit={() => {}} onClose={() => setPrompt(false)} />}
+      <div className="flex flex-wrap items-start gap-6">
+        {[['Error screen', 'Cannot read properties of undefined (reading \'items\')'], ['After an update', 'Failed to fetch dynamically imported module']].map(([label, msg]) => THEMES.map(t => (
+          <Frame key={label + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`${label} · ${t.label}`}>
+            <ErrorBoundary><Thrower message={msg} /></ErrorBoundary>
+          </Frame>
+        )))}
+      </div>
+    </div>
+  );
+}
+
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
     ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
@@ -906,6 +940,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Setlist band" sub="Leaders: one row per part, starting from the last setlist with the same name. Tap a part to pick who plays it: free that day first, a warning on a third week running. Nobody is asked until Send.">
           <SetlistBandGallery />
+        </Section>
+
+        <Section title="Pop-ups" sub="Every toast, undo, confirm and prompt goes through these. Phone: drawer from the bottom, toasts at the top. iPad and up: small dialog, toasts bottom right.">
+          <PopupsGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">
