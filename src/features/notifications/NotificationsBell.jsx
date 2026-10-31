@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useTeam } from '@/auth/useTeam';
 import { usePushSubscription } from '@/push/usePushSubscription';
+import { useAskForPush } from '@/push/useAskForPush';
 import { buildNotifs } from '@/lib/notifData';
 import NotificationsPanel from './NotificationsPanel';
 
@@ -8,10 +9,11 @@ import NotificationsPanel from './NotificationsPanel';
 // the feed, the Space's join requests, schedule answers and this device's push.
 export default function NotificationsBell({
   feed, schedules, setlists, matchesSetlistId, settings, setSettings,
-  onUpdateSchedule, onMarkRead, onMarkAllRead, onOpenSetlist, onSettings, onClose,
+  onUpdateSchedule, onMarkRead, onMarkAllRead, onOpenSetlist, onNotFound, onSettings, onClose,
 }) {
   const { joinRequests = [], approveJoinRequest, declineJoinRequest } = useTeam();
   const push = usePushSubscription();
+  const askForPush = useAskForPush(push);
   // Read once per opening: the panel mounts each time the bell opens.
   const [now] = useState(() => Date.now());
   const data = useMemo(
@@ -26,7 +28,7 @@ export default function NotificationsBell({
     <NotificationsPanel
       data={data}
       now={now}
-      push={{ show: showPush, onEnable: push.enable, onDismiss: dismissPush }}
+      push={{ show: showPush, onEnable: askForPush, onDismiss: dismissPush }}
       onMarkAllRead={onMarkAllRead}
       onAnswer={(it, status) => onUpdateSchedule?.(it.scheduleId, { availability: status })}
       onApprove={approveJoinRequest ? (it) => approveJoinRequest(it.requestId) : undefined}
@@ -35,6 +37,7 @@ export default function NotificationsBell({
         if (it.unread && it.sourceId) onMarkRead?.(it.sourceId);
         const sl = it.setlistId && matchesSetlistId ? setlists.find(s => matchesSetlistId(s, it.setlistId)) : null;
         if (sl) { onClose?.(); onOpenSetlist?.(sl); }
+        else if (it.setlistId && it.kind !== 'join') { onClose?.(); onNotFound?.('setlist'); }
       }}
       onSettings={onSettings ? () => { onClose?.(); onSettings(); } : undefined}
     />

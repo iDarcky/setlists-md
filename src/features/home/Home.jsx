@@ -4,11 +4,13 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamActivity } from '@/hooks/useTeamActivity';
 import { usePushSubscription } from '@/push/usePushSubscription';
+import { useAskForPush } from '@/push/useAskForPush';
 import {
-  myAsks, myServices, nextUp, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
+  myAsks, myServices, nextUp, syncProblem, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
 } from '@/lib/homeData';
 import HomeView from './HomeView';
 import { partLabel } from '@/data/instruments';
+import { useNow } from '@/hooks/useNow';
 
 // Home: works out what to show from the library, the schedule and the team,
 // and hands it to HomeView. Schedules and the row-id map come from App, which
@@ -27,6 +29,7 @@ export default function Home({
   songs = [], setlists = [], settings, displayName, syncState,
   schedules = [], updateSchedule, setlistMap = {},
   onOpenSetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady,
+  onRetrySync, onNotFound,
   install, // { onInstall } when this device can still put the app on the home screen
 }) {
   const { user } = useAuth();
@@ -35,8 +38,10 @@ export default function Home({
   const { availability } = useTeamAvailability(leader ? team?.id : null);
   const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
   const push = usePushSubscription();
+  const askForPush = useAskForPush(push);
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
+  const ticking = useNow(60000, syncState?.state === 'error');
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState(null);
   const userId = user?.id;
@@ -78,7 +83,7 @@ export default function Home({
     { id: 'join', label: `Join ${team.name}`, done: true },
     ...(install ? [{ id: 'install', label: 'Put the app on your home screen', done: false, onClick: install.onInstall }] : []),
     ...(push.supported && !push.denied
-      ? [{ id: 'push', label: 'Turn on notifications', hint: 'So you hear when you are asked to play', done: push.subscribed, onClick: () => push.enable() }]
+      ? [{ id: 'push', label: 'Turn on notifications', hint: 'So you hear when you are asked to play', done: push.subscribed, onClick: askForPush }]
       : []),
   ] : null;
 
@@ -92,9 +97,11 @@ export default function Home({
     if (it.kind === 'song') {
       const song = songs.find(s => s.id === it.songId) || songs.find(s => s.title === it.object);
       if (song) onOpenSong?.(song);
+      else onNotFound?.('song');
     } else if (it.kind === 'setlist') {
       const sl = setlists.find(x => setlistMap[x.id] === it.rowId) || setlists.find(x => x.name === it.object);
       if (sl) onOpenSetlist?.(sl);
+      else onNotFound?.('setlist');
     }
   };
 
@@ -106,6 +113,8 @@ export default function Home({
       name={first}
       dateLabel={dateLabel}
       sync={syncLine(syncState, now)}
+      syncProblem={syncProblem(syncState, ticking, typeof navigator === 'undefined' || navigator.onLine !== false)
+        ? { onRetry: onRetrySync } : null}
       leader={leader}
       clockFormat={settings?.clockFormat || '12h'}
       needs={needs}

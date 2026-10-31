@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
@@ -192,6 +193,7 @@ export default function ScheduleView({
   const [picked, setPicked] = useState(null);
   return (
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
+      {past && <BackToTop />}
       <div className={cn('mx-auto flex w-full max-w-[680px] flex-col gap-3 pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
           <h1 className="m-0 text-[24px] font-semibold leading-8 tracking-[-0.5px]">Schedule</h1>
