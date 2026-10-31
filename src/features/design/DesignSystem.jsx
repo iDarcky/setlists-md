@@ -44,6 +44,9 @@ import { OfflineLine } from '@/ui/OfflineBanner';
 import { SyncProblem } from '@/features/home/HomeView';
 import BandSection from '@/features/setlist/BandSection';
 import { buildOrder } from '@/lib/setlistView';
+import { ShareBody } from '@/features/sharing/ShareSheet';
+import GuestView from '@/features/sharing/GuestView';
+import { PrintBody } from '@/features/setlist/PrintSheet';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -688,6 +691,39 @@ function PopupsGallery() {
   );
 }
 
+// A drawer as it sits on a phone, for the gallery (the real one is a Sheet).
+function DrawerFrame({ title, children }) {
+  return (
+    <div className="flex h-full flex-col justify-end bg-black/40 font-sans text-foreground">
+      <div className="flex flex-col gap-4 rounded-t-[20px] bg-background px-5 pb-8 pt-3">
+        <span className="mx-auto h-1.5 w-10 rounded-full bg-border" />
+        <h2 className="m-0 text-[20px] font-semibold">{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ShareGallery() {
+  const [choice, setChoice] = useState({ mode: 'overview', notes: true, leads: true, twoColumns: true });
+  const guestSl = { ...SL, items: (SL.items || []).map(({ leadBy: _l, ...it }) => it) };
+  const order = buildOrder(guestSl, SL_SONGS);
+  const share = { url: 'https://setlists.md/?setlist=k7qm2xpa9r4tz8wd' };
+  const frames = [
+    ['Share: first time', 900, <DrawerFrame key="n" title="Share a guest link"><ShareBody state="new" ends="Sun 1 Nov, 14:30" onCreate={noop} /></DrawerFrame>],
+    ['Share: link made', 900, <DrawerFrame key="o" title="Guest link"><ShareBody state={share} ends="Sun 1 Nov, 14:30" canSend onCopy={noop} onSend={noop} onStop={noop} /></DrawerFrame>],
+    ['Guest page', 1200, <GuestView key="g" setlist={guestSl} order={order} church={{ name: 'Grace Church' }} when="Sun 1 Nov · 10:00" live ends="Sun 1 Nov, 14:30" onPlay={noop} onGetApp={noop} />],
+    ['Print for the band', 900, <DrawerFrame key="p" title="Print for the band"><PrintBody choice={choice} setChoice={setChoice} onPrint={noop} /></DrawerFrame>],
+  ];
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {frames.map(([label, h, el]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={390} height={h} scale={0.6} label={`${label} · ${t.label}`}>{el}</Frame>
+      )))}
+    </div>
+  );
+}
+
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
     ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
@@ -970,6 +1006,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Pop-ups" sub="Every toast, undo, confirm and prompt goes through these. Phone: drawer from the bottom, toasts at the top. iPad and up: small dialog, toasts bottom right.">
           <PopupsGallery />
+        </Section>
+
+        <Section title="Share and print" sub="A guest link is live and ends 3 hours after the service: guests see the order and every chart (chords or lyrics), never the band. Print is for the band: an order sheet or every chart, with the band, the church and a small Setlists.md at the bottom.">
+          <ShareGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">

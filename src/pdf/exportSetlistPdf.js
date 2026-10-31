@@ -717,7 +717,12 @@ const PDF_STYLES = `
     }
     .brand-footer .brand-name { color: #444; font-weight: 500; }
     .brand-footer .brand-md   { color: #53796F; font-weight: 700; }
+    .brand-footer .brand-logo { width: 12px; height: 12px; border-radius: 3px; object-fit: cover; vertical-align: -2px; margin-right: 5px; }
+    .brand-footer .brand-church { color: #444; font-weight: 600; }
+    .brand-footer .brand-sep { margin: 0 6px; }
   }
+  .band-line { margin: 14px 0 0; font-size: 10.5pt; line-height: 1.5; color: #444; }
+  .band-line strong { color: #111; font-weight: 600; }
 `;
 
 function formatDate(dateStr, timeStr) {
@@ -745,7 +750,7 @@ function formatTime(timeStr) {
   }
 }
 
-function renderSetlistCover(setlist, items) {
+function renderSetlistCover(setlist, items, church = '') {
   const tags = (setlist.tags && setlist.tags.length)
     ? setlist.tags
     : (setlist.service ? [setlist.service] : []);
@@ -769,19 +774,19 @@ function renderSetlistCover(setlist, items) {
 
   return `
     <header class="setlist-cover">
-      <p class="eyebrow">Setlist</p>
+      <p class="eyebrow">${escapeHtml(church || 'Setlist')}</p>
       <h1>${escapeHtml(setlist.name || 'Untitled Setlist')}</h1>
       <div class="meta">${metaHtml}</div>
       ${tagsHtml}
     </header>`;
 }
 
-function renderBreakBanner(item) {
+function renderBreakBanner(item, show = {}) {
   const label = (item.label || 'Break').trim() || 'Break';
   const duration = item.duration ? `
     <span class="dot" aria-hidden="true"></span>
     <span class="dur">${escapeHtml(String(item.duration))} min</span>` : '';
-  const note = item.note
+  const note = item.note && show.notes !== false
     ? `<p class="note">${escapeHtml(item.note)}</p>`
     : '';
   return `
@@ -796,7 +801,7 @@ function renderBreakBanner(item) {
     ${note}`;
 }
 
-function renderSongRow(item, songs, songIndex) {
+function renderSongRow(item, songs, songIndex, show = {}) {
   const raw = songs.find(s => s.id === item.songId);
   const song = raw ? resolveSongView(raw, item.arrangementId) : null;
   if (!song) return '';
@@ -804,7 +809,9 @@ function renderSongRow(item, songs, songIndex) {
   const transpose = item.transpose || 0;
   const capo = item.capo || 0;
   const displayKey = transposeKey(song.key, transpose);
-  const note = item.note ? `<p class="note">${escapeHtml(item.note)}</p>` : '';
+  const lead = show.leads !== false && item.leadBy && show.nameOf ? show.nameOf(item.leadBy) : '';
+  const parts = [lead && `${lead} leads`, show.notes !== false && item.note].filter(Boolean);
+  const note = parts.length ? `<p class="note">${escapeHtml(parts.join(' · '))}</p>` : '';
 
   return `
     <div class="row">
@@ -860,7 +867,7 @@ function renderMiniCard(setlist, items, songs) {
     </div>`;
 }
 
-function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
+function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}, show = {}) {
   const items = setlist.items || [];
 
   // Songs get a running counter (01, 02, 03…); breaks render as banners and
@@ -868,11 +875,15 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
   const setOrderHtml = (() => {
     let songIndex = 0;
     const rows = items.map(item => {
-      if (item.type === 'break') return renderBreakBanner(item);
+      if (item.type === 'break') return renderBreakBanner(item, show);
       songIndex += 1;
-      return renderSongRow(item, songs, songIndex);
+      return renderSongRow(item, songs, songIndex, show);
     });
-    return `<div class="set-order">${rows.join('')}</div>`;
+    // The band, for the music stand (never on a guest link).
+    const band = show.band?.length
+      ? `<p class="band-line"><strong>Band:</strong> ${show.band.map(escapeHtml).join(' · ')}</p>`
+      : '';
+    return `<div class="set-order">${rows.join('')}${band}</div>`;
   })();
 
   const cardsGridHtml = (() => {
@@ -893,8 +904,11 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
         if (!song) return '';
         const transpose = item.transpose || 0;
         const noteOverride = item.note ? item.note : null;
+        const lead = show.leads !== false && item.leadBy && show.nameOf ? show.nameOf(item.leadBy) : '';
         const { coverHtml, sectionsHtml } = buildSongBody(song, transpose, {
           noteOverride,
+          hideNotes: show.notes === false,
+          extraSubtitle: lead ? `<strong>${escapeHtml(lead)}</strong> leads` : '',
           hideArtist: true,
         });
         return `
@@ -906,7 +920,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
   }
 
   const titleSafe = escapeHtml(setlist.name || 'Setlist');
-  const coverHtml = renderSetlistCover(setlist, items);
+  const coverHtml = renderSetlistCover(setlist, items, show.church?.name);
 
   // Overview mode has no chord charts to apply Cols / Size / Font / Chords /
   // Colors to, so the chart-only controls are hidden — keep the toolbar
@@ -983,7 +997,7 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
     </div>
 
     <footer class="brand-footer" aria-hidden="true">
-      <span class="brand-name">setlists</span><span class="brand-md">.md</span>
+      ${show.church?.logo ? `<img class="brand-logo" src="${escapeHtml(show.church.logo)}" alt="" />` : ''}${show.church?.name ? `<span class="brand-church">${escapeHtml(show.church.name)}</span><span class="brand-sep">·</span>` : ''}<span class="brand-name">setlists</span><span class="brand-md">.md</span>
     </footer>
 
     ${coverHtml}
@@ -1009,11 +1023,17 @@ function buildSetlistDocument(setlist, songs, mode, initialPrefs = {}) {
  *
  * @param {object} setlist - The setlist (name, date, time, location, tags, items).
  * @param {Array}  songs   - All songs (used to look up each item.songId).
- * @param {object} opts    - { mode: 'overview' | 'full' }.
+ * @param {object} opts    - { mode: 'overview' | 'full', notes, leads, twoColumns,
+ *                            band: ['Joe (acoustic)', …], church: { name, logo }, nameOf(uid) }.
+ *                            notes / leads default on; twoColumns sets the charts' columns.
  */
 export function exportSetlistPdf(setlist, songs, opts = {}) {
   if (!setlist) return;
   const mode = opts.mode === 'full' ? 'full' : 'overview';
-  const html = buildSetlistDocument(setlist, songs || [], mode, readInitialPrefs());
+  const prefs = readInitialPrefs();
+  if (typeof opts.twoColumns === 'boolean') prefs.cols = opts.twoColumns ? 2 : 1;
+  const html = buildSetlistDocument(setlist, songs || [], mode, prefs, opts);
   openPrintWindow(html);
 }
+
+export { buildSetlistDocument };

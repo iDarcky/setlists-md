@@ -10,7 +10,8 @@ import { useNow } from '@/hooks/useNow';
 import { SHARE_ENABLED } from '@/lib/setlistShare';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { toast } from '@/ui/use-toast';
-import ShareSetlistDialog from '@/features/sharing/ShareSetlistDialog';
+import ShareSheet from '@/features/sharing/ShareSheet';
+import PrintSheet from './PrintSheet';
 import SetlistView from './SetlistView';
 import RunSheet from './RunSheet';
 import BandSection from './BandSection';
@@ -28,7 +29,7 @@ const dayLabel = (date, opts) => new Date(`${date}T12:00:00`).toLocaleDateString
 export default function SetlistPage({
   setlist, songs = [], setlists = [], schedules = [], updateSchedule, createSchedule, deleteSchedule, ensureRow, setlistMap = {}, settings,
   canEdit = false, onBack, onEdit, onPlay, onMarkReady, onDelete,
-  onExportZip, onExportPdfOverview, onExportPdfFull,
+  onExportZip, onPrint,
 }) {
   const { user } = useAuth();
   const { team, members = [], isAdmin, canManageBand } = useTeam();
@@ -37,6 +38,7 @@ export default function SetlistPage({
   const [menuOpen, setMenuOpen] = useState(false);
   const [runOpen, setRunOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [changing, setChanging] = useState(false);
   const fmt = settings?.clockFormat || '24h';
   const leader = canEdit && (!team || isAdmin || canManageBand);
@@ -92,6 +94,14 @@ export default function SetlistPage({
     }
   };
 
+  // The printout is for the band, so it names them (a guest link never does).
+  const print = (choice) => onPrint?.({
+    ...choice,
+    nameOf,
+    band: band.filter(b => b.status !== 'unavailable').map(b => (b.part ? `${b.name} (${b.part})` : b.name)),
+    church: team ? { name: team.name, logo: team.logo_url } : null,
+  });
+
   const del = async () => {
     setMenuOpen(false);
     const ok = await confirm({ title: 'Delete this setlist?', description: `“${setlist.name || 'Untitled'}” is removed for everyone. You can undo right after.`, confirmLabel: 'Delete', variant: 'danger' });
@@ -102,8 +112,7 @@ export default function SetlistPage({
   const items = [
     leader && onEdit && ['Edit name, date and time', () => onEdit()],
     canShare && ['Share a guest link', () => setShareOpen(true)],
-    leader && onExportPdfOverview && ['Download PDF (order)', onExportPdfOverview],
-    leader && onExportPdfFull && ['Download PDF (all charts)', onExportPdfFull],
+    onPrint && ['Print for the band', () => setPrintOpen(true)],
     leader && onExportZip && ['Download songs (.zip)', onExportZip],
     order.rows.length > 0 && ['Copy the order', copyOrder],
   ].filter(Boolean);
@@ -145,8 +154,13 @@ export default function SetlistPage({
         </div>
       </Sheet>
       <RunSheet open={runOpen} onClose={() => setRunOpen(false)} title={setlist.name || 'Setlist'} order={order} setlist={setlist} clockFormat={fmt} />
-      {canShare && shareOpen && (
-        <ShareSetlistDialog setlist={setlist} songs={songs} ownerId={user?.id} onClose={() => setShareOpen(false)} />
+      {canShare && (
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} setlist={setlist} songs={songs}
+          ownerId={user?.id} teamId={team?.id} ensureRow={ensureRow} setlistMap={setlistMap} clockFormat={fmt} />
+      )}
+      {onPrint && (
+        <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} onPrint={print}
+          hasLeads={(setlist.items || []).some(it => it.leadBy)} />
       )}
     </>
   );

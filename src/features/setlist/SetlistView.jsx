@@ -68,7 +68,7 @@ function OrderRow({ row, onOpen, now = false }) {
 
 const firstLine = (md) => String(md).split('\n').map(l => l.replace(/^#+\s*|\*\*/g, '').trim()).find(Boolean) || '';
 
-function Order({ order, onOpenRow, empty, nowIdx = null }) {
+export function Order({ order, onOpenRow, empty, nowIdx = null }) {
   if (!order.rows.length) {
     return <p className="m-0 rounded-card border border-dashed border-border px-5 py-8 text-center text-[14px] text-muted-foreground">{empty}</p>;
   }
