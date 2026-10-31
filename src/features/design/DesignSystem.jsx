@@ -31,6 +31,8 @@ import {
   SettingsHubView, ProfileView, AppearanceView, NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView,
 } from '@/features/settings/SettingsViews';
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
+import SetlistView from '@/features/setlist/SetlistView';
+import { buildOrder } from '@/lib/setlistView';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -507,6 +509,54 @@ function SettingsDemo({ page, leader = true }) {
   }
 }
 
+const SL_SONGS = [
+  ['a', 'Way Maker', 'E', 68, '4/4', '5:10'], ['b', 'Goodness of God', 'A', 63, '6/8', '5:00'],
+  ['c', 'Build My Life', 'G', 68, '4/4', '4:50'], ['d', 'Living Hope', 'D', 72, '4/4', '5:20'],
+].map(([id, title, key, tempo, time, duration]) => ({ id, title, defaultArrangementId: id, arrangements: [{ id, key, tempo, time, duration, sections: [] }] }));
+const SL = {
+  id: 'sl', name: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall', status: 'draft',
+  items: [
+    { type: 'break', label: 'Welcome', duration: 2 },
+    { songId: 'a', leadBy: 'jd', note: 'Start soft, keys only' },
+    { songId: 'b', leadBy: 'am' },
+    { songId: 'c', leadBy: 'am' },
+    { type: 'break', label: 'Offering', duration: 5, note: 'Keys pad underneath' },
+    { songId: 'd', leadBy: 'jd', note: 'Big ending' },
+    { type: 'break', label: 'Response', duration: 5 },
+  ],
+};
+const SL_NAMES = { jd: 'Joe', am: 'Ana' };
+const SL_BAND = [['Joe Doe', 'Keys', 'available'], ['Ana M', 'Vocals', 'available'], ['Rob K', 'Drums', 'available'], ['Tim P', 'Guitar', 'pending'], ['Lia S', 'Bass', 'maybe']]
+  .map(([name, part, status], i) => ({ id: String(i), name, part, status }));
+const SL_HEAD = { date: 'Sun 1 Nov · in 6 days', time: '10:00', place: 'Main hall', rehearsal: 'Sat 31 Oct 18:00' };
+
+function SetlistDemo({ leader = false, ask = false, ready = false }) {
+  const setlist = { ...SL, status: ready ? 'ready' : 'draft' };
+  const order = buildOrder(setlist, SL_SONGS, (u) => SL_NAMES[u] || '');
+  const me = leader ? null : { part: 'Keys', status: ask ? 'pending' : 'available' };
+  return (
+    <SetlistView embedded setlist={setlist} order={order} head={SL_HEAD} me={me} band={SL_BAND} leader={leader}
+      onBack={noop} onPlay={noop} onEdit={leader ? noop : null} onMarkReady={leader ? noop : null} onAnswer={noop} onRunSheet={noop} onMenu={noop} />
+  );
+}
+
+function SetlistGallery() {
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {[['Member', 390, 1000, { ready: true }], ['Asked', 390, 1000, { ask: true }], ['Leader', 390, 1000, { leader: true }]].map(([label, w, h, props]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={w} height={h} scale={0.6} label={`${label} · ${t.label}`}>
+          <SetlistDemo {...props} />
+        </Frame>
+      )))}
+      {THEMES.map(t => (
+        <Frame key={'desk' + t.id} theme={t.id} width={1280} height={820} scale={0.5} label={`Desktop · leader · ${t.label}`}>
+          <SetlistDemo leader />
+        </Frame>
+      ))}
+    </div>
+  );
+}
+
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
     ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
@@ -773,6 +823,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Songs" sub="One list: search, quick chips, the sort, then each song with how often and when it was last played, and its key. Leaders long-press or tap Select to tag, delete, or move/copy to another church they lead.">
           <SongsGallery />
+        </Section>
+
+        <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the run sheet.">
+          <SetlistGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">
