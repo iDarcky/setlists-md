@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } fro
 import { songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
+import { readySnapshot } from '@/lib/setlistView';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
@@ -1736,7 +1737,11 @@ export default function App() {
   // Draft/Ready picker writes, saved through the usual auto-save.
   const markSetlistReady = (target) => {
     if (isTeamReadOnly || !target) return;
-    setSetlists(prev => prev.map(sl => (sl.id === target.id ? { ...sl, status: 'ready', updatedAt: Date.now() } : sl)));
+    target = setlists.find(sl => sl.id === target.id) || target;
+    // readyItems: the order as it was when marked ready, for "Changed since Ready".
+    const ready = { status: 'ready', readyItems: readySnapshot(target), readyAt: Date.now(), updatedAt: Date.now() };
+    setSetlists(prev => prev.map(sl => (sl.id === target.id ? { ...sl, ...ready } : sl)));
+    setCurrentSetlist(cur => (cur?.id === target.id ? { ...cur, ...ready } : cur));
     toast({ title: 'Marked ready', description: target.name || undefined });
   };
 
@@ -2543,7 +2548,7 @@ export default function App() {
           {view === 'setlist-view' && currentSetlist && (
             <SetlistPage
               key={currentSetlist.id}
-              setlist={currentSetlist}
+              setlist={setlists.find(s => s.id === currentSetlist.id) || currentSetlist}
               songs={songs}
               schedules={schedules}
               updateSchedule={updateSchedule}
@@ -2565,7 +2570,7 @@ export default function App() {
           {view === 'setlist-build' && currentSetlist?.id && setlists.some(s => s.id === currentSetlist.id) && (
             <SetlistEditPage
               key={currentSetlist.id}
-              setlist={currentSetlist}
+              setlist={setlists.find(s => s.id === currentSetlist.id) || currentSetlist}
               songs={songs}
               setlists={setlists}
               schedules={schedules}

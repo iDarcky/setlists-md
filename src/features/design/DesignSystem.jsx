@@ -33,6 +33,7 @@ import {
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
+import RunSheet from '@/features/setlist/RunSheet';
 import BandSection from '@/features/setlist/BandSection';
 import { buildOrder } from '@/lib/setlistView';
 
@@ -533,20 +534,32 @@ const SL_BAND = [['Joe Doe', 'Keys', 'available'], ['Ana M', 'Vocals', 'availabl
   .map(([name, part, status], i) => ({ id: String(i), name, part, status }));
 const SL_HEAD = { date: 'Sun 1 Nov · in 6 days', time: '10:00', place: 'Main hall', rehearsal: 'Sat 31 Oct 18:00' };
 
-function SetlistDemo({ leader = false, ask = false, ready = false }) {
+function SetlistDemo({ leader = false, ask = false, ready = false, changed = false, live = false }) {
   const setlist = { ...SL, status: ready ? 'ready' : 'draft' };
   const order = buildOrder(setlist, SL_SONGS, (u) => SL_NAMES[u] || '');
   const me = leader ? null : { part: 'Keys', status: ask ? 'pending' : 'available' };
   return (
-    <SetlistView embedded setlist={setlist} order={order} head={SL_HEAD} me={me} band={SL_BAND} leader={leader}
+    <SetlistView embedded setlist={setlist} order={order} head={SL_HEAD} me={me} band={SL_BAND} leader={leader} changes={changed ? ['Added Living Hope', 'Way Maker now in F', 'Order changed'] : []} nowIdx={live ? 2 : null}
       onBack={noop} onPlay={noop} onEdit={leader ? noop : null} onMarkReady={leader ? noop : null} onAnswer={noop} onRunSheet={noop} onMenu={noop} />
+  );
+}
+
+function RunSheetDemo() {
+  const [open, setOpen] = useState(false);
+  const order = buildOrder(SL, SL_SONGS, (u) => SL_NAMES[u] || '');
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>Open the run sheet (live at 10:09)</Button>
+      <RunSheet open={open} onClose={() => setOpen(false)} title={SL.name} order={order} setlist={SL} now={new Date(`${SL.date}T10:09:00`).getTime()} />
+    </>
   );
 }
 
 function SetlistGallery() {
   return (
     <div className="flex flex-wrap items-start gap-6">
-      {[['Member', 390, 1000, { ready: true }], ['Asked', 390, 1000, { ask: true }], ['Leader', 390, 1000, { leader: true }]].map(([label, w, h, props]) => THEMES.map(t => (
+      <div className="w-full"><RunSheetDemo /></div>
+      {[['Member', 390, 1000, { ready: true }], ['Changed since Ready', 390, 1000, { ready: true, changed: true }], ['Service day · now', 390, 1000, { ready: true, live: true }], ['Asked', 390, 1000, { ask: true }], ['Leader', 390, 1000, { leader: true }]].map(([label, w, h, props]) => THEMES.map(t => (
         <Frame key={label + t.id} theme={t.id} width={w} height={h} scale={0.6} label={`${label} · ${t.label}`}>
           <SetlistDemo {...props} />
         </Frame>

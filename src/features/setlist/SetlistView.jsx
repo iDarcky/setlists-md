@@ -22,11 +22,14 @@ const Chip = ({ className, children }) => (
   <span className={cn('flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold', className)}>{children}</span>
 );
 
-function OrderRow({ row, onOpen }) {
+// The row the clock says is on now (service day only).
+const NowDot = () => <span role="img" aria-label="Now" className="mt-0.5 size-2.5 animate-pulse rounded-full bg-link" />;
+
+function OrderRow({ row, onOpen, now = false }) {
   if (row.kind === 'moment') {
     const body = (
       <>
-        <span className="w-5 shrink-0" />
+        <span className="flex w-5 shrink-0 justify-end">{now && <NowDot />}</span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[15px] font-medium text-muted-foreground">{row.title}</span>
           <span className="truncate text-[13px] text-muted-foreground">
@@ -35,7 +38,7 @@ function OrderRow({ row, onOpen }) {
         </span>
       </>
     );
-    const cls = 'flex min-h-[58px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-foreground first:border-t-0';
+    const cls = cn('flex min-h-[58px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-foreground first:border-t-0', now && 'bg-selected');
     // A moment with a note opens it; one without has nothing more to show.
     return row.note
       ? <button type="button" onClick={() => onOpen(row)} className={cn(cls, 'cursor-pointer outline-none focus-visible:bg-raised')}>{body}<ChevronRightIcon /></button>
@@ -46,9 +49,9 @@ function OrderRow({ row, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen?.(row)}
-      className="flex min-h-[58px] w-full min-w-0 cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised"
+      className={cn('flex min-h-[58px] w-full min-w-0 cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised', now && 'bg-selected')}
     >
-      <span className="w-5 shrink-0 text-right text-[13px] tabular-nums text-muted-foreground">{row.n}</span>
+      <span className="flex w-5 shrink-0 justify-end text-[13px] tabular-nums text-muted-foreground">{now ? <NowDot /> : row.n}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className={cn('truncate text-[15px] font-semibold', row.missing && 'italic text-muted-foreground')}>{row.title}</span>
         {(sub || row.note) && (
@@ -65,13 +68,13 @@ function OrderRow({ row, onOpen }) {
 
 const firstLine = (md) => String(md).split('\n').map(l => l.replace(/^#+\s*|\*\*/g, '').trim()).find(Boolean) || '';
 
-function Order({ order, onOpenRow, empty }) {
+function Order({ order, onOpenRow, empty, nowIdx = null }) {
   if (!order.rows.length) {
     return <p className="m-0 rounded-card border border-dashed border-border px-5 py-8 text-center text-[14px] text-muted-foreground">{empty}</p>;
   }
   return (
     <>
-      <div className="flex flex-col">{order.rows.map(r => <OrderRow key={r.idx} row={r} onOpen={onOpenRow} />)}</div>
+      <div className="flex flex-col">{order.rows.map(r => <OrderRow key={r.idx} row={r} onOpen={onOpenRow} now={r.idx === nowIdx} />)}</div>
       <div className="flex justify-between px-0.5 pt-1 text-[13px] text-muted-foreground">
         <span>{order.songCount} {order.songCount === 1 ? 'song' : 'songs'}</span>
         <span>{totalLabel(order.totalSeconds, order.estimated)}</span>
@@ -146,13 +149,13 @@ function Mine({ me, onAnswer }) {
  */
 export default function SetlistView({
   setlist, order, head, me, band = [], leader = false, embedded = false,
-  onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand, bandSlot = null,
+  onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand, bandSlot = null, changes = [], nowIdx = null,
 }) {
   const [tab, setTab] = useState('order');
   const [moment, setMoment] = useState(null);
   const ready = setlist.status === 'ready';
   const tabs = [['order', 'Order', order.songCount ? `${order.songCount} ${order.songCount === 1 ? 'song' : 'songs'} · ${totalLabel(order.totalSeconds, order.estimated)}` : ''], ['band', 'Band', band.length || '']];
-  const orderEl = <Order order={order} onOpenRow={(r) => (r.kind === 'moment' ? setMoment(r) : onPlay?.(r.idx))} empty={leader ? 'No songs yet. Tap Edit to add some.' : 'No songs yet.'} />;
+  const orderEl = <Order order={order} nowIdx={nowIdx} onOpenRow={(r) => (r.kind === 'moment' ? setMoment(r) : onPlay?.(r.idx))} empty={leader ? 'No songs yet. Tap Edit to add some.' : 'No songs yet.'} />;
   const bandEl = bandSlot || <Band band={band} leader={leader} onBand={onBand} />;
 
   return (
@@ -187,6 +190,15 @@ export default function SetlistView({
           </div>
 
           <Mine me={me} onAnswer={onAnswer} />
+          {changes.length > 0 && (
+            <div className="flex flex-col gap-1 rounded-card bg-warning/12 px-4 py-3">
+              <b className="text-[15px] font-semibold">Changed since Ready</b>
+              <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5 text-[14px] text-muted-foreground">
+                {changes.slice(0, 5).map(c => <li key={c}>{c}</li>)}
+                {changes.length > 5 && <li>and {changes.length - 5} more</li>}
+              </ul>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button className="h-12 flex-1 text-[16px]" disabled={!order.songCount} onClick={() => onPlay?.(0)}><PlayIcon />Play</Button>
