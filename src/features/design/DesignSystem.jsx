@@ -19,6 +19,7 @@ import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
 import ScheduleView from '@/features/schedule/ScheduleView';
 import SongsView from '@/features/songs/SongsView';
+import Song from '@/features/song/Song';
 import { playStats, nextSetlistSongs, playLine, sortSongs, filterSongs, filterOptions, songKey, NO_FILTERS } from '@/lib/songsData';
 import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
 import BandView from '@/features/schedule/BandView';
@@ -401,6 +402,53 @@ function SongsGallery() {
   );
 }
 
+// ── Song page ───────────────────────────────────────────────────────────────
+
+const AG_SECTIONS = [
+  { type: 'Intro', lines: ['[G] [C] [G] [D]'] },
+  { type: 'Verse 1', lines: ['A[G]mazing grace, how [G7]sweet the [C]sound', 'That [G]saved a wretch like [D]me', 'I [G]once was lost, but [G7]now am [C]found', 'Was [G]blind, but [D]now I [G]see'] },
+  { type: 'Verse 2', lines: ['\'Twas [G]grace that taught my [G7]heart to [C]fear', 'And [G]grace my fears re[D]lieved', 'How [G]precious did that [G7]grace ap[C]pear', 'The [G]hour I [D]first be[G]lieved'] },
+  { type: 'Verse 3', lines: ['Through [G]many dangers, [G7]toils and [C]snares', 'I [G]have already [D]come', '\'Tis [G]grace hath brought me [G7]safe thus [C]far', 'And [G]grace will [D]lead me [G]home'] },
+];
+const AG = {
+  id: 'ag-demo', title: 'Amazing Grace', artist: 'John Newton', year: '1779', writers: 'John Newton', copyright: 'Public domain', ccli: '22025',
+  themes: 'Grace, Salvation', youtube: 'https://www.youtube.com/watch?v=sample-link' /* not a real video */, keyHistory: { G: 9, A: 5 }, defaultArrangementId: 'fb',
+  arrangements: [
+    { id: 'fb', name: 'Full band', key: 'G', tempo: 72, time: '3/4', structure: ['Intro', 'Verse 1', 'Verse 2', 'Verse 3', 'Verse 1'], sections: AG_SECTIONS },
+    { id: 'ac', name: 'Acoustic', key: 'D', tempo: 68, time: '3/4', capo: 2, structure: [], sections: AG_SECTIONS },
+  ],
+};
+const agSet = (date, name) => ({ id: `ag-${date}`, date, time: '10:00', name, items: [{ songId: 'x' }, { songId: 'y' }, { songId: 'ag-demo' }] });
+const AG_SETLISTS = [agSet('2026-10-18', 'Sunday Morning'), agSet('2026-09-06', 'Sunday Morning'), agSet('2026-11-01', 'Sunday Morning')];
+
+function SongDemo({ leader = true, ...props }) {
+  const [song, setSong] = useState(AG);
+  return (
+    <Song
+      embedded song={song} setlists={AG_SETLISTS} settings={{}} onUpdateSettings={noop}
+      onBack={noop} onEdit={leader ? noop : null} onPlay={noop} onDelete={leader ? noop : null}
+      onUpdateSong={leader ? setSong : null} onOpenSetlist={noop} {...props}
+    />
+  );
+}
+
+function SongGallery() {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {[['Leader', {}], ['Member', { leader: false }], ['Open chart', { initialScreen: 'chart' }]].map(([label, props]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={390} height={900} scale={0.6} label={`${label} · ${t.label}`}>
+          <SongDemo layout="phone" {...props} />
+        </Frame>
+      )))}
+      {THEMES.map(t => (
+        <Frame key={`desk${t.id}`} theme={t.id} width={1280} height={800} scale={0.55} label={`Desktop · ${t.label}`}>
+          <SongDemo layout="desk" />
+        </Frame>
+      ))}
+    </div>
+  );
+}
+
 const N_FEED = [
   { id: 'schedule-a', type: 'schedule_request', scheduleId: 'na', setlistId: 's5' },
   { id: 'n1', type: 'schedule_decline', title: 'Rob K can’t play Sun 8 Nov', message: 'Sunday Morning · Drums', createdAt: hAgo(2), read: false },
@@ -773,6 +821,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Songs" sub="One list: search, quick chips, the sort, then each song with how often and when it was last played, and its key. Leaders long-press or tap Select to tag, delete, or move/copy to another church they lead.">
           <SongsGallery />
+        </Section>
+
+        <Section title="Song" sub="Details first: Key and arrangement in small popovers, the numbers, one ink Open chart. Then how often you play it, the next service, Listen (YouTube’s own player, kept visible), how it goes, credits. Tap around: these are the real screens.">
+          <SongGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">
