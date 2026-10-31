@@ -72,3 +72,18 @@ export const PlayIcon = ({ size = 16 }) => (
 export const ChevronLeftIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="2" {...base}><path d="m15 6-6 6 6 6" /></svg>
 );
+export const MoreIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+);
+export const EditIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+);
+export const ListIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01" /></svg>
+);
+export const CloseIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="2" {...base}><path d="M6 6l12 12M18 6 6 18" /></svg>
+);
+export const PersonAddIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><path d="M19 8v6M16 11h6" /></svg>
+);

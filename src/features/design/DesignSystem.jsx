@@ -32,6 +32,22 @@ import {
   SettingsHubView, ProfileView, AppearanceView, NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView,
 } from '@/features/settings/SettingsViews';
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
+import SetlistView from '@/features/setlist/SetlistView';
+import SetlistEdit from '@/features/setlist/SetlistEdit';
+import RunSheet from '@/features/setlist/RunSheet';
+import { toast } from '@/ui/use-toast';
+import { showUndoToast } from '@/lib/undoToast';
+import { useConfirm } from '@/ui/useConfirmHook';
+import PromptDialog from '@/ui/PromptDialog';
+import ErrorBoundary from '@/app/ErrorBoundary';
+import StatusScreen from '@/ui/StatusScreen';
+import { OfflineLine } from '@/ui/OfflineBanner';
+import { SyncProblem } from '@/features/home/HomeView';
+import BandSection from '@/features/setlist/BandSection';
+import { buildOrder } from '@/lib/setlistView';
+import { ShareBody } from '@/features/sharing/ShareSheet';
+import GuestView from '@/features/sharing/GuestView';
+import { PrintBody } from '@/features/setlist/PrintSheet';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -555,6 +571,207 @@ function SettingsDemo({ page, leader = true }) {
   }
 }
 
+const SL_SONGS = [
+  ['a', 'Way Maker', 'E', 68, '4/4', '5:10'], ['b', 'Goodness of God', 'A', 63, '6/8', '5:00'],
+  ['c', 'Build My Life', 'G', 68, '4/4', '4:50'], ['d', 'Living Hope', 'D', 72, '4/4', '5:20'],
+  ['e', 'King of Kings', 'D', 66, '4/4', '5:30'], ['f', 'Cornerstone', 'C', 72, '4/4', '4:40'], ['g', 'Great Are You Lord', 'G', 74, '4/4', '4:20'],
+].map(([id, title, key, tempo, time, duration]) => ({ id, title, defaultArrangementId: id, arrangements: [{ id, key, tempo, time, duration, sections: [] }] }));
+const SL = {
+  id: 'sl', name: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall', status: 'draft',
+  items: [
+    { type: 'break', label: 'Welcome', duration: 2 },
+    { songId: 'a', leadBy: 'jd', note: 'Start soft, keys only' },
+    { songId: 'b', leadBy: 'am' },
+    { songId: 'c', leadBy: 'am' },
+    { type: 'break', label: 'Offering', duration: 5, note: 'Keys pad underneath' },
+    { songId: 'd', leadBy: 'jd', note: 'Big ending' },
+    { type: 'break', label: 'Response', duration: 5 },
+  ],
+};
+const SL_NAMES = { jd: 'Joe', am: 'Ana' };
+const SL_BAND = [['Joe Doe', 'Keys', 'available'], ['Ana M', 'Vocals', 'available'], ['Rob K', 'Drums', 'available'], ['Tim P', 'Guitar', 'pending'], ['Lia S', 'Bass', 'maybe']]
+  .map(([name, part, status], i) => ({ id: String(i), name, part, status }));
+const SL_HEAD = { date: 'Sun 1 Nov · in 6 days', time: '10:00', place: 'Main hall', rehearsal: 'Sat 31 Oct 18:00' };
+
+function SetlistDemo({ leader = false, ask = false, ready = false, changed = false, live = false }) {
+  const setlist = { ...SL, status: ready ? 'ready' : 'draft' };
+  const order = buildOrder(setlist, SL_SONGS, (u) => SL_NAMES[u] || '');
+  const me = leader ? null : { part: 'Keys', status: ask ? 'pending' : 'available' };
+  return (
+    <SetlistView embedded setlist={setlist} order={order} head={SL_HEAD} me={me} band={SL_BAND} leader={leader} changes={changed ? ['Added Living Hope', 'Way Maker now in F', 'Order changed'] : []} nowIdx={live ? 2 : null}
+      onBack={noop} onPlay={noop} onEdit={leader ? noop : null} onMarkReady={leader ? noop : null} onAnswer={noop} onRunSheet={noop} onMenu={noop} />
+  );
+}
+
+function RunSheetDemo() {
+  const [open, setOpen] = useState(false);
+  const order = buildOrder(SL, SL_SONGS, (u) => SL_NAMES[u] || '');
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>Open the run sheet (live at 10:09)</Button>
+      <RunSheet open={open} onClose={() => setOpen(false)} title={SL.name} order={order} setlist={SL} now={new Date(`${SL.date}T10:09:00`).getTime()} />
+    </>
+  );
+}
+
+function SetlistGallery() {
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      <div className="w-full"><RunSheetDemo /></div>
+      {[['Member', 390, 1000, { ready: true }], ['Changed since Ready', 390, 1000, { ready: true, changed: true }], ['Service day · now', 390, 1000, { ready: true, live: true }], ['Asked', 390, 1000, { ask: true }], ['Leader', 390, 1000, { leader: true }]].map(([label, w, h, props]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={w} height={h} scale={0.6} label={`${label} · ${t.label}`}>
+          <SetlistDemo {...props} />
+        </Frame>
+      )))}
+      {THEMES.map(t => (
+        <Frame key={'desk' + t.id} theme={t.id} width={1280} height={820} scale={0.5} label={`Desktop · leader · ${t.label}`}>
+          <SetlistDemo leader />
+        </Frame>
+      ))}
+    </div>
+  );
+}
+
+const SL_PAST = [
+  { id: 'p1', date: '2026-03-01', items: [{ songId: 'e' }, { songId: 'f' }, { songId: 'a' }] },
+  { id: 'p2', date: '2026-10-25', items: [{ songId: 'g' }] },
+];
+const SL_PEOPLE = [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }, { id: 'rk', name: 'Rob' }];
+
+function SetlistEditGallery() {
+  const edit = (picked) => <SetlistEdit embedded setlist={SL} songs={SL_SONGS} setlists={SL_PAST} people={SL_PEOPLE} nameOf={(u) => SL_NAMES[u] || ''} initialPicked={picked} onSave={noop} onCancel={noop} />;
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {THEMES.map(t => (
+        <Frame key={'ed' + t.id} theme={t.id} width={390} height={844} scale={0.6} label={`Edit · ${t.label}`}>{edit(null)}</Frame>
+      ))}
+      {THEMES.map(t => (
+        <Frame key={'edd' + t.id} theme={t.id} width={1280} height={820} scale={0.5} label={`Edit · desktop, a song picked · ${t.label}`}>{edit(1)}</Frame>
+      ))}
+    </div>
+  );
+}
+
+const BD_MEMBERS = [['jd', 'Joe Doe', ['keys']], ['am', 'Ana M', ['vocals:alto']], ['mv', 'Mara V', ['vocals']], ['el', 'Eli L', ['vocals']],
+  ['sb', 'Sara B', ['vocals']], ['kt', 'Kim T', ['vocals']], ['rk', 'Rob K', ['drums']], ['tp', 'Tim P', ['electric-guitar']], ['ls', 'Lia S', ['bass-guitar']]]
+  .map(([user_id, name, instruments]) => ({ user_id, instruments, profile: { display_name: name } }));
+const BD_SETLISTS = [SL, { id: 'p1', name: 'Sunday Morning', date: '2026-10-25' }, { id: 'p2', name: 'Sunday Morning', date: '2026-10-18' }];
+const BD_SCHEDULES = [
+  ['sl', 'jd', 'keys', 'available'], ['sl', 'am', 'vocals', 'available'], ['sl', 'rk', 'drums', 'available'], ['sl', 'tp', 'electric-guitar', 'pending'],
+  ['p1', 'jd', 'keys'], ['p1', 'am', 'vocals'], ['p1', 'el', 'vocals'], ['p1', 'rk', 'drums'], ['p1', 'tp', 'electric-guitar'], ['p1', 'ls', 'bass-guitar'],
+  ['p2', 'el', 'vocals'],
+].map(([setlist_id, user_id, role, availability = 'available'], i) => ({ id: `bd${i}`, setlist_id, user_id, role, availability }));
+const BD_AVAIL = [['mv', 'available'], ['el', 'available'], ['kt', 'unavailable']].map(([user_id, status]) => ({ user_id, date: SL.date, status }));
+const bdName = (uid) => BD_MEMBERS.find(m => m.user_id === uid)?.profile.display_name || 'Member';
+
+function SetlistBandDemo() {
+  const order = buildOrder(SL, SL_SONGS, (u) => SL_NAMES[u] || '');
+  const slot = (
+    <BandSection setlist={SL} setlists={BD_SETLISTS} schedules={BD_SCHEDULES} setlistMap={{}} team={{ id: 'demo' }} members={BD_MEMBERS}
+      nameOf={bdName} availability={BD_AVAIL} createSchedule={async () => {}} deleteSchedule={async () => {}} ensureRow={async () => 'row'} />
+  );
+  return <SetlistView embedded setlist={SL} order={order} head={SL_HEAD} me={null} band={SL_BAND} leader bandSlot={slot}
+    onBack={noop} onPlay={noop} onEdit={noop} onMarkReady={noop} onAnswer={noop} onRunSheet={noop} onMenu={noop} />;
+}
+
+function SetlistBandGallery() {
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {THEMES.map(t => (
+        <Frame key={'bp' + t.id} theme={t.id} width={390} height={1000} scale={0.6} label={`Band tab · phone · ${t.label}`}><SetlistBandDemo /></Frame>
+      ))}
+      {THEMES.map(t => (
+        <Frame key={'bd' + t.id} theme={t.id} width={1280} height={820} scale={0.5} label={`Band · leader · ${t.label}`}><SetlistBandDemo /></Frame>
+      ))}
+    </div>
+  );
+}
+
+function Thrower({ message }) { throw new Error(message); }
+
+function PopupsGallery() {
+  const confirm = useConfirm();
+  const [prompt, setPrompt] = useState(false);
+  const fire = [
+    ['Toast', () => toast({ title: 'Marked ready', description: 'Sunday Morning' })],
+    ['Error toast', () => toast({ title: 'Couldn’t save your answer', description: 'Check your connection and try again.', variant: 'error' })],
+    ['Undo toast', () => showUndoToast({ title: 'Setlist deleted', onUndo: () => {} })],
+    ['Confirm', () => confirm({ title: 'Leave without saving?', description: 'Your changes to this setlist aren’t saved yet. If you leave now, they’re gone.', confirmLabel: 'Leave', cancelLabel: 'Keep editing', variant: 'danger' })],
+    ['Prompt', () => setPrompt(true)],
+    ['Ready, band told', () => toast({ title: 'Marked ready', description: 'We told the band (5 people).', variant: 'success' })],
+    ['Only leaders', () => confirm({ title: 'Only leaders can change this', description: 'You can see everything in Grace Church, but changing songs and setlists is for its leaders. If something needs fixing, tell one of them.', confirmLabel: 'OK', cancelLabel: null })],
+    ['Out of space', () => confirm({ title: 'This device is out of space', description: 'Your last changes couldn’t be saved here. Anything already synced is safe with your church.\n\nTo fix it: delete some photos, videos or apps you don’t need, then reopen Setlists.md. If you use it in a browser, clearing other websites’ data helps too.', confirmLabel: 'Got it', cancelLabel: null })],
+    ['Push ask', () => confirm({ title: 'Get a buzz when you’re asked to play?', description: 'We’ll let you know when a leader asks you to play, when a setlist is ready, and when it changes. Nothing else.\n\nYour phone will ask next. Tap Allow.', confirmLabel: 'Turn on', cancelLabel: 'Not now' })],
+  ];
+  const screens = [
+    ['Not found', 'Can’t find this setlist', 'It was deleted, or it hasn’t reached this device yet.', ['Back', 'Sync now']],
+    ['Share link ended', 'This link has ended', 'Shared setlists stop working a few hours after the service, or when the leader stops sharing them. Ask whoever sent it for a new link.', ['Open Setlists.md']],
+    ['Share link offline', 'You’re offline', 'This setlist opens from the internet. Connect and try again.', ['Try again']],
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap gap-2">
+        {fire.map(([l, fn]) => <Button key={l} variant="outline" onClick={fn}>{l}</Button>)}
+      </div>
+      {prompt && <PromptDialog open title="New arrangement" label="Name" placeholder="e.g. Acoustic" initialValue="Acoustic" confirmLabel="Add" onSubmit={() => {}} onClose={() => setPrompt(false)} />}
+      <div className="flex flex-wrap items-start gap-6">
+        {screens.map(([label, title, body, actions]) => THEMES.map(t => (
+          <Frame key={label + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`${label} · ${t.label}`}>
+            <StatusScreen title={title} actions={actions.map(a => ({ label: a, onClick: () => {} }))}><p className="m-0">{body}</p></StatusScreen>
+          </Frame>
+        )))}
+        {THEMES.map(t => (
+          <Frame key={'bars' + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`Offline, back online, sync problem · ${t.label}`}>
+            <div className="flex h-full flex-col gap-3 bg-background px-4 pt-6 font-sans text-foreground">
+              <OfflineLine state="offline" inline />
+              <OfflineLine state="back" inline />
+              <SyncProblem onRetry={() => {}} />
+            </div>
+          </Frame>
+        ))}
+        {[['Error screen', 'Cannot read properties of undefined (reading \'items\')'], ['After an update', 'Failed to fetch dynamically imported module']].map(([label, msg]) => THEMES.map(t => (
+          <Frame key={label + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`${label} · ${t.label}`}>
+            <ErrorBoundary><Thrower message={msg} /></ErrorBoundary>
+          </Frame>
+        )))}
+      </div>
+    </div>
+  );
+}
+
+// A drawer as it sits on a phone, for the gallery (the real one is a Sheet).
+function DrawerFrame({ title, children }) {
+  return (
+    <div className="flex h-full flex-col justify-end bg-black/40 font-sans text-foreground">
+      <div className="flex flex-col gap-4 rounded-t-[20px] bg-background px-5 pb-8 pt-3">
+        <span className="mx-auto h-1.5 w-10 rounded-full bg-border" />
+        <h2 className="m-0 text-[20px] font-semibold">{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ShareGallery() {
+  const [choice, setChoice] = useState({ mode: 'overview', notes: true, leads: true, twoColumns: true });
+  const guestSl = { ...SL, items: (SL.items || []).map(({ leadBy: _l, ...it }) => it) };
+  const order = buildOrder(guestSl, SL_SONGS);
+  const share = { url: 'https://setlists.md/?setlist=k7qm2xpa9r4tz8wd' };
+  const frames = [
+    ['Share: first time', 900, <DrawerFrame key="n" title="Share a guest link"><ShareBody state="new" ends="Sun 1 Nov, 14:30" onCreate={noop} /></DrawerFrame>],
+    ['Share: link made', 900, <DrawerFrame key="o" title="Guest link"><ShareBody state={share} ends="Sun 1 Nov, 14:30" canSend onCopy={noop} onSend={noop} onStop={noop} /></DrawerFrame>],
+    ['Guest page', 1200, <GuestView key="g" setlist={guestSl} order={order} church={{ name: 'Grace Church' }} when="Sun 1 Nov · 10:00" live ends="Sun 1 Nov, 14:30" onPlay={noop} onGetApp={noop} />],
+    ['Print for the band', 900, <DrawerFrame key="p" title="Print for the band"><PrintBody choice={choice} setChoice={setChoice} onPrint={noop} /></DrawerFrame>],
+  ];
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {frames.map(([label, h, el]) => THEMES.map(t => (
+        <Frame key={label + t.id} theme={t.id} width={390} height={h} scale={0.6} label={`${label} · ${t.label}`}>{el}</Frame>
+      )))}
+    </div>
+  );
+}
+
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
     ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
@@ -825,6 +1042,26 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Song" sub="Details first: Key and arrangement in small popovers, the numbers, one ink Open chart. Then how often you play it, the next service, Listen (YouTube’s own player, kept visible), how it goes, credits. Tap around: these are the real screens.">
           <SongGallery />
+        </Section>
+
+        <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the run sheet.">
+          <SetlistGallery />
+        </Section>
+
+        <Section title="Setlist edit" sub="Leaders only, its own page so nobody drags by accident. Drag by the grip (works with a finger in the installed app) or use Move up/down in a row's sheet. Done saves; Cancel asks before throwing changes away.">
+          <SetlistEditGallery />
+        </Section>
+
+        <Section title="Setlist band" sub="Leaders: one row per part, starting from the last setlist with the same name. Tap a part to pick who plays it: free that day first, a warning on a third week running. Nobody is asked until Send.">
+          <SetlistBandGallery />
+        </Section>
+
+        <Section title="Pop-ups" sub="Every toast, undo, confirm and prompt goes through these. Phone: drawer from the bottom, toasts at the top. iPad and up: small dialog, toasts bottom right.">
+          <PopupsGallery />
+        </Section>
+
+        <Section title="Share and print" sub="A guest link is live and ends 3 hours after the service: guests see the order and every chart (chords or lyrics), never the band. Print is for the band: an order sheet or every chart, with the band, the church and a small Setlists.md at the bottom.">
+          <ShareGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">

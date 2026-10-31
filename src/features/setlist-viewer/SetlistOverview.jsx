@@ -8,7 +8,7 @@ import { Chip } from '@/ui/Chip';
 import { IconButton } from '@/ui/IconButton';
 import { Button } from '@/ui/Button';
 import ExportSetlistDialog from '@/features/sharing/ExportSetlistDialog';
-import ShareSetlistDialog from '@/features/sharing/ShareSetlistDialog';
+import ShareSheet from '@/features/sharing/ShareSheet';
 import BandPanel from '@/features/setlist-editor/BandPanel';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
@@ -425,8 +425,9 @@ export default function SetlistOverview({
           onExportPdfFull={() => { setExportOpen(false); onExportPdfFull?.(); }}
         />
       )}
-      {canShare && shareOpen && (
-        <ShareSetlistDialog setlist={setlist} songs={songs} ownerId={user?.id} onClose={() => setShareOpen(false)} />
+      {canShare && (
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} setlist={setlist} songs={songs}
+          ownerId={user?.id} teamId={team?.id} />
       )}
     </div>
   );

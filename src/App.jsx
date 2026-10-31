@@ -3,11 +3,14 @@ import { toast } from "@/ui/use-toast";
 import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
+import StatusScreen from "@/ui/StatusScreen";
+import { isQuotaError } from "@/lib/storageErrors";
 import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
+import { readySnapshot } from '@/lib/setlistView';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
@@ -49,6 +52,7 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from '@/pdf/exportSetlistPdf';
+import { printSetlist } from '@/pdf/printSetlist';
 import UpdatePrompt from '@/ui/UpdatePrompt';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useTeamRealtime } from '@/hooks/useTeamRealtime';
@@ -62,6 +66,23 @@ import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
+// Leaving an editor with changes not saved: one wording for every way out
+// (Cancel, Back, a tab in the nav, the phone's back swipe).
+const LEAVE_SETLIST = {
+  title: 'Leave without saving?',
+  description: 'Your changes to this setlist aren’t saved yet. If you leave now, they’re gone.',
+  confirmLabel: 'Leave',
+  cancelLabel: 'Keep editing',
+  variant: 'danger',
+};
+const LEAVE_SONG = {
+  title: 'Leave without saving?',
+  description: 'Your changes to this song aren’t saved yet. If you leave now, they’re gone.',
+  confirmLabel: 'Leave',
+  cancelLabel: 'Keep editing',
+  variant: 'danger',
+};
+
 async function maybeWarnQuota(warnedRef) {
   if (warnedRef.current) return;
   const est = await getStorageEstimate();
@@ -69,8 +90,8 @@ async function maybeWarnQuota(warnedRef) {
   warnedRef.current = true;
   const pct = Math.round(est.ratio * 100);
   toast({
-    title: 'Storage almost full',
-    description: `This device has used ${pct}% of its browser storage. Consider exporting and archiving older songs.`,
+    title: 'This device is nearly full',
+    description: `Setlists.md has used ${pct}% of the space it’s allowed here. Free up some space so new changes keep saving.`,
     variant: 'error',
   });
 }
@@ -79,7 +100,8 @@ async function maybeWarnQuota(warnedRef) {
 const Song = lazy(() => import('@/features/song/Song'));
 const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
-const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
+const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
+const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'));
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -338,6 +360,21 @@ export default function App() {
   const triggerSyncRef = useRef(null);
   const historyRef = useRef([]);
   const quotaWarnedRef = useRef(false);
+  // A save this device refused. Out of space gets a drawer that says what to
+  // do, once per session; anything else is logged, as before.
+  const storageFullShownRef = useRef(false);
+  const onSaveFailedRef = useRef(null);
+  onSaveFailedRef.current = (err) => {
+    console.error('[storage] save failed:', err);
+    if (!isQuotaError(err) || storageFullShownRef.current) return;
+    storageFullShownRef.current = true;
+    confirm({
+      title: 'This device is out of space',
+      description: 'Your last changes couldn’t be saved here. Anything already synced is safe with your church.\n\nTo fix it: delete some photos, videos or apps you don’t need, then reopen Setlists.md. If you use it in a browser, clearing other websites’ data helps too.',
+      confirmLabel: 'Got it',
+      cancelLabel: null,
+    });
+  };
   const isSwitchingLibraryRef = useRef(false);
   // Tracks which user we've already applied the "home Space" default for, so we
   // do it once per sign-in and never override a later manual switch.
@@ -581,7 +618,14 @@ export default function App() {
     }
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
-      setSyncState(prev => ({ ...prev, ...status }));
+      // errorSince: when sync started failing, so Home can speak up once it
+      // has been failing for a while rather than on one dropped request.
+      setSyncState(prev => {
+        const next = { ...prev, ...status };
+        if (status.state === 'error') next.errorSince = prev.errorSince || Date.now();
+        else if (status.state === 'synced') next.errorSince = null;
+        return next;
+      });
     }, {
       readOnly: isTeamReadOnly,
       onConflicts: enqueueConflicts,
@@ -643,6 +687,17 @@ export default function App() {
     }
   }, [songs, setlists, tombstones, activeLibrary, personalCloudId, adoptSyncResult]);
   triggerSyncRef.current = triggerSync;
+
+  // team_schedules points at the server row, so a setlist that has not synced
+  // yet cannot have a band. Push it now and read the row id the push returned,
+  // rather than asking the leader to go and sync first.
+  const ensureSetlistRow = useCallback(async (sl) => {
+    if (!sl?.id || activeLibrary === 'personal') return null;
+    if (teamSetlistMap[sl.id]) return teamSetlistMap[sl.id];
+    await triggerSyncRef.current?.({ silent: true });
+    const state = await getSyncState(activeLibrary);
+    return state?.replica?.rows?.setlist?.[sl.id]?.rowId || state?.setlistManifest?.[sl.id]?.remoteId || null;
+  }, [activeLibrary, teamSetlistMap]);
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.
@@ -814,7 +869,7 @@ export default function App() {
   // Auto-save when data changes + debounced sync push
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
-      saveSongs(songs, activeLibrary);
+      saveSongs(songs, activeLibrary).catch(onSaveFailedRef.current);
       // Offline: the edit is durably saved locally above; skip the network push
       // and let the reconnect handler flush it via a full sync.
       if (navigator.onLine) {
@@ -826,7 +881,7 @@ export default function App() {
   }, [songs, loaded, activeLibrary]);
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
-      saveSetlists(setlists, activeLibrary);
+      saveSetlists(setlists, activeLibrary).catch(onSaveFailedRef.current);
       if (navigator.onLine) {
         syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
         if (activeLibrary === 'personal') backupRef.current?.debouncedBackup(songs, setlists);
@@ -949,12 +1004,20 @@ export default function App() {
   };
 
   // True (and toasts) when the active team library is read-only for this user.
+  // A member tried to change something only leaders can. One explanation in a
+  // drawer, the same everywhere, instead of seven differently worded toasts.
+  // A ref, so the useCallback handlers below can call it without new deps.
+  const onlyLeadersRef = useRef(null);
+  const currentWorkspaceNameRef = useRef('');
+  onlyLeadersRef.current = () => confirm({
+    title: 'Only leaders can change this',
+    description: `You can see everything in ${currentWorkspaceNameRef.current || 'your church'}, but changing songs and setlists is for its leaders. If something needs fixing, tell one of them.`,
+    confirmLabel: 'OK',
+    cancelLabel: null,
+  });
   const guardTeamReadOnly = () => {
     if (!isTeamReadOnly) return false;
-    toast({
-      title: 'Read-only library',
-      description: 'Only admins, leaders and editors can change songs here. Ask a team admin to change your role.',
-    });
+    onlyLeadersRef.current();
     return true;
   };
 
@@ -976,6 +1039,15 @@ export default function App() {
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
     if (nextView === 'settings') setSettingsPanel('hub');
+  };
+
+  // A link to something that is gone (a notification about a deleted setlist,
+  // an activity row): a page that says so, instead of a tap that does nothing.
+  const [notFoundKind, setNotFoundKind] = useState('setlist');
+  const showNotFound = (kind = 'setlist') => {
+    pushHistory(snapshot());
+    setNotFoundKind(kind);
+    setView('not-found');
   };
 
   const goBack = useCallback(() => {
@@ -1012,22 +1084,10 @@ export default function App() {
   // true if it's safe to navigate (not dirty, or the user chose to discard).
   const confirmDiscardSetlist = async () => {
     if (view === 'setlist-build' && setlistDirtyRef.current) {
-      return await confirm({
-        title: 'Discard changes?',
-        description: 'You have unsaved changes to this setlist. They will be lost.',
-        confirmLabel: 'Discard',
-        cancelLabel: 'Keep editing',
-        variant: 'danger',
-      });
+      return await confirm(LEAVE_SETLIST);
     }
     if (view === 'editor' && editorDirtyRef.current) {
-      return await confirm({
-        title: 'Discard unsaved changes?',
-        description: 'You have unsaved edits to this song. Leaving now will lose them.',
-        confirmLabel: 'Discard',
-        cancelLabel: 'Keep editing',
-        variant: 'danger',
-      });
+      return await confirm(LEAVE_SONG);
     }
     return true;
   };
@@ -1040,13 +1100,7 @@ export default function App() {
       // flag false and fire back() again, which falls through to goBack().
       if (view === 'setlist-build' && setlistDirtyRef.current) {
         window.history.pushState(null, '');
-        confirm({
-          title: 'Discard changes?',
-          description: 'You have unsaved changes to this setlist. They will be lost.',
-          confirmLabel: 'Discard',
-          cancelLabel: 'Keep editing',
-          variant: 'danger',
-        }).then((ok) => {
+        confirm(LEAVE_SETLIST).then((ok) => {
           if (!ok) return;
           setlistDirtyRef.current = false;
           window.history.back();
@@ -1055,13 +1109,7 @@ export default function App() {
       }
       if (view === 'editor' && editorDirtyRef.current) {
         window.history.pushState(null, '');
-        confirm({
-          title: 'Discard unsaved changes?',
-          description: 'You have unsaved edits to this song. Leaving now will lose them.',
-          confirmLabel: 'Discard',
-          cancelLabel: 'Keep editing',
-          variant: 'danger',
-        }).then((ok) => {
+        confirm(LEAVE_SONG).then((ok) => {
           if (!ok) return;
           editorDirtyRef.current = false;
           window.history.back();
@@ -1353,7 +1401,7 @@ export default function App() {
   // arrangement so the song's other arrangements are preserved.
   const handleSaveSong = async (input, opts = {}) => {
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit songs here.', variant: 'error' });
+      onlyLeadersRef.current();
       return false;
     }
     // Duplicate-title guard for brand-new songs (covers create, copy, and the
@@ -1599,7 +1647,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     const removed = songs.find((s) => s.id === id);
@@ -1643,7 +1691,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     if (settings?.confirmBeforeDelete !== false) {
@@ -1724,8 +1772,24 @@ export default function App() {
   // Draft/Ready picker writes, saved through the usual auto-save.
   const markSetlistReady = (target) => {
     if (isTeamReadOnly || !target) return;
-    setSetlists(prev => prev.map(sl => (sl.id === target.id ? { ...sl, status: 'ready', updatedAt: Date.now() } : sl)));
-    toast({ title: 'Marked ready', description: target.name || undefined });
+    target = setlists.find(sl => sl.id === target.id) || target;
+    // readyItems: the order as it was when marked ready, for "Changed since Ready".
+    const ready = { status: 'ready', readyItems: readySnapshot(target), readyAt: Date.now(), updatedAt: Date.now() };
+    setSetlists(prev => prev.map(sl => (sl.id === target.id ? { ...sl, ...ready } : sl)));
+    setCurrentSetlist(cur => (cur?.id === target.id ? { ...cur, ...ready } : cur));
+    // Say what happens next: the server tells everyone on the band who hasn't
+    // said no (20261030_setlist_ready_notify.sql), not counting you.
+    const rowId = teamSetlistMap[target.id];
+    const told = rowId
+      ? new Set(schedules.filter(r => r.setlist_id === rowId && r.availability !== 'unavailable' && r.user_id !== user?.id).map(r => r.user_id)).size
+      : 0;
+    toast({
+      title: 'Marked ready',
+      description: told
+        ? `We told the band (${told} ${told === 1 ? 'person' : 'people'}).`
+        : (activeLibrary !== 'personal' ? 'No one is on the band yet, so no one was told.' : target.name || undefined),
+      variant: 'success',
+    });
   };
 
   // Bulk add/remove tags across a selection (songsLibraryPlus). Reference-
@@ -1792,7 +1856,7 @@ export default function App() {
   // Setlist CRUD
   const handleSaveSetlist = (incomingSl) => {
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit setlists here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     // Determine isNew / prevSetlist synchronously from the current render's
@@ -1878,7 +1942,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     setSongs(prev => {
@@ -1932,7 +1996,7 @@ export default function App() {
   // into a new arrangement and puts the original back to its pre-edit snapshot.
   const handleSaveAsArrangement = useCallback(({ songId, arrangementId, restore }) => {
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     setSongs(prev => {
@@ -1960,7 +2024,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     setSetlists(prev => {
@@ -2242,6 +2306,7 @@ export default function App() {
   const currentWorkspaceName = activeLibrary === 'personal'
     ? 'Personal'
     : (teams.find(t => t.id === activeLibrary)?.name || team?.name || 'Team');
+  currentWorkspaceNameRef.current = currentWorkspaceName;
   // Service suggestions for the builder dropdown — distinct service names
   // already used across this workspace's setlists (foundation for per-service
   // stats; a canonical team_services table can replace this source later).
@@ -2285,6 +2350,7 @@ export default function App() {
             onMarkRead={handleMarkNotificationRead}
             onMarkAllRead={handleMarkAllNotificationsRead}
             onOpenSetlist={goSetlistView}
+            onNotFound={showNotFound}
             onSettings={() => goToMainView('settings', { settingsPanel: 'notifications' })}
             onClose={() => setBellOpen(false)}
           />
@@ -2388,8 +2454,12 @@ export default function App() {
               settings={settings}
               displayName={displayName}
               syncState={syncState}
+              setlists={setlists}
               schedules={schedules}
               updateSchedule={updateSchedule}
+              createSchedule={createSchedule}
+              deleteSchedule={deleteSchedule}
+              ensureRow={ensureSetlistRow}
               setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
               onEditSetlist={isTeamReadOnly ? null : goSetlistBuild}
@@ -2398,6 +2468,8 @@ export default function App() {
               onOpenSongs={goLibrary}
               onOpenSchedule={goSchedule}
               onOpenTeam={goTeam}
+              onNotFound={showNotFound}
+              onRetrySync={() => triggerSyncRef.current?.({ silent: false })}
               install={!isStandalone && (isIOS || canInstall)
                 ? { onInstall: async () => { if (isIOS) openIOSHint(); else await promptInstall(); } }
                 : null}
@@ -2526,28 +2598,56 @@ export default function App() {
               }}
             />
           )}
+          {view === 'not-found' && (
+            <StatusScreen fill={false}
+              title={notFoundKind === 'song' ? 'Can’t find this song' : 'Can’t find this setlist'}
+              actions={[
+                { label: 'Back', onClick: goBack },
+                ...(syncState.provider ? [{ label: 'Sync now', onClick: () => triggerSyncRef.current?.({ silent: false }) }] : []),
+              ]}>
+              <p className="m-0">It was deleted, or it hasn’t reached this device yet.</p>
+            </StatusScreen>
+          )}
           {view === 'setlist-view' && currentSetlist && (
-            <SetlistOverview
+            <SetlistPage
               key={currentSetlist.id}
-              setlist={currentSetlist}
-            songs={songs}
+              setlist={setlists.find(s => s.id === currentSetlist.id) || currentSetlist}
+              songs={songs}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              setlistMap={teamSetlistMap}
+              settings={settings}
+              canEdit={canEdit && !isTeamReadOnly}
               onBack={goBack}
-              onEdit={isTeamReadOnly ? null : () => goSetlistBuild(currentSetlist)}
-              onExportZip={() => handleExportSetlist(currentSetlist)}
-              onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
-              onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
-              clockFormat={settings?.clockFormat || '12h'}
-              v2={settings?.setlistOverviewV2}
-              setlists={setlists}
-              overscheduleWarn={settings?.rosterOverscheduleWarning}
-              streakLimit={settings?.rosterStreakLimit || 3}
+              onEdit={() => goSetlistBuild(currentSetlist)}
               onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
-              onOpenSong={(song) => goChart(song)}
-              onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
-              canEdit={canEdit}
+              onMarkReady={() => markSetlistReady(currentSetlist)}
+              onDelete={() => handleDeleteSetlist(currentSetlist.id)}
+              onExportZip={() => handleExportSetlist(currentSetlist)}
+              onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
+              ensureRow={ensureSetlistRow}
             />
           )}
-          {view === 'setlist-build' && (
+          {/* An existing setlist edits on the new page; a new one still starts in
+              the builder until service templates land. */}
+          {view === 'setlist-build' && currentSetlist?.id && setlists.some(s => s.id === currentSetlist.id) && (
+            <SetlistEditPage
+              key={currentSetlist.id}
+              setlist={setlists.find(s => s.id === currentSetlist.id) || currentSetlist}
+              songs={songs}
+              setlists={setlists}
+              schedules={schedules}
+              setlistMap={teamSetlistMap}
+              onSave={handleSaveSetlist}
+              onCancel={async () => {
+                if (!(await confirmDiscardSetlist())) return;
+                setlistDirtyRef.current = false;
+                goBack();
+              }}
+              onDirtyChange={markSetlistDirty}
+            />
+          )}
+          {view === 'setlist-build' && !(currentSetlist?.id && setlists.some(s => s.id === currentSetlist.id)) && (
             <SetlistBuilder
             songs={songs}
               setlist={currentSetlist}
@@ -2780,7 +2880,7 @@ export default function App() {
       {/* The nav pill floats at the bottom below 1024px (phone, iPad
           portrait); from 1024px it sits in the top bar. Rendered at the App
           root so nothing inside <main> captures its fixed positioning. */}
-      {!lockedOut && PILL_VIEWS.includes(view) && (
+      {!lockedOut && PILL_VIEWS.includes(view) && view !== 'setlist-view' && (
         <div className="lg:hidden">
           <NavPill placement="bottom" active={navItemFor(view)} onSelect={goNavItem} />
         </div>
