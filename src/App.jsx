@@ -2868,6 +2868,11 @@ export default function App() {
               onCreateHandled={() => setTeamCreateIntent(false)}
               defaultSpaceId={settings?.defaultSpaceId || 'personal'}
               onSetDefaultSpace={(id) => setSettings(prev => ({ ...prev, defaultSpaceId: id }))}
+              setlists={setlists}
+              songs={songs}
+              schedules={schedules}
+              setlistMap={teamSetlistMap}
+              onOpenSong={(id) => { const s = songs.find(x => x.id === id); if (s) goChart(s); }}
             />
           )}
           {view === 'schedule' && (

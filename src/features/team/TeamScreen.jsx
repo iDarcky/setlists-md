@@ -1,21 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
-import QRCode from 'qrcode';
-import { supabase } from '@/auth/supabase';
+import { useState, useEffect, useMemo } from 'react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { Button } from '@/ui/Button';
+import { Button as ShadButton } from '@/ui/shadcn/button';
 import { Input } from '@/ui/Input';
 import UpgradeGate from '@/ui/UpgradeGate';
 import PageHeader from '@/ui/PageHeader';
-import ActivityFeed from './ActivityFeed';
-import AvatarUploader from '@/ui/AvatarUploader';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
-import { TEAM_ROLES } from '@/lib/teamRoles';
-import { displayTokens } from '@/data/instruments';
-import { Switch } from '@/ui/Switch';
-import { joinUrl, joinPartLabel, inviteMailto } from '@/lib/joinLink';
+import { canManageMembers, canPlanServices } from '@/lib/teamRoles';
+import { joinUrl } from '@/lib/joinLink';
+import { isSetlistUpcoming, setlistStartMs } from '@/lib/setlistTime';
+import { songUsage } from '@/lib/songUsage';
 import { getTeamJoinLink, resetTeamJoinLink, setTeamJoinLinkEnabled } from '@/features/join/joinApi';
+import TeamPage, { InviteCard, UsageEntry, Waiting } from './TeamPage';
+import { memberName } from '@/lib/teamPeople';
+import { PersonSheet, ChurchSheet } from './TeamSheets';
+import SongUsage from './SongUsage';
 
 const TeamIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -23,34 +24,6 @@ const TeamIcon = () => (
     <circle cx="9" cy="7" r="4" />
     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  </svg>
-);
-
-const CrownIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M2 20h20l-2-8-5 4-3-6-3 6-5-4-2 8z" />
-    <path d="M5 21h14v1H5z" />
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-  </svg>
-);
-
-const PlusIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <line x1="12" y1="5" x2="12" y2="19" />
-    <line x1="5" y1="12" x2="19" y2="12" />
-  </svg>
-);
-
-const LocationIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-    <circle cx="12" cy="10" r="3" />
   </svg>
 );
 
@@ -204,1082 +177,177 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 // The role list comes from `lib/teamRoles.js` — the one place the model is
 // written — so this picker can never offer a role the permission checks do not
 // know about, or describe one differently from what it actually does.
-const MEMBER_ROLES = TEAM_ROLES.map(r => ({ value: r.id, label: r.label, blurb: r.blurb }));
+// ── The Team page (redesign 2026-10-31) ─────────────────────────────────────
 
-function MemberRow({ member, isCurrentUser, isAdmin, isOwner = false, onRemove, onRoleChange }) {
+function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJoinLink, joinRequests, onApproveJoin, onDeclineJoin, onApproveAllJoins,
+  onRoleChange, onRemove, onUpdate, onLeave, onDelete, onBack, onCreate, isDefaultSpace, onToggleDefaultSpace,
+  setlists = [], songs = [], schedules = [], setlistMap = {}, onOpenSong }) {
   const confirm = useConfirm();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [menuOpen]);
+  const [page, setPage] = useState('team');
+  const [personId, setPersonId] = useState(null);
+  const [churchOpen, setChurchOpen] = useState(false);
+  const [busy, setBusy] = useState(null);
+  const [waitMsg, setWaitMsg] = useState(null);
+  const [link, setLink] = useState(null);
+  const [linkError, setLinkError] = useState(null);
+  const [now] = useState(() => Date.now());
 
-  // The crown used to be `member.role === 'admin'`, under a variable called
-  // `isOwner` — so every admin wore it and the ACTUAL owner was distinguished
-  // nowhere. Two of the three real workspaces have two admins each, and the
-  // owner is the only one who can pay for the Space, so it is worth naming.
-  const isTeamAdmin = member.role === 'admin';
-  const profile = member.profile || {};
-  const displayName = profile.display_name || profile.email?.split('@')[0] || member.user_id?.slice(0, 8);
-  const initial = displayName?.slice(0, 2)?.toUpperCase() || '??';
-
-  return (
-    <div className="modes-card flex items-center gap-3 px-4 py-3">
-      {/* Avatar */}
-      <div
-        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden text-label-14 font-bold"
-        style={{
-          background: isOwner ? 'var(--color-brand-soft)' : 'var(--ds-gray-200)',
-          color: isOwner ? 'var(--color-brand)' : 'var(--ds-gray-700)',
-        }}
-      >
-        {profile.avatar_url
-          ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-          : initial}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">
-            {displayName}
-          </span>
-          {isCurrentUser && (
-            <span className="text-label-11 text-[var(--modes-text-dim)]">(you)</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          {isOwner || isTeamAdmin ? (
-            <span className="inline-flex items-center gap-1 text-label-11 font-semibold" style={{ color: 'var(--color-brand)' }}>
-              <CrownIcon /> {isOwner ? 'Owner' : 'Admin'}
-            </span>
-          ) : (
-            <span className="text-label-11 font-medium text-[var(--modes-text-muted)] capitalize">{member.role || 'Member'}</span>
-          )}
-          {profile.email && (
-            <>
-              <span className="text-label-11 text-[var(--modes-text-dim)]">•</span>
-              <span className="text-label-11 text-[var(--modes-text-dim)] truncate">{profile.email}</span>
-            </>
-          )}
-        </div>
-        {displayTokens(member.instruments).length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {/* `displayTokens`, never the raw array — a stored value is not a
-                label. See `data/instruments.js`. */}
-            {displayTokens(member.instruments).map(({ token, label }) => (
-              <span key={token} className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
-                {label}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {isAdmin && !isCurrentUser && (
-        <div className="relative shrink-0" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(o => !o)}
-            aria-label="Member options"
-            className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border-none cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--modes-text)] hover:bg-[var(--modes-surface-strong)] transition-colors"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-64 rounded-xl border border-[var(--modes-border)] bg-[var(--ds-background-100)] shadow-lg z-50 overflow-hidden py-1">
-              <div className="px-3 pt-1.5 pb-1 text-label-11 uppercase tracking-wider text-[var(--modes-text-dim)] font-semibold">Change role</div>
-              {/* Each role carries its own one-line description. Picking a role
-                  changes what somebody may do to a shared library, and the bare
-                  word "Leader" does not say that it now includes writing. */}
-              {MEMBER_ROLES.map(r => {
-                const active = (member.role || 'member') === r.value;
-                return (
-                  <button
-                    key={r.value}
-                    onClick={() => { onRoleChange(member.id, r.value); setMenuOpen(false); }}
-                    className="w-full flex items-start justify-between gap-2 px-3 py-2 text-left hover:bg-[var(--modes-surface)] bg-transparent border-none cursor-pointer"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-copy-14 text-[var(--modes-text)]">{r.label}</span>
-                      <span className="block text-label-11 text-[var(--modes-text-dim)] leading-snug">{r.blurb}</span>
-                    </span>
-                    {active && <span className="text-[var(--color-brand)] shrink-0">✓</span>}
-                  </button>
-                );
-              })}
-              <div className="border-t border-[var(--modes-border)] my-1" />
-              <button
-                onClick={async () => {
-                  setMenuOpen(false);
-                  const ok = await confirm({
-                    title: `Remove ${displayName}?`,
-                    description: 'They will lose access to this team’s library, schedule, and band. This cannot be undone — they’d need to be invited again.',
-                    confirmLabel: 'Remove member',
-                    cancelLabel: 'Keep member',
-                    variant: 'danger',
-                  });
-                  if (ok) onRemove(member.id);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-left text-copy-14 text-[var(--ds-red-700)] hover:bg-[var(--ds-red-100)] bg-transparent border-none cursor-pointer"
-              >
-                <TrashIcon /> Remove from team
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function InviteRow({ invite, isAdmin, onCancel }) {
-  return (
-    <div
-      className="flex items-center gap-3 px-4 py-3 rounded-2xl opacity-80"
-      style={{ background: 'var(--modes-surface)', border: '1px dashed var(--modes-border)' }}
-    >
-      <div
-        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-label-14 font-bold"
-        style={{
-          background: 'var(--ds-gray-200)',
-          color: 'var(--ds-gray-600)',
-        }}
-      >
-        @
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">
-            {invite.email}
-          </span>
-          <span className="text-label-11 text-[var(--ds-orange-700)] bg-[var(--ds-orange-200)] px-2 py-0.5 rounded-full">
-            Pending
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-label-11 text-[var(--modes-text-dim)]">Tell them to sign up to join.</span>
-        </div>
-      </div>
-
-      {isAdmin && (
-        <button
-          onClick={() => onCancel(invite.id)}
-          className="w-8 h-8 rounded-lg flex items-center justify-center bg-transparent border border-[var(--modes-border)] cursor-pointer text-[var(--modes-text-dim)] hover:text-[var(--ds-red-700)] hover:border-[var(--ds-red-400)] transition-colors"
-          title="Cancel invite"
-        >
-          <TrashIcon />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function InviteForm({ team, onInvite, seatsLeft, pendingInvites = 0 }) {
-  const [userId, setUserId] = useState('');
-  const [role, setRole] = useState('member');
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState(null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!userId.trim()) return;
-    setBusy(true);
-    setMessage(null);
-    try {
-      const email = userId.trim();
-      const res = await onInvite(email, role);
-      setUserId('');
-      setRole('member');
-      // `invite_user_to_team` only adds someone who already has an account;
-      // anyone else becomes a PENDING invite that is claimed when they sign in
-      // with exactly this address. The app sends no email, so open the
-      // leader's own mail app with the join link in it — the link also works
-      // when they sign in with a different address (they ask, you approve).
-      if (res?.status === 'invited') {
-        let url = '';
-        try {
-          const link = await getTeamJoinLink(team.id);
-          if (link?.code && link.enabled) url = joinUrl(window.location.origin, link.code);
-        } catch { /* join links not set up yet: fall back to the plain note */ }
-        if (url) {
-          window.location.href = inviteMailto({ email: res.email || email, teamName: team.name, url });
-          setMessage({ kind: 'info', text: `Your email app opened with the join link for ${res.email || email}. Press send. If they sign in with another address, they'll ask to join and you approve them here.` });
-        } else {
-          setMessage({ kind: 'info', text: `Invite saved for ${res.email || email}. They'll join when they sign in with this exact email. No email was sent, so let them know.` });
-        }
-      } else {
-        setMessage({ kind: 'info', text: `${email} is in the team now.` });
-      }
-    } catch (err) {
-      setMessage({ kind: 'error', text: err.message || 'Could not add member.' });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="modes-card p-4">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
-          Invite member
-        </span>
-        <span className="text-label-11 text-[var(--modes-text-dim)]">
-          {seatsLeft} seat{seatsLeft !== 1 ? 's' : ''} left
-          {pendingInvites > 0 && ` · ${pendingInvites} invite${pendingInvites !== 1 ? 's' : ''} waiting`}
-        </span>
-      </div>
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <Input
-          type="email"
-          required
-          value={userId}
-          onChange={e => setUserId(e.target.value)}
-          placeholder="Email address"
-          className="flex-1"
-        />
-        <select
-          value={role}
-          onChange={e => setRole(e.target.value)}
-          className="bg-[var(--ds-background-100)] border border-[var(--modes-border)] rounded-md px-3 text-copy-14 text-[var(--ds-gray-900)] outline-none cursor-pointer focus:border-[var(--color-brand)] transition-colors"
-        >
-          <option value="admin">Admin</option>
-          <option value="editor">Editor</option>
-          <option value="member">Member</option>
-        </select>
-        <Button type="submit" variant="brand" size="md" disabled={busy || !userId.trim() || seatsLeft <= 0}>
-          <PlusIcon />
-          <span className="ml-1">{busy ? 'Adding…' : 'Add'}</span>
-        </Button>
-      </form>
-      {message && (
-        <div
-          className={`text-copy-13 px-3 py-2 rounded-lg mt-2 ${
-            message.kind === 'error'
-              ? 'bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]'
-              : 'bg-[var(--ds-teal-100)] text-[var(--ds-teal-1000)]'
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Join link + "Asking to join" ───────────────────────────────────────────
-// One resettable link per Space (20261019_join_links). Anyone with it can ASK;
-// the owner, an admin or a leader approves. Shown to those three only.
-
-const LinkIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-  </svg>
-);
-
-function JoinLinkCard({ team }) {
-  const confirm = useConfirm();
-  const [link, setLink] = useState(null); // { code, enabled }
-  const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(null); // 'reset' | 'toggle'
-  const [copied, setCopied] = useState(false);
-  const [qr, setQr] = useState(null);
-  const [showQr, setShowQr] = useState(false);
+  const canSeeUsage = isOwner || canPlanServices(myRole);
+  const nameOf = useMemo(() => {
+    const byUser = new Map(members.map(m => [m.user_id, memberName(m)]));
+    return (id) => byUser.get(id) || '';
+  }, [members]);
 
   useEffect(() => {
+    if (!canManageJoinLink) return undefined;
     let cancelled = false;
     getTeamJoinLink(team.id)
-      .then(res => { if (!cancelled) { setLink(res); setError(null); } })
-      .catch(err => { if (!cancelled) setError(err.message); });
+      .then(res => { if (!cancelled) { setLink(res); setLinkError(null); } })
+      .catch(err => { if (!cancelled) setLinkError(err.message); });
     return () => { cancelled = true; };
-  }, [team.id]);
+  }, [team.id, canManageJoinLink]);
 
-  const url = link?.code ? joinUrl(window.location.origin, link.code) : '';
+  const services = useMemo(() => [...new Set(setlists.map(s => s.service).filter(Boolean))].sort(), [setlists]);
+  const usageSummary = useMemo(() => {
+    if (!canSeeUsage) return '';
+    const u = songUsage(setlists, songs, { range: '3m' });
+    if (!u.songs.length) return 'Nothing played in the last 3 months';
+    return `Most played lately: ${u.songs[0].title} · ${u.totals.songs} songs in 3 months`;
+  }, [canSeeUsage, setlists, songs]);
 
-  useEffect(() => {
-    if (!url || !showQr) return;
-    let cancelled = false;
-    QRCode.toDataURL(url, { margin: 1, width: 220 })
-      .then(d => { if (!cancelled) setQr(d); })
-      .catch(() => { if (!cancelled) setQr(null); });
-    return () => { cancelled = true; };
-  }, [url, showQr]);
-
-  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch { /* clipboard blocked — the link is selectable */ }
-  };
-
-  const share = async () => {
-    try {
-      await navigator.share({
-        title: `Join ${team.name}`,
-        text: `Join ${team.name} on Setlists.md`,
-        url,
-      });
-    } catch { /* dismissed */ }
-  };
-
-  const reset = async () => {
-    const ok = await confirm({
-      title: 'Reset the join link?',
-      description: 'The current link stops working right away. Anyone who already asked to join stays in the list. You will need to share the new link.',
-      confirmLabel: 'Reset link',
-      cancelLabel: 'Keep link',
-      variant: 'danger',
-    });
-    if (!ok) return;
-    setBusy('reset');
-    try {
-      setLink(await resetTeamJoinLink(team.id));
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const toggle = async (enabled) => {
-    setBusy('toggle');
-    setLink(prev => (prev ? { ...prev, enabled } : prev));
-    try {
-      setLink(await setTeamJoinLinkEnabled(team.id, enabled));
-      setError(null);
-    } catch (err) {
-      setLink(prev => (prev ? { ...prev, enabled: !enabled } : prev));
-      setError(err.message);
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const enabled = !!link?.enabled;
-
-  return (
-    <div className="modes-card p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="inline-flex items-center gap-2 text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
-          <LinkIcon /> Join link
-        </span>
-        {link && (
-          <label className="inline-flex items-center gap-2 text-label-12 text-[var(--modes-text-muted)] cursor-pointer">
-            {enabled ? 'On' : 'Off'}
-            <Switch checked={enabled} disabled={busy === 'toggle'} onCheckedChange={toggle} aria-label="Join link on or off" />
-          </label>
-        )}
-      </div>
-      <p className="text-copy-13 text-[var(--modes-text-muted)] m-0">
-        Anyone with this link can ask to join. You approve each person, and they join as a Member.
-      </p>
-
-      {error && !link && (
-        <div className="text-copy-13 px-3 py-2 rounded-lg bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]">{error}</div>
-      )}
-      {!link && !error && <div className="text-copy-13 text-[var(--modes-text-dim)]">Loading link…</div>}
-
-      {link && (
-        <>
-          <div
-            className="flex items-center gap-2 px-3 h-11 rounded-lg border border-[var(--modes-border)] bg-[var(--modes-surface)]"
-            style={{ opacity: enabled ? 1 : 0.55 }}
-          >
-            <input
-              readOnly
-              value={url}
-              onFocus={e => e.target.select()}
-              aria-label="Join link"
-              className="flex-1 min-w-0 bg-transparent border-none outline-none text-copy-14 text-[var(--modes-text)] truncate"
-            />
-          </div>
-          {!enabled && (
-            <div className="text-copy-13 text-[var(--modes-text-muted)]">The link is off — nobody can ask to join with it until you turn it back on.</div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {canShare && (
-              <Button variant="brand" size="sm" onClick={share} disabled={!enabled}>Share</Button>
-            )}
-            <Button variant={canShare ? 'secondary' : 'brand'} size="sm" onClick={copy} disabled={!enabled}>
-              {copied ? 'Copied' : 'Copy link'}
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setShowQr(v => !v)} disabled={!enabled}>
-              {showQr ? 'Hide QR code' : 'QR code'}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={reset} loading={busy === 'reset'} disabled={!!busy} className="text-[var(--ds-red-700)]">
-              Reset link
-            </Button>
-          </div>
-          {showQr && enabled && qr && (
-            <div className="flex flex-col items-center gap-2 pt-1">
-              <img src={qr} alt={`QR code for the ${team.name} join link`} width="220" height="220" className="rounded-lg bg-white p-2" />
-              <span className="text-label-11 text-[var(--modes-text-dim)]">Put it on the screen at rehearsal — phones can scan it.</span>
-            </div>
-          )}
-          {error && (
-            <div className="text-copy-13 px-3 py-2 rounded-lg bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]">{error}</div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function JoinRequestRow({ request, onApprove, onDecline, busy }) {
-  const name = request.display_name || request.email?.split('@')[0] || 'Someone';
-  const initial = name.slice(0, 2).toUpperCase();
-  const parts = request.parts || [];
-  return (
-    <div className="modes-card flex items-start gap-3 px-4 py-3">
-      <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden text-label-14 font-bold bg-[var(--ds-gray-200)] text-[var(--ds-gray-700)]">
-        {request.avatar_url ? <img src={request.avatar_url} alt="" className="w-full h-full object-cover" /> : initial}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{name}</div>
-        {request.email && <div className="text-label-11 text-[var(--modes-text-dim)] truncate">{request.email}</div>}
-        {parts.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {parts.map(p => (
-              <span key={p} className="text-label-11 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)]">
-                {joinPartLabel(p)}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div className="flex items-center gap-1.5 shrink-0">
-        <Button variant="ghost" size="sm" onClick={() => onDecline(request)} disabled={!!busy}>Decline</Button>
-        <Button variant="brand" size="sm" onClick={() => onApprove(request)} loading={busy === 'approve'} disabled={!!busy}>Approve</Button>
-      </div>
-    </div>
-  );
-}
-
-function JoinRequestsSection({ requests, onApprove, onDecline, onApproveAll }) {
-  const confirm = useConfirm();
-  const [busyId, setBusyId] = useState(null); // `${id}:approve` | `${id}:decline` | 'all'
-  const [message, setMessage] = useState(null);
-
-  if (!requests || requests.length === 0) return null;
+  const person = members.find(m => m.id === personId) || null;
+  const upcoming = useMemo(() => {
+    if (!person) return [];
+    const byRow = new Map(Object.entries(setlistMap || {}).map(([local, row]) => [row, local]));
+    return (schedules || [])
+      .filter(s => s.user_id === person.user_id)
+      .map(s => {
+        const localId = byRow.get(s.setlist_id) || s.setlist_id;
+        const sl = setlists.find(x => x.id === localId);
+        return sl && sl.date && isSetlistUpcoming(sl, now) ? { sl, s } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => setlistStartMs(a.sl) - setlistStartMs(b.sl))
+      .slice(0, 5)
+      .map(({ sl, s }) => ({
+        id: s.id,
+        label: new Date(`${sl.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+        name: sl.name || sl.service || 'Service',
+        answer: s.availability || 'pending',
+      }));
+  }, [person, schedules, setlists, setlistMap, now]);
 
   const run = async (key, fn) => {
-    setBusyId(key);
-    setMessage(null);
-    try {
-      await fn();
-    } catch (err) {
-      setMessage({ kind: 'error', text: err.message || 'Something went wrong.' });
-    } finally {
-      setBusyId(null);
-    }
+    setBusy(key);
+    try { return await fn(); } finally { setBusy(null); }
   };
 
+  const approve = (r) => run(r.id, async () => {
+    setWaitMsg(null);
+    try { await onApproveJoin(r.id); } catch (err) { setWaitMsg({ kind: 'error', text: err.message || 'Something went wrong.' }); }
+  });
+  const decline = async (r) => {
+    const ok = await confirm({ title: `Say no to ${r.display_name || 'this request'}?`, description: 'They will see that the request was not approved. They can ask again tomorrow.', confirmLabel: 'Say no', variant: 'danger' });
+    if (ok) run(r.id, async () => { try { await onDeclineJoin(r.id); } catch (err) { setWaitMsg({ kind: 'error', text: err.message }); } });
+  };
   const approveAll = () => run('all', async () => {
-    const res = await onApproveAll();
-    if (res?.at_capacity) {
-      setMessage({ kind: 'error', text: `Approved ${res.approved}. The team is full — ${res.remaining} still waiting. Upgrade the plan or remove someone to let them in.` });
-    } else if (res) {
-      setMessage({ kind: 'info', text: `Approved ${res.approved + (res.already_member || 0)}.` });
-    }
+    try {
+      const res = await onApproveAllJoins();
+      if (res?.at_capacity) setWaitMsg({ kind: 'error', text: `Let in ${res.approved}. The church is full: ${res.remaining} still waiting.` });
+    } catch (err) { setWaitMsg({ kind: 'error', text: err.message }); }
   });
 
-  const decline = async (r) => {
-    const ok = await confirm({
-      title: `Decline ${r.display_name || 'this request'}?`,
-      description: 'They will see that the request was not approved. They can ask again tomorrow.',
-      confirmLabel: 'Decline',
-      variant: 'danger',
+  const resetLink = async () => {
+    const ok = await confirm({ title: 'Make a new link?', description: 'The old link stops working right away. People already waiting stay in the list.', confirmLabel: 'New link', cancelLabel: 'Keep link', variant: 'danger' });
+    if (!ok) return;
+    run('reset', async () => {
+      try { setLink(await resetTeamJoinLink(team.id)); setLinkError(null); } catch (err) { setLinkError(err.message); }
     });
-    if (ok) run(`${r.id}:decline`, () => onDecline(r.id));
+  };
+  const toggleLink = (enabled) => run('toggle', async () => {
+    try { setLink(await setTeamJoinLinkEnabled(team.id, enabled)); setLinkError(null); } catch (err) { setLinkError(err.message); }
+  });
+
+  const changeRole = (role) => run('role', () => onRoleChange(person.id, role));
+  const remove = async () => {
+    const name = memberName(person);
+    const ok = await confirm({ title: `Remove ${name}?`, description: `They lose access to ${team.name}: songs, setlists and the band. They would have to ask to join again.`, confirmLabel: 'Remove', cancelLabel: 'Keep', variant: 'danger' });
+    if (ok) { await run('remove', () => onRemove(person.id)); setPersonId(null); }
+  };
+  const leave = async () => {
+    const ok = await confirm({ title: `Leave ${team.name}?`, description: 'You lose access to its songs and setlists. You can ask to join again with the link.', confirmLabel: 'Leave', variant: 'danger' });
+    if (ok) { setPersonId(null); await onLeave(); }
+  };
+  const deleteChurch = async () => {
+    const ok = await confirm({ title: `Delete "${team.name}"?`, description: 'Everyone is removed and the church, its songs and setlists are deleted. This cannot be undone.', confirmLabel: 'Delete', variant: 'danger' });
+    if (ok) await onDelete();
   };
 
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-3 mb-3 px-1">
-        <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold m-0">
-          Asking to join · {requests.length}
-        </h3>
-        {requests.length > 1 && (
-          <Button variant="secondary" size="sm" onClick={approveAll} loading={busyId === 'all'} disabled={!!busyId}>
-            Approve all
-          </Button>
-        )}
-      </div>
-      <div className="flex flex-col gap-2">
-        {requests.map(r => (
-          <JoinRequestRow
-            key={r.id}
-            request={r}
-            busy={busyId === 'all' ? 'all' : busyId?.startsWith(`${r.id}:`) ? busyId.split(':')[1] : null}
-            onApprove={(req) => run(`${req.id}:approve`, () => onApprove(req.id))}
-            onDecline={decline}
-          />
-        ))}
-      </div>
-      {message && (
-        <div
-          className={`text-copy-13 px-3 py-2 rounded-lg mt-2 ${
-            message.kind === 'error'
-              ? 'bg-[var(--ds-red-100)] text-[var(--ds-red-1000)]'
-              : 'bg-[var(--ds-teal-100)] text-[var(--ds-teal-1000)]'
-          }`}
-        >
-          {message.text}
-        </div>
+  if (page === 'usage' && canSeeUsage) {
+    return <SongUsage setlists={setlists} songs={songs} nameOf={nameOf} onBack={() => setPage('team')} onOpenSong={onOpenSong} />;
+  }
+
+  const footer = (
+    <div className="flex flex-col items-start gap-3 pt-4 text-[14px]">
+      {onToggleDefaultSpace && (
+        <ShadButton variant="link" onClick={onToggleDefaultSpace}>{isDefaultSpace ? 'Opens here when the app starts' : 'Open this church when the app starts'}</ShadButton>
       )}
+      {onCreate && <ShadButton variant="link" onClick={onCreate}>Start another church or band</ShadButton>}
+      {!isOwner && <ShadButton variant="link" className="text-danger" onClick={leave}>Leave {team.name}</ShadButton>}
+      {isOwner && <ShadButton variant="link" className="text-danger" onClick={deleteChurch}>Delete this church</ShadButton>}
     </div>
   );
-}
-
-// ── Team Stats ──────────────────────────────────────────────────────────────
-
-function TeamStats({ teamId, members = [] }) {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  // Empty = "All services"; otherwise the union of the picked services.
-  const [selectedServices, setSelectedServices] = useState([]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { count: songCount } = await supabase
-          .from('team_songs')
-          .select('id', { count: 'exact', head: true })
-          .eq('team_id', teamId);
-
-        // NB: team_setlists has no top-level `date` column — the service date
-        // lives inside the `content` jsonb. Selecting/ordering by `date` errors
-        // out the whole query (which is why the count used to read 0). Order by
-        // `updated_at` and pull the date out of `content` instead.
-        const { data: setlists } = await supabase
-          .from('team_setlists')
-          .select('id, name, content, updated_at')
-          .eq('team_id', teamId)
-          .order('updated_at', { ascending: false });
-
-        // Songs (for key spread + stale detection) and availability (readiness).
-        const { data: songRows } = await supabase
-          .from('team_songs')
-          .select('id, title, content')
-          .eq('team_id', teamId);
-        const { data: availRows } = await supabase
-          .from('team_availability')
-          .select('user_id, date, status')
-          .eq('team_id', teamId);
-
-        // Sort by the service date carried inside content (newest first),
-        // falling back to updated_at when a setlist has no date.
-        const ordered = (setlists || []).slice().sort((a, b) => {
-          const da = a.content?.date || a.updated_at || '';
-          const db = b.content?.date || b.updated_at || '';
-          return db.localeCompare(da);
-        });
-
-        const setlistCount = ordered.length;
-
-        // Song play-counts, both overall ("all") and per service, so the team
-        // can see which songs they lean on for each service.
-        const songsByService = { all: {} };
-        const servicesSet = new Set();
-        let recentSongs = [];
-
-        ordered.forEach((sl, index) => {
-          const svc = sl.content?.service?.trim() || null;
-          if (svc) {
-            servicesSet.add(svc);
-            songsByService[svc] = songsByService[svc] || {};
-          }
-          const items = sl.content?.items || [];
-          items.forEach(item => {
-            if (item.type !== 'break' && item.songTitle) {
-              songsByService.all[item.songTitle] = (songsByService.all[item.songTitle] || 0) + 1;
-              if (svc) songsByService[svc][item.songTitle] = (songsByService[svc][item.songTitle] || 0) + 1;
-              if (index < 5 && !recentSongs.find(s => s.title === item.songTitle)) {
-                recentSongs.push({ title: item.songTitle, date: sl.content?.date || null });
-              }
-            }
-          });
-        });
-
-        // ── Upcoming services (next future-dated setlists) ──
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const upcoming = ordered
-          .filter(sl => (sl.content?.date || '') >= todayStr)
-          .sort((a, b) => (a.content?.date || '').localeCompare(b.content?.date || ''))
-          .slice(0, 3)
-          .map(sl => ({
-            id: sl.id,
-            name: sl.name || sl.content?.name || 'Untitled',
-            date: sl.content?.date || null,
-            service: sl.content?.service || null,
-            songCount: (sl.content?.items || []).filter(i => i.type !== 'break' && i.songId).length,
-            content: sl.content,
-          }));
-
-        // ── Band readiness for the very next service ──
-        const next = upcoming[0] || null;
-        let readiness = null;
-        if (next?.date) {
-          const avail = new Set((availRows || []).filter(a => a.date === next.date && a.status === 'available').map(a => a.user_id));
-          readiness = { date: next.date, name: next.name, available: avail.size, total: members.length };
-        }
-
-        // ── Most-used keys across the library ──
-        const keyCounts = {};
-        (songRows || []).forEach(s => {
-          const k = s.content?.key || s.content?.arrangements?.[0]?.key;
-          if (k) keyCounts[k] = (keyCounts[k] || 0) + 1;
-        });
-        const topKeys = Object.entries(keyCounts).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([key, count]) => ({ key, count }));
-
-        // ── Stale songs (in the library, never used in a setlist) ──
-        const usedTitles = new Set();
-        ordered.forEach(sl => (sl.content?.items || []).forEach(it => { if (it.songTitle) usedTitles.add(it.songTitle); }));
-        const stale = (songRows || [])
-          .map(s => s.title || s.content?.title)
-          .filter(t => t && !usedTitles.has(t));
-
-        setStats({
-          songCount: songCount || 0,
-          setlistCount,
-          songsByService,
-          services: [...servicesSet].sort(),
-          recentSongs: recentSongs.slice(0, 5),
-          upcoming,
-          readiness,
-          topKeys,
-          stale,
-        });
-      } catch (err) {
-        console.error('Failed to load team stats', err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [teamId, members.length]);
-
-  if (loading) return <div className="text-copy-13 text-[var(--modes-text-dim)] py-4">Loading statistics…</div>;
 
   return (
-    <div className="flex flex-col gap-6 mt-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="modes-card p-4">
-          <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Songs</div>
-          <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.songCount || 0}</div>
-        </div>
-        <div className="modes-card p-4">
-          <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Setlists</div>
-          <div className="text-heading-24 text-[var(--modes-text)] m-0 leading-none">{stats?.setlistCount || 0}</div>
-        </div>
-      </div>
-
-      {/* Band readiness for the next service */}
-      {stats?.readiness && stats.readiness.total > 0 && (
-        <div className="modes-card p-4">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="min-w-0">
-              <div className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">Next service readiness</div>
-              <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate mt-0.5">{stats.readiness.name}</div>
-            </div>
-            <div className="text-heading-24 text-[var(--modes-text)] leading-none shrink-0">{stats.readiness.available}<span className="text-copy-14 text-[var(--modes-text-dim)]">/{stats.readiness.total}</span></div>
-          </div>
-          <div className="h-1.5 rounded-full bg-[var(--modes-surface-strong)] overflow-hidden">
-            <div className="h-full rounded-full bg-[var(--color-brand)]" style={{ width: `${Math.round((stats.readiness.available / stats.readiness.total) * 100)}%` }} />
-          </div>
-          <div className="text-label-12 text-[var(--modes-text-dim)] mt-1.5">{stats.readiness.available} available · {new Date(stats.readiness.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-        </div>
-      )}
-
-      {/* Upcoming services */}
-      {stats?.upcoming?.length > 0 && (
-        <div>
-          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Upcoming Services</h3>
-          <div className="flex flex-col gap-2">
-            {stats.upcoming.map(sl => (
-              <div key={sl.id} className="modes-card flex items-center gap-3 px-4 py-3">
-                <div className="flex flex-col items-center justify-center w-11 h-11 rounded-lg bg-[var(--modes-surface-strong)] shrink-0">
-                  <span className="text-label-10 uppercase tracking-wider text-[var(--modes-text-dim)] leading-none">{sl.date ? new Date(sl.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short' }) : '—'}</span>
-                  <span className="text-heading-18 leading-none mt-0.5 text-[var(--modes-text)]">{sl.date ? new Date(sl.date + 'T00:00:00').getDate() : '?'}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{sl.name}</div>
-                  <div className="text-label-12 text-[var(--modes-text-dim)] truncate">{sl.service ? `${sl.service} · ` : ''}{sl.songCount} song{sl.songCount !== 1 ? 's' : ''}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(() => {
-        const sbs = stats?.songsByService || { all: {} };
-        const hasServices = (stats?.services?.length || 0) > 0;
-        // Aggregate counts across the selected services (or "all" when none).
-        const merged = {};
-        if (selectedServices.length === 0) {
-          Object.assign(merged, sbs.all || {});
-        } else {
-          selectedServices.forEach(svc => {
-            Object.entries(sbs[svc] || {}).forEach(([title, c]) => {
-              merged[title] = (merged[title] || 0) + c;
-            });
-          });
-        }
-        const ranked = Object.entries(merged).sort((a, b) => b[1] - a[1]).slice(0, 8);
-        if (ranked.length === 0 && !hasServices) return null;
-        const toggle = (svc) => setSelectedServices(prev => prev.includes(svc) ? prev.filter(s => s !== svc) : [...prev, svc]);
-        return (
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-3 px-1">
-              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">Songs by Service</h3>
-              {hasServices && <span className="text-label-11 text-[var(--modes-text-dim)]">Tap to combine services</span>}
-            </div>
-            {hasServices && (
-              <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedServices([])}
-                  className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
-                    selectedServices.length === 0
-                      ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                      : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
-                  }`}
-                >
-                  All services
-                </button>
-                {stats.services.map(svc => {
-                  const active = selectedServices.includes(svc);
-                  return (
-                    <button
-                      key={svc}
-                      type="button"
-                      onClick={() => toggle(svc)}
-                      className={`shrink-0 px-3 h-8 rounded-lg border text-label-12 font-semibold transition-all cursor-pointer ${
-                        active
-                          ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--color-brand-soft)]'
-                          : 'border-[var(--modes-border)] text-[var(--modes-text-muted)] bg-[var(--modes-surface)] hover:text-[var(--modes-text)]'
-                      }`}
-                    >
-                      {active && '✓ '}{svc}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div className="flex flex-col gap-2">
-              {ranked.length > 0 ? ranked.map(([title, count], i) => (
-                <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
-                  <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{title}</span>
-                  <span className="text-label-12 text-[var(--modes-text-dim)]">{count} play{count !== 1 ? 's' : ''}</span>
-                </div>
-              )) : (
-                <div className="modes-card px-4 py-6 text-center text-copy-13 text-[var(--modes-text-dim)]">No songs for the selected service{selectedServices.length === 1 ? '' : 's'} yet.</div>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Most-used keys */}
-      {stats?.topKeys?.length > 0 && (
-        <div>
-          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Most-used Keys</h3>
-          <div className="flex flex-wrap gap-2">
-            {stats.topKeys.map(k => (
-              <div key={k.key} className="modes-card flex items-center gap-2 px-3 py-2">
-                <span className="text-copy-15 font-bold text-[var(--color-brand-text)] font-mono">{k.key}</span>
-                <span className="text-label-12 text-[var(--modes-text-dim)]">{k.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Stale / unused songs */}
-      {stats?.stale?.length > 0 && (
-        <div>
-          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">
-            Never Played <span className="text-[var(--modes-text-dim)] normal-case tracking-normal">({stats.stale.length})</span>
-          </h3>
-          <div className="modes-card px-4 py-3 flex flex-col gap-1.5">
-            <p className="text-label-12 text-[var(--modes-text-dim)] m-0">In your library but not in any setlist — rotate them in or retire them.</p>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {stats.stale.slice(0, 12).map((t, i) => (
-                <span key={i} className="text-label-12 px-2 py-0.5 rounded-full bg-[var(--modes-surface-strong)] text-[var(--modes-text-muted)] truncate max-w-[180px]">{t}</span>
-              ))}
-              {stats.stale.length > 12 && <span className="text-label-12 text-[var(--modes-text-dim)] self-center">+{stats.stale.length - 12} more</span>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {stats?.recentSongs?.length > 0 && (
-        <div>
-          <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Recently Played</h3>
-          <div className="flex flex-col gap-2">
-            {stats.recentSongs.map((song, i) => (
-              <div key={i} className="modes-card flex items-center justify-between px-4 py-3">
-                <span className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{song.title}</span>
-                <span className="text-label-12 text-[var(--modes-text-dim)]">{song.date ? new Date(song.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Edit Team Form ──────────────────────────────────────────────────────────
-
-function EditTeamForm({ team, onUpdate }) {
-  const [name, setName] = useState(team.name || '');
-  const [location, setLocation] = useState(team.location || '');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setBusy(true);
-    setError(null);
-    setSuccess(false);
-    try {
-      await onUpdate({ name: name.trim(), location: location.trim() || null });
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError(err.message || 'Could not update team.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="modes-card flex flex-col gap-4 p-4 mt-4">
-      <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-1">Team Settings</h3>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-label-12 text-[var(--modes-text-muted)]">Logo</span>
-        <AvatarUploader
-          url={team.logo_url || null}
-          fallback={(team.name || 'T').trim().charAt(0).toUpperCase()}
-          pathPrefix={`teams/${team.id}`}
-          shape="square"
-          label="logo"
-          onChange={async (logoUrl) => { await onUpdate({ logo_url: logoUrl }); }}
+    <>
+      <TeamPage
+        team={team} members={members} meId={meId} isOwner={isOwner} services={services}
+        onBack={onBack}
+        onEditChurch={() => setChurchOpen(true)}
+        onOpenPerson={(m) => setPersonId(m.id)}
+        waiting={canManageJoinLink ? <Waiting requests={joinRequests} busy={busy} message={waitMsg} onApprove={approve} onDecline={decline} onApproveAll={approveAll} /> : null}
+        usage={canSeeUsage ? <UsageEntry summary={usageSummary} onOpen={() => setPage('usage')} /> : null}
+        invite={canManageJoinLink ? (
+          <InviteCard teamName={team.name} url={link?.code ? joinUrl(window.location.origin, link.code) : ''} enabled={!!link?.enabled}
+            loading={!link && !linkError} error={linkError} busy={busy} onToggle={toggleLink} onReset={resetLink} />
+        ) : null}
+        footer={footer}
+      />
+      <PersonSheet
+        open={!!person} onOpenChange={(o) => { if (!o) setPersonId(null); }}
+        member={person}
+        isOwnerRow={!!person && person.user_id === team.owner_id}
+        me={!!person && person.user_id === meId}
+        since={person?.joined_at ? `In ${team.name} since ${new Date(person.joined_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}` : ''}
+        upcoming={upcoming}
+        canManage={canManage}
+        canMakeAdmin={isOwner}
+        busy={!!busy}
+        onRole={changeRole}
+        onRemove={remove}
+        onLeave={leave}
+      />
+      {isOwner && (
+        <ChurchSheet
+          open={churchOpen} onOpenChange={setChurchOpen} team={team}
+          missingColumns={!('address' in team)}
+          onLogo={async (logoUrl) => { await onUpdate({ logo_url: logoUrl }); }}
+          onSave={async (fields) => {
+            const clean = 'address' in team ? fields : { name: fields.name, location: fields.location };
+            await onUpdate(clean);
+            setChurchOpen(false);
+          }}
         />
-      </div>
-      <label className="flex flex-col gap-1">
-        <span className="text-label-12 text-[var(--modes-text-muted)]">Team Name</span>
-        <Input type="text" required value={name} onChange={e => setName(e.target.value)} />
-      </label>
-      <label className="flex flex-col gap-1">
-        <span className="text-label-12 text-[var(--modes-text-muted)]">Location (optional)</span>
-        <Input type="text" value={location} onChange={e => setLocation(e.target.value)} />
-      </label>
-      {error && <div className="text-copy-13 text-[var(--ds-red-1000)] bg-[var(--ds-red-100)] px-3 py-2 rounded-lg">{error}</div>}
-      {success && <div className="text-copy-13 text-[var(--ds-teal-1000)] bg-[var(--ds-teal-100)] px-3 py-2 rounded-lg">Team updated successfully.</div>}
-      <Button type="submit" variant="brand" size="md" disabled={busy || !name.trim()}>
-        {busy ? 'Saving…' : 'Save changes'}
-      </Button>
-    </form>
-  );
-}
-
-function TeamDashboard({ team, members, invites, isAdmin, currentUserId, onRemove, onRoleChange, onInvite, onCancelInvite, onLeave, onDelete, onUpdate, isDefaultSpace = false, onToggleDefaultSpace, canManageJoinLink = false, joinRequests = [], onApproveJoin, onDeclineJoin, onApproveAllJoins }) {
-  const confirm = useConfirm();
-  const [activeTab, setActiveTab] = useState('members');
-  // Seats are taken by members only, the same rule the server applies; an
-  // invite nobody has used yet takes none.
-  const seatsLeft = Math.max(0, (team.max_seats || 10) - members.length);
-
-  return (
-    <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
-      <div className="max-w-[1320px] mx-auto flex flex-col gap-6">
-        {/* Team header */}
-        <div className="modes-card-strong p-6 pb-0 overflow-hidden">
-          <div className="flex items-start gap-4 mb-6">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
-              style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}
-            >
-              {team.logo_url ? (
-                <img src={team.logo_url} alt={`${team.name || 'Team'} logo`} className="w-full h-full object-cover" />
-              ) : (
-                <TeamIcon />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-heading-24 text-[var(--modes-text)] m-0 mb-0.5 truncate">{team.name}</h2>
-              {team.location && (
-                <div className="flex items-center gap-1.5 text-copy-14 text-[var(--modes-text-muted)]">
-                  <LocationIcon />
-                  <span>{team.location}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-label-11 uppercase tracking-wider font-semibold px-2.5 py-1 rounded-md" style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }}>
-                  {team.plan === 'church' ? 'Church' : 'Teams'} Plan
-                </span>
-                <span className="text-label-12 text-[var(--modes-text-dim)]">
-                  {members.length}/{team.max_seats} seats
-                </span>
-              </div>
-
-              {/* Home Space — open straight into this Space on launch instead of
-                  Personal. Handy for members who only use the app for this band/church. */}
-              {onToggleDefaultSpace && (
-                <button
-                  type="button"
-                  onClick={onToggleDefaultSpace}
-                  className="mt-3 inline-flex items-center gap-1.5 text-label-12 font-medium cursor-pointer bg-transparent border-none p-0"
-                  style={{ color: isDefaultSpace ? 'var(--color-brand)' : 'var(--ds-gray-600)' }}
-                  aria-pressed={isDefaultSpace}
-                  title={isDefaultSpace ? 'This Space opens by default' : 'Open this Space by default'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill={isDefaultSpace ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z" />
-                  </svg>
-                  {isDefaultSpace ? 'Opens here by default' : 'Make this my home Space'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex items-center gap-6 border-b border-[var(--modes-border)]">
-            <button
-              onClick={() => setActiveTab('members')}
-              className={`pb-3 text-label-14 font-semibold border-b-2 transition-colors cursor-pointer bg-transparent px-1 ${
-                activeTab === 'members'
-                  ? 'border-[var(--color-brand)] text-[var(--modes-text)]'
-                  : 'border-transparent text-[var(--modes-text-dim)] hover:text-[var(--modes-text)]'
-              }`}
-            >
-              Members
-            </button>
-            <button
-              onClick={() => setActiveTab('info')}
-              className={`pb-3 text-label-14 font-semibold border-b-2 transition-colors cursor-pointer bg-transparent px-1 ${
-                activeTab === 'info'
-                  ? 'border-[var(--color-brand)] text-[var(--modes-text)]'
-                  : 'border-transparent text-[var(--modes-text-dim)] hover:text-[var(--modes-text)]'
-              }`}
-            >
-              Info & Stats
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'members' && (
-          <div className="flex flex-col gap-6">
-            {canManageJoinLink && (
-              <JoinRequestsSection
-                requests={joinRequests}
-                onApprove={onApproveJoin}
-                onDecline={onDeclineJoin}
-                onApproveAll={onApproveAllJoins}
-              />
-            )}
-            {canManageJoinLink && <JoinLinkCard team={team} />}
-            {isAdmin && (
-              <InviteForm team={team} onInvite={onInvite} seatsLeft={seatsLeft} pendingInvites={invites?.length || 0} />
-            )}
-            <div>
-              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">
-                Members ({members.length})
-              </h3>
-              <div className="flex flex-col gap-2">
-                {members.map(member => (
-                  <MemberRow
-                    key={member.id}
-                    member={member}
-                    isCurrentUser={member.user_id === currentUserId}
-                    isAdmin={isAdmin}
-                    isOwner={!!team?.owner_id && member.user_id === team.owner_id}
-                    onRemove={onRemove}
-                    onRoleChange={onRoleChange}
-                  />
-                ))}
-                {invites?.map(invite => (
-                  <InviteRow
-                    key={invite.id}
-                    invite={invite}
-                    isAdmin={isAdmin}
-                    onCancel={onCancelInvite}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'info' && (
-          <div className="flex flex-col gap-6">
-            <TeamStats teamId={team.id} members={members} />
-
-            <div>
-              <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold mb-3 px-1">Recent Activity</h3>
-              <div className="modes-card p-2">
-                <ActivityFeed teamId={team.id} members={members} />
-              </div>
-            </div>
-
-            {isAdmin && (
-              <EditTeamForm team={team} onUpdate={onUpdate} />
-            )}
-
-            <div className="modes-card p-4 mt-2">
-              <h3 className="text-label-12 text-[var(--ds-red-700)] uppercase tracking-wider font-semibold mb-3">
-                Danger zone
-              </h3>
-              <div className="flex flex-col sm:flex-row gap-2">
-                {!isAdmin && (
-                  <Button variant="secondary" size="sm" onClick={onLeave}>
-                    Leave team
-                  </Button>
-                )}
-                {isAdmin && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: `Delete "${team.name}"?`,
-                        description: 'All members will be removed and the team will be permanently deleted. This cannot be undone.',
-                        confirmLabel: 'Delete team',
-                        variant: 'danger',
-                      });
-                      if (ok) onDelete();
-                    }}
-                    className="text-[var(--ds-red-700)]"
-                  >
-                    Delete team
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace }) {
+export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
   const { user } = useAuth();
-  const { team, members, invites, isAdmin, loading, createTeam, inviteMember, removeMember, updateMemberRole, cancelInvite, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests } = useTeam();
+  const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests } = useTeam();
 
   // Whether the create form is showing. A user can belong to several
   // workspaces, so the form is reachable even when a team is already active
@@ -1337,67 +405,68 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
 
   const inCreateSubmenu = creating && team;
 
+  const myRole = members.find(m => m.user_id === user?.id)?.role || 'member';
+  const isOwner = !!team && team.owner_id === user?.id;
+
+  if (!loading && !showCreate) {
+    return (
+      <TeamHome
+        team={team}
+        members={members}
+        meId={user?.id}
+        myRole={myRole}
+        isOwner={isOwner}
+        canManage={isOwner || isAdmin || canManageMembers(myRole)}
+        canManageJoinLink={!!canManageJoinLink}
+        joinRequests={joinRequests || []}
+        onApproveJoin={approveJoinRequest}
+        onDeclineJoin={declineJoinRequest}
+        onApproveAllJoins={approveAllJoinRequests}
+        onRoleChange={updateMemberRole}
+        onRemove={removeMember}
+        onUpdate={updateTeam}
+        onLeave={async () => { await leaveTeam(); onBack?.(); }}
+        onDelete={async () => { await deleteTeam(); }}
+        onBack={onBack}
+        onCreate={canCreate ? () => setCreating(true) : null}
+        isDefaultSpace={defaultSpaceId === team.id}
+        onToggleDefaultSpace={onSetDefaultSpace
+          ? () => onSetDefaultSpace(defaultSpaceId === team.id ? 'personal' : team.id)
+          : undefined}
+        setlists={setlists}
+        songs={songs}
+        schedules={schedules}
+        setlistMap={setlistMap}
+        onOpenSong={onOpenSong}
+      />
+    );
+  }
+
   return (
     <div data-theme-variant="modes" className="flex flex-col h-full">
       <PageHeader
         title={inCreateSubmenu ? 'New Space' : 'Your Team'}
         onBack={inCreateSubmenu ? () => setCreating(false) : undefined}
         onClose={onBack}
-        actions={!creating && team && canCreate ? (
-          <Button variant="secondary" size="sm" onClick={() => setCreating(true)}>
-            <span className="flex items-center gap-1.5"><PlusIcon /> New</span>
-          </Button>
-        ) : null}
       />
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-copy-14 text-[var(--modes-text-muted)]">Loading team…</div>
         </div>
-      ) : showCreate ? (
-        allowThisCreate ? (
-          <CreateTeamForm
-            onCreate={handleCreateTeam}
-            onCancel={team ? () => setCreating(false) : null}
-            multiple={!!team}
-            defaultPlan={ownerTier || 'team'}
-            billingLive={BILLING_ENABLED}
-          />
-        ) : (
-          <UpgradeGate feature="team-create" onUpgrade={onUpgrade}>
-            {/* Never renders — UpgradeGate shows the prompt */}
-            <div />
-          </UpgradeGate>
-        )
-      ) : (
-        <TeamDashboard
-          team={team}
-          members={members}
-          invites={invites}
-          isAdmin={isAdmin}
-          currentUserId={user?.id}
-          onRemove={removeMember}
-          onRoleChange={updateMemberRole}
-          onInvite={inviteMember}
-          onCancelInvite={cancelInvite}
-          onUpdate={updateTeam}
-          onLeave={async () => {
-            await leaveTeam();
-            onBack?.();
-          }}
-          onDelete={async () => {
-            await deleteTeam();
-          }}
-          canManageJoinLink={!!canManageJoinLink}
-          joinRequests={joinRequests || []}
-          onApproveJoin={approveJoinRequest}
-          onDeclineJoin={declineJoinRequest}
-          onApproveAllJoins={approveAllJoinRequests}
-          isDefaultSpace={defaultSpaceId === team.id}
-          onToggleDefaultSpace={onSetDefaultSpace
-            ? () => onSetDefaultSpace(defaultSpaceId === team.id ? 'personal' : team.id)
-            : undefined}
+      ) : allowThisCreate ? (
+        <CreateTeamForm
+          onCreate={handleCreateTeam}
+          onCancel={team ? () => setCreating(false) : null}
+          multiple={!!team}
+          defaultPlan={ownerTier || 'team'}
+          billingLive={BILLING_ENABLED}
         />
+      ) : (
+        <UpgradeGate feature="team-create" onUpgrade={onUpgrade}>
+          {/* Never renders — UpgradeGate shows the prompt */}
+          <div />
+        </UpgradeGate>
       )}
     </div>
   );
