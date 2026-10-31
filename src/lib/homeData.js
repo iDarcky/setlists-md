@@ -232,3 +232,11 @@ export function timeAgo(at, now = Date.now()) {
   if (d < 7) return `${d} d ago`;
   return new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
+
+// Sync failing for this long (and the device online) is worth a card: one
+// dropped request is not, and the dot beside the date already shows it.
+export const SYNC_PROBLEM_AFTER_MS = 3 * 60 * 1000;
+export function syncProblem(syncState, now, online = true) {
+  if (!online || !syncState?.provider || syncState.state !== 'error' || !syncState.errorSince) return false;
+  return now - syncState.errorSince >= SYNC_PROBLEM_AFTER_MS;
+}

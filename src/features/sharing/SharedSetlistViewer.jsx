@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { fetchSharedSetlist } from '@/lib/setlistShare';
 import { Button } from '@/ui/Button';
+import StatusScreen from '@/ui/StatusScreen';
 
 const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
 const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
@@ -46,33 +47,39 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
 
   if (state.status === 'loading') {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-[var(--ds-background-100)]">
-        <div className="text-copy-14 text-[var(--ds-gray-600)]">Loading shared setlist…</div>
+      <div className="flex min-h-dvh items-center justify-center bg-background font-sans">
+        <div className="text-[15px] text-muted-foreground">Opening the setlist…</div>
       </div>
     );
   }
 
   if (state.status !== 'ready') {
-    const gone = state.status === 'gone';
+    // A link ends 2–3 hours after its service, or when the leader stops
+    // sharing it. The server hides an ended link entirely, so "ended" and
+    // "never existed" look the same from here; say the likely one.
+    const offline = state.status === 'error' && typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (offline) {
+      return (
+        <StatusScreen title="You’re offline"
+          actions={[{ label: 'Try again', onClick: () => window.location.reload() }]}>
+          <p className="m-0">This setlist opens from the internet. Connect and try again.</p>
+        </StatusScreen>
+      );
+    }
+    if (state.status === 'error') {
+      return (
+        <StatusScreen title="This link didn’t open"
+          actions={[{ label: 'Try again', onClick: () => window.location.reload() }, { label: 'Open Setlists.md', onClick: onExit }]}>
+          <p className="m-0">Something went wrong on our side. Try again in a minute.</p>
+        </StatusScreen>
+      );
+    }
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center px-6 bg-[var(--ds-background-100)]">
-        <div className="max-w-sm text-center flex flex-col items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-[var(--ds-gray-100)] border border-[var(--ds-gray-300)] flex items-center justify-center">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--ds-gray-600)]">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </div>
-          <h1 className="text-heading-20 text-[var(--ds-gray-1000)] m-0">
-            {gone ? 'This link has expired' : 'Setlist not found'}
-          </h1>
-          <p className="text-copy-14 text-[var(--ds-gray-600)] m-0">
-            {gone
-              ? 'The person who shared it may have set it to expire or revoked it.'
-              : 'The link may be mistyped or no longer available.'}
-          </p>
-          <Button variant="brand" onClick={onExit}>Open Setlists.md</Button>
-        </div>
-      </div>
+      <StatusScreen title="This link has ended"
+        actions={[{ label: 'Open Setlists.md', onClick: onExit }]}>
+        <p className="m-0">Shared setlists stop working a few hours after the service, or when the leader stops sharing them.</p>
+        <p className="m-0">Ask whoever sent it for a new link.</p>
+      </StatusScreen>
     );
   }
 

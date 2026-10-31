@@ -39,6 +39,9 @@ import { showUndoToast } from '@/lib/undoToast';
 import { useConfirm } from '@/ui/useConfirmHook';
 import PromptDialog from '@/ui/PromptDialog';
 import ErrorBoundary from '@/app/ErrorBoundary';
+import StatusScreen from '@/ui/StatusScreen';
+import { OfflineLine } from '@/ui/OfflineBanner';
+import { SyncProblem } from '@/features/home/HomeView';
 import BandSection from '@/features/setlist/BandSection';
 import { buildOrder } from '@/lib/setlistView';
 
@@ -642,8 +645,17 @@ function PopupsGallery() {
     ['Toast', () => toast({ title: 'Marked ready', description: 'Sunday Morning' })],
     ['Error toast', () => toast({ title: 'Couldn’t save your answer', description: 'Check your connection and try again.', variant: 'error' })],
     ['Undo toast', () => showUndoToast({ title: 'Setlist deleted', onUndo: () => {} })],
-    ['Confirm', () => confirm({ title: 'Discard changes?', description: 'What you changed on this setlist is lost.', confirmLabel: 'Discard', variant: 'danger' })],
+    ['Confirm', () => confirm({ title: 'Leave without saving?', description: 'Your changes to this setlist aren’t saved yet. If you leave now, they’re gone.', confirmLabel: 'Leave', cancelLabel: 'Keep editing', variant: 'danger' })],
     ['Prompt', () => setPrompt(true)],
+    ['Ready, band told', () => toast({ title: 'Marked ready', description: 'We told the band (5 people).', variant: 'success' })],
+    ['Only leaders', () => confirm({ title: 'Only leaders can change this', description: 'You can see everything in Grace Church, but changing songs and setlists is for its leaders. If something needs fixing, tell one of them.', confirmLabel: 'OK', cancelLabel: null })],
+    ['Out of space', () => confirm({ title: 'This device is out of space', description: 'Your last changes couldn’t be saved here. Anything already synced is safe with your church.\n\nTo fix it: delete some photos, videos or apps you don’t need, then reopen Setlists.md. If you use it in a browser, clearing other websites’ data helps too.', confirmLabel: 'Got it', cancelLabel: null })],
+    ['Push ask', () => confirm({ title: 'Get a buzz when you’re asked to play?', description: 'We’ll let you know when a leader asks you to play, when a setlist is ready, and when it changes. Nothing else.\n\nYour phone will ask next. Tap Allow.', confirmLabel: 'Turn on', cancelLabel: 'Not now' })],
+  ];
+  const screens = [
+    ['Not found', 'Can’t find this setlist', 'It was deleted, or it hasn’t reached this device yet.', ['Back', 'Sync now']],
+    ['Share link ended', 'This link has ended', 'Shared setlists stop working a few hours after the service, or when the leader stops sharing them. Ask whoever sent it for a new link.', ['Open Setlists.md']],
+    ['Share link offline', 'You’re offline', 'This setlist opens from the internet. Connect and try again.', ['Try again']],
   ];
   return (
     <div className="flex flex-col gap-6">
@@ -652,6 +664,20 @@ function PopupsGallery() {
       </div>
       {prompt && <PromptDialog open title="New arrangement" label="Name" placeholder="e.g. Acoustic" initialValue="Acoustic" confirmLabel="Add" onSubmit={() => {}} onClose={() => setPrompt(false)} />}
       <div className="flex flex-wrap items-start gap-6">
+        {screens.map(([label, title, body, actions]) => THEMES.map(t => (
+          <Frame key={label + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`${label} · ${t.label}`}>
+            <StatusScreen title={title} actions={actions.map(a => ({ label: a, onClick: () => {} }))}><p className="m-0">{body}</p></StatusScreen>
+          </Frame>
+        )))}
+        {THEMES.map(t => (
+          <Frame key={'bars' + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`Offline, back online, sync problem · ${t.label}`}>
+            <div className="flex h-full flex-col gap-3 bg-background px-4 pt-6 font-sans text-foreground">
+              <OfflineLine state="offline" inline />
+              <OfflineLine state="back" inline />
+              <SyncProblem onRetry={() => {}} />
+            </div>
+          </Frame>
+        ))}
         {[['Error screen', 'Cannot read properties of undefined (reading \'items\')'], ['After an update', 'Failed to fetch dynamically imported module']].map(([label, msg]) => THEMES.map(t => (
           <Frame key={label + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`${label} · ${t.label}`}>
             <ErrorBoundary><Thrower message={msg} /></ErrorBoundary>

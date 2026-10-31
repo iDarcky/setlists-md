@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
@@ -32,7 +33,6 @@ const TagIcon = () => <Svg><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h
 const MoveIcon = () => <Svg><path d="M5 12h14M13 6l6 6-6 6" /></Svg>;
 const CopyIcon = () => <Svg><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></Svg>;
 const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Svg>;
-const UpIcon = () => <Svg><path d="M12 19V5M5 12l7-7 7 7" /></Svg>;
 
 const chipBase = 'flex h-8 min-h-0 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border border-border bg-transparent px-3 font-sans text-[13px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
 const chipOn = 'border-transparent bg-selected font-semibold text-foreground';
@@ -190,21 +190,12 @@ export default function SongsView({
   const stopSelect = () => { setSelecting(false); setSelected(new Set()); };
   const run = async (fn) => { await fn?.([...selected]); stopSelect(); };
   const sortLabel = SORTS.find(s => s.value === sort)?.label || 'A–Z';
-  const topRef = useRef(null);
-  const [farDown, setFarDown] = useState(false);
-  useEffect(() => {
-    const el = topRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
-    const io = new IntersectionObserver(([e]) => setFarDown(!e.isIntersecting && e.boundingClientRect.top < 0), { rootMargin: '600px 0px 0px 0px' });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
   const chipKey = filters.keys.length ? `Key: ${filters.keys.join(', ')}` : 'Key';
   const chipTheme = filters.themes.length ? `Theme: ${filters.themes.join(', ')}` : 'Theme';
 
   return (
     <div data-slot="songs" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      <div ref={topRef} aria-hidden="true" />
+      {!wide && !selecting && <BackToTop />}
       <div className={cn('mx-auto flex w-full flex-col gap-3', wide ? 'max-w-[1180px]' : 'max-w-[680px]', selecting ? 'pb-40' : 'pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
           <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>
@@ -333,16 +324,6 @@ export default function SongsView({
         </div>
       )}
 
-      {!wide && !selecting && farDown && (
-        <button
-          type="button"
-          aria-label="Back to top"
-          onClick={() => topRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+96px)] right-4 z-30 flex size-11 min-h-0 cursor-pointer items-center justify-center rounded-full border border-border bg-card p-0 text-foreground shadow-[0_6px_20px_rgba(0,0,0,.3)] outline-none focus-visible:ring-2 focus-visible:ring-ring sm:bottom-6"
-        >
-          <UpIcon />
-        </button>
-      )}
 
       <FilterSheet
         open={sheet}

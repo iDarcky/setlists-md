@@ -64,9 +64,9 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
   const handleCancel = async () => {
     if (isDirty) {
       const ok = await confirm({
-        title: 'Discard changes?',
-        description: 'You have unsaved changes to this setlist. They will be lost.',
-        confirmLabel: 'Discard',
+        title: 'Leave without saving?',
+        description: 'Your changes to this setlist aren’t saved yet. If you leave now, they’re gone.',
+        confirmLabel: 'Leave',
         cancelLabel: 'Keep editing',
         variant: 'danger',
       });
