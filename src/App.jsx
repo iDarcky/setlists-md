@@ -52,6 +52,7 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from '@/pdf/exportSetlistPdf';
+import { printSetlist } from '@/pdf/printSetlist';
 import UpdatePrompt from '@/ui/UpdatePrompt';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useTeamRealtime } from '@/hooks/useTeamRealtime';
@@ -2621,8 +2622,8 @@ export default function App() {
               onMarkReady={() => markSetlistReady(currentSetlist)}
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
               onExportZip={() => handleExportSetlist(currentSetlist)}
-              onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
-              onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
+              onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
+              ensureRow={ensureSetlistRow}
             />
           )}
           {/* An existing setlist edits on the new page; a new one still starts in
