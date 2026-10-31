@@ -80,6 +80,7 @@ const SongHub = lazy(() => import('@/features/song/SongHub'));
 const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
 const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
+const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'));
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -2544,7 +2545,22 @@ export default function App() {
               onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
             />
           )}
-          {view === 'setlist-build' && (
+          {/* An existing setlist edits on the new page; a new one still starts in
+              the builder until service templates land. */}
+          {view === 'setlist-build' && currentSetlist?.id && setlists.some(s => s.id === currentSetlist.id) && (
+            <SetlistEditPage
+              key={currentSetlist.id}
+              setlist={currentSetlist}
+              songs={songs}
+              setlists={setlists}
+              schedules={schedules}
+              setlistMap={teamSetlistMap}
+              onSave={handleSaveSetlist}
+              onCancel={goBack}
+              onDirtyChange={markSetlistDirty}
+            />
+          )}
+          {view === 'setlist-build' && !(currentSetlist?.id && setlists.some(s => s.id === currentSetlist.id)) && (
             <SetlistBuilder
             songs={songs}
               setlist={currentSetlist}

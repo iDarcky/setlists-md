@@ -32,6 +32,7 @@ import {
 } from '@/features/settings/SettingsViews';
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 import SetlistView from '@/features/setlist/SetlistView';
+import SetlistEdit from '@/features/setlist/SetlistEdit';
 import { buildOrder } from '@/lib/setlistView';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
@@ -512,6 +513,7 @@ function SettingsDemo({ page, leader = true }) {
 const SL_SONGS = [
   ['a', 'Way Maker', 'E', 68, '4/4', '5:10'], ['b', 'Goodness of God', 'A', 63, '6/8', '5:00'],
   ['c', 'Build My Life', 'G', 68, '4/4', '4:50'], ['d', 'Living Hope', 'D', 72, '4/4', '5:20'],
+  ['e', 'King of Kings', 'D', 66, '4/4', '5:30'], ['f', 'Cornerstone', 'C', 72, '4/4', '4:40'], ['g', 'Great Are You Lord', 'G', 74, '4/4', '4:20'],
 ].map(([id, title, key, tempo, time, duration]) => ({ id, title, defaultArrangementId: id, arrangements: [{ id, key, tempo, time, duration, sections: [] }] }));
 const SL = {
   id: 'sl', name: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall', status: 'draft',
@@ -552,6 +554,26 @@ function SetlistGallery() {
         <Frame key={'desk' + t.id} theme={t.id} width={1280} height={820} scale={0.5} label={`Desktop · leader · ${t.label}`}>
           <SetlistDemo leader />
         </Frame>
+      ))}
+    </div>
+  );
+}
+
+const SL_PAST = [
+  { id: 'p1', date: '2026-03-01', items: [{ songId: 'e' }, { songId: 'f' }, { songId: 'a' }] },
+  { id: 'p2', date: '2026-10-25', items: [{ songId: 'g' }] },
+];
+const SL_PEOPLE = [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }, { id: 'rk', name: 'Rob' }];
+
+function SetlistEditGallery() {
+  const edit = (picked) => <SetlistEdit embedded setlist={SL} songs={SL_SONGS} setlists={SL_PAST} people={SL_PEOPLE} nameOf={(u) => SL_NAMES[u] || ''} initialPicked={picked} onSave={noop} onCancel={noop} />;
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {THEMES.map(t => (
+        <Frame key={'ed' + t.id} theme={t.id} width={390} height={844} scale={0.6} label={`Edit · ${t.label}`}>{edit(null)}</Frame>
+      ))}
+      {THEMES.map(t => (
+        <Frame key={'edd' + t.id} theme={t.id} width={1280} height={820} scale={0.5} label={`Edit · desktop, a song picked · ${t.label}`}>{edit(1)}</Frame>
       ))}
     </div>
   );
@@ -827,6 +849,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the run sheet.">
           <SetlistGallery />
+        </Section>
+
+        <Section title="Setlist edit" sub="Leaders only, its own page so nobody drags by accident. Drag by the grip (works with a finger in the installed app) or use Move up/down in a row's sheet. Done saves; Cancel asks before throwing changes away.">
+          <SetlistEditGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">
