@@ -645,6 +645,17 @@ export default function App() {
   }, [songs, setlists, tombstones, activeLibrary, personalCloudId, adoptSyncResult]);
   triggerSyncRef.current = triggerSync;
 
+  // team_schedules points at the server row, so a setlist that has not synced
+  // yet cannot have a band. Push it now and read the row id the push returned,
+  // rather than asking the leader to go and sync first.
+  const ensureSetlistRow = useCallback(async (sl) => {
+    if (!sl?.id || activeLibrary === 'personal') return null;
+    if (teamSetlistMap[sl.id]) return teamSetlistMap[sl.id];
+    await triggerSyncRef.current?.({ silent: true });
+    const state = await getSyncState(activeLibrary);
+    return state?.replica?.rows?.setlist?.[sl.id]?.rowId || state?.setlistManifest?.[sl.id]?.remoteId || null;
+  }, [activeLibrary, teamSetlistMap]);
+
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.
   const handleRemoteChange = useCallback(() => {
@@ -2389,8 +2400,12 @@ export default function App() {
               settings={settings}
               displayName={displayName}
               syncState={syncState}
+              setlists={setlists}
               schedules={schedules}
               updateSchedule={updateSchedule}
+              createSchedule={createSchedule}
+              deleteSchedule={deleteSchedule}
+              ensureRow={ensureSetlistRow}
               setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
               onEditSetlist={isTeamReadOnly ? null : goSetlistBuild}

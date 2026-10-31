@@ -12,6 +12,7 @@ import { toast } from '@/ui/use-toast';
 import ShareSetlistDialog from '@/features/sharing/ShareSetlistDialog';
 import SetlistView from './SetlistView';
 import RunSheet from './RunSheet';
+import BandSection from './BandSection';
 
 // The setlist page's container: works out the order, the band and your row,
 // and owns the ⋯ menu and the run sheet. SetlistView draws it.
@@ -24,7 +25,7 @@ function nameFor(members, uid, myId) {
 const dayLabel = (date, opts) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', opts);
 
 export default function SetlistPage({
-  setlist, songs = [], schedules = [], updateSchedule, setlistMap = {}, settings,
+  setlist, songs = [], setlists = [], schedules = [], updateSchedule, createSchedule, deleteSchedule, ensureRow, setlistMap = {}, settings,
   canEdit = false, onBack, onEdit, onPlay, onMarkReady, onDelete,
   onExportZip, onExportPdfOverview, onExportPdfFull,
 }) {
@@ -115,6 +116,11 @@ export default function SetlistPage({
         onRunSheet={order.rows.length ? () => setRunOpen(true) : null}
         onMenu={() => setMenuOpen(true)}
         onBand={leader ? onEdit : null}
+        bandSlot={leader && team && createSchedule ? (
+          <BandSection setlist={setlist} setlists={setlists} schedules={schedules} setlistMap={setlistMap}
+            team={team} members={members} nameOf={nameOf}
+            createSchedule={createSchedule} deleteSchedule={deleteSchedule} ensureRow={ensureRow} />
+        ) : null}
       />
       <Sheet open={menuOpen} onOpenChange={setMenuOpen} title={setlist.name || 'Setlist'} className="h-auto max-h-[80dvh] sm:max-w-[440px]">
         <div className="-mx-2 flex flex-col">

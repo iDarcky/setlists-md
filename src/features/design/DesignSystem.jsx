@@ -33,6 +33,7 @@ import {
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
+import BandSection from '@/features/setlist/BandSection';
 import { buildOrder } from '@/lib/setlistView';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
@@ -579,6 +580,41 @@ function SetlistEditGallery() {
   );
 }
 
+const BD_MEMBERS = [['jd', 'Joe Doe', ['keys']], ['am', 'Ana M', ['vocals:alto']], ['mv', 'Mara V', ['vocals']], ['el', 'Eli L', ['vocals']],
+  ['sb', 'Sara B', ['vocals']], ['kt', 'Kim T', ['vocals']], ['rk', 'Rob K', ['drums']], ['tp', 'Tim P', ['electric-guitar']], ['ls', 'Lia S', ['bass-guitar']]]
+  .map(([user_id, name, instruments]) => ({ user_id, instruments, profile: { display_name: name } }));
+const BD_SETLISTS = [SL, { id: 'p1', name: 'Sunday Morning', date: '2026-10-25' }, { id: 'p2', name: 'Sunday Morning', date: '2026-10-18' }];
+const BD_SCHEDULES = [
+  ['sl', 'jd', 'keys', 'available'], ['sl', 'am', 'vocals', 'available'], ['sl', 'rk', 'drums', 'available'], ['sl', 'tp', 'electric-guitar', 'pending'],
+  ['p1', 'jd', 'keys'], ['p1', 'am', 'vocals'], ['p1', 'el', 'vocals'], ['p1', 'rk', 'drums'], ['p1', 'tp', 'electric-guitar'], ['p1', 'ls', 'bass-guitar'],
+  ['p2', 'el', 'vocals'],
+].map(([setlist_id, user_id, role, availability = 'available'], i) => ({ id: `bd${i}`, setlist_id, user_id, role, availability }));
+const BD_AVAIL = [['mv', 'available'], ['el', 'available'], ['kt', 'unavailable']].map(([user_id, status]) => ({ user_id, date: SL.date, status }));
+const bdName = (uid) => BD_MEMBERS.find(m => m.user_id === uid)?.profile.display_name || 'Member';
+
+function SetlistBandDemo() {
+  const order = buildOrder(SL, SL_SONGS, (u) => SL_NAMES[u] || '');
+  const slot = (
+    <BandSection setlist={SL} setlists={BD_SETLISTS} schedules={BD_SCHEDULES} setlistMap={{}} team={{ id: 'demo' }} members={BD_MEMBERS}
+      nameOf={bdName} availability={BD_AVAIL} createSchedule={async () => {}} deleteSchedule={async () => {}} ensureRow={async () => 'row'} />
+  );
+  return <SetlistView embedded setlist={SL} order={order} head={SL_HEAD} me={null} band={SL_BAND} leader bandSlot={slot}
+    onBack={noop} onPlay={noop} onEdit={noop} onMarkReady={noop} onAnswer={noop} onRunSheet={noop} onMenu={noop} />;
+}
+
+function SetlistBandGallery() {
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {THEMES.map(t => (
+        <Frame key={'bp' + t.id} theme={t.id} width={390} height={1000} scale={0.6} label={`Band tab · phone · ${t.label}`}><SetlistBandDemo /></Frame>
+      ))}
+      {THEMES.map(t => (
+        <Frame key={'bd' + t.id} theme={t.id} width={1280} height={820} scale={0.5} label={`Band · leader · ${t.label}`}><SetlistBandDemo /></Frame>
+      ))}
+    </div>
+  );
+}
+
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
     ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
@@ -853,6 +889,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Setlist edit" sub="Leaders only, its own page so nobody drags by accident. Drag by the grip (works with a finger in the installed app) or use Move up/down in a row's sheet. Done saves; Cancel asks before throwing changes away.">
           <SetlistEditGallery />
+        </Section>
+
+        <Section title="Setlist band" sub="Leaders: one row per part, starting from the last setlist with the same name. Tap a part to pick who plays it: free that day first, a warning on a third week running. Nobody is asked until Send.">
+          <SetlistBandGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">

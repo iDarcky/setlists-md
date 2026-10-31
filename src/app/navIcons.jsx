@@ -84,3 +84,6 @@ export const ListIcon = ({ size = 18 }) => (
 export const CloseIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="2" {...base}><path d="M6 6l12 12M18 6 6 18" /></svg>
 );
+export const PersonAddIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><path d="M19 8v6M16 11h6" /></svg>
+);

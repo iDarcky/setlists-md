@@ -146,14 +146,14 @@ function Mine({ me, onAnswer }) {
  */
 export default function SetlistView({
   setlist, order, head, me, band = [], leader = false, embedded = false,
-  onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand,
+  onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand, bandSlot = null,
 }) {
   const [tab, setTab] = useState('order');
   const [moment, setMoment] = useState(null);
   const ready = setlist.status === 'ready';
   const tabs = [['order', 'Order', order.songCount ? `${order.songCount} ${order.songCount === 1 ? 'song' : 'songs'} · ${totalLabel(order.totalSeconds, order.estimated)}` : ''], ['band', 'Band', band.length || '']];
   const orderEl = <Order order={order} onOpenRow={(r) => (r.kind === 'moment' ? setMoment(r) : onPlay?.(r.idx))} empty={leader ? 'No songs yet. Tap Edit to add some.' : 'No songs yet.'} />;
-  const bandEl = <Band band={band} leader={leader} onBand={onBand} />;
+  const bandEl = bandSlot || <Band band={band} leader={leader} onBand={onBand} />;
 
   return (
     <div data-slot="setlist-view" className={cn('@container bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
