@@ -52,6 +52,7 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from '@/pdf/exportSetlistPdf';
+import { printSetlist } from '@/pdf/printSetlist';
 import UpdatePrompt from '@/ui/UpdatePrompt';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useTeamRealtime } from '@/hooks/useTeamRealtime';
@@ -2621,7 +2622,7 @@ export default function App() {
               onMarkReady={() => markSetlistReady(currentSetlist)}
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
               onExportZip={() => handleExportSetlist(currentSetlist)}
-              onPrint={(opts) => exportSetlistPdf(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
+              onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
               ensureRow={ensureSetlistRow}
             />
           )}

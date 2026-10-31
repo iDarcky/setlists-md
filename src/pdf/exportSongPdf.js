@@ -155,7 +155,7 @@ export function renderStructureRibbon(structure) {
 // Reused by both single-song and setlist (full charts) PDF exports so the
 // rendered output stays in sync.
 export function buildSongBody(song, transpose, opts = {}) {
-  const { extraSubtitle = '', noteOverride = null, hideArtist = false, hideNotes = false } = opts;
+  const { extraSubtitle = '', noteOverride = null, hideArtist = false } = opts;
   const displayKey = transposeKey(song.key, transpose);
   const transposeNote = transpose !== 0
     ? ` <span class="meta-shift">(orig. ${escapeHtml(song.key)})</span>`
@@ -225,7 +225,7 @@ export function buildSongBody(song, transpose, opts = {}) {
     : '';
 
   const ccliHtml = song.ccli ? `<span class="cover-aux"><strong>CCLI</strong> ${escapeHtml(song.ccli)}</span>` : '';
-  const notesText = hideNotes ? '' : (noteOverride != null ? noteOverride : song.notes);
+  const notesText = noteOverride != null ? noteOverride : song.notes;
   const notesHtml = notesText
     ? `<div class="cover-notes"><strong>Notes</strong> ${escapeHtml(notesText)}</div>`
     : '';

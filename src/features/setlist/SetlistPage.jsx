@@ -98,6 +98,7 @@ export default function SetlistPage({
   const print = (choice) => onPrint?.({
     ...choice,
     nameOf,
+    clock: (t) => formatClockTime(t, fmt),
     band: band.filter(b => b.status !== 'unavailable').map(b => (b.part ? `${b.name} (${b.part})` : b.name)),
     church: team ? { name: team.name, logo: team.logo_url } : null,
   });

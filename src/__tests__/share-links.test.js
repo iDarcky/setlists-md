@@ -17,7 +17,7 @@ vi.mock('@/auth/supabase', () => {
 });
 
 const { shareEndsAt, createSetlistShare, fetchSharedSetlist } = await import('@/lib/setlistShare');
-const { buildSetlistDocument } = await import('@/pdf/exportSetlistPdf');
+const { buildPrintDocument } = await import('@/pdf/printSetlist');
 const { songFromFlat } = await import('@/arrangements');
 
 const H = 3600000;
@@ -94,17 +94,25 @@ describe('the printout', () => {
   const setlist = { name: 'Sunday', items: [{ songId: 'a', leadBy: 'u1', note: 'Soft start' }] };
   const nameOf = () => 'Joe';
   it('names who leads, the notes, the band and the church', () => {
-    const html = buildSetlistDocument(setlist, [song], 'overview', {}, {
+    const html = buildPrintDocument(setlist, [song], {
       nameOf, band: ['Joe (Vocals)', 'Ana (Keys)'], church: { name: 'Grace Church' },
     });
-    expect(html).toContain('Joe leads · Soft start');
-    expect(html).toContain('Band:</strong> Joe (Vocals) · Ana (Keys)');
-    expect(html).toContain('brand-church">Grace Church');
+    expect(html).toContain('Joe leads · 68 bpm · Soft start');
+    expect(html).toContain('Band:</b> Joe (Vocals) · Ana (Keys)');
+    expect(html).toContain('Grace Church · setlists');
+    expect(html).not.toContain('class="sheet"><div class="head"><div><div class="eyebrow" style');
   });
   it('the switches leave them out', () => {
-    const html = buildSetlistDocument(setlist, [song], 'overview', {}, { nameOf, notes: false, leads: false });
+    const html = buildPrintDocument(setlist, [song], { nameOf, notes: false, leads: false });
     expect(html).not.toContain('Joe leads');
     expect(html).not.toContain('Soft start');
-    expect(html).not.toContain('class="band-line"');
+    expect(html).not.toContain('Band:');
+  });
+  it('Charts adds a page per song, in the key it is played in', () => {
+    const s = songFromFlat({ id: 'a', title: 'Way Maker', key: 'E', sections: [{ type: 'Verse 1', lines: ['[E]Way [B]maker'] }] });
+    const html = buildPrintDocument({ name: 'Sunday', items: [{ songId: 'a', transpose: 2 }] }, [s], { mode: 'full' });
+    expect(html).toContain('1 of 1 · Sunday');
+    expect(html).toContain('<div class="kk">Gb');
+    expect(html).toContain('>Db</span>');
   });
 });
