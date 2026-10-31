@@ -49,6 +49,10 @@ import { buildOrder } from '@/lib/setlistView';
 import { ShareBody } from '@/features/sharing/ShareSheet';
 import GuestView from '@/features/sharing/GuestView';
 import { PrintBody } from '@/features/setlist/PrintSheet';
+import TeamPage, { InviteCard, UsageEntry, Waiting } from '@/features/team/TeamPage';
+import { PersonBody, ChurchBody } from '@/features/team/TeamSheets';
+import SongUsage, { SongPlays } from '@/features/team/SongUsage';
+import { songUsage } from '@/lib/songUsage';
 
 const LydianShowcase = lazy(() => import('./LydianShowcase'));
 
@@ -788,6 +792,67 @@ function ShareGallery() {
   );
 }
 
+// ── Team, church and song usage ─────────────────────────────────────────────
+
+const T_TEAM = { id: 'demo', name: 'Grace Church', location: 'Cluj-Napoca', owner_id: 'dm', address: 'Strada Lalelelor 12, Cluj-Napoca', website: 'gracechurch.ro', ccli_licence: '1234567' };
+const T_MEMBERS = [
+  { id: 'm1', user_id: 'dm', role: 'admin', instruments: ['acoustic-guitar', 'vocals'], profile: { display_name: 'Daniel M.' }, joined_at: '2025-09-01' },
+  { id: 'm2', user_id: 'an', role: 'leader', instruments: ['vocals', 'keys'], profile: { display_name: 'Ana P.' } },
+  { id: 'm3', user_id: 'mi', role: 'editor', instruments: ['keys'], profile: { display_name: 'Mia R.' } },
+  { id: 'm4', user_id: 'jo', role: 'member', instruments: ['electric-guitar'], profile: { display_name: 'Joe T.' }, joined_at: '2026-03-02' },
+  { id: 'm5', user_id: 'to', role: 'member', instruments: ['drums'], profile: { display_name: 'Tom B.' } },
+  { id: 'm6', user_id: 'li', role: 'member', instruments: ['bass'], profile: { display_name: 'Lia S.' } },
+];
+const T_WAITING = [
+  { id: 'r1', display_name: 'Radu A.', parts: ['bass', 'vocals'], created_at: hAgo(2) },
+  { id: 'r2', display_name: 'Ioana S.', parts: ['vocals'], created_at: hAgo(26) },
+];
+const T_TITLES = ['Goodness of God', 'Way Maker', 'Build My Life', 'Living Hope', 'Amazing Grace', 'Holy Forever', 'King of Kings'];
+const T_KEYS = ['A', 'E', 'D', 'C', 'G', 'Bb', 'D'];
+const T_SONGS = T_TITLES.map((title, i) => ({ id: `t${i}`, title, arrangements: [{ id: 'a', key: T_KEYS[i], sections: [] }], defaultArrangementId: 'a' }));
+const T_SETLISTS = [
+  ['2026-10-25', 'an', 'Sunday Morning', [0, 1, 2]], ['2026-10-23', 'dm', 'Youth', [1, 3, 6]], ['2026-10-18', 'an', 'Sunday Morning', [0, 2, 4]],
+  ['2026-10-11', 'dm', 'Sunday Morning', [0, 1, 3]], ['2026-10-04', 'an', 'Sunday Morning', [0, 2, 5]], ['2026-09-27', 'dm', 'Sunday Morning', [1, 4, 5]],
+  ['2026-09-20', 'an', 'Sunday Morning', [0, 2, 3]], ['2026-09-13', 'dm', 'Sunday Morning', [1, 4, 6]], ['2026-09-06', 'an', 'Sunday Morning', [0, 1, 2]],
+].map(([date, createdBy, service, idx], n) => ({ id: `u${n}`, name: service, service, date, createdBy, items: idx.map(i => ({ songId: `t${i}` })) }));
+const T_TODAY = new Date('2026-10-31T12:00:00');
+const tName = (id) => ({ dm: 'Daniel', an: 'Ana' })[id] || '';
+const T_INVITE = <InviteCard teamName="Grace Church" url="https://setlists.md/join/gc-k7Qm2x" onToggle={noop} onReset={noop} />;
+
+function TeamGallery() {
+  const usage = songUsage(T_SETLISTS, T_SONGS, { range: '3m', today: T_TODAY });
+  const page = (leader, extra = {}) => (
+    <TeamPage team={T_TEAM} members={T_MEMBERS} meId={leader ? 'dm' : 'jo'} isOwner={leader} services={['Sunday Morning', 'Youth']}
+      onBack={noop} onEditChurch={noop} onOpenPerson={noop}
+      waiting={leader ? <Waiting requests={T_WAITING} onApprove={noop} onDecline={noop} onApproveAll={noop} /> : null}
+      usage={leader ? <UsageEntry summary="Most played lately: Goodness of God · 7 songs in 3 months" onOpen={noop} /> : null}
+      invite={leader ? T_INVITE : null} {...extra} />
+  );
+  const phones = [
+    ['Team · member', 1120, page(false)],
+    ['Team · leader', 1500, page(true)],
+    ['Person', 1000, <DrawerFrame key="p" title="Joe T."><PersonBody member={T_MEMBERS[3]} since="In Grace Church since March 2026" canManage canMakeAdmin
+      upcoming={[{ id: 1, label: 'Sun 1 Nov', name: 'Sunday Morning', answer: 'available' }, { id: 2, label: 'Fri 6 Nov', name: 'Youth', answer: 'pending' }]} onRole={noop} onRemove={noop} /></DrawerFrame>],
+    ['Church info', 1000, <DrawerFrame key="c" title="Church info"><ChurchBody team={T_TEAM} onSave={noop} onLogo={noop} /></DrawerFrame>],
+    ['Song usage', 1120, <SongUsage key="u" setlists={T_SETLISTS} songs={T_SONGS} nameOf={tName} onBack={noop} today={T_TODAY} />],
+    ['Song usage · Services', 1120, <SongUsage key="s" initialTab="services" setlists={T_SETLISTS} songs={T_SONGS} nameOf={tName} onBack={noop} today={T_TODAY} />],
+    ['A song', 900, <DrawerFrame key="g" title="Goodness of God"><SongPlays row={usage.songs[0]} range="3m" nameOf={tName} onOpenSong={noop} /></DrawerFrame>],
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start gap-6">
+        {phones.map(([label, h, el]) => THEMES.map(t => (
+          <Frame key={label + t.id} theme={t.id} width={390} height={h} scale={0.6} label={`${label} · ${t.label}`}>{el}</Frame>
+        )))}
+      </div>
+      <div className="flex flex-wrap items-start gap-6">
+        {THEMES.map(t => <Frame key={`td${t.id}`} theme={t.id} width={1280} height={900} scale={0.5} label={`Team · desktop · ${t.label}`}>{page(true)}</Frame>)}
+        {THEMES.map(t => <Frame key={`ud${t.id}`} theme={t.id} width={1280} height={800} scale={0.5} label={`Song usage · desktop · ${t.label}`}><SongUsage setlists={T_SETLISTS} songs={T_SONGS} nameOf={tName} onBack={noop} today={T_TODAY} /></Frame>)}
+      </div>
+    </div>
+  );
+}
+
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
     ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
@@ -1082,6 +1147,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Share and print" sub="A guest link is live and ends 3 hours after the service: guests see the order and every chart (chords or lyrics), never the band. Print is for the band: an order sheet or every chart, with the band, the church and a small Setlists.md at the bottom.">
           <ShareGallery />
+        </Section>
+
+        <Section title="Team, church and song usage" sub="Everyone sees the church and everyone in it, by role. Leaders also see who is waiting to join, Song usage and the invite link. Only the owner edits the church info.">
+          <TeamGallery />
         </Section>
 
         <Section title="Settings" sub="Three groups: this device, the church (leaders only) and the app. Profile and About open from You. Every row opens its own page.">
