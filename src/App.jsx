@@ -97,7 +97,7 @@ async function maybeWarnQuota(warnedRef) {
 }
 
 // Lazy-loaded: heavy secondary views not needed on initial render
-const SongHub = lazy(() => import('@/features/song/SongHub'));
+const Song = lazy(() => import('@/features/song/Song'));
 const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
 const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
@@ -2533,13 +2533,15 @@ export default function App() {
           )}
           {view === 'song-hub' && currentSong && (
             <ErrorBoundary>
-            <SongHub
+            <Song
+              key={currentSong.id}
               song={currentSong}
+              setlists={setlists}
+              onOpenSetlist={goSetlistView}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               onDelete={!isTeamReadOnly ? () => handleDeleteSong(currentSong.id) : null}
-              addedBy={displayName}
               onUpdateSong={isTeamReadOnly ? null : (updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? updated : s));
                 setCurrentSong(prev => (prev?.id === updated.id ? updated : prev));
