@@ -20,6 +20,7 @@ import HomeView from '@/features/home/HomeView';
 import ScheduleView from '@/features/schedule/ScheduleView';
 import SongsView from '@/features/songs/SongsView';
 import Song from '@/features/song/Song';
+import SongEdit from '@/features/song-edit/SongEdit';
 import { playStats, nextSetlistSongs, playLine, sortSongs, filterSongs, filterOptions, songKey, NO_FILTERS } from '@/lib/songsData';
 import AvailabilitySheet from '@/features/schedule/AvailabilitySheet';
 import BandView from '@/features/schedule/BandView';
@@ -445,6 +446,21 @@ function SongDemo({ leader = true, ...props }) {
       onBack={noop} onEdit={leader ? noop : null} onPlay={noop} onDelete={leader ? noop : null}
       onUpdateSong={leader ? setSong : null} onOpenSetlist={noop} {...props}
     />
+  );
+}
+
+function SongEditGallery() {
+  return (
+    <div className="flex flex-wrap gap-6">
+      {THEMES.map(t => (
+        <Frame key={t.id} theme={t.id} width={390} height={900} scale={0.6} label={`Phone · ${t.label}`}>
+          <SongEdit embedded layout="phone" song={AG} onSave={noop} onBack={noop} />
+        </Frame>
+      ))}
+      <Frame theme="dark" width={1280} height={800} scale={0.55} label="Desktop · Dark">
+        <SongEdit embedded layout="desk" song={AG} onSave={noop} onBack={noop} />
+      </Frame>
+    </div>
   );
 }
 
@@ -1042,6 +1058,10 @@ export default function DesignSystem({ onBack }) {
 
         <Section title="Song" sub="Details first: Key and arrangement in small popovers, the numbers, one ink Open chart. Then how often you play it, the next service, Listen (YouTube’s own player, kept visible), how it goes, credits. Tap around: these are the real screens.">
           <SongGallery />
+        </Section>
+
+        <Section title="Edit song" sub="Two tabs: Chart is the chart itself, tap a line to change words or chords (the song's chords sit under it, with Cue, Note, Key, Tab and Text). Info is the form. From 1024px both sit side by side.">
+          <SongEditGallery />
         </Section>
 
         <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the run sheet.">

@@ -98,6 +98,7 @@ async function maybeWarnQuota(warnedRef) {
 
 // Lazy-loaded: heavy secondary views not needed on initial render
 const Song = lazy(() => import('@/features/song/Song'));
+const SongEdit = lazy(() => import('@/features/song-edit/SongEdit'));
 const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
 const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
@@ -247,6 +248,8 @@ export default function App() {
   // Arrangement to open in the editor (the one the user was viewing). Reset
   // whenever we enter the editor unless an explicit id is passed.
   const [editArrangementId, setEditArrangementId] = useState(null);
+  // The song the user asked to open in the old editor instead (Info → "Open the old editor").
+  const [oldEditorFor, setOldEditorFor] = useState(null);
   const [editNewTitle, setEditNewTitle] = useState('');
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
@@ -2566,7 +2569,21 @@ export default function App() {
             />
             </ErrorBoundary>
           )}
-          {view === 'editor' && (
+          {/* An existing song opens the new editor (canvas → "Song, edit and chart");
+              new, imported and pasted songs still go through the old one, which
+              has the paste and import tools. "Open the old editor" switches. */}
+          {view === 'editor' && currentSong?.arrangements?.length > 0 && !importQueue && oldEditorFor !== currentSong.id && (
+            <SongEdit
+              key={currentSong.id}
+              song={currentSong}
+              initialArrangementId={editArrangementId}
+              onSave={handleSaveSong}
+              onBack={goBack}
+              onDirtyChange={markEditorDirty}
+              onOldEditor={() => setOldEditorFor(currentSong.id)}
+            />
+          )}
+          {view === 'editor' && !(currentSong?.arrangements?.length > 0 && !importQueue && oldEditorFor !== currentSong.id) && (
             <Editor
               key={currentSong?.id || `new:${editNewTitle}`}
               song={currentSong}
