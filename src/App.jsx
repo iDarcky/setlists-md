@@ -1314,6 +1314,23 @@ export default function App() {
     navigate('editor', { song, arrangementId, newTitle });
   };
   const [newSetlistOpen, setNewSetlistOpen] = useState(false);
+  // What the new editor (SongEdit) edits. It only speaks the v2 shape, so a
+  // blank new song and an imported one (both flat, maybe without an id) are
+  // wrapped here, once per editor visit — SongEdit's dirty check is identity.
+  const editTarget = useMemo(() => {
+    if (view !== 'editor') return null;
+    if (currentSong?.arrangements?.length > 0) {
+      return { song: currentSong, mode: songs.some(s => s.id === currentSong.id) ? 'edit' : 'import' };
+    }
+    const mode = !currentSong ? 'new' : songs.some(s => s.id === currentSong.id) ? 'edit' : 'import';
+    const flat = currentSong || {};
+    const song = songFromFlat({ ...flat, id: flat.id || generateId() });
+    if (!currentSong) { song.title = editNewTitle || ''; song.artist = ''; song.arrangements[0].name = 'Main'; }
+    return { song, mode };
+    // `songs` is read once per visit on purpose: saving adds the song to the
+    // library, and a rebuilt target would reset the form under the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, currentSong, editNewTitle]);
   const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
     // Warn before editing a setlist whose date has already passed — editing it
@@ -2576,18 +2593,19 @@ export default function App() {
           {/* An existing song opens the new editor (canvas → "Song, edit and chart");
               new, imported and pasted songs still go through the old one, which
               has the paste and import tools. "Open the old editor" switches. */}
-          {view === 'editor' && currentSong?.arrangements?.length > 0 && !importQueue && oldEditorFor !== currentSong.id && (
+          {view === 'editor' && editTarget && !importQueue && oldEditorFor !== editTarget.song.id && (
             <SongEdit
-              key={currentSong.id}
-              song={currentSong}
+              key={editTarget.song.id}
+              song={editTarget.song}
+              mode={editTarget.mode}
               initialArrangementId={editArrangementId}
               onSave={handleSaveSong}
               onBack={goBack}
               onDirtyChange={markEditorDirty}
-              onOldEditor={() => setOldEditorFor(currentSong.id)}
+              onOldEditor={() => setOldEditorFor(editTarget.song.id)}
             />
           )}
-          {view === 'editor' && !(currentSong?.arrangements?.length > 0 && !importQueue && oldEditorFor !== currentSong.id) && (
+          {view === 'editor' && !(editTarget && !importQueue && oldEditorFor !== editTarget.song.id) && (
             <Editor
               key={currentSong?.id || `new:${editNewTitle}`}
               song={currentSong}
