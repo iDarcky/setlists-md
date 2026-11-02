@@ -135,40 +135,23 @@ function TapLine({ line, id, picked, onPick }) {
   );
 }
 
-const ROOTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-const KINDS = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2', 'add9', 'dim', 'aug'];
 const chip = 'flex h-10 min-h-0 min-w-12 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 px-2.5 font-mono text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring';
-const pickBtn = 'flex h-9 min-h-0 min-w-10 cursor-pointer items-center justify-center rounded-[7px] border-0 bg-raised px-2 font-mono text-[13px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
-
-/** The word a letter belongs to, for the bar's "Put a chord on “saved”". */
-function wordAt(text, pos) {
-  if (!text.trim()) return null;
-  let a = Math.min(pos, text.length - 1), b = a;
-  if (/\s/.test(text[a] || ' ')) return null;
-  while (a > 0 && !/\s/.test(text[a - 1])) a--;
-  while (b < text.length && !/\s/.test(text[b])) b++;
-  return text.slice(a, b).replace(/^[^\p{L}\p{N}']+|[^\p{L}\p{N}']+$/gu, '') || null;
-}
 
 /**
  * The old editor's chord bar, drawn new. On a phone it sits at the bottom
  * with no keyboard (chips, not typing); on a computer it opens at the letter
- * with the typing box ready ("D/F#", Enter). The key's chords keep their
+ * with the typing box ready ("D/F#", Enter). Chips, a box, Remove, close. The key's chords keep their
  * order; this song's own chords follow at the end. It stays open, so the
  * next letter is one tap away.
  */
 function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClose }) {
-  const { plainText, chords } = lineToPlacement(extractInlineNotes(line).clean);
+  const { chords } = lineToPlacement(extractInlineNotes(line).clean);
   const current = chords.find(c => c.pos === pos)?.chord || null;
-  const word = wordAt(plainText, pos);
   const [typed, setTyped] = useState('');
-  const [more, setMore] = useState(false);
-  const [root, setRoot] = useState(null);
-  const [acc, setAcc] = useState('');
   const ref = useRef(null);
   const [at, setAt] = useState(null);
   const bad = typed.trim() && !isChordToken(typed.trim());
-  const put = (c) => { onPut(c); setTyped(''); setRoot(null); setAcc(''); };
+  const put = (c) => { onPut(c); setTyped(''); };
 
   // The popover follows its letter (the chart scrolls, a new chord reflows the line).
   useEffect(() => {
@@ -186,13 +169,13 @@ function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClos
     window.addEventListener('scroll', place, true);
     window.addEventListener('resize', place);
     return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
-  }, [popover, lineId, pos, line, more]);
-  // Docked, the bar grows when More opens: keep the letter in sight above it.
+  }, [popover, lineId, pos, line]);
+  // Docked, the bar covers the bottom of the chart: keep the letter in sight above it.
   useEffect(() => {
     if (popover) return undefined;
     const id = requestAnimationFrame(() => document.querySelector(`[data-line="${lineId}"]`)?.scrollIntoView({ block: 'nearest' }));
     return () => cancelAnimationFrame(id);
-  }, [popover, lineId, more]);
+  }, [popover, lineId]);
   // A click outside the bar and the chart's letters closes it; Escape too.
   useEffect(() => {
     const down = (e) => { if (!ref.current?.contains(e.target) && !e.target.closest?.('[data-line]')) onClose(); };
@@ -207,11 +190,6 @@ function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClos
       style={popover ? { position: 'fixed', left: at?.left ?? -9999, top: at?.top ?? -9999 } : undefined}
       className={cn('z-30 flex flex-col gap-2.5 bg-card p-3',
         popover ? 'w-[384px] rounded-card border border-border shadow-[0_12px_32px_rgba(0,0,0,.35)]' : 'shrink-0 border-t border-border pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,.18)]')}>
-      <div className="flex min-h-8 items-center gap-2 text-[13px] text-muted-foreground">
-        <span className="min-w-0 flex-1 truncate">{current ? 'Chord on' : 'Put a chord on'} {word ? <b className="font-semibold text-foreground">“{word}”</b> : (pos >= plainText.length ? 'the end of the line' : 'this spot')}</span>
-        {current && <button type="button" onClick={() => put(null)} className="h-8 min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 font-sans text-[13px] font-semibold text-danger-text outline-none focus-visible:ring-2 focus-visible:ring-ring">Remove</button>}
-        <button type="button" aria-label="Close the chord bar" onClick={onClose} className={cn(iconBtn, 'size-8')}><Svg size={16}><path d="M18 6 6 18M6 6l12 12" /></Svg></button>
-      </div>
       <div className="flex flex-wrap gap-1.5">
         {palette.map(c => {
           const own = !diatonic.includes(c);
@@ -225,25 +203,9 @@ function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClos
         <Input autoFocus={popover} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type a chord…" aria-label="Type a chord" aria-invalid={!!bad}
           autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="done"
           className={cn('h-10 flex-1 font-mono', bad && 'border-danger-text')} />
-        <Button type="button" variant={more ? 'default' : 'outline'} className="h-10" onClick={() => setMore(m => !m)} aria-expanded={more}>More chords</Button>
+        {current && <Button type="button" variant="ghost" className="h-10 text-danger-text hover:text-danger-text" onClick={() => put(null)}>Remove {current}</Button>}
+        <button type="button" aria-label="Close the chord bar" onClick={onClose} className={cn(iconBtn, 'size-10')}><Svg size={16}><path d="M18 6 6 18M6 6l12 12" /></Svg></button>
       </form>
-      {more && (
-        <div className="flex flex-col gap-2">
-          <span className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted-foreground">Root</span>
-          <div className="flex flex-wrap gap-1.5">
-            {ROOTS.map(r => <button key={r} type="button" aria-pressed={root === r} onClick={() => setRoot(r)} className={cn(pickBtn, root === r && 'bg-[var(--chord)] text-background')}>{r}</button>)}
-            {['#', 'b'].map(a => <button key={a} type="button" aria-pressed={acc === a} aria-label={a === '#' ? 'Sharp' : 'Flat'} onClick={() => setAcc(v => (v === a ? '' : a))} className={cn(pickBtn, acc === a && 'bg-[var(--chord)] text-background')}>{a === '#' ? '♯' : '♭'}</button>)}
-          </div>
-          <span className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted-foreground">Type</span>
-          <div className="flex flex-wrap gap-1.5">
-            {KINDS.map(k => <button key={k || 'maj'} type="button" disabled={!root} onClick={() => put(root + acc + k)} className={cn(pickBtn, 'disabled:cursor-default disabled:opacity-40')}>{root ? root + acc + k : k || 'maj'}</button>)}
-          </div>
-          <span className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted-foreground">Bass note</span>
-          <div className="flex flex-wrap gap-1.5">
-            {ROOTS.map(r => <button key={r} type="button" disabled={!root} onClick={() => put(`${root}${acc}/${r}`)} className={cn(pickBtn, 'disabled:cursor-default disabled:opacity-40')}>{root ? `${root}${acc}/${r}` : `/${r}`}</button>)}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -877,6 +839,7 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   // is just "the song": no chip until there is a choice to make.
   const arrChip = (
     <ArrangementChip arrangements={arrangements} current={arr.id}
+      onRename={(name) => onArr({ ...arr, name })}
       onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
       onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song); setArrId(r.arrangementId); } : null} />
   );
