@@ -330,7 +330,7 @@ function InfoForm({ song, arr, onSong, onArr, onOldEditor }) {
   const shown = new Set(['writers', 'copyright', 'themes']);
   return (
     <div className="flex flex-col gap-3.5">
-      <Field label="Title"><Input {...f('title')} /></Field>
+      <Field label="Title"><Input {...f('title')} placeholder="Song name" autoFocus={!song.title} /></Field>
       <Field label="Artist or writer"><Input {...f('artist')} /></Field>
       <h3 className={grp}>{arr.name || 'This arrangement'}</h3>
       <div className="grid grid-cols-4 gap-2">
@@ -372,16 +372,22 @@ function InfoForm({ song, arr, onSong, onArr, onOldEditor }) {
  * @param {object} p
  * @param {object} p.song  the v2 song (with arrangements)
  */
-export default function SongEdit({ song, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+// mode: 'edit' (a song in the library) · 'new' (blank, from + New song) ·
+// 'import' (parsed from a file or paste, not saved yet). A new or imported song
+// can be saved untouched; an edit only once something changed.
+export default function SongEdit({ song, mode = 'edit', initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
   const [working, setWorking] = useState(song);
   const [arrId, setArrId] = useState(() => (song.arrangements?.some(a => a.id === initialArrangementId) ? initialArrangementId : song.defaultArrangementId || song.arrangements?.[0]?.id));
-  const [tab, setTab] = useState('chart');
+  // A blank song needs its name first; everything else opens on the chart.
+  const [tab, setTab] = useState(mode === 'new' ? 'info' : 'chart');
   const [editing, setEditing] = useState(null); // { sec, line }
   const [saving, setSaving] = useState(false);
   const dirty = working !== song;
+  const fresh = mode !== 'edit';
+  const canSave = fresh ? !!working.title?.trim() : dirty;
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
 
   const arr = getArrangement(working, arrId) || working.arrangements[0];
@@ -392,14 +398,14 @@ export default function SongEdit({ song, initialArrangementId, onSave, onBack, o
   const arrangements = working.arrangements.map(a => ({ id: a.id, name: a.name || 'Untitled arrangement', key: a.key, tempo: a.tempo, capo: a.capo, isDefault: a.id === working.defaultArrangementId }));
 
   const cancel = async () => {
-    if (dirty && !(await confirm({ title: 'Leave without saving?', description: 'Your changes to this song will be lost.', confirmLabel: 'Leave', variant: 'danger' }))) return;
+    if ((dirty || mode === 'import') && !(await confirm({ title: 'Leave without saving?', description: fresh ? 'This song won’t be added.' : 'Your changes to this song will be lost.', confirmLabel: 'Leave', variant: 'danger' }))) return;
     onDirtyChange?.(false);
     onBack?.();
   };
   const save = async () => {
     setSaving(true);
     try {
-      const ok = await onSave?.({ ...working, updatedAt: Date.now() });
+      const ok = await onSave?.({ ...working, title: working.title.trim(), updatedAt: Date.now() });
       if (ok !== false) onDirtyChange?.(false);
     } finally { setSaving(false); }
   };
@@ -422,10 +428,10 @@ export default function SongEdit({ song, initialArrangementId, onSave, onBack, o
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border px-3">
         <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
         <div className="flex min-w-0 flex-1 flex-col items-center leading-tight">
-          <b className="text-[15px] font-semibold">Edit song</b>
+          <b className="text-[15px] font-semibold">{mode === 'new' ? 'New song' : mode === 'import' ? 'Check and save' : 'Edit song'}</b>
           <span className="max-w-full truncate text-[12px] text-muted-foreground">{working.title || 'Untitled'}</span>
         </div>
-        <Button size="sm" onClick={save} disabled={!dirty} loading={saving}>Save</Button>
+        <Button size="sm" onClick={save} disabled={!canSave} loading={saving}>{fresh ? 'Add' : 'Save'}</Button>
       </div>
       <div className={cn('mx-auto flex w-full shrink-0 items-center gap-2 py-2.5', wide ? 'max-w-[1180px] px-6' : 'max-w-[680px] px-4')}>
         {!wide && (
