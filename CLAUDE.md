@@ -662,6 +662,11 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   (SYNC-REDESIGN §6 #2). ⚠ Write new policies with `(select auth.uid())`,
   never bare `auth.uid()`.
 
+- `20261031_church_info.sql` — `teams.address`, `teams.website`,
+  `teams.ccli_licence` (all nullable, length-checked) for the Team page's
+  church card. Owner-only edit through the existing "Owner can update team"
+  policy. The client hides those three fields' edits until the columns exist.
+
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).
 

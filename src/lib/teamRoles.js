@@ -27,7 +27,7 @@ export const TEAM_ROLES = [
   {
     id: 'admin',
     label: 'Admin',
-    blurb: 'Runs the Space — people, settings and the library.',
+    blurb: 'A leader who can also change roles and remove people.',
     canWriteLibrary: true,
     canPlanServices: true,
     canManageMembers: true,
@@ -36,7 +36,7 @@ export const TEAM_ROLES = [
   {
     id: 'leader',
     label: 'Leader',
-    blurb: 'Plans and leads services, and can change songs.',
+    blurb: 'Plans services, picks the band, lets people in.',
     // Read-only until 2026-08-07. The role that PLANS a service could not fix a
     // chord in it, which is what forced "ask an admin to write it for me".
     // Measured: 2 of the 20 real people hold it, both worship leaders in a
@@ -49,13 +49,13 @@ export const TEAM_ROLES = [
     canApproveJoins: true,
   },
   {
-    // ⚠ The STORED value stays `editor` — renaming the label is free, renaming
-    // a value in a column that RLS reads is not. "Editor" collided with *the
-    // editor*, the screen, so "give them the editor role so they can use the
-    // editor" taught nobody anything.
+    // ⚠ The STORED value is `editor` — renaming a label is free, renaming a
+    // value in a column that RLS reads is not. It was labelled "Contributor"
+    // for a while; the Team page redesign (2026-10-31) went back to "Editor",
+    // the word the user uses for "a volunteer who edits but doesn't lead".
     id: 'editor',
-    label: 'Contributor',
-    blurb: 'Keeps the song library right. Does not run services.',
+    label: 'Editor',
+    blurb: 'Edits songs and setlists. Can’t pick the band or let people in.',
     canWriteLibrary: true,
     canPlanServices: false,
     canManageMembers: false,
@@ -64,7 +64,7 @@ export const TEAM_ROLES = [
   {
     id: 'member',
     label: 'Member',
-    blurb: 'Reads the charts and sets their own availability.',
+    blurb: 'Sees everything, answers when asked to play.',
     canWriteLibrary: false,
     canPlanServices: false,
     canManageMembers: false,
