@@ -162,27 +162,62 @@ export function setChordAt(value, pos, chord) {
 }
 
 /** The song as its .md file, one arrangement: what the Markdown editor shows. */
-export const songMarkdown = (song, arrId) => songToMd(song, getArrangement(song, arrId));
+// Lines of the .md that belong to the app, not to the writer: identity the
+// sync engine relies on. Never shown, and never taken back from the text.
+const HIDDEN_FRONT = /^(id|songid|arrangementid|arrangementname)\s*:/i;
+const frontLines = (md) => {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(md || '');
+  return m ? m[1].split(/\r?\n/) : [];
+};
+
+/** The song as its .md file, one arrangement: what the Markdown editor shows (no ids). */
+export function songMarkdown(song, arrId) {
+  const md = songToMd(song, getArrangement(song, arrId));
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(md);
+  if (!m) return md;
+  const kept = m[1].split(/\r?\n/).filter(l => !HIDDEN_FRONT.test(l)).join('\n');
+  return `---\n${kept}\n---${md.slice(m[0].length)}`;
+}
+
+export const MARKDOWN_MAX = 100000;
+const FIELD_MAX = { title: 120, artist: 120, ccli: 20, spotify: 300, youtube: 300, story: 1000 };
+// Control characters (not tab or newline) never belong in a song.
+// eslint-disable-next-line no-control-regex
+const clean = (v, max = 300) => (typeof v === 'string' ? v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, max) : v);
+const safeLink = (v) => {
+  const t = clean(v || '', 300).trim();
+  return !t || /^https?:\/\/[^\s<>"']+$/i.test(t) ? t : '';
+};
 
 /**
  * The Markdown editor's text back onto the song: that arrangement's content
- * and the song-level fields its frontmatter carries (the same patch the old
- * editor made on save).
+ * and the song-level fields its frontmatter carries. Only the fields that are
+ * written in the text change: a line taken out keeps the song's value (the
+ * parser's defaults, "Unknown" artist and key C, must never land on a song).
+ * Ids in the text are ignored; links must be http(s); lengths are capped.
  */
 export function applyMarkdown(song, arrId, md) {
-  const p = parseSongMd(md);
+  const text = clean(String(md || ''), MARKDOWN_MAX);
+  const has = new Set(frontLines(text).map(l => (/^([A-Za-z][\w-]*)\s*:/.exec(l) || [])[1]?.toLowerCase()).filter(Boolean));
+  const p = parseSongMd(text);
+  const pick = (k, cur) => (has.has(k) ? p[k] : cur);
   const next = withArrangement(song, arrId, (a) => ({
     ...a,
-    key: p.key, tempo: p.tempo, time: p.time, capo: p.capo, notes: p.notes,
-    structure: Array.isArray(p.structure) ? p.structure : a.structure,
-    structureMode: p.structureMode || 'auto',
-    sections: Array.isArray(p.sections) ? p.sections : a.sections,
+    key: has.has('key') ? (clean(p.key, 8) || a.key) : a.key,
+    tempo: pick('tempo', a.tempo), time: has.has('time') ? clean(p.time, 8) : a.time,
+    capo: pick('capo', a.capo), notes: has.has('notes') ? clean(p.notes, 1000) : a.notes,
+    structure: has.has('structure') && Array.isArray(p.structure) ? p.structure : a.structure,
+    structureMode: has.has('structure') ? (p.structureMode || 'auto') : a.structureMode,
+    sections: Array.isArray(p.sections) ? p.sections.map(sc => ({ ...sc, type: clean(sc.type, 60), lines: (sc.lines || []).map(l => (typeof l === 'string' ? clean(l, 1000) : l)) })) : a.sections,
     tabLibrary: Array.isArray(p.tabLibrary) ? p.tabLibrary : a.tabLibrary,
   }));
-  next.title = p.title || next.title;
-  next.artist = p.artist || next.artist;
+  if (has.has('title') && clean(p.title, FIELD_MAX.title).trim()) next.title = clean(p.title, FIELD_MAX.title);
+  if (has.has('artist')) next.artist = clean(p.artist, FIELD_MAX.artist);
   for (const k of ['ccli', 'tags', 'spotify', 'youtube', ...EXTRA_META_KEYS]) {
-    if (p[k] !== undefined) next[k] = p[k];
+    if (!has.has(k) || p[k] === undefined) continue;
+    if (k === 'spotify' || k === 'youtube') next[k] = safeLink(p[k]);
+    else if (Array.isArray(p[k])) next[k] = p[k].slice(0, 30).map(v => clean(String(v), 60));
+    else next[k] = clean(p[k], FIELD_MAX[k] || 300);
   }
   return next;
 }
@@ -270,3 +305,12 @@ export function lineRuns(lines) {
 
 /** The reverse of lineRuns. An empty run adds nothing. */
 export const runsToLines = (runs) => runs.flatMap(r => (r.lines ? r.lines : [r.obj]));
+
+/** A line with its inline notes ({!…}) replaced by `notes`; chords untouched. */
+export function setLineNotes(line, notes) {
+  const { clean } = extractInlineNotes(line);
+  const keep = notes.map(n => String(n).replace(/[{}]/g, '').trim()).filter(Boolean);
+  if (!keep.length) return clean;
+  const tail = keep.map(n => `{!${n}}`).join(' ');
+  return !clean ? tail : /\s$/.test(clean) ? clean + tail : `${clean} ${tail}`;
+}

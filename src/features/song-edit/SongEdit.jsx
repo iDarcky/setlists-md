@@ -6,18 +6,20 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getArrangement, withArrangement, addArrangement, resolveSongView } from '@/arrangements';
-import { parseLine, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
+import { parseLine, parseTabBlock, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
 import { compactLabel, keyOptions, sectionStyle, getDiatonicChords } from '@/music';
 import { isChordToken } from '@/importer';
+import TabGridEditor from '@/features/editor/TabGridEditorV2';
+import { TAB_INSTRUMENTS, instrumentForStrings } from '@/data/tabInstruments';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { inferSections } from '@/lib/detectSections';
 import {
-  playOrder, withOrder, move, renameSection, deleteSection, addSection, setLines, setSection,
+  playOrder, withOrder, move, renameSection, newSectionName, deleteSection, addSection, setLines, setSection,
   chordPalette, sectionToText, textToLines, SECTION_TYPES,
   arrangementToText, textToSections, blocksToSections, setChordAt, songMarkdown, applyMarkdown,
-  linesToWords, remapWords, wordsToLines, lineRuns, runsToLines,
+  linesToWords, remapWords, wordsToLines, lineRuns, runsToLines, setLineNotes,
 } from '@/lib/songEdit';
-import { ArrangementChip, MoreIcon } from '@/features/song/SongView';
+import { MoreIcon } from '@/features/song/SongView';
 
 // The preview is the real Reader, so it draws exactly what the band will see.
 const Reader = lazy(() => import('@/features/reader/Reader'));
@@ -90,7 +92,7 @@ function LineView({ line }) {
  * bar opens for that spot (a chord already there is picked with it). Drawn
  * the way the chart draws it, chords over their words.
  */
-function TapLine({ line, id, picked, onPick }) {
+function TapLine({ line, id, picked, onPick, onNote }) {
   const { clean, notes } = extractInlineNotes(line);
   const parts = parseLine(clean);
   const { plainText, chords } = lineToPlacement(clean);
@@ -98,6 +100,8 @@ function TapLine({ line, id, picked, onPick }) {
   const chordOnly = chords.length > 0 && !plainText.trim();
   const cols = parts.reduce((acc, p) => [...acc, { ...p, start: acc.length ? acc[acc.length - 1].start + acc[acc.length - 1].text.length : 0 }], []);
   const pick = (e) => {
+    const note = e.target.closest('[data-note]');
+    if (note) { onNote?.(note.dataset.note === 'new' ? null : Number(note.dataset.note)); return; }
     const el = e.target.closest('[data-pos]');
     if (!el) return;
     const pos = Number(el.dataset.pos);
@@ -130,7 +134,13 @@ function TapLine({ line, id, picked, onPick }) {
           </span>
         </span>
       )}
-      {notes.map((t, n) => <span key={`n${n}`} className="mb-0.5 ml-1.5 inline-flex h-6 items-center self-end rounded-full bg-warning-fill px-2 text-[12px] font-semibold text-[var(--chord)]">{t || 'note'}</span>)}
+      {notes.map((t, n) => <button key={`n${n}`} type="button" data-note={n} aria-label={`Note: ${t}, change`} className="mb-0.5 ml-1.5 inline-flex h-6 min-h-0 cursor-pointer items-center self-end rounded-full border-0 bg-warning-fill px-2 font-sans text-[12px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring">{t || 'note'}</button>)}
+      {onNote && !notes.length && (
+        <button type="button" data-note="new" aria-label="Add a note to this line"
+          className="mb-0.5 ml-1.5 inline-flex h-6 min-h-0 cursor-pointer items-center gap-0.5 self-end rounded-full border border-dashed border-chip-border bg-transparent px-1.5 font-sans text-[11px] font-medium text-muted-foreground/70 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+          <PlusIcon size={10} />Note
+        </button>
+      )}
     </div>
   );
 }
@@ -151,7 +161,7 @@ function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClos
   const ref = useRef(null);
   const [at, setAt] = useState(null);
   const bad = typed.trim() && !isChordToken(typed.trim());
-  const put = (c) => { onPut(c); setTyped(''); };
+  const put = (c) => { onPut(c); setTyped(''); onClose(); };
 
   // The popover follows its letter (the chart scrolls, a new chord reflows the line).
   useEffect(() => {
@@ -215,7 +225,7 @@ function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClos
  * ride along on their letters (drawn behind the text by a mirror that wraps
  * exactly as the box does).
  */
-function WordsRun({ lines, onChange, onCaret, autoFocus, placeholder }) {
+function WordsRun({ lines, onChange, autoFocus, placeholder }) {
   const [w, setW] = useState(() => linesToWords(lines));
   const ref = useRef(null);
   useEffect(() => { if (autoFocus) ref.current?.focus({ preventScroll: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -224,7 +234,6 @@ function WordsRun({ lines, onChange, onCaret, autoFocus, placeholder }) {
     setW({ text, marks });
     onChange(wordsToLines(text, marks));
   };
-  const caret = (el) => onCaret?.(el.value.slice(0, el.selectionStart ?? 0).split('\n').length - 1);
   const chordAt = new Map(w.marks.filter(m => !m.notes).map(m => [m.at, m.chord]));
   const rows = w.text.split('\n');
   const starts = rows.reduce((acc, r, k) => [...acc, k ? acc[k - 1] + rows[k - 1].length + 1 : 0], []);
@@ -247,8 +256,7 @@ function WordsRun({ lines, onChange, onCaret, autoFocus, placeholder }) {
           return <span key={k}>{out}{k < rows.length - 1 ? '\n' : '​'}</span>;
         })}
       </div>
-      <textarea ref={ref} value={w.text} onChange={(e) => { change(e.target.value); caret(e.target); }}
-        onSelect={(e) => caret(e.target)} spellCheck={false} placeholder={placeholder}
+      <textarea ref={ref} value={w.text} onChange={(e) => change(e.target.value)} spellCheck={false} placeholder={placeholder}
         aria-label="Words, one line per line"
         className={cn(box, 'absolute inset-0 h-full w-full resize-none overflow-hidden border-0 bg-transparent text-foreground caret-[var(--link)] outline-none placeholder:text-muted-foreground')} />
     </div>
@@ -271,22 +279,34 @@ function KeyChangeEditor({ line, onChange, onDelete, onDone }) {
   );
 }
 
-function SectionMenu({ section, index, count, onRename, onText, onMove, onDuplicate, onDelete }) {
+function SectionMenu({ section, index, count, onChangeType, onText, onMove, onDuplicate, onDelete, onKeyChange, onTab }) {
   const [open, setOpen] = useState(false);
+  const [types, setTypes] = useState(false);
   const run = (fn) => () => { setOpen(false); fn(); };
+  const base = String(section.type || '').replace(/\s*\d+$/, '');
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); setTypes(false); }}>
       <PopoverTrigger asChild>
         <button type="button" aria-label={`${section.type} options`} className={cn(iconBtn, 'size-9')}><MoreIcon size={18} /></button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-[240px] flex-col p-1.5">
-        <button type="button" className={menuRow} onClick={run(onRename)}>Rename</button>
+        {types ? (<>
+          <span className="px-2.5 pb-1 pt-1 text-[13px] font-semibold text-muted-foreground">Change {section.type} to</span>
+          {SECTION_TYPES.map(t => (
+            <button key={t} type="button" className={cn(menuRow, t === base && 'bg-selected')} onClick={run(() => onChangeType(t))}>{t}</button>
+          ))}
+        </>) : (<>
+        <button type="button" className={menuRow} onClick={() => setTypes(true)}>Change to…</button>
+        <button type="button" className={menuRow} onClick={run(onKeyChange)}>Add key change</button>
+        <button type="button" className={menuRow} onClick={run(onTab)}>Add tab</button>
         <button type="button" className={menuRow} onClick={run(onText)}>Edit as text</button>
+        <div className="mx-1 my-1 h-px bg-border" />
         <button type="button" className={menuRow} disabled={index === 0} onClick={run(() => onMove(-1))}>Move up</button>
         <button type="button" className={menuRow} disabled={index === count - 1} onClick={run(() => onMove(1))}>Move down</button>
         <button type="button" className={menuRow} onClick={run(onDuplicate)}>Duplicate</button>
         <div className="mx-1 my-1 h-px bg-border" />
         <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={run(onDelete)}>Delete section</button>
+        </>)}
       </PopoverContent>
     </Popover>
   );
@@ -302,8 +322,8 @@ function AddSection({ onAdd, big = false }) {
             <PlusIcon size={14} />Add a section
           </button>
         ) : (
-          <button type="button" className="flex h-8 min-h-0 cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-2 font-sans text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-            <PlusIcon size={13} />Section after
+          <button type="button" className="flex h-10 min-h-0 w-full cursor-pointer items-center justify-center gap-1.5 rounded-control border border-dashed border-border bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none hover:border-chip-border hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+            <PlusIcon size={14} />Add a section below
           </button>
         )}
       </PopoverTrigger>
@@ -406,10 +426,11 @@ function OrderBar({ order, names, onChange, styleOf }) {
           </PopoverTrigger>
           <PopoverContent className="flex w-[220px] flex-col p-1.5">
             <span className="px-2.5 pb-1 pt-1 text-[13px] font-semibold text-muted-foreground">{name}</span>
-            <button type="button" className={menuRow} disabled={i === 0} onClick={() => { onChange(move(order, i, -1)); setOpen(null); }}>Play earlier</button>
-            <button type="button" className={menuRow} disabled={i === order.length - 1} onClick={() => { onChange(move(order, i, 1)); setOpen(null); }}>Play later</button>
-            <button type="button" className={menuRow} onClick={() => { onChange([...order.slice(0, i + 1), name, ...order.slice(i + 1)]); setOpen(null); }}>Play again after</button>
-            <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { onChange(order.filter((_, n) => n !== i)); setOpen(null); }}>Take out of the order</button>
+            <button type="button" className={menuRow} disabled={i === 0} onClick={() => { onChange(move(order, i, -1)); setOpen(null); }}>← Move left</button>
+            <button type="button" className={menuRow} disabled={i === order.length - 1} onClick={() => { onChange(move(order, i, 1)); setOpen(null); }}>Move right →</button>
+            <button type="button" className={menuRow} onClick={() => { onChange([...order.slice(0, i + 1), name, ...order.slice(i + 1)]); setOpen(null); }}>Repeat</button>
+            <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { onChange(order.filter((_, n) => n !== i)); setOpen(null); }}>Remove</button>
+            <p className="m-0 px-2.5 pb-1 pt-1.5 text-[12px] leading-4 text-muted-foreground">Or drag the chip to move it.</p>
           </PopoverContent>
         </Popover>
       ))}
@@ -425,14 +446,12 @@ function OrderBar({ order, names, onChange, styleOf }) {
   );
 }
 
-function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, setWords, onArr, onAddAfter, styleOf }) {
+function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, setWords, onArr, onAddAfter, onTab, styleOf }) {
   const sec = arr.sections[index];
   const look = styleOf(sec.type);
-  const [mode, setMode] = useState(null); // null | 'rename' | 'cue' | 'text'
+  const [mode, setMode] = useState(null); // null | 'cue' | 'text'
+  const [noteAt, setNoteAt] = useState(null); // { line, idx | null, draft }
   const [draft, setDraft] = useState('');
-  // A key change or tab added from Words remounts the boxes around it.
-  const [session, setSession] = useState(0);
-  const caret = useRef({ run: 0, line: 0 });
   const lines = sec.lines?.length ? sec.lines : [''];
   const at = editing?.sec === index ? editing.line : null;
   const typing = words === index;
@@ -440,29 +459,12 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
   const open = (m) => { setEditing(null); setPick(null); setMode(m); setDraft(m === 'rename' ? sec.type : m === 'cue' ? (sec.note || '') : m === 'text' ? sectionToText(sec) : ''); };
   const runs = lineRuns(sec.lines || []);
   const setRun = (ri, ls) => { const next = runs.slice(); next[ri] = { lines: ls }; onArr(setLines(arr, index, runsToLines(next))); };
-  // Key change / tab from Words: in after the line the caret is on.
-  const insertAtCaret = (obj) => {
-    const { run, line } = caret.current;
-    const r = runs[run]?.lines ? run : runs.findIndex(x => x.lines);
-    const ls = runs[r]?.lines || [];
-    const cut = Math.min(ls.length, (r === run ? line : ls.length - 1) + 1);
-    const next = [...runs.slice(0, r), { lines: ls.slice(0, cut) }, { obj }, { lines: ls.slice(cut) }, ...runs.slice(r + 1)];
-    const all = runsToLines(next);
-    const a = setLines(arr, index, all);
-    onArr(a);
-    return { a, at: all.indexOf(obj) };
-  };
 
   return (
     <section className="flex flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: look.br }}>
       <div className="flex min-h-9 items-center gap-2">
         {sectionTag(sec.type, look)}
-        {mode === 'rename' ? (
-          <form className="flex flex-1 gap-1.5" onSubmit={(e) => { e.preventDefault(); onArr(renameSection(arr, index, draft.trim())); setMode(null); }}>
-            <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Section name" className="h-9" />
-            <Button size="sm" type="submit">Done</Button>
-          </form>
-        ) : (
+        {(
           <>
             <b className="whitespace-nowrap text-[15px] font-semibold" style={{ color: look.b }}>{sec.type}</b>
             {/* The band cue lives here, by the name, as the chart shows it: tap to change; "+ Cue" when there is none. */}
@@ -481,7 +483,10 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
               </button>
             )}
             <SectionMenu section={sec} index={index} count={arr.sections.length}
-              onRename={() => open('rename')} onText={() => { setWords(null); open('text'); }}
+              onChangeType={(t) => { if (t === sec.type.replace(/\s*\d+$/, '')) return; onArr(renameSection(arr, index, newSectionName(arr.sections.filter((_, n) => n !== index), t))); }}
+              onText={() => { setWords(null); open('text'); }}
+              onKeyChange={() => { setWords(null); setPick(null); onArr(setLines(arr, index, [{ type: 'modulate', semitones: 2 }, ...(sec.lines || [])])); setEditing({ sec: index, line: 0 }); }}
+              onTab={() => { setWords(null); setPick(null); onTab(null); }}
               onMove={(d) => onArr({ ...arr, sections: move(arr.sections, index, d) })}
               onDuplicate={() => { const { arr: a, index: i } = addSection(arr, index, sec.type.replace(/\s*\d+$/, '')); onArr(setSection(a, i, { lines: [...lines], note: sec.note })); }}
               onDelete={() => { setWords(null); setPick(null); onArr(deleteSection(arr, index)); }} />
@@ -507,18 +512,14 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
       ) : typing ? (
         <div className="flex flex-col gap-2 pt-1">
           {runs.map((r, ri) => (r.lines ? (
-            <WordsRun key={`${session}-${ri}`} lines={r.lines} autoFocus={ri === 0}
+            <WordsRun key={ri} lines={r.lines} autoFocus={ri === 0}
               placeholder={ri === 0 && !r.lines.some(l => l.trim()) ? 'Type the words, one line per line' : 'More words…'}
-              onCaret={(line) => { caret.current = { run: ri, line }; }}
               onChange={(ls) => setRun(ri, ls)} />
           ) : (
-            <div key={`${session}-${ri}`} className="px-1"><LineView line={r.obj} /></div>
+            <div key={ri} className="px-1"><LineView line={r.obj} /></div>
           )))}
           <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-1 rounded-card border border-border bg-card p-1.5 shadow-[0_4px_16px_rgba(0,0,0,.18)]">
-            <button type="button" className={tool} onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { const { at: n } = insertAtCaret({ type: 'modulate', semitones: 2 }); setWords(null); setEditing({ sec: index, line: n }); }}><KeyIcon />Key change</button>
-            <button type="button" className={tool} onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { const { a } = insertAtCaret({ type: 'tab', strings: [], time: null, instrument: null, raw: ['e|-----------|', 'B|-----------|', 'G|-----------|', 'D|-----------|', 'A|-----------|', 'E|-----------|'] }); setSession(x => x + 1); setWords(null); setMode('text'); setDraft(sectionToText(a.sections[index])); }}><TabIcon />Tab</button>
+            <span className="px-2 text-[12px] text-muted-foreground">Key changes and tabs: section ⋯</span>
             <span className="flex-1" />
             <Button size="sm" onClick={() => setWords(null)}>Done</Button>
           </div>
@@ -531,7 +532,21 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
             }
             if (typeof l === 'string') {
               const mine = pick?.sec === index && pick.line === n;
-              return <TapLine key={n} line={l} id={`${index}-${n}`} picked={mine ? pick.pos : null} onPick={(pos) => { setEditing(null); setPick(pos == null ? null : { sec: index, line: n, pos }); }} />;
+              const notesHere = extractInlineNotes(l).notes;
+              return (
+                <div key={n} className="flex flex-col gap-1">
+                  <TapLine line={l} id={`${index}-${n}`} picked={mine ? pick.pos : null}
+                    onPick={(pos) => { setEditing(null); setNoteAt(null); setPick(pos == null ? null : { sec: index, line: n, pos }); }}
+                    onNote={(idx) => { setPick(null); setNoteAt({ line: n, idx, draft: idx == null ? '' : notesHere[idx] || '' }); }} />
+                  {noteAt?.line === n && (
+                    <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); const next = [...notesHere]; if (noteAt.idx == null) next.push(noteAt.draft); else next[noteAt.idx] = noteAt.draft; lineAt(n, setLineNotes(l, next)); setNoteAt(null); }}>
+                      <Input autoFocus value={noteAt.draft} maxLength={INLINE_NOTE_MAX_CHARS} onChange={(e) => setNoteAt({ ...noteAt, draft: e.target.value })} placeholder="Note on this line, e.g. build" aria-label="Line note" className="h-10" />
+                      {noteAt.idx != null && <Button type="button" variant="ghost" size="sm" className="h-10 text-danger-text" onClick={() => { lineAt(n, setLineNotes(l, notesHere.filter((_, k) => k !== noteAt.idx))); setNoteAt(null); }}>Remove</Button>}
+                      <Button size="sm" type="submit" className="h-10">Done</Button>
+                    </form>
+                  )}
+                </div>
+              );
             }
             if (l?.type === 'modulate') {
               return (
@@ -539,11 +554,15 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
                   className="-mx-2 min-h-0 cursor-pointer self-start rounded-control border-0 bg-transparent px-2 py-0.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised"><LineView line={l} /></button>
               );
             }
+            if (l?.type === 'tab') {
+              return (
+                <button key={n} type="button" onClick={() => { setPick(null); onTab(n); }} aria-label="Edit tab"
+                  className="-mx-2 min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 py-0.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised"><LineView line={l} /></button>
+              );
+            }
             return <div key={n} className="py-0.5"><LineView line={l} /></div>;
           })}
-          <div className="-mx-2 flex items-center gap-1">
-            <AddSection onAdd={onAddAfter} />
-          </div>
+          <div className="pt-2"><AddSection onAdd={onAddAfter} /></div>
         </div>
       )}
     </section>
@@ -559,51 +578,111 @@ function Field({ label, children, hint }) {
   );
 }
 
+/** Our own key dropdown: the 12 major keys, then the 12 minor ones. */
+function KeyPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const keys = useMemo(() => keyOptions('flats'), []);
+  const grid = (list) => (
+    <div className="grid grid-cols-6 gap-1">
+      {list.map(k => (
+        <button key={k.value} type="button" aria-pressed={k.value === value} onClick={() => { onChange(k.value); setOpen(false); }}
+          className={cn('flex h-10 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent p-0 font-mono text-[14px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
+            k.value === value && 'bg-[var(--chord)] text-background hover:bg-[var(--chord)]')}>{k.value}</button>
+      ))}
+    </div>
+  );
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label={`Key ${value || 'not set'}, change`}
+          className="flex h-12 w-full min-w-0 cursor-pointer items-center justify-between gap-1 rounded-control border border-input bg-background px-3 font-mono text-[15px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11">
+          {value || '—'}<ChevronIcon />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="flex w-[300px] flex-col gap-2 p-2.5">
+        <span className="px-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Major</span>
+        {grid(keys.filter(k => !k.value.endsWith('m')))}
+        <span className="px-1 pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Minor</span>
+        {grid(keys.filter(k => k.value.endsWith('m')))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// The Info fields. Labels say what a field is for; the old editor's full set
+// (tags, Spotify, length, band notes) is all here, capo is not: the reader's
+// capo for guitarists is set where it is played.
+const MORE_FIELDS = [
+  ['originaltitle', 'Original title', 'For translated songs'],
+  ['language', 'Language', 'English'],
+  ['translator', 'Translator', ''],
+  ['year', 'Release year', '1779'],
+  ['album', 'Album', ''],
+  ['publishers', 'Publishers', ''],
+  ['label', 'Record label', ''],
+  ['genres', 'Genres', 'hymn, worship'],
+  ['scripture', 'Bible verses', 'Ephesians 2:8'],
+  ['moment', 'Moment in the service', 'Communion, offering, opening'],
+  ['vocalrange', 'Vocal range', 'A2–C5'],
+  ['story', 'Story behind the song', ''],
+];
+
 function InfoForm({ song, arr, onSong, onArr, onOldEditor }) {
   const [more, setMore] = useState(false);
-  const keys = useMemo(() => keyOptions('flats'), []);
-  const f = (k) => ({ value: song[k] ?? '', onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
-  const a = (k, num) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: num ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value }) });
+  const f = (k, max = 300) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
+  const a = (k, num) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: num ? (e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null) : e.target.value }) });
   const grp = 'm-0 pt-3 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
-  const shown = new Set(['writers', 'copyright', 'themes']);
+  const ph = 'placeholder:text-muted-foreground/50';
+  const tagsText = Array.isArray(song.tags) ? song.tags.join(', ') : (song.tags || '');
   return (
     <div className="flex flex-col gap-3.5">
-      <Field label="Title"><Input {...f('title')} placeholder="Song name" autoFocus={!song.title} /></Field>
-      <Field label="Artist or writer"><Input {...f('artist')} /></Field>
-      <h3 className={grp}>{arr.name || 'This arrangement'}</h3>
-      <div className="grid grid-cols-4 gap-2">
-        <Field label="Key">
-          <select value={arr.key || ''} onChange={(e) => onArr({ ...arr, key: e.target.value })}
-            className="h-12 w-full rounded-control border border-input bg-background px-2 font-mono text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11">
-            {keys.map(k => <option key={k.value} value={k.value}>{k.value}</option>)}
-          </select>
-        </Field>
-        <Field label="BPM"><Input inputMode="numeric" {...a('tempo', true)} /></Field>
-        <Field label="Time"><Input {...a('time')} placeholder="4/4" /></Field>
-        <Field label="Capo"><Input inputMode="numeric" {...a('capo', true)} /></Field>
+      <Field label="Title"><Input {...f('title', 120)} placeholder="Song name" autoFocus={!song.title} className={ph} /></Field>
+      <Field label="Artist"><Input {...f('artist', 120)} placeholder="Artist or band" className={ph} /></Field>
+      <h3 className={grp}>Music</h3>
+      <div className="grid grid-cols-3 gap-2">
+        <Field label="Key"><KeyPicker value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} /></Field>
+        <Field label="BPM"><Input inputMode="numeric" maxLength={3} {...a('tempo', true)} placeholder="72" className={ph} /></Field>
+        <Field label="Time"><Input maxLength={5} {...a('time')} placeholder="4/4" className={ph} /></Field>
       </div>
       <p className="m-0 text-[12px] leading-4 text-muted-foreground">Changing the key here only renames it. To move every chord, use Key on the song page.</p>
+      <Field label="Length" hint="adds up a setlist's time"><Input maxLength={5} {...a('duration')} placeholder="3:45" className={ph} /></Field>
+      <Field label="Notes for the band"><textarea {...a('notes')} maxLength={1000} rows={2} placeholder="Shown with the chart" className={cn('w-full rounded-control border border-input bg-background p-3 font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', ph)} /></Field>
       <h3 className={grp}>Listen</h3>
-      <Field label="YouTube link"><Input {...f('youtube')} placeholder="youtube.com/watch?v=…" /></Field>
+      <Field label="YouTube link"><Input {...f('youtube')} inputMode="url" placeholder="youtube.com/watch?v=…" className={ph} /></Field>
+      <Field label="Spotify link" hint="gives the song its cover art"><Input {...f('spotify')} inputMode="url" placeholder="open.spotify.com/track/…" className={ph} /></Field>
       <h3 className={grp}>Credits</h3>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="CCLI"><Input inputMode="numeric" {...f('ccli')} /></Field>
-        <Field label="Copyright"><Input {...f('copyright')} /></Field>
+        <Field label="CCLI"><Input inputMode="numeric" {...f('ccli', 20)} className={ph} /></Field>
+        <Field label="Copyright"><Input {...f('copyright', 150)} placeholder="© …" className={ph} /></Field>
       </div>
-      <Field label="Writers"><Input {...f('writers')} /></Field>
-      <Field label="Themes" hint="commas between"><Input {...f('themes')} /></Field>
+      <Field label="Writers"><Input {...f('writers', 100)} placeholder="Comma between names" className={ph} /></Field>
+      <h3 className={grp}>Find it later</h3>
+      <Field label="Themes"><Input {...f('themes', 200)} placeholder="grace, hope" className={ph} /></Field>
+      <Field label="Tags"><Input value={tagsText} maxLength={300} placeholder="fast, opener" className={ph}
+        onChange={(e) => onSong({ ...song, tags: e.target.value.split(',').map(t => t.trimStart()).filter((t, i, all) => t || i === all.length - 1) })} /></Field>
       {more ? (
-        EXTRA_META_FIELDS.filter(([k]) => !shown.has(k)).map(([k]) => (
-          <Field key={k} label={k === 'originaltitle' ? 'Original title' : k === 'vocalrange' ? 'Vocal range' : k === 'scripture' ? 'Bible verses' : k[0].toUpperCase() + k.slice(1)}>
-            {k === 'story' ? <textarea {...f(k)} rows={3} className="w-full rounded-control border border-input bg-background p-3 font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" /> : <Input {...f(k)} />}
+        MORE_FIELDS.map(([k, label, hint]) => (
+          <Field key={k} label={label}>
+            {k === 'story'
+              ? <textarea {...f(k, 1000)} rows={3} className="w-full rounded-control border border-input bg-background p-3 font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+              : <Input {...f(k)} placeholder={hint} className={ph} />}
           </Field>
         ))
       ) : (
-        <Button variant="outline" onClick={() => setMore(true)}>More: album, year, language, Bible verses …</Button>
+        <Button variant="outline" onClick={() => setMore(true)}>More: original title, language, year, Bible verses, moment …</Button>
       )}
       {onOldEditor && <Button variant="link" className="self-start pt-2" onClick={onOldEditor}>Open the old editor instead</Button>}
     </div>
   );
+}
+
+/** The tab grid's saved text → a tab line for the section (keeps its instrument). */
+function tabFromGrid(saved, prev) {
+  const tm = saved.match(/\{tab(?:,\s*time:\s*([^}]+))?\}/);
+  const tab = parseTabBlock(saved.split('\n').map(l => l.trim()).filter(l => /^[A-Za-z]\|/.test(l)));
+  tab.time = tm && tm[1] ? tm[1].trim() : null;
+  if (prev?.instrument) tab.instrument = prev.instrument;
+  return tab;
 }
 
 const area = 'w-full rounded-control border border-input bg-background p-3 font-mono text-[14px] leading-6 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -726,11 +805,52 @@ function WholeText({ initial, title, hint, onDone, onCancel }) {
 // mode: 'edit' (a song in the library) · 'new' (blank, from + New song) ·
 // 'import' (parsed from a file or paste, not saved yet). A new or imported song
 // can be saved untouched; an edit only once something changed.
+function ArrangementTabs({ arrangements, current, onPick, onRename, onNew }) {
+  const [naming, setNaming] = useState(null);
+  const tab = 'inline-flex h-11 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 border-transparent bg-transparent px-3 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring';
+  return (
+    <div role="tablist" aria-label="Arrangements" className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border px-2">
+      {arrangements.map(a => a.id === current && naming != null ? (
+        <form key={a.id} className="flex shrink-0 items-center gap-1 py-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
+          <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
+          <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
+        </form>
+      ) : (
+        <button key={a.id} type="button" role="tab" aria-selected={a.id === current}
+          title={a.id === current ? 'Tap again to rename' : undefined}
+          onClick={() => (a.id === current ? setNaming(a.name || '') : onPick(a.id))}
+          className={cn(tab, a.id === current && 'border-foreground text-foreground')}>
+          <span className="max-w-[180px] truncate">{a.name || 'Arrangement'}</span>
+          <span className="font-mono text-[12px] font-semibold text-[var(--chord)]">{a.key}</span>
+          {a.id === current && <span className="text-muted-foreground/70"><Svg size={13}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></Svg></span>}
+        </button>
+      ))}
+      {onNew && (
+        <button type="button" onClick={onNew} aria-label="New arrangement, a copy of this one" className={cn(tab, 'gap-1')}>
+          <PlusIcon size={14} />New
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
-  const [working, setWorking] = useState(song);
+  // Undo / redo: every change is a step, except quick typing, which is one.
+  const [hist, setHist] = useState(() => ({ past: [], present: song, future: [], at: 0 }));
+  const working = hist.present;
+  const setWorking = useCallback((u) => setHist((h) => {
+    const next = typeof u === 'function' ? u(h.present) : u;
+    if (next === h.present) return h;
+    const now = Date.now();
+    const merge = now - h.at < 700 && h.past.length > 0;
+    return { past: merge ? h.past : [...h.past.slice(-99), h.present], present: next, future: [], at: now };
+  }), []);
+  const undo = () => setHist(h => (h.past.length ? { past: h.past.slice(0, -1), present: h.past[h.past.length - 1], future: [h.present, ...h.future], at: 0 } : h));
+  const redo = () => setHist(h => (h.future.length ? { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1), at: 0 } : h));
+  const [tabEdit, setTabEdit] = useState(null); // { sec, line | null }: the tab grid is open
   const [arrId, setArrId] = useState(() => (song.arrangements?.some(a => a.id === initialArrangementId) ? initialArrangementId : song.defaultArrangementId || song.arrangements?.[0]?.id));
   const [tab, setTab] = useState('chart'); // phone: chart | info | preview
   const [side, setSide] = useState('info'); // wide: the right column, info | preview
@@ -741,7 +861,10 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   const [saving, setSaving] = useState(false);
   const dirty = working !== song;
   const fresh = mode !== 'edit';
-  const canSave = fresh || dirty;
+  // No song without a name, and none without a single line of words or chords.
+  const hasLines = working.arrangements.some(x => (x.sections || []).some(sc => (sc.lines || []).some(l => (typeof l === 'string' ? l.trim() : l))));
+  const missing = !working.title?.trim() ? (hasLines ? 'a title' : 'a title and at least one line') : !hasLines ? 'at least one line' : null;
+  const canSave = !missing && (fresh || dirty);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
 
   const arr = getArrangement(working, arrId) || working.arrangements[0];
@@ -751,6 +874,21 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   const palette = chordPalette(arr, rows[arr.id] || []);
   const diatonic = useMemo(() => getDiatonicChords(arr.key || 'C').slice(0, 6), [arr.key]);
   const closeAll = () => { setEditing(null); setPick(null); setWords(null); };
+  const doUndo = () => { closeAll(); undo(); };
+  const doRedo = () => { closeAll(); redo(); };
+  // ⌘/Ctrl+Z and ⇧⌘/Ctrl+Z, except inside a text box (it has its own undo).
+  const keys = useRef(null);
+  keys.current = { doUndo, doRedo };
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'z') return;
+      if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+      if (e.shiftKey) keys.current.doRedo(); else keys.current.doUndo();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
   const pickedLine = pick ? arr.sections[pick.sec]?.lines?.[pick.line] : null;
   const closePick = useCallback(() => setPick(null), []);
   if ((rows[arr.id] || []).length !== palette.length) setRows(r => ({ ...r, [arr.id]: palette }));
@@ -765,10 +903,10 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   };
   const save = async () => {
     // A song needs a name; Info opens with the title box focused.
-    if (!working.title?.trim()) { setTab('info'); setSide('info'); return; }
+    if (missing) return;
     setSaving(true);
     try {
-      const ok = await onSave?.({ ...working, title: working.title.trim(), updatedAt: Date.now() });
+      const ok = await onSave?.({ ...working, title: working.title.trim(), tags: (Array.isArray(working.tags) ? working.tags : []).map(t => String(t).trim()).filter(Boolean), updatedAt: Date.now() });
       if (ok !== false) onDirtyChange?.(false);
     } finally { setSaving(false); }
   };
@@ -806,6 +944,7 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
       <p className="m-0 text-[13px] text-muted-foreground">{wide ? 'Click a letter to put a chord on it, or type one straight away (D/F#, Enter). Words changes the lyrics.' : 'Tap a letter to put a chord on it. Tap Words to change the lyrics.'}</p>
       {arr.sections.map((x, i) => (
         <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} editing={editing} setEditing={setEditing} pick={pick} setPick={setPick} words={words} setWords={setWords} onArr={onArr} styleOf={styleOf}
+          onTab={(line) => setTabEdit({ sec: i, line })}
           onAddAfter={(t) => { const r = addSection(arr, i, t); onArr(r.arr); setPick(null); setWords(r.index); }} />
       ))}
       {arr.sections.length === 0 && <AddSection big onAdd={(t) => { const r = addSection(arr, -1, t); onArr(r.arr); setWords(r.index); }} />}
@@ -816,6 +955,23 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
       onClose={closePick}
       onPut={(c) => onArr(setLines(arr, pick.sec, arr.sections[pick.sec].lines.map((l, n) => (n === pick.line ? setChordAt(l, pick.pos, c) : l))))} />
   ) : null;
+  const tabLine = tabEdit && tabEdit.line != null ? arr.sections[tabEdit.sec]?.lines?.[tabEdit.line] : null;
+  const tabTool = tabEdit && (() => {
+    const instr = tabLine ? instrumentForStrings(tabLine.strings?.length) : 'electric';
+    return (
+      <TabGridEditor initialTab={tabLine} time={tabLine?.time || arr.time}
+        strings={tabLine?.strings?.length ? tabLine.strings.map(x => x.note) : TAB_INSTRUMENTS[instr].strings}
+        tunings={TAB_INSTRUMENTS[instr].tunings} instrument={instr} counts={TAB_INSTRUMENTS[instr].counts}
+        onClose={() => setTabEdit(null)}
+        onSave={(saved) => {
+          const tab = tabFromGrid(saved, tabLine);
+          const lines = [...(arr.sections[tabEdit.sec].lines || [])];
+          if (tabEdit.line != null) lines[tabEdit.line] = tab; else lines.push(tab);
+          onArr(setLines(arr, tabEdit.sec, lines));
+          setTabEdit(null);
+        }} />
+    );
+  })();
   const info = <InfoForm song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
   const view = useMemo(() => resolveSongView(working, arr.id), [working, arr.id]);
   const preview = arr.sections.length ? (
@@ -834,14 +990,14 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
       ))}
     </div>
   );
-  // The arrangement is what you are editing, so it sits under the title,
-  // with the same dropdown as the song page. One arrangement on a new song
-  // is just "the song": no chip until there is a choice to make.
-  const arrChip = (
-    <ArrangementChip arrangements={arrangements} current={arr.id}
-      onRename={(name) => onArr({ ...arr, name })}
+  // Arrangements are tabs under the header: tap one to edit it, tap the
+  // active one again to rename it, + makes a copy of the current one.
+  // One arrangement on a new song is just "the song": no strip.
+  const arrTabs = (arrangements.length > 1 || mode === 'edit') && (
+    <ArrangementTabs arrangements={arrangements} current={arr.id}
       onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
-      onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song); setArrId(r.arrangementId); } : null} />
+      onRename={(name) => onArr({ ...arr, name })}
+      onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song); setArrId(r.arrangementId); closeAll(); } : null} />
   );
 
   return (
@@ -850,16 +1006,20 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
         <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
         <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 leading-tight">
           <b className="max-w-full truncate text-[15px] font-semibold">{working.title?.trim() || (mode === 'new' ? 'New song' : 'Untitled')}</b>
-          {arrChip || <span className="text-[12px] text-muted-foreground">{mode === 'new' ? 'New song' : mode === 'import' ? 'Check and add' : 'Editing'}</span>}
+          <span className="text-[12px] text-muted-foreground">{mode === 'new' ? 'New song' : mode === 'import' ? 'Check and add' : 'Editing'}</span>
         </div>
+        <button type="button" aria-label="Undo" title="Undo" disabled={!hist.past.length} onClick={doUndo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></Svg></button>
+        <button type="button" aria-label="Redo" title="Redo" disabled={!hist.future.length} onClick={doRedo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="m15 14 5-5-5-5" /><path d="M20 9H9a5 5 0 0 0 0 10h3" /></Svg></button>
         <EditMenu items={[
           { label: 'Edit all as text', onClick: () => { closeAll(); setWhole('text'); setTab('chart'); } },
           { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
           mode === 'new' && { label: 'Paste a song', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
-        <Button size="sm" onClick={save} disabled={!canSave} loading={saving}>{fresh ? 'Add' : 'Save'}</Button>
+        <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{fresh ? 'Add' : 'Save'}</Button>
       </div>
+      {arrTabs}
+      {missing && (fresh || dirty) && <p className="m-0 shrink-0 border-b border-border bg-raised px-4 py-1.5 text-center text-[13px] text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>}
       {wide ? (
         <div className="flex min-h-0 flex-1">
           <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
@@ -870,6 +1030,7 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-16 pt-2">{side === 'info' ? info : preview}</div>
           </aside>
           {chordBar}
+          {tabTool}
         </div>
       ) : (
         <>
@@ -880,6 +1041,7 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
             <div className="mx-auto w-full max-w-[680px] px-4 pb-16 pt-1">{tab === 'chart' ? chart : tab === 'info' ? info : preview}</div>
           </div>
           {chordBar}
+          {tabTool}
         </>
       )}
     </div>

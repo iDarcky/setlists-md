@@ -171,3 +171,40 @@ describe('words: typing with chords riding along', () => {
     expect(lineRuns(['a', mod])).toEqual([{ lines: ['a'] }, { obj: mod }, { lines: [] }]);
   });
 });
+
+import { songMarkdown as mdOf, applyMarkdown as applyMd } from '@/lib/songEdit';
+import { songFromFlat as fromFlat } from '@/arrangements';
+
+describe('Markdown editor', () => {
+  const s = fromFlat({ id: 'abc123', title: 'T', artist: 'A', key: 'G', sections: [{ type: 'Verse', lines: ['[G]hi'] }] });
+  const arrId = s.arrangements[0].id;
+  it('never shows the ids', () => {
+    const md = mdOf(s, arrId);
+    expect(md).not.toMatch(/songId|arrangementId|arrangementName|abc123/);
+    expect(md).toMatch(/title: T/);
+  });
+  it('keeps artist and key when their lines are taken out, and ignores ids typed in', () => {
+    const n = applyMd(s, arrId, '---\ntitle: T2\nid: evil\nsongId: evil\n---\n## Verse\n[G]hi\n');
+    expect(n.id).toBe('abc123');
+    expect(n.artist).toBe('A');
+    expect(n.arrangements[0].key).toBe('G');
+    expect(n.arrangements[0].id).toBe(arrId);
+    expect(n.title).toBe('T2');
+  });
+  it('drops a link that is not http(s) and strips control characters', () => {
+    const n = applyMd(s, arrId, '---\ntitle: T\u0007\nyoutube: javascript:alert(1)\nspotify: https://open.spotify.com/track/x\n---\n## Verse\nhi\n');
+    expect(n.youtube).toBe('');
+    expect(n.spotify).toBe('https://open.spotify.com/track/x');
+    expect(n.title).toBe('T');
+  });
+});
+
+import { setLineNotes } from '@/lib/songEdit';
+describe('setLineNotes', () => {
+  it('adds, changes and removes a line note without moving chords', () => {
+    expect(setLineNotes('[G]Amazing [C]grace', ['softly'])).toBe('[G]Amazing [C]grace {!softly}');
+    expect(setLineNotes('[G]Amazing {!softly}', ['build'])).toBe('[G]Amazing {!build}');
+    expect(setLineNotes('[G]Amazing {!softly}', [])).toBe('[G]Amazing ');
+    expect(setLineNotes('', ['x}{'])).toBe('{!x}');
+  });
+});

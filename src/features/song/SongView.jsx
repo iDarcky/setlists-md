@@ -164,11 +164,12 @@ function Listen({ url, title, open, onOpen, onClose, compact }) {
 
 function Stats({ facts, short }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {[
         [facts.plays ? `${facts.plays}×` : '0', short ? 'played' : 'played here'],
         [facts.last || '—', short ? 'last' : 'last time'],
         [facts.usualKey || '—', 'usual key', true],
+        [facts.usualTempo || '—', 'usual BPM'],
       ].map(([v, k, isKey]) => (
         <div key={k} className="flex flex-col gap-0.5 rounded-card border border-border bg-card px-3 py-2.5">
           <b className={cn('text-[20px] font-semibold leading-6 tracking-[-0.3px]', isKey && 'font-mono text-[var(--chord)]')}>{v}</b>
@@ -261,7 +262,7 @@ export function MenuSheet({ open, onOpenChange, title, items = [] }) {
  * @param {object} p
  * @param {object} p.song  resolved view of the picked arrangement
  * @param {{shown,original,semis,onStep,onReset,onEveryone}} p.keyCtl
- * @param {{plays,last,usualKey,next}} p.facts
+ * @param {{plays,last,usualKey,usualTempo,next}} p.facts
  */
 export default function SongView({
   song, keyCtl, arrangements = [], arrangementId, onArrangement, onNewArrangement,

@@ -4,17 +4,18 @@
 import { playStats } from './songsData';
 import { isSetlistUpcoming, setlistStartMs } from './setlistTime';
 import { mostPlayedKey } from '@/keyHistory';
+import { rankedTempos } from '@/tempoHistory';
 import { compactLabel } from '@/music';
 
 const short = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const dayLabel = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
 /**
- * → { plays, last ("18 Oct" | null), usualKey, next: { setlist, label, name, position } | null }
+ * → { plays, last ("18 Oct" | null), usualKey, usualTempo, next: { setlist, label, name, position } | null }
  * `position` counts songs only (a moment between songs is not "song 3").
  */
 export function songFacts(song, setlists = [], now = Date.now()) {
-  if (!song) return { plays: 0, last: null, usualKey: '', next: null };
+  if (!song) return { plays: 0, last: null, usualKey: '', usualTempo: 0, next: null };
   const stat = playStats(setlists, now)[song.id];
   const sl = setlists
     .filter(s => s.date && isSetlistUpcoming(s, now) && (s.items || []).some(it => it?.songId === song.id))
@@ -33,6 +34,7 @@ export function songFacts(song, setlists = [], now = Date.now()) {
     plays: stat?.plays || 0,
     last: stat?.last ? short(stat.last) : null,
     usualKey: mostPlayedKey(song.keyHistory) || '',
+    usualTempo: rankedTempos(song.tempoHistory)[0]?.[0] || 0,
     next,
   };
 }
