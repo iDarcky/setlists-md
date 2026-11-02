@@ -186,3 +186,87 @@ export function applyMarkdown(song, arrId, md) {
   }
   return next;
 }
+
+// ── Words: a run of lines typed as one text, chords riding on their letters ──
+//
+// A run is the section's string lines between key changes and tabs. Its text
+// is the lines' words joined by "\n"; every chord is a mark at an offset into
+// that text, and each line's inline notes ride at the end of their line. An
+// edit to the text moves the marks the way the letters moved, so a chord stays
+// on its letter while the words around it change.
+
+/** String lines → { text, marks: [{ at, chord } | { at, notes }] }. */
+export function linesToWords(lines) {
+  const marks = [];
+  const rows = [];
+  let at = 0;
+  for (const l of lines) {
+    const { clean, notes } = extractInlineNotes(typeof l === 'string' ? l : '');
+    const { plainText, chords } = lineToPlacement(clean);
+    for (const c of chords) marks.push({ at: at + c.pos, chord: c.chord });
+    if (notes.length) marks.push({ at: at + plainText.length, notes });
+    rows.push(plainText);
+    at += plainText.length + 1;
+  }
+  return { text: rows.join('\n'), marks };
+}
+
+/**
+ * The marks after `prev` became `next` (one contiguous edit, as a text box
+ * reports it). Typing right before a chord's letter pushes the chord along
+ * with the letter; a note stays at the end of the line it was on.
+ */
+export function remapWords(prev, next, marks) {
+  if (prev === next) return marks;
+  let a = 0;
+  const max = Math.min(prev.length, next.length);
+  while (a < max && prev[a] === next[a]) a++;
+  let e = 0;
+  while (e < max - a && prev[prev.length - 1 - e] === next[next.length - 1 - e]) e++;
+  const b = prev.length - e;        // prev[a, b) was replaced by
+  const len = next.length - e - a;  // next[a, a + len)
+  const map = (p, sticky) => {
+    if (p < a || (sticky && p === a)) return p;
+    if (p >= b) return p - (b - a) + len;
+    return a + Math.min(p - a, len);
+  };
+  return marks.map(m => ({ ...m, at: map(m.at, !!m.notes) }));
+}
+
+/** { text, marks } → string lines. */
+export function wordsToLines(text, marks) {
+  const rows = text.split('\n');
+  const starts = [];
+  let at = 0;
+  for (const r of rows) { starts.push(at); at += r.length + 1; }
+  const lineOf = (p) => { let k = 0; while (k + 1 < starts.length && starts[k + 1] <= p) k++; return k; };
+  const chords = rows.map(() => new Map());
+  const notes = rows.map(() => []);
+  for (const m of marks) {
+    const k = lineOf(Math.max(0, Math.min(m.at, text.length)));
+    if (m.notes) notes[k].push(...m.notes);
+    else chords[k].set(Math.min(m.at - starts[k], rows[k].length), m.chord);
+  }
+  return rows.map((plainText, k) => {
+    const line = placementToLine({ plainText, chords: [...chords[k]].map(([pos, chord]) => ({ pos, chord })) });
+    if (!notes[k].length) return line;
+    const tail = notes[k].map(n => `{!${n}}`).join(' ');
+    return !line ? tail : /\s$/.test(line) ? line + tail : `${line} ${tail}`;
+  });
+}
+
+/** A section's lines cut into runs of string lines and the objects between them. */
+export function lineRuns(lines) {
+  const runs = [];
+  for (const l of lines) {
+    if (typeof l === 'string') {
+      if (runs.length && runs[runs.length - 1].lines) runs[runs.length - 1].lines.push(l);
+      else runs.push({ lines: [l] });
+    } else runs.push({ obj: l });
+  }
+  if (!runs.length || !runs[runs.length - 1].lines) runs.push({ lines: [] });
+  return runs;
+}
+
+/** The reverse of lineRuns. An empty run adds nothing. */
+export const runsToLines = (runs) => runs.flatMap(r => (r.lines ? r.lines : [r.obj]));

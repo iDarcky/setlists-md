@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
+import { Input } from '@/ui/shadcn/input';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -65,12 +66,13 @@ export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryon
 }
 
 /** Arrangement ▾: each with its key and tempo; leaders can copy one into a new one. */
-export function ArrangementChip({ arrangements = [], current, onPick, onNew }) {
+export function ArrangementChip({ arrangements = [], current, onPick, onNew, onRename }) {
   const [open, setOpen] = useState(false);
+  const [naming, setNaming] = useState(null); // the draft name while renaming
   const cur = arrangements.find(a => a.id === current) || arrangements[0];
   if (!cur || (arrangements.length < 2 && !onNew)) return null;
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setNaming(null); }}>
       <PopoverTrigger asChild>
         <button type="button" aria-label={`Arrangement ${cur.name}, change`} className={cn(chip, 'max-w-[200px] bg-raised text-foreground')}>
           <span className="text-muted-foreground"><LayersIcon /></span>
@@ -79,6 +81,17 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew }) {
         </button>
       </PopoverTrigger>
       <PopoverContent className="flex w-[260px] flex-col p-1.5">
+        {naming != null ? (
+          <form className="flex flex-col gap-2 p-1.5" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); setOpen(false); }}>
+            <label className="flex flex-col gap-1.5 text-[13px] font-medium text-muted-foreground">Arrangement name
+              <Input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} maxLength={40} className="h-10" />
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setNaming(null)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
+            </div>
+          </form>
+        ) : (<>
         {arrangements.map(a => (
           <button key={a.id} type="button" onClick={() => { onPick?.(a.id); setOpen(false); }}
             className={cn('flex h-12 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised', a.id === cur.id && 'bg-selected hover:bg-selected')}>
@@ -99,6 +112,13 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew }) {
             </button>
           </>
         )}
+        {onRename && (
+          <button type="button" onClick={() => setNaming(cur.name || '')}
+            className="flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] font-medium text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
+            <span className="w-4" />Rename “{cur.name}”
+          </button>
+        )}
+        </>)}
       </PopoverContent>
     </Popover>
   );

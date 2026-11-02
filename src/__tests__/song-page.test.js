@@ -127,3 +127,47 @@ describe('markdown editor', () => {
     expect(next.title).toBe('Amazing Grace');
   });
 });
+
+import { linesToWords, remapWords, wordsToLines, lineRuns, runsToLines } from '@/lib/songEdit';
+
+describe('words: typing with chords riding along', () => {
+  const lines = ['[G]Amazing [G7]grace, how [C]sweet', 'That [G]saved a wretch {!softly}'];
+  const type = (w, next) => ({ text: next, marks: remapWords(w.text, next, w.marks) });
+  it('round-trips untouched lines', () => {
+    const w = linesToWords(lines);
+    expect(w.text).toBe('Amazing grace, how sweet\nThat saved a wretch ');
+    expect(wordsToLines(w.text, w.marks)).toEqual(['[G]Amazing [G7]grace, how [C]sweet', 'That [G]saved a wretch {!softly}']);
+  });
+  it('keeps a chord on its letter when typing before it', () => {
+    const w = linesToWords(lines);
+    const n = type(w, 'Oh Amazing grace, how sweet\nThat saved a wretch ');
+    expect(wordsToLines(n.text, n.marks)[0]).toBe('Oh [G]Amazing [G7]grace, how [C]sweet');
+  });
+  it('typing right at a chord pushes it along with the letter', () => {
+    const w = linesToWords(['[G]grace']);
+    const n = type(w, 'Sgrace');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['S[G]grace']);
+  });
+  it('Enter splits a line and the chords follow their words', () => {
+    const w = linesToWords(['[G]Amazing [C]grace']);
+    const n = type(w, 'Amazing \ngrace');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['[G]Amazing ', '[C]grace']);
+  });
+  it('a note stays on its line when Enter is pressed at the end', () => {
+    const w = linesToWords(['That [G]saved {!softly}']);
+    const n = type(w, 'That saved \n');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['That [G]saved {!softly}', '']);
+  });
+  it('deleting a chord’s letter keeps the chord at that spot', () => {
+    const w = linesToWords(['a[G]bc']);
+    const n = type(w, 'ac');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['a[G]c']);
+  });
+  it('cuts a section into runs around key changes', () => {
+    const mod = { type: 'modulate', semitones: 2 };
+    const runs = lineRuns(['a', 'b', mod, 'c']);
+    expect(runs).toEqual([{ lines: ['a', 'b'] }, { obj: mod }, { lines: ['c'] }]);
+    expect(runsToLines(runs)).toEqual(['a', 'b', mod, 'c']);
+    expect(lineRuns(['a', mod])).toEqual([{ lines: ['a'] }, { obj: mod }, { lines: [] }]);
+  });
+});
