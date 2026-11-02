@@ -223,7 +223,7 @@ function DetailsSheet({ open, onOpenChange, draft, onChange }) {
  * @param {Array<{id,name}>} people who can lead (the band, else everyone)
  * @param {(setlist) => void} onSave
  */
-export default function SetlistEdit({ setlist, songs = [], setlists = [], people = [], nameOf = () => '', onSave, onCancel, onDirtyChange, embedded = false, initialPicked = null }) {
+export default function SetlistEdit({ setlist, songs = [], setlists = [], people = [], nameOf = () => '', onSave, onCancel, onDirtyChange, embedded = false, initialPicked = null, isNew = false }) {
   const [draft, setDraft] = useState(() => ({ ...setlist, items: (setlist.items || []).map(it => ({ ...it })) }));
   const [picked, setPicked] = useState(initialPicked);     // index whose sheet is open (phone) / panel (desktop)
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -269,7 +269,8 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
         <div className="sticky top-0 z-10 -mx-4 mb-3 flex h-14 @min-[1024px]:col-span-2 items-center justify-between bg-background px-4 @min-[640px]:-mx-6 @min-[640px]:px-6" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', boxSizing: 'content-box' }}>
           <Button variant="ghost" className="-ml-3" onClick={onCancel}>Cancel</Button>
           <b className="text-[17px] font-semibold">Edit setlist</b>
-          <Button disabled={!dirty} onClick={() => { onDirtyChange?.(false); onSave?.(draft); }}>Done</Button>
+          {/* A new setlist is unsaved even untouched: Done creates it. */}
+          <Button disabled={!dirty && !isNew} onClick={() => { onDirtyChange?.(false); onSave?.(draft); }}>Done</Button>
         </div>
         <div className="flex min-w-0 flex-col gap-3">
 
