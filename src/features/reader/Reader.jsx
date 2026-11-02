@@ -287,6 +287,9 @@ export default function Reader({
   onUpdateSettings,
   onExit,
   embedded = false,
+  // The host's pane is phone-width even on a big screen (the editor's
+  // preview): lay out as a phone would — one column, no side rail.
+  narrow = false,
   // The Song Hub's Chart / Lyrics tabs. When the host NAMES a mode it wins over
   // the global `showChords` setting — otherwise a toggle flipped on some other
   // surface silently turns the Chart tab into a second Lyrics tab, which is
@@ -440,7 +443,8 @@ export default function Reader({
       prev && prev.chord === chord && sameBox(prev.rect, rect) ? null : { chord, rect }
     ));
   }, []);
-  const wide = useMediaQuery('(min-width: 768px)');
+  const wideScreen = useMediaQuery('(min-width: 768px)');
+  const wide = wideScreen && !narrow;
   // ⚠ ONE source for "does the bar still carry tempo and time". It was a bare
   // `hidden sm:inline` on the two spans, which meant CSS knew and JS did not —
   // so the strip could not tell whether it was repeating them or supplying

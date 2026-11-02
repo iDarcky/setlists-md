@@ -76,3 +76,26 @@ describe('songEdit', () => {
     expect(textToLines(sectionToText(arr.sections[1]))).toEqual(arr.sections[1].lines);
   });
 });
+
+describe('whole-song text and paste', () => {
+  it('round-trips an arrangement through text', async () => {
+    const { arrangementToText, textToSections } = await import('@/lib/songEdit');
+    const arr = { sections: [{ type: 'Verse 1', note: 'Soft', lines: ['[G]Amazing grace', '{modulate: +2}'] }, { type: 'Chorus', lines: ['Yes'] }] };
+    const text = arrangementToText(arr);
+    expect(text).toBe('## Verse 1\n> Soft\n[G]Amazing grace\n{modulate: +2}\n\n## Chorus\nYes');
+    const back = textToSections(text);
+    expect(back.map(s => s.type)).toEqual(['Verse 1', 'Chorus']);
+    expect(back[0].note).toBe('Soft');
+    expect(back[0].lines[1]).toEqual({ type: 'modulate', semitones: 2 });
+  });
+
+  it('turns pasted blocks into sections, a repeated chorus into the order', async () => {
+    const { blocksToSections } = await import('@/lib/songEdit');
+    const { inferSections } = await import('@/lib/detectSections');
+    const raw = '[Verse 1]\nG        C\nAmazing grace how sweet\n\nChorus:\nD   G\nSing it now\n\n[Verse 2]\nThrough many dangers\n\nChorus:\nD   G\nSing it now';
+    const { sections, structure } = blocksToSections(inferSections(raw).map(b => ({ type: b.type.replace(/\s*\d+$/, ''), lines: b.lines, repeat: b.repeat })));
+    expect(sections.map(s => s.type)).toEqual(['Verse 1', 'Chorus', 'Verse 2']);
+    expect(sections[0].lines[0]).toBe('[G]Amazing g[C]race how sweet');
+    expect(structure).toEqual(['Verse 1', 'Chorus', 'Verse 2', 'Chorus']);
+  });
+});
