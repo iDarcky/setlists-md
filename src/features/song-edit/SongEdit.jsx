@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -7,13 +7,15 @@ import { useConfirm } from '@/ui/useConfirmHook';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getArrangement, withArrangement, addArrangement, resolveSongView } from '@/arrangements';
 import { parseLine, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
-import { compactLabel, keyOptions, sectionStyle } from '@/music';
+import { compactLabel, keyOptions, sectionStyle, getDiatonicChords } from '@/music';
+import { isChordToken } from '@/importer';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { inferSections } from '@/lib/detectSections';
 import {
   playOrder, withOrder, move, renameSection, deleteSection, addSection, setLines, setSection,
   chordPalette, sectionToText, textToLines, SECTION_TYPES,
   arrangementToText, textToSections, blocksToSections, setChordAt, songMarkdown, applyMarkdown,
+  linesToWords, remapWords, wordsToLines, lineRuns, runsToLines,
 } from '@/lib/songEdit';
 import { ArrangementChip, MoreIcon } from '@/features/song/SongView';
 
@@ -84,97 +86,209 @@ function LineView({ line }) {
 }
 
 /**
- * The old editor's "tap where the chord goes", drawn new: the line's letters
- * are the targets. Tap one to pick that spot (a chord already there is
- * picked with it), then tap a chord below to put it there.
+ * A line of the open chart: every letter is a target. Tap one and the chord
+ * bar opens for that spot (a chord already there is picked with it). Drawn
+ * the way the chart draws it, chords over their words.
  */
-function ChordTapLine({ value, at, onPick }) {
-  const { clean } = extractInlineNotes(value);
+function TapLine({ line, id, picked, onPick }) {
+  const { clean, notes } = extractInlineNotes(line);
+  const parts = parseLine(clean);
   const { plainText, chords } = lineToPlacement(clean);
-  const chordAt = new Map(chords.map(c => [c.pos, c.chord]));
-  // One spare slot past the last letter, for a chord at the end of the line.
-  const cells = [...plainText, ' '];
+  const endChord = chords.some(c => c.pos === plainText.length);
+  const chordOnly = chords.length > 0 && !plainText.trim();
+  const cols = parts.reduce((acc, p) => [...acc, { ...p, start: acc.length ? acc[acc.length - 1].start + acc[acc.length - 1].text.length : 0 }], []);
+  const pick = (e) => {
+    const el = e.target.closest('[data-pos]');
+    if (!el) return;
+    const pos = Number(el.dataset.pos);
+    onPick(pos === picked ? null : pos);
+  };
+  const ghost = <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-[-3px] flex h-[18px] items-center rounded-[4px] px-1 font-mono text-[12px] font-semibold leading-none text-link shadow-[inset_0_0_0_1px_var(--link)]">+</span>;
+  const letter = (ch, pos) => (
+    <span key={pos} data-pos={pos} className={cn('relative cursor-pointer rounded-[2px]', picked === pos && 'bg-selected shadow-[inset_0_-2px_0_var(--link)]')}>
+      {picked === pos && !chords.some(c => c.pos === pos) && ghost}{ch}
+    </span>
+  );
   return (
-    <div className="flex flex-wrap rounded-control bg-background px-2 pb-1.5 pt-1" role="group" aria-label="Tap where a chord goes">
-      {cells.map((ch, i) => (
-        <button key={i} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(at === i ? null : i)}
-          aria-label={`${chordAt.has(i) ? `Chord ${chordAt.get(i)} at` : 'Put a chord at'} “${ch.trim() || 'end'}”`}
-          className={cn('relative inline-flex min-h-0 cursor-pointer flex-col items-start rounded-[4px] border-0 bg-transparent p-0 font-sans text-foreground outline-none', at === i && 'bg-selected')}>
-          <span className="h-[18px] whitespace-pre font-mono text-[13px] font-semibold leading-[18px] text-[var(--chord)]">{chordAt.get(i) || ' '}</span>
-          <span className={cn('min-w-[7px] whitespace-pre font-sans text-[17px] leading-7', at === i && 'text-link underline decoration-2 underline-offset-4')}>{ch === ' ' && i === cells.length - 1 ? '  ' : ch}</span>
-        </button>
+    <div data-line={id} role="group" aria-label={`Line: ${plainText.trim() || 'chords only'}. Tap a letter to put a chord on it`} onClick={pick}
+      className="flex select-none flex-wrap items-end">
+      {cols.map((p) => (
+        <span key={p.start} className="inline-flex flex-col whitespace-pre">
+          <span className={cn('h-[18px] font-mono text-[13px] font-semibold leading-[18px] text-[var(--chord)]', p.chord && (chordOnly ? 'pr-5' : 'pr-1.5'))}>
+            {p.chord ? <span data-pos={p.start} className={cn('cursor-pointer rounded-[4px]', picked === p.start && 'bg-[var(--chord)] px-1 text-background')}>{p.chord}</span> : ''}
+          </span>
+          <span className="min-h-7 text-[17px] leading-7">{[...p.text].map((ch, k) => letter(ch, p.start + k))}</span>
+        </span>
       ))}
+      {!endChord && (
+        <span className="inline-flex flex-col whitespace-pre">
+          <span className="h-[18px]" />
+          <span className="text-[17px] leading-7">
+            {plainText.length ? letter('  ', plainText.length) : (
+              <span data-pos={0} className={cn('relative cursor-pointer rounded-[2px] text-[15px] text-muted-foreground', picked === 0 && 'bg-selected')}>{picked === 0 && ghost}Empty line</span>
+            )}
+          </span>
+        </span>
+      )}
+      {notes.map((t, n) => <span key={`n${n}`} className="mb-0.5 ml-1.5 inline-flex h-6 items-center self-end rounded-full bg-warning-fill px-2 text-[12px] font-semibold text-[var(--chord)]">{t || 'note'}</span>)}
     </div>
   );
 }
 
-/** The tapped line, open in place, with the song's chords and the tools under it. */
-function LineEditor({ value, onChange, onDone, onEnter, palette, onCue, onKey, onTab, onText, onDelete, cue }) {
+const ROOTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const KINDS = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'sus2', 'add9', 'dim', 'aug'];
+const chip = 'flex h-10 min-h-0 min-w-12 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 px-2.5 font-mono text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const pickBtn = 'flex h-9 min-h-0 min-w-10 cursor-pointer items-center justify-center rounded-[7px] border-0 bg-raised px-2 font-mono text-[13px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+/** The word a letter belongs to, for the bar's "Put a chord on “saved”". */
+function wordAt(text, pos) {
+  if (!text.trim()) return null;
+  let a = Math.min(pos, text.length - 1), b = a;
+  if (/\s/.test(text[a] || ' ')) return null;
+  while (a > 0 && !/\s/.test(text[a - 1])) a--;
+  while (b < text.length && !/\s/.test(text[b])) b++;
+  return text.slice(a, b).replace(/^[^\p{L}\p{N}']+|[^\p{L}\p{N}']+$/gu, '') || null;
+}
+
+/**
+ * The old editor's chord bar, drawn new. On a phone it sits at the bottom
+ * with no keyboard (chips, not typing); on a computer it opens at the letter
+ * with the typing box ready ("D/F#", Enter). The key's chords keep their
+ * order; this song's own chords follow at the end. It stays open, so the
+ * next letter is one tap away.
+ */
+function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClose }) {
+  const { plainText, chords } = lineToPlacement(extractInlineNotes(line).clean);
+  const current = chords.find(c => c.pos === pos)?.chord || null;
+  const word = wordAt(plainText, pos);
+  const [typed, setTyped] = useState('');
+  const [more, setMore] = useState(false);
+  const [root, setRoot] = useState(null);
+  const [acc, setAcc] = useState('');
   const ref = useRef(null);
-  const [at, setAt] = useState(null); // the letter picked in ChordTapLine
-  const [other, setOther] = useState('');
-  const [typing, setTyping] = useState(false);
-  const hasWords = !!lineToPlacement(extractInlineNotes(value).clean).plainText.trim();
-  // A line with words opens on the letters; an empty one on the keyboard.
-  useEffect(() => { if (!hasWords) ref.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const chordHere = at != null ? lineToPlacement(extractInlineNotes(value).clean).chords.find(c => c.pos === at)?.chord : null;
-  const put = (c) => { if (at != null) onChange(setChordAt(value, at, c)); else insert(`[${c}]`); };
-  const insert = (s, select = 0) => {
-    const el = ref.current;
-    const at = el ? el.selectionStart ?? value.length : value.length;
-    const end = el ? el.selectionEnd ?? at : at;
-    const next = value.slice(0, at) + s + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
+  const [at, setAt] = useState(null);
+  const bad = typed.trim() && !isChordToken(typed.trim());
+  const put = (c) => { onPut(c); setTyped(''); setRoot(null); setAcc(''); };
+
+  // The popover follows its letter (the chart scrolls, a new chord reflows the line).
+  useEffect(() => {
+    if (!popover) return undefined;
+    const place = () => {
+      const el = document.querySelector(`[data-line="${lineId}"] [data-pos="${pos}"]`);
       if (!el) return;
-      el.focus();
-      if (select) el.setSelectionRange(at + s.length - select - 1, at + s.length - 1);
-      else el.setSelectionRange(at + s.length, at + s.length);
-    });
-  };
+      const r = el.getBoundingClientRect();
+      const h = ref.current?.offsetHeight || 220;
+      const left = Math.max(8, Math.min(r.left - 16, window.innerWidth - 400));
+      const top = r.bottom + 8 + h > window.innerHeight - 8 ? Math.max(8, r.top - 26 - h) : r.bottom + 8;
+      setAt({ left, top });
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place); };
+  }, [popover, lineId, pos, line, more]);
+  // Docked, the bar grows when More opens: keep the letter in sight above it.
+  useEffect(() => {
+    if (popover) return undefined;
+    const id = requestAnimationFrame(() => document.querySelector(`[data-line="${lineId}"]`)?.scrollIntoView({ block: 'nearest' }));
+    return () => cancelAnimationFrame(id);
+  }, [popover, lineId, more]);
+  // A click outside the bar and the chart's letters closes it; Escape too.
+  useEffect(() => {
+    const down = (e) => { if (!ref.current?.contains(e.target) && !e.target.closest?.('[data-line]')) onClose(); };
+    const key = (e) => { if (e.key === 'Escape') onClose(); };
+    if (popover) document.addEventListener('mousedown', down);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
+  }, [popover, onClose]);
+
   return (
-    <div className="-mx-2 flex flex-col gap-2 rounded-card border border-link bg-card p-2">
-      {hasWords && <ChordTapLine value={value} at={at} onPick={setAt} />}
-      <textarea
-        ref={ref}
-        rows={1}
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
-        onFocus={() => setAt(null)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); const at = e.currentTarget.selectionStart ?? value.length; onEnter(value.slice(0, at), value.slice(at)); }
-          if (e.key === 'Escape') onDone();
-        }}
-        aria-label="Line: words with [chords]"
-        spellCheck={false}
-        enterKeyHint="next"
-        className="min-h-11 w-full resize-none rounded-control border border-input bg-background px-3 py-2.5 font-mono text-[15px] leading-6 text-foreground outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-ring"
-      />
-      <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
-        {palette.map(c => (
-          <button key={c} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => put(c)}
-            className="flex h-9 min-h-0 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-warning-fill px-2 font-mono text-[14px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring">{c}</button>
-        ))}
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => (at != null ? setTyping(true) : insert('[]', 0))} className="flex h-9 min-h-0 shrink-0 cursor-pointer items-center rounded-control border border-border bg-transparent px-2.5 font-sans text-[13px] font-medium text-muted-foreground outline-none">Other</button>
-        {chordHere && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onChange(setChordAt(value, at, null))} className="flex h-9 min-h-0 shrink-0 cursor-pointer items-center rounded-control border border-border bg-transparent px-2.5 font-sans text-[13px] font-medium text-danger-text outline-none">Remove {chordHere}</button>}
+    <div ref={ref} role="dialog" aria-label="Chord"
+      style={popover ? { position: 'fixed', left: at?.left ?? -9999, top: at?.top ?? -9999 } : undefined}
+      className={cn('z-30 flex flex-col gap-2.5 bg-card p-3',
+        popover ? 'w-[384px] rounded-card border border-border shadow-[0_12px_32px_rgba(0,0,0,.35)]' : 'shrink-0 border-t border-border pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,.18)]')}>
+      <div className="flex min-h-8 items-center gap-2 text-[13px] text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate">{current ? 'Chord on' : 'Put a chord on'} {word ? <b className="font-semibold text-foreground">“{word}”</b> : (pos >= plainText.length ? 'the end of the line' : 'this spot')}</span>
+        {current && <button type="button" onClick={() => put(null)} className="h-8 min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 font-sans text-[13px] font-semibold text-danger-text outline-none focus-visible:ring-2 focus-visible:ring-ring">Remove</button>}
+        <button type="button" aria-label="Close the chord bar" onClick={onClose} className={cn(iconBtn, 'size-8')}><Svg size={16}><path d="M18 6 6 18M6 6l12 12" /></Svg></button>
       </div>
-      {typing && at != null && (
-        <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); if (other.trim()) put(other.trim()); setOther(''); setTyping(false); }}>
-          <Input autoFocus value={other} onChange={(e) => setOther(e.target.value)} placeholder="Chord, e.g. Gsus4 or D/F#" aria-label="Chord name" className="h-10 font-mono" />
-          <Button size="sm" type="submit">Put</Button>
-        </form>
+      <div className="flex flex-wrap gap-1.5">
+        {palette.map(c => {
+          const own = !diatonic.includes(c);
+          return (
+            <button key={c} type="button" aria-pressed={c === current} onClick={() => put(c)}
+              className={cn(chip, c === current ? 'bg-[var(--chord)] text-background' : own ? 'bg-transparent text-[var(--chord)] shadow-[inset_0_0_0_1px_var(--chord)]' : 'bg-warning-fill text-[var(--chord)]')}>{c}</button>
+          );
+        })}
+      </div>
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (typed.trim() && !bad) put(typed.trim()); }}>
+        <Input autoFocus={popover} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type a chord…" aria-label="Type a chord" aria-invalid={!!bad}
+          autoCapitalize="characters" autoCorrect="off" spellCheck={false} enterKeyHint="done"
+          className={cn('h-10 flex-1 font-mono', bad && 'border-danger-text')} />
+        <Button type="button" variant={more ? 'default' : 'outline'} className="h-10" onClick={() => setMore(m => !m)} aria-expanded={more}>More chords</Button>
+      </form>
+      {more && (
+        <div className="flex flex-col gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted-foreground">Root</span>
+          <div className="flex flex-wrap gap-1.5">
+            {ROOTS.map(r => <button key={r} type="button" aria-pressed={root === r} onClick={() => setRoot(r)} className={cn(pickBtn, root === r && 'bg-[var(--chord)] text-background')}>{r}</button>)}
+            {['#', 'b'].map(a => <button key={a} type="button" aria-pressed={acc === a} aria-label={a === '#' ? 'Sharp' : 'Flat'} onClick={() => setAcc(v => (v === a ? '' : a))} className={cn(pickBtn, acc === a && 'bg-[var(--chord)] text-background')}>{a === '#' ? '♯' : '♭'}</button>)}
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted-foreground">Type</span>
+          <div className="flex flex-wrap gap-1.5">
+            {KINDS.map(k => <button key={k || 'maj'} type="button" disabled={!root} onClick={() => put(root + acc + k)} className={cn(pickBtn, 'disabled:cursor-default disabled:opacity-40')}>{root ? root + acc + k : k || 'maj'}</button>)}
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-[.05em] text-muted-foreground">Bass note</span>
+          <div className="flex flex-wrap gap-1.5">
+            {ROOTS.map(r => <button key={r} type="button" disabled={!root} onClick={() => put(`${root}${acc}/${r}`)} className={cn(pickBtn, 'disabled:cursor-default disabled:opacity-40')}>{root ? `${root}${acc}/${r}` : `/${r}`}</button>)}
+          </div>
+        </div>
       )}
-      <div className="flex flex-wrap items-center gap-0.5 border-t border-border pt-1.5">
-        <button type="button" className={cn(tool, cue && 'text-[var(--chord)]')} onClick={onCue}><CueIcon />Cue</button>
-        <button type="button" className={tool} onMouseDown={(e) => e.preventDefault()} onClick={() => insert('{!note}', 4)}><NoteIcon />Note</button>
-        <button type="button" className={tool} onClick={onKey}><KeyIcon />Key</button>
-        <button type="button" className={tool} onClick={onTab}><TabIcon />Tab</button>
-        <button type="button" className={tool} onClick={onText}><TextIcon />Text</button>
-        <span className="flex-1" />
-        <button type="button" aria-label="Delete this line" className={cn(tool, 'text-muted-foreground')} onClick={onDelete}><TrashIcon /></button>
-        <Button size="sm" onClick={onDone}>Done</Button>
+    </div>
+  );
+}
+
+/**
+ * A run of lines typed as one text box: Enter for a new line, and the chords
+ * ride along on their letters (drawn behind the text by a mirror that wraps
+ * exactly as the box does).
+ */
+function WordsRun({ lines, onChange, onCaret, autoFocus, placeholder }) {
+  const [w, setW] = useState(() => linesToWords(lines));
+  const ref = useRef(null);
+  useEffect(() => { if (autoFocus) ref.current?.focus({ preventScroll: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const change = (text) => {
+    const marks = remapWords(w.text, text, w.marks);
+    setW({ text, marks });
+    onChange(wordsToLines(text, marks));
+  };
+  const caret = (el) => onCaret?.(el.value.slice(0, el.selectionStart ?? 0).split('\n').length - 1);
+  const chordAt = new Map(w.marks.filter(m => !m.notes).map(m => [m.at, m.chord]));
+  const rows = w.text.split('\n');
+  const starts = rows.reduce((acc, r, k) => [...acc, k ? acc[k - 1] + rows[k - 1].length + 1 : 0], []);
+  const box = 'm-0 whitespace-pre-wrap break-words px-3 py-1.5 font-sans text-[17px] leading-[46px] [overflow-wrap:anywhere]';
+  return (
+    <div className="relative -mx-1 rounded-card bg-card shadow-[inset_0_0_0_1.5px_var(--link)]">
+      <div aria-hidden="true" className={cn(box, 'text-transparent')}>
+        {rows.map((r, k) => {
+          const start = starts[k];
+          const out = [];
+          let plain = '';
+          for (let i = 0; i <= r.length; i++) {
+            const c = chordAt.get(start + i);
+            if (c) {
+              if (plain) { out.push(plain); plain = ''; }
+              out.push(<span key={i} className="relative">{r[i] ?? '​'}<span className="absolute bottom-[78%] left-0 whitespace-nowrap font-mono text-[13px] font-semibold leading-none text-[var(--chord)]">{c}</span></span>);
+            } else if (i < r.length) plain += r[i];
+          }
+          if (plain) out.push(plain);
+          return <span key={k}>{out}{k < rows.length - 1 ? '\n' : '​'}</span>;
+        })}
       </div>
-      <p className="m-0 px-1 text-[12px] leading-4 text-muted-foreground">{hasWords ? 'Tap a letter, then a chord. Type in the box to change the words; Enter starts a new line.' : 'Type the words, or tap chords for a chord-only line. Enter starts a new line.'}</p>
+      <textarea ref={ref} value={w.text} onChange={(e) => { change(e.target.value); caret(e.target); }}
+        onSelect={(e) => caret(e.target)} spellCheck={false} placeholder={placeholder}
+        aria-label="Words, one line per line"
+        className={cn(box, 'absolute inset-0 h-full w-full resize-none overflow-hidden border-0 bg-transparent text-foreground caret-[var(--link)] outline-none placeholder:text-muted-foreground')} />
     </div>
   );
 }
@@ -349,16 +463,33 @@ function OrderBar({ order, names, onChange, styleOf }) {
   );
 }
 
-function SectionCard({ arr, index, palette, editing, setEditing, onArr, onAddAfter, styleOf }) {
+function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, setWords, onArr, onAddAfter, styleOf }) {
   const sec = arr.sections[index];
   const look = styleOf(sec.type);
   const [mode, setMode] = useState(null); // null | 'rename' | 'cue' | 'text'
   const [draft, setDraft] = useState('');
+  // A key change or tab added from Words remounts the boxes around it.
+  const [session, setSession] = useState(0);
+  const caret = useRef({ run: 0, line: 0 });
   const lines = sec.lines?.length ? sec.lines : [''];
   const at = editing?.sec === index ? editing.line : null;
+  const typing = words === index;
   const lineAt = (n, v) => onArr(setLines(arr, index, lines.map((l, i) => (i === n ? v : l))));
-  const open = (m) => { setEditing(null); setMode(m); setDraft(m === 'rename' ? sec.type : m === 'cue' ? (sec.note || '') : m === 'text' ? sectionToText(sec) : ''); };
-  const insertAfter = (n, items) => onArr(setLines(arr, index, [...lines.slice(0, n + 1), ...items, ...lines.slice(n + 1)]));
+  const open = (m) => { setEditing(null); setPick(null); setMode(m); setDraft(m === 'rename' ? sec.type : m === 'cue' ? (sec.note || '') : m === 'text' ? sectionToText(sec) : ''); };
+  const runs = lineRuns(sec.lines || []);
+  const setRun = (ri, ls) => { const next = runs.slice(); next[ri] = { lines: ls }; onArr(setLines(arr, index, runsToLines(next))); };
+  // Key change / tab from Words: in after the line the caret is on.
+  const insertAtCaret = (obj) => {
+    const { run, line } = caret.current;
+    const r = runs[run]?.lines ? run : runs.findIndex(x => x.lines);
+    const ls = runs[r]?.lines || [];
+    const cut = Math.min(ls.length, (r === run ? line : ls.length - 1) + 1);
+    const next = [...runs.slice(0, r), { lines: ls.slice(0, cut) }, { obj }, { lines: ls.slice(cut) }, ...runs.slice(r + 1)];
+    const all = runsToLines(next);
+    const a = setLines(arr, index, all);
+    onArr(a);
+    return { a, at: all.indexOf(obj) };
+  };
 
   return (
     <section className="flex flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: look.br }}>
@@ -371,21 +502,27 @@ function SectionCard({ arr, index, palette, editing, setEditing, onArr, onAddAft
           </form>
         ) : (
           <>
-            <b className="text-[15px] font-semibold" style={{ color: look.b }}>{sec.type}</b>
+            <b className="whitespace-nowrap text-[15px] font-semibold" style={{ color: look.b }}>{sec.type}</b>
             {/* The band cue lives here, by the name, as the chart shows it: tap to change; "+ Cue" when there is none. */}
             {mode !== 'cue' && (sec.note ? (
               <button type="button" onClick={() => open('cue')} aria-label={`Band cue: ${sec.note}, change`}
                 className="inline-flex h-7 min-h-0 min-w-0 cursor-pointer items-center truncate rounded-full border-0 bg-warning-fill px-2.5 font-sans text-[12px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring">{sec.note}</button>
             ) : (
               <button type="button" onClick={() => open('cue')}
-                className="inline-flex h-7 min-h-0 cursor-pointer items-center gap-1 rounded-full border border-dashed border-chip-border bg-transparent px-2.5 font-sans text-[12px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><PlusIcon size={12} />Cue</button>
+                className="inline-flex h-7 min-h-0 shrink-0 cursor-pointer items-center gap-1 rounded-full border border-dashed border-chip-border bg-transparent px-2.5 font-sans text-[12px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><PlusIcon size={12} />Cue</button>
             ))}
             <span className="flex-1" />
+            {!typing && mode !== 'text' && (
+              <button type="button" onClick={() => { setMode(null); setPick(null); setEditing(null); setWords(index); }}
+                className="inline-flex h-8 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-raised px-2.5 font-sans text-[13px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <Svg size={14}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></Svg>Words
+              </button>
+            )}
             <SectionMenu section={sec} index={index} count={arr.sections.length}
-              onRename={() => open('rename')} onText={() => open('text')}
+              onRename={() => open('rename')} onText={() => { setWords(null); open('text'); }}
               onMove={(d) => onArr({ ...arr, sections: move(arr.sections, index, d) })}
               onDuplicate={() => { const { arr: a, index: i } = addSection(arr, index, sec.type.replace(/\s*\d+$/, '')); onArr(setSection(a, i, { lines: [...lines], note: sec.note })); }}
-              onDelete={() => onArr(deleteSection(arr, index))} />
+              onDelete={() => { setWords(null); setPick(null); onArr(deleteSection(arr, index)); }} />
           </>
         )}
       </div>
@@ -405,40 +542,44 @@ function SectionCard({ arr, index, palette, editing, setEditing, onArr, onAddAft
             <Button size="sm" variant="ghost" onClick={() => setMode(null)}>Cancel</Button>
           </div>
         </div>
+      ) : typing ? (
+        <div className="flex flex-col gap-2 pt-1">
+          {runs.map((r, ri) => (r.lines ? (
+            <WordsRun key={`${session}-${ri}`} lines={r.lines} autoFocus={ri === 0}
+              placeholder={ri === 0 && !r.lines.some(l => l.trim()) ? 'Type the words, one line per line' : 'More words…'}
+              onCaret={(line) => { caret.current = { run: ri, line }; }}
+              onChange={(ls) => setRun(ri, ls)} />
+          ) : (
+            <div key={`${session}-${ri}`} className="px-1"><LineView line={r.obj} /></div>
+          )))}
+          <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-1 rounded-card border border-border bg-card p-1.5 shadow-[0_4px_16px_rgba(0,0,0,.18)]">
+            <button type="button" className={tool} onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { const { at: n } = insertAtCaret({ type: 'modulate', semitones: 2 }); setWords(null); setEditing({ sec: index, line: n }); }}><KeyIcon />Key change</button>
+            <button type="button" className={tool} onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { const { a } = insertAtCaret({ type: 'tab', strings: [], time: null, instrument: null, raw: ['e|-----------|', 'B|-----------|', 'G|-----------|', 'D|-----------|', 'A|-----------|', 'E|-----------|'] }); setSession(x => x + 1); setWords(null); setMode('text'); setDraft(sectionToText(a.sections[index])); }}><TabIcon />Tab</button>
+            <span className="flex-1" />
+            <Button size="sm" onClick={() => setWords(null)}>Done</Button>
+          </div>
+        </div>
       ) : (
         <div className="flex flex-col gap-1">
           {lines.map((l, n) => {
             if (at === n && typeof l === 'object' && l?.type === 'modulate') {
               return <KeyChangeEditor key={n} line={l} onChange={(v) => lineAt(n, v)} onDelete={() => { onArr(setLines(arr, index, lines.filter((_, i) => i !== n))); setEditing(null); }} onDone={() => setEditing(null)} />;
             }
-            if (at === n && typeof l === 'string') {
+            if (typeof l === 'string') {
+              const mine = pick?.sec === index && pick.line === n;
+              return <TapLine key={n} line={l} id={`${index}-${n}`} picked={mine ? pick.pos : null} onPick={(pos) => { setEditing(null); setPick(pos == null ? null : { sec: index, line: n, pos }); }} />;
+            }
+            if (l?.type === 'modulate') {
               return (
-                <LineEditor key={n} value={l} palette={palette} cue={!!sec.note}
-                  onChange={(v) => lineAt(n, v)}
-                  onDone={() => setEditing(null)}
-                  onEnter={(a, b) => { onArr(setLines(arr, index, [...lines.slice(0, n), a, b, ...lines.slice(n + 1)])); setEditing({ sec: index, line: n + 1 }); }}
-                  onCue={() => open('cue')}
-                  onKey={() => { insertAfter(n, [{ type: 'modulate', semitones: 2 }]); setEditing({ sec: index, line: n + 1 }); }}
-                  onTab={() => { const withTab = [...lines.slice(0, n + 1), { type: 'tab', strings: [], time: null, instrument: null, raw: ['e|-----------|', 'B|-----------|', 'G|-----------|', 'D|-----------|', 'A|-----------|', 'E|-----------|'] }, ...lines.slice(n + 1)]; const a = setLines(arr, index, withTab); onArr(a); setEditing(null); setMode('text'); setDraft(sectionToText(a.sections[index])); }}
-                  onText={() => open('text')}
-                  onDelete={() => { const rest = lines.filter((_, i) => i !== n); onArr(setLines(arr, index, rest.length ? rest : [''])); setEditing(rest.length ? { sec: index, line: Math.max(0, n - 1) } : null); }}
-                />
+                <button key={n} type="button" onClick={() => { setPick(null); setEditing({ sec: index, line: n }); }} aria-label="Edit key change"
+                  className="-mx-2 min-h-0 cursor-pointer self-start rounded-control border-0 bg-transparent px-2 py-0.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised"><LineView line={l} /></button>
               );
             }
-            const tappable = typeof l === 'string' || l?.type === 'modulate';
-            return (
-              <button key={n} type="button" disabled={!tappable} onClick={() => setEditing({ sec: index, line: n })}
-                aria-label={typeof l === 'string' ? `Edit line: ${l.replace(/\[[^\]]*\]/g, '').trim() || 'chords'}` : l?.type === 'modulate' ? 'Edit key change' : undefined}
-                className="-mx-2 min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 py-0.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised disabled:cursor-default">
-                <LineView line={l} />
-              </button>
-            );
+            return <div key={n} className="py-0.5"><LineView line={l} /></div>;
           })}
           <div className="-mx-2 flex items-center gap-1">
-            <button type="button" onClick={() => { onArr(setLines(arr, index, [...lines, ''])); setEditing({ sec: index, line: lines.length }); }}
-              className="flex h-8 min-h-0 cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-2 font-sans text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-              <PlusIcon size={13} />Line
-            </button>
             <AddSection onAdd={onAddAfter} />
           </div>
         </div>
@@ -632,7 +773,9 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   const [tab, setTab] = useState('chart'); // phone: chart | info | preview
   const [side, setSide] = useState('info'); // wide: the right column, info | preview
   const [whole, setWhole] = useState(null); // null | 'paste' | 'text'
-  const [editing, setEditing] = useState(null); // { sec, line }
+  const [editing, setEditing] = useState(null); // { sec, line }: an open key change
+  const [pick, setPick] = useState(null); // { sec, line, pos }: the letter the chord bar is for
+  const [words, setWords] = useState(null); // the section typed as words
   const [saving, setSaving] = useState(false);
   const dirty = working !== song;
   const fresh = mode !== 'edit';
@@ -644,6 +787,10 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   // The chord row keeps its order while you edit; new chords join at the end.
   const [rows, setRows] = useState({});
   const palette = chordPalette(arr, rows[arr.id] || []);
+  const diatonic = useMemo(() => getDiatonicChords(arr.key || 'C').slice(0, 6), [arr.key]);
+  const closeAll = () => { setEditing(null); setPick(null); setWords(null); };
+  const pickedLine = pick ? arr.sections[pick.sec]?.lines?.[pick.line] : null;
+  const closePick = useCallback(() => setPick(null), []);
   if ((rows[arr.id] || []).length !== palette.length) setRows(r => ({ ...r, [arr.id]: palette }));
   const order = playOrder(arr);
   const names = [...new Set(arr.sections.map(s => s.type))];
@@ -681,27 +828,32 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
 
   const chart = pasting ? (
     <PasteSong styleOf={styleOf} onUse={useSections}
-      onBlank={arr.sections.length === 0 ? () => { const r = addSection(arr, -1, 'Verse'); onArr(r.arr); setEditing({ sec: r.index, line: 0 }); setWhole(null); } : null}
+      onBlank={arr.sections.length === 0 ? () => { const r = addSection(arr, -1, 'Verse'); onArr(r.arr); setWords(r.index); setWhole(null); } : null}
       onCancel={whole === 'paste' ? () => setWhole(null) : null} />
   ) : whole === 'text' ? (
     <WholeText key="text" title="The whole song as text" initial={arrangementToText(arr)} onCancel={() => setWhole(null)}
       hint="## Name starts a section, > text under it is the band cue, [G] before a word puts the chord there."
-      onDone={(t) => { onArr({ ...arr, sections: textToSections(t) }); setWhole(null); setEditing(null); }} />
+      onDone={(t) => { onArr({ ...arr, sections: textToSections(t) }); setWhole(null); closeAll(); }} />
   ) : whole === 'md' ? (
     <WholeText key="md" title="Markdown" initial={songMarkdown(working, arr.id)} onCancel={() => setWhole(null)}
       hint="The song's .md file for this arrangement: the details between the --- lines, then the sections. Done puts it back on the song."
-      onDone={(t) => { setWorking(w => applyMarkdown(w, arr.id, t)); setWhole(null); setEditing(null); }} />
+      onDone={(t) => { setWorking(w => applyMarkdown(w, arr.id, t)); setWhole(null); closeAll(); }} />
   ) : (
     <div className="flex flex-col gap-5">
       <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />
-      <p className="m-0 text-[13px] text-muted-foreground">Looks like the chart. Tap any line to change its words or chords.</p>
+      <p className="m-0 text-[13px] text-muted-foreground">{wide ? 'Click a letter to put a chord on it, or type one straight away (D/F#, Enter). Words changes the lyrics.' : 'Tap a letter to put a chord on it. Tap Words to change the lyrics.'}</p>
       {arr.sections.map((x, i) => (
-        <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} palette={palette} editing={editing} setEditing={setEditing} onArr={onArr} styleOf={styleOf}
-          onAddAfter={(t) => { const r = addSection(arr, i, t); onArr(r.arr); setEditing({ sec: r.index, line: 0 }); }} />
+        <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} editing={editing} setEditing={setEditing} pick={pick} setPick={setPick} words={words} setWords={setWords} onArr={onArr} styleOf={styleOf}
+          onAddAfter={(t) => { const r = addSection(arr, i, t); onArr(r.arr); setPick(null); setWords(r.index); }} />
       ))}
-      {arr.sections.length === 0 && <AddSection big onAdd={(t) => { const r = addSection(arr, -1, t); onArr(r.arr); setEditing({ sec: r.index, line: 0 }); }} />}
+      {arr.sections.length === 0 && <AddSection big onAdd={(t) => { const r = addSection(arr, -1, t); onArr(r.arr); setWords(r.index); }} />}
     </div>
   );
+  const chordBar = pick && typeof pickedLine === 'string' && !whole && (wide || tab === 'chart') ? (
+    <ChordBar key={`${pick.sec}-${pick.line}-${pick.pos}`} line={pickedLine} lineId={`${pick.sec}-${pick.line}`} pos={pick.pos} palette={palette} diatonic={diatonic} popover={wide}
+      onClose={closePick}
+      onPut={(c) => onArr(setLines(arr, pick.sec, arr.sections[pick.sec].lines.map((l, n) => (n === pick.line ? setChordAt(l, pick.pos, c) : l))))} />
+  ) : null;
   const info = <InfoForm song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
   const view = useMemo(() => resolveSongView(working, arr.id), [working, arr.id]);
   const preview = arr.sections.length ? (
@@ -725,7 +877,7 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   // is just "the song": no chip until there is a choice to make.
   const arrChip = (
     <ArrangementChip arrangements={arrangements} current={arr.id}
-      onPick={(id) => { setArrId(id); setEditing(null); setWhole(null); }}
+      onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
       onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song); setArrId(r.arrangementId); } : null} />
   );
 
@@ -738,9 +890,9 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
           {arrChip || <span className="text-[12px] text-muted-foreground">{mode === 'new' ? 'New song' : mode === 'import' ? 'Check and add' : 'Editing'}</span>}
         </div>
         <EditMenu items={[
-          { label: 'Edit all as text', onClick: () => { setEditing(null); setWhole('text'); setTab('chart'); } },
-          { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { setEditing(null); setWhole('md'); setTab('chart'); } },
-          mode === 'new' && { label: 'Paste a song', onClick: () => { setEditing(null); setWhole('paste'); setTab('chart'); } },
+          { label: 'Edit all as text', onClick: () => { closeAll(); setWhole('text'); setTab('chart'); } },
+          { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
+          mode === 'new' && { label: 'Paste a song', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
         <Button size="sm" onClick={save} disabled={!canSave} loading={saving}>{fresh ? 'Add' : 'Save'}</Button>
@@ -754,15 +906,17 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
             <div className="flex shrink-0 px-5 pb-2 pt-3">{seg([['info', 'Info'], ['preview', 'Preview']], side, setSide)}</div>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-16 pt-2">{side === 'info' ? info : preview}</div>
           </aside>
+          {chordBar}
         </div>
       ) : (
         <>
           <div className="mx-auto flex w-full max-w-[680px] shrink-0 px-4 py-2.5">
-            {seg([['chart', 'Chart'], ['info', 'Info'], ['preview', 'Preview']], tab, (id) => { setTab(id); setEditing(null); })}
+            {seg([['chart', 'Chart'], ['info', 'Info'], ['preview', 'Preview']], tab, (id) => { setTab(id); closeAll(); })}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <div className="mx-auto w-full max-w-[680px] px-4 pb-16 pt-1">{tab === 'chart' ? chart : tab === 'info' ? info : preview}</div>
           </div>
+          {chordBar}
         </>
       )}
     </div>
