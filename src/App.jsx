@@ -2597,6 +2597,7 @@ export default function App() {
             <SongEdit
               key={editTarget.song.id}
               song={editTarget.song}
+              library={songs}
               mode={editTarget.mode}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}

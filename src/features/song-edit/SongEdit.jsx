@@ -5,11 +5,15 @@ import { Input } from '@/ui/shadcn/input';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { useMediaQuery } from '@/lib/useMediaQuery';
-import { getArrangement, withArrangement, addArrangement, resolveSongView } from '@/arrangements';
+import { getArrangement, withArrangement, addArrangement, deleteArrangement, setDefaultArrangement, resolveSongView } from '@/arrangements';
+import { transposeArrangement } from '@/lib/transposeArrangement';
 import { parseLine, parseTabBlock, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
-import { compactLabel, keyOptions, sectionStyle, getDiatonicChords } from '@/music';
+import { compactLabel, keyOptions, sectionStyle, getDiatonicChords, semitonesBetween } from '@/music';
 import { isChordToken } from '@/importer';
-import TabGridEditor from '@/features/editor/TabGridEditorV2';
+import { normalizeText } from '@/lib/search';
+import { youtubeDuration, formatLength } from '@/lib/embedPlayers';
+import { youtubeId } from '@/lib/coverArt';
+import TabTool from './TabTool';
 import { TAB_INSTRUMENTS, instrumentForStrings } from '@/data/tabInstruments';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { inferSections } from '@/lib/detectSections';
@@ -59,7 +63,13 @@ function LineView({ line }) {
     return <span className="inline-flex h-7 items-center rounded-full bg-warning-fill px-2.5 text-[13px] font-semibold text-[var(--chord)]">Key change {line.semitones > 0 ? '+' : ''}{line.semitones}{line.every ? ', every time' : ''}</span>;
   }
   if (typeof line === 'object' && line?.type === 'tab') {
-    return <pre className="m-0 overflow-x-auto rounded-control bg-raised p-2 font-mono text-[12px] leading-4">{(line.raw || []).join('\n') || 'Empty tab'}</pre>;
+    const instr = TAB_INSTRUMENTS[line.instrument || instrumentForStrings(line.strings?.length)]?.label || 'Guitar';
+    return (
+      <span className="flex flex-col gap-1 rounded-card border border-border bg-card px-3 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Tab · {instr}{line.time ? ` · ${line.time}` : ''}</span>
+        <pre className="m-0 overflow-x-auto font-mono text-[12px] leading-4 text-foreground">{(line.strings || []).map(x => `${x.note}|${x.content}`).join('\n') || 'Empty tab'}</pre>
+      </span>
+    );
   }
   if (typeof line === 'object') return <span className="text-[13px] text-muted-foreground">Tab: {line?.name}</span>;
   const { clean, notes } = extractInlineNotes(line);
@@ -118,15 +128,15 @@ function TapLine({ line, id, picked, onPick, onNote }) {
       className="flex select-none flex-wrap items-end">
       {cols.map((p) => (
         <span key={p.start} className="inline-flex flex-col whitespace-pre">
-          <span className={cn('h-[18px] font-mono text-[13px] font-semibold leading-[18px] text-[var(--chord)]', p.chord && (chordOnly ? 'pr-5' : 'pr-1.5'))}>
+          <span className={cn('font-mono font-semibold text-[var(--chord)]', chordOnly ? 'h-7 text-[14px] leading-7' : chords.length ? 'h-[18px] text-[13px] leading-[18px]' : 'h-0', p.chord && (chordOnly ? 'pr-5' : 'pr-1.5'))}>
             {p.chord ? <span data-pos={p.start} className={cn('cursor-pointer rounded-[4px]', picked === p.start && 'bg-[var(--chord)] px-1 text-background')}>{p.chord}</span> : ''}
           </span>
-          <span className="min-h-7 text-[17px] leading-7">{[...p.text].map((ch, k) => letter(ch, p.start + k))}</span>
+          {!chordOnly && <span className="min-h-7 text-[17px] leading-7">{[...p.text].map((ch, k) => letter(ch, p.start + k))}</span>}
         </span>
       ))}
       {!endChord && (
         <span className="inline-flex flex-col whitespace-pre">
-          <span className="h-[18px]" />
+          {chords.length > 0 && <span className="h-[18px]" />}
           <span className="text-[17px] leading-7">
             {plainText.length ? letter('  ', plainText.length) : (
               <span data-pos={0} className={cn('relative cursor-pointer rounded-[2px] text-[15px] text-muted-foreground', picked === 0 && 'bg-selected')}>{picked === 0 && ghost}Empty line</span>
@@ -279,24 +289,34 @@ function KeyChangeEditor({ line, onChange, onDelete, onDone }) {
   );
 }
 
-function SectionMenu({ section, index, count, onChangeType, onText, onMove, onDuplicate, onDelete, onKeyChange, onTab }) {
+/** The section's name is its type picker, as in the old editor: tap "Verse 1 ▾", pick Chorus. */
+function SectionName({ name, look, onPick }) {
   const [open, setOpen] = useState(false);
-  const [types, setTypes] = useState(false);
-  const run = (fn) => () => { setOpen(false); fn(); };
-  const base = String(section.type || '').replace(/\s*\d+$/, '');
+  const base = baseType(name);
   return (
-    <Popover open={open} onOpenChange={(o) => { setOpen(o); setTypes(false); }}>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label={`${name}, change the section type`} style={{ color: look.b }}
+          className="-ml-1 inline-flex h-8 min-h-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-control border-0 bg-transparent px-1 font-sans text-[15px] font-semibold outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+          {name}<ChevronIcon />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="flex w-[220px] flex-col p-1.5">
+        {SECTION_TYPES.map(t => <button key={t} type="button" className={cn(menuRow, t === base && 'bg-selected')} onClick={() => { setOpen(false); onPick(t); }}>{t}</button>)}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function SectionMenu({ section, index, count, onText, onMove, onDuplicate, onDelete, onKeyChange, onTab }) {
+  const [open, setOpen] = useState(false);
+  const run = (fn) => () => { setOpen(false); fn(); };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" aria-label={`${section.type} options`} className={cn(iconBtn, 'size-9')}><MoreIcon size={18} /></button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-[240px] flex-col p-1.5">
-        {types ? (<>
-          <span className="px-2.5 pb-1 pt-1 text-[13px] font-semibold text-muted-foreground">Change {section.type} to</span>
-          {SECTION_TYPES.map(t => (
-            <button key={t} type="button" className={cn(menuRow, t === base && 'bg-selected')} onClick={run(() => onChangeType(t))}>{t}</button>
-          ))}
-        </>) : (<>
-        <button type="button" className={menuRow} onClick={() => setTypes(true)}>Change to…</button>
         <button type="button" className={menuRow} onClick={run(onKeyChange)}>Add key change</button>
         <button type="button" className={menuRow} onClick={run(onTab)}>Add tab</button>
         <button type="button" className={menuRow} onClick={run(onText)}>Edit as text</button>
@@ -306,7 +326,6 @@ function SectionMenu({ section, index, count, onChangeType, onText, onMove, onDu
         <button type="button" className={menuRow} onClick={run(onDuplicate)}>Duplicate</button>
         <div className="mx-1 my-1 h-px bg-border" />
         <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={run(onDelete)}>Delete section</button>
-        </>)}
       </PopoverContent>
     </Popover>
   );
@@ -466,7 +485,7 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
         {sectionTag(sec.type, look)}
         {(
           <>
-            <b className="whitespace-nowrap text-[15px] font-semibold" style={{ color: look.b }}>{sec.type}</b>
+            <SectionName name={sec.type} look={look} onPick={(t) => { if (t === baseType(sec.type)) return; onArr(renameSection(arr, index, newSectionName(arr.sections.filter((_, n) => n !== index), t))); }} />
             {/* The band cue lives here, by the name, as the chart shows it: tap to change; "+ Cue" when there is none. */}
             {mode !== 'cue' && (sec.note ? (
               <button type="button" onClick={() => open('cue')} aria-label={`Band cue: ${sec.note}, change`}
@@ -479,11 +498,10 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
             {!typing && mode !== 'text' && (
               <button type="button" onClick={() => { setMode(null); setPick(null); setEditing(null); setWords(index); }}
                 className="inline-flex h-8 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-raised px-2.5 font-sans text-[13px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <Svg size={14}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></Svg>Words
+                <Svg size={14}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></Svg>Lyrics
               </button>
             )}
             <SectionMenu section={sec} index={index} count={arr.sections.length}
-              onChangeType={(t) => { if (t === sec.type.replace(/\s*\d+$/, '')) return; onArr(renameSection(arr, index, newSectionName(arr.sections.filter((_, n) => n !== index), t))); }}
               onText={() => { setWords(null); open('text'); }}
               onKeyChange={() => { setWords(null); setPick(null); onArr(setLines(arr, index, [{ type: 'modulate', semitones: 2 }, ...(sec.lines || [])])); setEditing({ sec: index, line: 0 }); }}
               onTab={() => { setWords(null); setPick(null); onTab(null); }}
@@ -513,13 +531,12 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
         <div className="flex flex-col gap-2 pt-1">
           {runs.map((r, ri) => (r.lines ? (
             <WordsRun key={ri} lines={r.lines} autoFocus={ri === 0}
-              placeholder={ri === 0 && !r.lines.some(l => l.trim()) ? 'Type the words, one line per line' : 'More words…'}
+              placeholder={ri === 0 && !r.lines.some(l => l.trim()) ? 'Type the lyrics, one line per line' : 'More lyrics…'}
               onChange={(ls) => setRun(ri, ls)} />
           ) : (
             <div key={ri} className="px-1"><LineView line={r.obj} /></div>
           )))}
           <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-1 rounded-card border border-border bg-card p-1.5 shadow-[0_4px_16px_rgba(0,0,0,.18)]">
-            <span className="px-2 text-[12px] text-muted-foreground">Key changes and tabs: section ⋯</span>
             <span className="flex-1" />
             <Button size="sm" onClick={() => setWords(null)}>Done</Button>
           </div>
@@ -579,20 +596,21 @@ function Field({ label, children, hint }) {
 }
 
 /** Our own key dropdown: the 12 major keys, then the 12 minor ones. */
-function KeyPicker({ value, onChange }) {
+function KeyPicker({ value, onChange, onMove }) {
   const [open, setOpen] = useState(false);
+  const [to, setTo] = useState(null); // the key picked, while asking move or rename
   const keys = useMemo(() => keyOptions('flats'), []);
   const grid = (list) => (
     <div className="grid grid-cols-6 gap-1">
       {list.map(k => (
-        <button key={k.value} type="button" aria-pressed={k.value === value} onClick={() => { onChange(k.value); setOpen(false); }}
+        <button key={k.value} type="button" aria-pressed={k.value === value} onClick={() => { if (onMove && value && k.value !== value) { setTo(k.value); return; } onChange(k.value); setOpen(false); }}
           className={cn('flex h-10 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent p-0 font-mono text-[14px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
             k.value === value && 'bg-[var(--chord)] text-background hover:bg-[var(--chord)]')}>{k.value}</button>
       ))}
     </div>
   );
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); setTo(null); }}>
       <PopoverTrigger asChild>
         <button type="button" aria-label={`Key ${value || 'not set'}, change`}
           className="flex h-12 w-full min-w-0 cursor-pointer items-center justify-between gap-1 rounded-control border border-input bg-background px-3 font-mono text-[15px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11">
@@ -600,10 +618,17 @@ function KeyPicker({ value, onChange }) {
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-[300px] flex-col gap-2 p-2.5">
+        {to ? (<>
+          <b className="px-1 pt-1 text-[15px] font-semibold">From <span className="font-mono text-[var(--chord)]">{value}</span> to <span className="font-mono text-[var(--chord)]">{to}</span></b>
+          <Button onClick={() => { onMove(to); setOpen(false); setTo(null); }}>Move every chord to {to}</Button>
+          <Button variant="ghost" onClick={() => { onChange(to); setOpen(false); setTo(null); }}>Only rename the key</Button>
+          <p className="m-0 px-1 text-[12px] leading-4 text-muted-foreground">Rename when the key was written down wrong and the chords are right.</p>
+        </>) : (<>
         <span className="px-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Major</span>
         {grid(keys.filter(k => !k.value.endsWith('m')))}
         <span className="px-1 pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Minor</span>
         {grid(keys.filter(k => k.value.endsWith('m')))}
+        </>)}
       </PopoverContent>
     </Popover>
   );
@@ -616,7 +641,6 @@ const MORE_FIELDS = [
   ['originaltitle', 'Original title', 'For translated songs'],
   ['language', 'Language', 'English'],
   ['translator', 'Translator', ''],
-  ['year', 'Release year', '1779'],
   ['album', 'Album', ''],
   ['publishers', 'Publishers', ''],
   ['label', 'Record label', ''],
@@ -627,7 +651,7 @@ const MORE_FIELDS = [
   ['story', 'Story behind the song', ''],
 ];
 
-function InfoForm({ song, arr, onSong, onArr, onOldEditor }) {
+function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle }) {
   const [more, setMore] = useState(false);
   const f = (k, max = 300) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
   const a = (k, num) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: num ? (e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null) : e.target.value }) });
@@ -637,15 +661,9 @@ function InfoForm({ song, arr, onSong, onArr, onOldEditor }) {
   return (
     <div className="flex flex-col gap-3.5">
       <Field label="Title"><Input {...f('title', 120)} placeholder="Song name" autoFocus={!song.title} className={ph} /></Field>
+      {sameTitle && <p className="-mt-2 m-0 text-[13px] text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
       <Field label="Artist"><Input {...f('artist', 120)} placeholder="Artist or band" className={ph} /></Field>
-      <h3 className={grp}>Music</h3>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Key"><KeyPicker value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} /></Field>
-        <Field label="BPM"><Input inputMode="numeric" maxLength={3} {...a('tempo', true)} placeholder="72" className={ph} /></Field>
-        <Field label="Time"><Input maxLength={5} {...a('time')} placeholder="4/4" className={ph} /></Field>
-      </div>
-      <p className="m-0 text-[12px] leading-4 text-muted-foreground">Changing the key here only renames it. To move every chord, use Key on the song page.</p>
-      <Field label="Length" hint="adds up a setlist's time"><Input maxLength={5} {...a('duration')} placeholder="3:45" className={ph} /></Field>
+      <Field label="Release year"><Input inputMode="numeric" {...f('year', 4)} placeholder="1779" className={ph} /></Field>
       <Field label="Notes for the band"><textarea {...a('notes')} maxLength={1000} rows={2} placeholder="Shown with the chart" className={cn('w-full rounded-control border border-input bg-background p-3 font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', ph)} /></Field>
       <h3 className={grp}>Listen</h3>
       <Field label="YouTube link"><Input {...f('youtube')} inputMode="url" placeholder="youtube.com/watch?v=…" className={ph} /></Field>
@@ -669,7 +687,7 @@ function InfoForm({ song, arr, onSong, onArr, onOldEditor }) {
           </Field>
         ))
       ) : (
-        <Button variant="outline" onClick={() => setMore(true)}>More: original title, language, year, Bible verses, moment …</Button>
+        <Button variant="outline" onClick={() => setMore(true)}>More</Button>
       )}
       {onOldEditor && <Button variant="link" className="self-start pt-2" onClick={onOldEditor}>Open the old editor instead</Button>}
     </div>
@@ -805,48 +823,81 @@ function WholeText({ initial, title, hint, onDone, onCancel }) {
 // mode: 'edit' (a song in the library) · 'new' (blank, from + New song) ·
 // 'import' (parsed from a file or paste, not saved yet). A new or imported song
 // can be saved untouched; an edit only once something changed.
-function ArrangementTabs({ arrangements, current, onPick, onRename, onNew }) {
+/**
+ * The arrangement you are editing: tabs, then its key, BPM, time and length
+ * in one band under them. Living together says "these belong to this
+ * arrangement" without renaming any field. Tap the open tab for its menu.
+ */
+function ArrangementBar({ arrangements, arr, defaultId, showTabs, onPick, onRename, onDefault, onDelete, onNew, onArr, chords }) {
   const [naming, setNaming] = useState(null);
-  const tab = 'inline-flex h-11 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 border-transparent bg-transparent px-3 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring';
+  const [menu, setMenu] = useState(false);
+  const tab = 'inline-flex h-11 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 border-transparent bg-transparent px-3 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
+  const ph = 'placeholder:text-muted-foreground/50';
+  const num = (k) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null }) });
+  const txt = (k) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: e.target.value }) });
+  const small = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-muted-foreground';
   return (
-    <div role="tablist" aria-label="Arrangements" className="flex shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border px-2">
-      {arrangements.map(a => a.id === current && naming != null ? (
-        <form key={a.id} className="flex shrink-0 items-center gap-1 py-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
-          <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
-          <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
-        </form>
-      ) : (
-        <button key={a.id} type="button" role="tab" aria-selected={a.id === current}
-          title={a.id === current ? 'Tap again to rename' : undefined}
-          onClick={() => (a.id === current ? setNaming(a.name || '') : onPick(a.id))}
-          className={cn(tab, a.id === current && 'border-foreground text-foreground')}>
-          <span className="max-w-[180px] truncate">{a.name || 'Arrangement'}</span>
-          <span className="font-mono text-[12px] font-semibold text-[var(--chord)]">{a.key}</span>
-          {a.id === current && <span className="text-muted-foreground/70"><Svg size={13}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></Svg></span>}
-        </button>
-      ))}
-      {onNew && (
-        <button type="button" onClick={onNew} aria-label="New arrangement, a copy of this one" className={cn(tab, 'gap-1')}>
-          <PlusIcon size={14} />New
-        </button>
+    <div className="shrink-0 border-b border-border bg-card">
+      {showTabs && (
+        <div role="tablist" aria-label="Arrangements" className="flex items-center gap-0.5 overflow-x-auto px-2">
+          {arrangements.map(a => a.id === arr.id && naming != null ? (
+            <form key={a.id} className="flex shrink-0 items-center gap-1 py-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
+              <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
+              <Button type="button" variant="ghost" size="sm" onClick={() => setNaming(null)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
+            </form>
+          ) : a.id === arr.id ? (
+            <Popover key={a.id} open={menu} onOpenChange={setMenu}>
+              <PopoverTrigger asChild>
+                <button type="button" role="tab" aria-selected="true" aria-label={`${a.name}, arrangement options`} className={cn(tab, 'border-foreground text-foreground')}>
+                  <span className="max-w-[180px] truncate">{a.name}</span>
+                  {a.id === defaultId && arrangements.length > 1 && <span className="rounded-full bg-raised px-1.5 text-[11px] font-medium text-muted-foreground">default</span>}
+                  <ChevronIcon />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="flex w-[240px] flex-col p-1.5">
+                <button type="button" className={menuRow} onClick={() => { setMenu(false); setNaming(a.name || ''); }}>Rename</button>
+                {onNew && <button type="button" className={menuRow} onClick={() => { setMenu(false); onNew(); }}>Make a copy</button>}
+                {arrangements.length > 1 && a.id !== defaultId && <button type="button" className={cn(menuRow, 'h-auto min-h-11 flex-col items-start gap-0 py-2')} onClick={() => { setMenu(false); onDefault(); }}>Make default<span className="text-[12px] font-normal text-muted-foreground">Opens first, and new setlists use it</span></button>}
+                {arrangements.length > 1 && <><div className="mx-1 my-1 h-px bg-border" /><button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { setMenu(false); onDelete(); }}>Delete arrangement</button></>}
+              </PopoverContent>
+            </Popover>
+          ) : (
+            <button key={a.id} type="button" role="tab" aria-selected="false" disabled={naming != null} onClick={() => onPick(a.id)} className={tab}>
+              <span className="max-w-[180px] truncate">{a.name}</span>
+            </button>
+          ))}
+          {onNew && (
+            <button type="button" onClick={onNew} disabled={naming != null} aria-label="New arrangement, a copy of this one" className={cn(tab, 'gap-1')}>
+              <PlusIcon size={14} />New
+            </button>
+          )}
+        </div>
       )}
+      <div className="mx-auto grid w-full max-w-[760px] grid-cols-4 gap-2 px-4 pb-3 pt-2">
+        <label className={small}>Key<KeyPicker value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} onMove={chords ? (to) => onArr({ ...transposeArrangement(arr, semitonesBetween(arr.key, to)), key: to }) : null} /></label>
+        <label className={small}>BPM<Input inputMode="numeric" maxLength={3} {...num('tempo')} placeholder="72" className={cn('h-12 sm:h-11', ph)} /></label>
+        <label className={small}>Time<Input maxLength={5} {...txt('time')} placeholder="4/4" className={cn('h-12 sm:h-11', ph)} /></label>
+        <label className={small}>Length<Input maxLength={5} {...txt('duration')} placeholder="3:45" className={cn('h-12 sm:h-11', ph)} /></label>
+      </div>
     </div>
   );
 }
 
-export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+export default function SongEdit({ song, library = [], mode = 'edit', settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
   // Undo / redo: every change is a step, except quick typing, which is one.
   const [hist, setHist] = useState(() => ({ past: [], present: song, future: [], at: 0 }));
   const working = hist.present;
-  const setWorking = useCallback((u) => setHist((h) => {
+  // `step` forces its own undo step (a new arrangement is never folded into a rename).
+  const setWorking = useCallback((u, step = false) => setHist((h) => {
     const next = typeof u === 'function' ? u(h.present) : u;
     if (next === h.present) return h;
     const now = Date.now();
-    const merge = now - h.at < 700 && h.past.length > 0;
-    return { past: merge ? h.past : [...h.past.slice(-99), h.present], present: next, future: [], at: now };
+    const merge = !step && now - h.at < 700 && h.past.length > 0;
+    return { past: merge ? h.past : [...h.past.slice(-99), h.present], present: next, future: [], at: step ? 0 : now };
   }), []);
   const undo = () => setHist(h => (h.past.length ? { past: h.past.slice(0, -1), present: h.past[h.past.length - 1], future: [h.present, ...h.future], at: 0 } : h));
   const redo = () => setHist(h => (h.future.length ? { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1), at: 0 } : h));
@@ -865,6 +916,33 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   const hasLines = working.arrangements.some(x => (x.sections || []).some(sc => (sc.lines || []).some(l => (typeof l === 'string' ? l.trim() : l))));
   const missing = !working.title?.trim() ? (hasLines ? 'a title' : 'a title and at least one line') : !hasLines ? 'at least one line' : null;
   const canSave = !missing && (fresh || dirty);
+  // Another song in the library with this name ("You already have Amazing Grace").
+  const sameTitle = useMemo(() => {
+    const t = normalizeText(working.title || '').trim();
+    return t ? library.find(x => x && x.id !== working.id && normalizeText(x.title || '').trim() === t) || null : null;
+  }, [library, working.title, working.id]);
+
+  // Never lose work: an unsaved copy stays on this device until it is saved
+  // or thrown away, and the next open offers it back.
+  const draftKey = mode === 'import' ? null : `setlists-md:song-draft:${mode === 'new' ? 'new' : song.id}`;
+  const [draftFound, setDraftFound] = useState(() => {
+    if (!draftKey) return null;
+    try {
+      const d = JSON.parse(localStorage.getItem(draftKey) || 'null');
+      return d?.song?.arrangements?.length && (mode === 'new' || d.song.id === song.id) ? d : null;
+    } catch { return null; }
+  });
+  const dropDraft = useCallback(() => { if (draftKey) try { localStorage.removeItem(draftKey); } catch { /* private mode */ } }, [draftKey]);
+  useEffect(() => {
+    if (!draftKey || draftFound) return undefined;
+    const t = setTimeout(() => {
+      try {
+        if (dirty) localStorage.setItem(draftKey, JSON.stringify({ at: Date.now(), song: working }));
+        else localStorage.removeItem(draftKey);
+      } catch { /* full or private mode */ }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [working, dirty, draftKey, draftFound]);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
 
   const arr = getArrangement(working, arrId) || working.arrangements[0];
@@ -878,10 +956,12 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   const doRedo = () => { closeAll(); redo(); };
   // ⌘/Ctrl+Z and ⇧⌘/Ctrl+Z, except inside a text box (it has its own undo).
   const keys = useRef(null);
-  keys.current = { doUndo, doRedo };
+  keys.current = { doUndo, doRedo, save: () => { if (canSave && !saving) save(); } };
   useEffect(() => {
     const onKey = (e) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== 'z') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      if (e.key.toLowerCase() === 's') { e.preventDefault(); keys.current.save(); return; }
+      if (e.key.toLowerCase() !== 'z') return;
       if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
       e.preventDefault();
       if (e.shiftKey) keys.current.doRedo(); else keys.current.doUndo();
@@ -898,16 +978,18 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
 
   const cancel = async () => {
     if ((dirty || mode === 'import') && !(await confirm({ title: 'Leave without saving?', description: fresh ? 'This song won’t be added.' : 'Your changes to this song will be lost.', confirmLabel: 'Leave', variant: 'danger' }))) return;
+    dropDraft();
     onDirtyChange?.(false);
     onBack?.();
   };
   const save = async () => {
     // A song needs a name; Info opens with the title box focused.
     if (missing) return;
+    if (fresh && sameTitle && !(await confirm({ title: `You already have ${sameTitle.title}`, description: [sameTitle.artist, sameTitle.arrangements?.[0]?.key && `in ${sameTitle.arrangements[0].key}`].filter(Boolean).join(', ') || 'A song with this name is in the library.', confirmLabel: 'Add anyway' }))) return;
     setSaving(true);
     try {
       const ok = await onSave?.({ ...working, title: working.title.trim(), tags: (Array.isArray(working.tags) ? working.tags : []).map(t => String(t).trim()).filter(Boolean), updatedAt: Date.now() });
-      if (ok !== false) onDirtyChange?.(false);
+      if (ok !== false) { dropDraft(); onDirtyChange?.(false); }
     } finally { setSaving(false); }
   };
 
@@ -941,7 +1023,6 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
   ) : (
     <div className="flex flex-col gap-5">
       <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />
-      <p className="m-0 text-[13px] text-muted-foreground">{wide ? 'Click a letter to put a chord on it, or type one straight away (D/F#, Enter). Words changes the lyrics.' : 'Tap a letter to put a chord on it. Tap Words to change the lyrics.'}</p>
       {arr.sections.map((x, i) => (
         <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} editing={editing} setEditing={setEditing} pick={pick} setPick={setPick} words={words} setWords={setWords} onArr={onArr} styleOf={styleOf}
           onTab={(line) => setTabEdit({ sec: i, line })}
@@ -956,23 +1037,19 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
       onPut={(c) => onArr(setLines(arr, pick.sec, arr.sections[pick.sec].lines.map((l, n) => (n === pick.line ? setChordAt(l, pick.pos, c) : l))))} />
   ) : null;
   const tabLine = tabEdit && tabEdit.line != null ? arr.sections[tabEdit.sec]?.lines?.[tabEdit.line] : null;
-  const tabTool = tabEdit && (() => {
-    const instr = tabLine ? instrumentForStrings(tabLine.strings?.length) : 'electric';
-    return (
-      <TabGridEditor initialTab={tabLine} time={tabLine?.time || arr.time}
-        strings={tabLine?.strings?.length ? tabLine.strings.map(x => x.note) : TAB_INSTRUMENTS[instr].strings}
-        tunings={TAB_INSTRUMENTS[instr].tunings} instrument={instr} counts={TAB_INSTRUMENTS[instr].counts}
-        onClose={() => setTabEdit(null)}
-        onSave={(saved) => {
-          const tab = tabFromGrid(saved, tabLine);
-          const lines = [...(arr.sections[tabEdit.sec].lines || [])];
-          if (tabEdit.line != null) lines[tabEdit.line] = tab; else lines.push(tab);
-          onArr(setLines(arr, tabEdit.sec, lines));
-          setTabEdit(null);
-        }} />
-    );
-  })();
-  const info = <InfoForm song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
+  const tabTool = tabEdit && (
+    <TabTool initialTab={tabLine} time={arr.time} title={`${tabLine ? 'Tab' : 'New tab'} · ${arr.sections[tabEdit.sec]?.type || ''}`}
+      onClose={() => setTabEdit(null)}
+      onRemove={tabEdit.line != null ? () => { onArr(setLines(arr, tabEdit.sec, (arr.sections[tabEdit.sec].lines || []).filter((_, n) => n !== tabEdit.line))); setTabEdit(null); } : null}
+      onSave={(saved) => {
+        const tab = tabFromGrid(saved, tabLine);
+        const lines = [...(arr.sections[tabEdit.sec].lines || [])];
+        if (tabEdit.line != null) lines[tabEdit.line] = tab; else lines.push(tab);
+        onArr(setLines(arr, tabEdit.sec, lines));
+        setTabEdit(null);
+      }} />
+  );
+  const info = <InfoForm sameTitle={sameTitle} song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
   const view = useMemo(() => resolveSongView(working, arr.id), [working, arr.id]);
   const preview = arr.sections.length ? (
     <Suspense fallback={null}>
@@ -990,14 +1067,33 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
       ))}
     </div>
   );
-  // Arrangements are tabs under the header: tap one to edit it, tap the
-  // active one again to rename it, + makes a copy of the current one.
-  // One arrangement on a new song is just "the song": no strip.
-  const arrTabs = (arrangements.length > 1 || mode === 'edit') && (
-    <ArrangementTabs arrangements={arrangements} current={arr.id}
+  // A new YouTube link fills an empty Length from the video.
+  const ytId = youtubeId(working.youtube || '');
+  const lastYt = useRef(ytId);
+  useEffect(() => {
+    if (!ytId || ytId === lastYt.current) return undefined;
+    lastYt.current = ytId;
+    if (arr.duration) return undefined;
+    let live = true;
+    const target = arr.id;
+    youtubeDuration(ytId).then((sec) => {
+      if (live && sec) setWorking(w => withArrangement(w, target, (a) => (a.duration ? a : { ...a, duration: formatLength(sec) })));
+    });
+    return () => { live = false; };
+  }, [ytId, arr.duration, arr.id, setWorking]);
+  const hasChords = arr.sections.some(sc => (sc.lines || []).some(l => typeof l === 'string' && l.includes('[')));
+  const arrBar = (
+    <ArrangementBar arrangements={arrangements} arr={arr} defaultId={working.defaultArrangementId || working.arrangements[0]?.id}
+      showTabs={arrangements.length > 1 || mode === 'edit'} chords={hasChords} onArr={onArr}
       onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
       onRename={(name) => onArr({ ...arr, name })}
-      onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song); setArrId(r.arrangementId); closeAll(); } : null} />
+      onDefault={() => setWorking(w => setDefaultArrangement(w, arr.id), true)}
+      onDelete={async () => {
+        if (!(await confirm({ title: `Delete ${arr.name || 'this arrangement'}?`, description: 'Its chords, order and notes go with it. Undo brings it back until you leave.', confirmLabel: 'Delete', variant: 'danger' }))) return;
+        const next = deleteArrangement(working, arr.id);
+        setWorking(next, true); setArrId(next.defaultArrangementId || next.arrangements[0].id); closeAll();
+      }}
+      onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song, true); setArrId(r.arrangementId); closeAll(); } : null} />
   );
 
   return (
@@ -1018,7 +1114,14 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
         ].filter(Boolean)} />
         <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{fresh ? 'Add' : 'Save'}</Button>
       </div>
-      {arrTabs}
+      {draftFound && (
+        <div role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-warning-fill px-4 py-2">
+          <span className="flex-1 text-[14px] text-foreground">Restore your unsaved changes{draftFound.at ? ` from ${new Date(draftFound.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}?</span>
+          <Button size="sm" variant="ghost" onClick={() => { dropDraft(); setDraftFound(null); }}>Discard</Button>
+          <Button size="sm" onClick={() => { const d = draftFound.song; setWorking(mode === 'new' ? { ...d, id: song.id } : d, true); setArrId(d.defaultArrangementId || d.arrangements[0].id); setDraftFound(null); }}>Restore</Button>
+        </div>
+      )}
+      {arrBar}
       {missing && (fresh || dirty) && <p className="m-0 shrink-0 border-b border-border bg-raised px-4 py-1.5 text-center text-[13px] text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>}
       {wide ? (
         <div className="flex min-h-0 flex-1">

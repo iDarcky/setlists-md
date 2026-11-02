@@ -51,3 +51,46 @@ export function ensureSpotifyApi() {
   }).catch((e) => { spotifyPromise = undefined; throw e; });
   return spotifyPromise;
 }
+
+// A YouTube video's length in seconds, read by cueing it in a player that is
+// never shown or played (nothing plays, so no visible-player rule applies).
+// null when the API is blocked, the video is private, or it takes over 8 s.
+export async function youtubeDuration(videoId) {
+  if (!videoId || typeof document === 'undefined') return null;
+  const YT = await ensureYouTubeApi().catch(() => null);
+  if (!YT) return null;
+  return new Promise((resolve) => {
+    const host = document.createElement('div');
+    host.setAttribute('aria-hidden', 'true');
+    host.style.cssText = 'position:fixed;left:-10000px;top:0;width:200px;height:200px;';
+    const slot = document.createElement('div');
+    host.appendChild(slot);
+    document.body.appendChild(host);
+    let player; let tries = 0; let done = false;
+    const finish = (v) => {
+      if (done) return;
+      done = true;
+      clearTimeout(limit);
+      try { player?.destroy(); } catch { /* already gone */ }
+      host.remove();
+      resolve(v);
+    };
+    const limit = setTimeout(() => finish(null), 8000);
+    const read = () => {
+      const d = Math.round(player?.getDuration?.() || 0);
+      if (d > 0) finish(d);
+      else if (++tries < 20) setTimeout(read, 250);
+      else finish(null);
+    };
+    try {
+      player = new YT.Player(slot, {
+        width: 200, height: 200, videoId,
+        playerVars: { autoplay: 0, controls: 0 },
+        events: { onReady: read, onError: () => finish(null) },
+      });
+    } catch { finish(null); }
+  });
+}
+
+/** 225 → "3:45". */
+export const formatLength = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
