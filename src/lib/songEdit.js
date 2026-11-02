@@ -1,7 +1,8 @@
 // The new song editor's model, as pure functions over one arrangement.
 // SongEdit.jsx holds the state; the tests feed fixtures.
 
-import { parseSectionLines, serializeTabBlock, serializeModulate } from '@/parser';
+import { parseSectionLines, serializeTabBlock, serializeModulate, parseSongMd, extractInlineNotes, lineToPlacement, placementToLine } from '@/parser';
+import { importChartText } from '@/lib/importChords';
 import { getDiatonicChords } from '@/music';
 
 /** One line of a section as the writer types it. */
@@ -96,3 +97,61 @@ export function chordPalette(arr, max = 10) {
 }
 
 export const SECTION_TYPES = ['Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge', 'Instrumental', 'Interlude', 'Tag', 'Outro'];
+
+/** The whole arrangement as one text: `## Name`, `> cue`, then the lines. */
+export const arrangementToText = (arr) => (arr?.sections || [])
+  .map(s => [`## ${s.type}`, ...(s.note ? [`> ${s.note}`] : []), sectionToText(s)].join('\n'))
+  .join('\n\n');
+
+/** The reverse: text with `## Name` headers back into sections. */
+export function textToSections(text) {
+  const parsed = parseSongMd(`---\ntitle: x\n---\n${text || ''}\n`).sections || [];
+  return parsed.map(s => ({ ...s, note: s.note || undefined }));
+}
+
+/**
+ * Reviewed paste blocks ({ type, lines, repeat }) into sections + a play order.
+ * A block whose name and words come back is one section played twice, so it
+ * lands in the order, not twice in the chart. Chords written over the words are
+ * moved inline on the way (importChartText). Returns { sections, structure, meta }.
+ */
+export function blocksToSections(blocks) {
+  const totals = {};
+  for (const b of blocks) totals[b.type] = (totals[b.type] || 0) + 1;
+  const seen = {};
+  const sections = [];
+  const order = [];
+  const byName = new Map();
+  let meta = {};
+  for (const b of blocks) {
+    const key = b.lines.join('\n').trim();
+    const repeatName = [...byName.entries()].find(([n, k]) => n.replace(/\s*\d+$/, '') === b.type && k === key)?.[0];
+    if (repeatName) { order.push(...Array(b.repeat || 1).fill(repeatName)); continue; }
+    seen[b.type] = (seen[b.type] || 0) + 1;
+    const numbered = totals[b.type] > 1 && b.type !== 'Chorus' && b.type !== 'Refrain';
+    let name = numbered ? `${b.type} ${seen[b.type]}` : b.type;
+    while (byName.has(name)) name = `${b.type} ${++seen[b.type]}`;
+    const { body, meta: m } = importChartText(b.lines.join('\n'));
+    meta = { ...m, ...meta };
+    // A "[Verse 1]" or "Chorus:" first line is the label the block was named
+    // from; any later "## …" is a lyric the importer mistook for one.
+    const rows = body.trim().split('\n');
+    if (/^##\s/.test(rows[0] || '')) rows.shift();
+    const words = rows.join('\n').replace(/^##\s+/gm, '').trim();
+    const parsed = textToSections(`## ${name}\n${words}`)[0] || { type: name, lines: [] };
+    sections.push({ ...parsed, type: name });
+    byName.set(name, key);
+    order.push(...Array(b.repeat || 1).fill(name));
+  }
+  const plain = order.length === sections.length && order.every((n, i) => n === sections[i].type);
+  return { sections, structure: plain ? null : order, meta };
+}
+
+/** Put `chord` at letter `pos` of a line, replacing one already there; null removes it. */
+export function setChordAt(value, pos, chord) {
+  const { clean, notes } = extractInlineNotes(value);
+  const { plainText, chords } = lineToPlacement(clean);
+  const rest = chords.filter(c => c.pos !== pos);
+  const next = placementToLine({ plainText, chords: chord ? [...rest, { chord, pos }] : rest });
+  return notes.length ? `${next} ${notes.map(n => `{!${n}}`).join(' ')}` : next;
+}

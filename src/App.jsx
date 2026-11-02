@@ -2598,6 +2598,8 @@ export default function App() {
               key={editTarget.song.id}
               song={editTarget.song}
               mode={editTarget.mode}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               initialArrangementId={editArrangementId}
               onSave={handleSaveSong}
               onBack={goBack}
