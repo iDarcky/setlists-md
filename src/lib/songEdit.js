@@ -1,7 +1,7 @@
 // The new song editor's model, as pure functions over one arrangement.
 // SongEdit.jsx holds the state; the tests feed fixtures.
 
-import { parseSectionLines, serializeTabBlock, serializeModulate, parseSongMd } from '@/parser';
+import { parseSectionLines, serializeTabBlock, serializeModulate, parseSongMd, extractInlineNotes, lineToPlacement, placementToLine } from '@/parser';
 import { importChartText } from '@/lib/importChords';
 import { getDiatonicChords } from '@/music';
 
@@ -145,4 +145,13 @@ export function blocksToSections(blocks) {
   }
   const plain = order.length === sections.length && order.every((n, i) => n === sections[i].type);
   return { sections, structure: plain ? null : order, meta };
+}
+
+/** Put `chord` at letter `pos` of a line, replacing one already there; null removes it. */
+export function setChordAt(value, pos, chord) {
+  const { clean, notes } = extractInlineNotes(value);
+  const { plainText, chords } = lineToPlacement(clean);
+  const rest = chords.filter(c => c.pos !== pos);
+  const next = placementToLine({ plainText, chords: chord ? [...rest, { chord, pos }] : rest });
+  return notes.length ? `${next} ${notes.map(n => `{!${n}}`).join(' ')}` : next;
 }

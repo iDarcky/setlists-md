@@ -6,14 +6,14 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getArrangement, withArrangement, addArrangement, resolveSongView } from '@/arrangements';
-import { parseLine, extractInlineNotes, CUE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
+import { parseLine, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
 import { compactLabel, keyOptions, sectionStyle } from '@/music';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { inferSections } from '@/lib/detectSections';
 import {
   playOrder, withOrder, move, renameSection, deleteSection, addSection, setLines, setSection,
   chordPalette, sectionToText, textToLines, SECTION_TYPES,
-  arrangementToText, textToSections, blocksToSections,
+  arrangementToText, textToSections, blocksToSections, setChordAt,
 } from '@/lib/songEdit';
 import { ArrangementChip, MoreIcon } from '@/features/song/SongView';
 
@@ -83,10 +83,42 @@ function LineView({ line }) {
   );
 }
 
+/**
+ * The old editor's "tap where the chord goes", drawn new: the line's letters
+ * are the targets. Tap one to pick that spot (a chord already there is
+ * picked with it), then tap a chord below to put it there.
+ */
+function ChordTapLine({ value, at, onPick }) {
+  const { clean } = extractInlineNotes(value);
+  const { plainText, chords } = lineToPlacement(clean);
+  const chordAt = new Map(chords.map(c => [c.pos, c.chord]));
+  // One spare slot past the last letter, for a chord at the end of the line.
+  const cells = [...plainText, ' '];
+  return (
+    <div className="flex flex-wrap rounded-control bg-background px-2 pb-1.5 pt-1" role="group" aria-label="Tap where a chord goes">
+      {cells.map((ch, i) => (
+        <button key={i} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(at === i ? null : i)}
+          aria-label={`${chordAt.has(i) ? `Chord ${chordAt.get(i)} at` : 'Put a chord at'} “${ch.trim() || 'end'}”`}
+          className={cn('relative inline-flex min-h-0 cursor-pointer flex-col items-start rounded-[4px] border-0 bg-transparent p-0 font-sans text-foreground outline-none', at === i && 'bg-selected')}>
+          <span className="h-[18px] whitespace-pre font-mono text-[13px] font-semibold leading-[18px] text-[var(--chord)]">{chordAt.get(i) || ' '}</span>
+          <span className={cn('min-w-[7px] whitespace-pre font-sans text-[17px] leading-7', at === i && 'text-link underline decoration-2 underline-offset-4')}>{ch === ' ' && i === cells.length - 1 ? '  ' : ch}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** The tapped line, open in place, with the song's chords and the tools under it. */
 function LineEditor({ value, onChange, onDone, onEnter, palette, onCue, onKey, onTab, onText, onDelete, cue }) {
   const ref = useRef(null);
-  useEffect(() => { ref.current?.focus(); }, []);
+  const [at, setAt] = useState(null); // the letter picked in ChordTapLine
+  const [other, setOther] = useState('');
+  const [typing, setTyping] = useState(false);
+  const hasWords = !!lineToPlacement(extractInlineNotes(value).clean).plainText.trim();
+  // A line with words opens on the letters; an empty one on the keyboard.
+  useEffect(() => { if (!hasWords) ref.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const chordHere = at != null ? lineToPlacement(extractInlineNotes(value).clean).chords.find(c => c.pos === at)?.chord : null;
+  const put = (c) => { if (at != null) onChange(setChordAt(value, at, c)); else insert(`[${c}]`); };
   const insert = (s, select = 0) => {
     const el = ref.current;
     const at = el ? el.selectionStart ?? value.length : value.length;
@@ -102,11 +134,13 @@ function LineEditor({ value, onChange, onDone, onEnter, palette, onCue, onKey, o
   };
   return (
     <div className="-mx-2 flex flex-col gap-2 rounded-card border border-link bg-card p-2">
+      {hasWords && <ChordTapLine value={value} at={at} onPick={setAt} />}
       <textarea
         ref={ref}
         rows={1}
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/\n/g, ' '))}
+        onFocus={() => setAt(null)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); const at = e.currentTarget.selectionStart ?? value.length; onEnter(value.slice(0, at), value.slice(at)); }
           if (e.key === 'Escape') onDone();
@@ -118,11 +152,18 @@ function LineEditor({ value, onChange, onDone, onEnter, palette, onCue, onKey, o
       />
       <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
         {palette.map(c => (
-          <button key={c} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insert(`[${c}]`)}
+          <button key={c} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => put(c)}
             className="flex h-9 min-h-0 min-w-11 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-warning-fill px-2 font-mono text-[14px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring">{c}</button>
         ))}
-        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insert('[]', 0)} className="flex h-9 min-h-0 shrink-0 cursor-pointer items-center rounded-control border border-border bg-transparent px-2.5 font-sans text-[13px] font-medium text-muted-foreground outline-none">Other</button>
+        <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => (at != null ? setTyping(true) : insert('[]', 0))} className="flex h-9 min-h-0 shrink-0 cursor-pointer items-center rounded-control border border-border bg-transparent px-2.5 font-sans text-[13px] font-medium text-muted-foreground outline-none">Other</button>
+        {chordHere && <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => onChange(setChordAt(value, at, null))} className="flex h-9 min-h-0 shrink-0 cursor-pointer items-center rounded-control border border-border bg-transparent px-2.5 font-sans text-[13px] font-medium text-danger-text outline-none">Remove {chordHere}</button>}
       </div>
+      {typing && at != null && (
+        <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); if (other.trim()) put(other.trim()); setOther(''); setTyping(false); }}>
+          <Input autoFocus value={other} onChange={(e) => setOther(e.target.value)} placeholder="Chord, e.g. Gsus4 or D/F#" aria-label="Chord name" className="h-10 font-mono" />
+          <Button size="sm" type="submit">Put</Button>
+        </form>
+      )}
       <div className="flex flex-wrap items-center gap-0.5 border-t border-border pt-1.5">
         <button type="button" className={cn(tool, cue && 'text-[var(--chord)]')} onClick={onCue}><CueIcon />Cue</button>
         <button type="button" className={tool} onMouseDown={(e) => e.preventDefault()} onClick={() => insert('{!note}', 4)}><NoteIcon />Note</button>
@@ -133,7 +174,7 @@ function LineEditor({ value, onChange, onDone, onEnter, palette, onCue, onKey, o
         <button type="button" aria-label="Delete this line" className={cn(tool, 'text-muted-foreground')} onClick={onDelete}><TrashIcon /></button>
         <Button size="sm" onClick={onDone}>Done</Button>
       </div>
-      <p className="m-0 px-1 text-[12px] leading-4 text-muted-foreground">Tap a chord to put it where the cursor is. Enter starts a new line.</p>
+      <p className="m-0 px-1 text-[12px] leading-4 text-muted-foreground">{hasWords ? 'Tap a letter, then a chord. Type in the box to change the words; Enter starts a new line.' : 'Type the words, or tap chords for a chord-only line. Enter starts a new line.'}</p>
     </div>
   );
 }

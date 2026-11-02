@@ -99,3 +99,13 @@ describe('whole-song text and paste', () => {
     expect(structure).toEqual(['Verse 1', 'Chorus', 'Verse 2', 'Chorus']);
   });
 });
+
+describe('setChordAt', () => {
+  it('puts, replaces and removes a chord at a letter', async () => {
+    const { setChordAt } = await import('@/lib/songEdit');
+    expect(setChordAt('Amazing grace', 8, 'G')).toBe('Amazing [G]grace');
+    expect(setChordAt('[C]Amazing [G]grace', 8, 'D')).toBe('[C]Amazing [D]grace');
+    expect(setChordAt('[C]Amazing [G]grace', 0, null)).toBe('Amazing [G]grace');
+    expect(setChordAt('Amazing grace', 13, 'G')).toBe('Amazing grace[G]');
+  });
+});
