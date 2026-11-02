@@ -35,6 +35,8 @@ import {
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
+import { NewSetlistBody } from '@/features/setlist/NewSetlistSheet';
+import { serviceStarts } from '@/lib/newSetlist';
 import RunSheet from '@/features/setlist/RunSheet';
 import { toast } from '@/ui/use-toast';
 import { showUndoToast } from '@/lib/undoToast';
@@ -658,10 +660,25 @@ const SL_PAST = [
 ];
 const SL_PEOPLE = [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }, { id: 'rk', name: 'Rob' }];
 
+const NS_SETLISTS = [
+  { id: 'n1', name: 'Sunday Morning', service: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall', items: [{ type: 'break', label: 'Welcome' }, { type: 'break', label: 'Offering' }, { type: 'break', label: 'Sermon' }] },
+  { id: 'n2', name: 'Youth Night', service: 'Youth Night', date: '2026-10-30', time: '19:00', items: [{ type: 'break', label: 'Games' }] },
+  { id: 'n3', isTemplate: true, templateName: 'Christmas Eve', items: [{ songId: 'a' }, { songId: 'b' }, { type: 'break', label: 'Carols' }] },
+];
+const NS_STARTS = serviceStarts(NS_SETLISTS, '2026-11-02');
+
 function SetlistEditGallery() {
   const edit = (picked) => <SetlistEdit embedded setlist={SL} songs={SL_SONGS} setlists={SL_PAST} people={SL_PEOPLE} nameOf={(u) => SL_NAMES[u] || ''} initialPicked={picked} onSave={noop} onCancel={noop} />;
   return (
     <div className="flex flex-wrap items-start gap-6">
+      {THEMES.map(t => (
+        <Frame key={'ns' + t.id} theme={t.id} width={390} height={620} scale={0.6} label={`New setlist · ${t.label}`}>
+          <div className="min-h-full bg-background p-4 text-foreground">
+            <h2 className="m-0 mb-4 font-sans text-title font-semibold">New setlist</h2>
+            <NewSetlistBody starts={NS_STARTS} onCreate={noop} onEditTemplates={noop} />
+          </div>
+        </Frame>
+      ))}
       {THEMES.map(t => (
         <Frame key={'ed' + t.id} theme={t.id} width={390} height={844} scale={0.6} label={`Edit · ${t.label}`}>{edit(null)}</Frame>
       ))}
@@ -1133,7 +1150,7 @@ export default function DesignSystem({ onBack }) {
           <SetlistGallery />
         </Section>
 
-        <Section title="Setlist edit" sub="Leaders only, its own page so nobody drags by accident. Drag by the grip (works with a finger in the installed app) or use Move up/down in a row's sheet. Done saves; Cancel asks before throwing changes away.">
+        <Section title="Setlist edit" sub="New setlist starts from a service the church already runs (its day, time, place and moments; a template also brings its songs), dated the next free day, or blank. Then the edit page: leaders only, its own page so nobody drags by accident. Drag by the grip (works with a finger in the installed app) or use Move up/down in a row's sheet. Done saves; Cancel asks before throwing changes away.">
           <SetlistEditGallery />
         </Section>
 

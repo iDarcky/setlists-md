@@ -103,6 +103,7 @@ const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
 const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
 const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'));
+import NewSetlistSheet from '@/features/setlist/NewSetlistSheet';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -1312,6 +1313,7 @@ export default function App() {
     if (isTeamReadOnly) return;
     navigate('editor', { song, arrangementId, newTitle });
   };
+  const [newSetlistOpen, setNewSetlistOpen] = useState(false);
   const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
     // Warn before editing a setlist whose date has already passed — editing it
@@ -1331,6 +1333,8 @@ export default function App() {
         if (!ok) return;
       }
     }
+    // New: pick a service first (NewSetlistSheet), then the edit page.
+    if (!sl) { setNewSetlistOpen(true); return; }
     navigate('setlist-build', { setlist: sl });
   };
   const goSetlistView = (sl) => {
@@ -2645,12 +2649,14 @@ export default function App() {
               ensureRow={ensureSetlistRow}
             />
           )}
-          {/* An existing setlist edits on the new page; a new one still starts in
-              the builder until service templates land. */}
-          {view === 'setlist-build' && currentSetlist?.id && setlists.some(s => s.id === currentSetlist.id) && (
+          {/* Every setlist edits on the new page. A new one arrives here as an
+              unsaved draft from NewSetlistSheet; Done saves it (handleSaveSetlist
+              sees it is new and lands on its page), Cancel leaves nothing behind. */}
+          {view === 'setlist-build' && currentSetlist?.id && (
             <SetlistEditPage
               key={currentSetlist.id}
               setlist={setlists.find(s => s.id === currentSetlist.id) || currentSetlist}
+              isNew={!setlists.some(s => s.id === currentSetlist.id)}
               songs={songs}
               setlists={setlists}
               schedules={schedules}
@@ -2664,7 +2670,7 @@ export default function App() {
               onDirtyChange={markSetlistDirty}
             />
           )}
-          {view === 'setlist-build' && !(currentSetlist?.id && setlists.some(s => s.id === currentSetlist.id)) && (
+          {view === 'setlist-build' && !currentSetlist?.id && (
             <SetlistBuilder
             songs={songs}
               setlist={currentSetlist}
@@ -2960,6 +2966,14 @@ export default function App() {
           }}
         />
       )}
+
+      <NewSetlistSheet
+        open={newSetlistOpen}
+        onOpenChange={setNewSetlistOpen}
+        setlists={setlists}
+        onCreate={(draft) => { setNewSetlistOpen(false); navigate('setlist-build', { setlist: draft }); }}
+        onEditTemplates={() => { setNewSetlistOpen(false); goToMainView('settings', { settingsPanel: 'services' }); }}
+      />
 
       {/* Founder note — surfaced on the dashboard once after the user has
           transposed their first chart (the engagement signal). */}
