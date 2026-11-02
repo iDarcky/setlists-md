@@ -70,7 +70,11 @@ describe('songEdit', () => {
     expect(playOrder(arr)).toEqual(arr.structure);
   });
   it('offers the chords the song uses first', () => {
-    expect(chordPalette(arr).slice(0, 3)).toEqual(['G', 'C', 'D']);
+    expect(chordPalette(arr)).toEqual(['G', 'Am', 'Bm', 'C', 'D', 'Em']);
+    const row = chordPalette({ ...arr, sections: [{ type: 'V', lines: ['[G]a [Gsus4]b [D/F#]c'] }] });
+    expect(row.slice(6)).toEqual(['Gsus4', 'D/F#']);
+    // A chord placed later lands at the end; nothing already shown moves.
+    expect(chordPalette({ ...arr, sections: [{ type: 'V', lines: ['[A7]x [G]a [Gsus4]b [D/F#]c'] }] }, row)).toEqual([...row, 'A7']);
   });
   it('round-trips a section through text', () => {
     expect(textToLines(sectionToText(arr.sections[1]))).toEqual(arr.sections[1].lines);
@@ -107,5 +111,19 @@ describe('setChordAt', () => {
     expect(setChordAt('[C]Amazing [G]grace', 8, 'D')).toBe('[C]Amazing [D]grace');
     expect(setChordAt('[C]Amazing [G]grace', 0, null)).toBe('Amazing [G]grace');
     expect(setChordAt('Amazing grace', 13, 'G')).toBe('Amazing grace[G]');
+  });
+});
+
+describe('markdown editor', () => {
+  it('round-trips the song through its .md and applies edits', async () => {
+    const { songMarkdown, applyMarkdown } = await import('@/lib/songEdit');
+    const song = { id: 's1', title: 'Amazing Grace', artist: 'John Newton', defaultArrangementId: 'a', arrangements: [{ id: 'a', name: 'Main', key: 'G', tempo: 72, time: '3/4', capo: 0, structure: [], structureMode: 'auto', sections: [{ type: 'Verse 1', lines: ['[G]Amazing grace'] }] }] };
+    const md = songMarkdown(song, 'a');
+    expect(md).toContain('title: Amazing Grace');
+    expect(md).toContain('## Verse 1');
+    const next = applyMarkdown(song, 'a', md.replace('key: G', 'key: A').replace('[G]Amazing', '[A]Amazing'));
+    expect(next.arrangements[0].key).toBe('A');
+    expect(next.arrangements[0].sections[0].lines[0]).toBe('[A]Amazing grace');
+    expect(next.title).toBe('Amazing Grace');
   });
 });

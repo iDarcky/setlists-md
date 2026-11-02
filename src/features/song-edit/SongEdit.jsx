@@ -13,7 +13,7 @@ import { inferSections } from '@/lib/detectSections';
 import {
   playOrder, withOrder, move, renameSection, deleteSection, addSection, setLines, setSection,
   chordPalette, sectionToText, textToLines, SECTION_TYPES,
-  arrangementToText, textToSections, blocksToSections, setChordAt,
+  arrangementToText, textToSections, blocksToSections, setChordAt, songMarkdown, applyMarkdown,
 } from '@/lib/songEdit';
 import { ArrangementChip, MoreIcon } from '@/features/song/SongView';
 
@@ -195,7 +195,7 @@ function KeyChangeEditor({ line, onChange, onDelete, onDone }) {
   );
 }
 
-function SectionMenu({ section, index, count, onRename, onCue, onText, onMove, onDuplicate, onDelete }) {
+function SectionMenu({ section, index, count, onRename, onText, onMove, onDuplicate, onDelete }) {
   const [open, setOpen] = useState(false);
   const run = (fn) => () => { setOpen(false); fn(); };
   return (
@@ -205,7 +205,6 @@ function SectionMenu({ section, index, count, onRename, onCue, onText, onMove, o
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-[240px] flex-col p-1.5">
         <button type="button" className={menuRow} onClick={run(onRename)}>Rename</button>
-        <button type="button" className={menuRow} onClick={run(onCue)}>{section.note ? 'Change the band cue' : 'Add a band cue'}</button>
         <button type="button" className={menuRow} onClick={run(onText)}>Edit as text</button>
         <button type="button" className={menuRow} disabled={index === 0} onClick={run(() => onMove(-1))}>Move up</button>
         <button type="button" className={menuRow} disabled={index === count - 1} onClick={run(() => onMove(1))}>Move down</button>
@@ -240,16 +239,94 @@ function AddSection({ onAdd, big = false }) {
 }
 
 /** The play order as chips: tap one to move or remove it, + to add a section's name. */
+// Drag a chip to move it: a mouse drags at once, a finger after a short hold
+// (so a tap still opens the chip's menu). The bar wraps rather than scrolls,
+// so a sideways drag is never mistaken for scrolling the bar.
+function useChipDrag(order, onChange) {
+  const chips = useRef([]);
+  const st = useRef(null); // { from, x, y, active, timer }
+  const dragged = useRef(false);
+  const [drag, setDrag] = useState(null); // { from, to }
+  const nearest = (x, y) => {
+    let best = 0, dist = Infinity;
+    chips.current.forEach((el, i) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const d = Math.hypot(r.left + r.width / 2 - x, r.top + r.height / 2 - y);
+      if (d < dist) { dist = d; best = i; }
+    });
+    return best;
+  };
+  const start = (e, i) => {
+    if (e.button > 0) return;
+    const s = { from: i, x: e.clientX, y: e.clientY, active: false, pointer: e.pointerId, el: e.currentTarget };
+    st.current = s;
+    dragged.current = false;
+    if (e.pointerType !== 'mouse') {
+      s.timer = setTimeout(() => {
+        s.active = true;
+        try { s.el.setPointerCapture(s.pointer); } catch { /* released already */ }
+        setDrag({ from: i, to: i });
+      }, 280);
+    }
+  };
+  const moveTo = (e) => {
+    const s = st.current;
+    if (!s) return;
+    if (!s.active) {
+      if (Math.hypot(e.clientX - s.x, e.clientY - s.y) < 6) return;
+      if (e.pointerType !== 'mouse') { clearTimeout(s.timer); st.current = null; return; } // moved before the hold: a scroll
+      s.active = true;
+      try { s.el.setPointerCapture(s.pointer); } catch { /* released already */ }
+    }
+    e.preventDefault();
+    setDrag({ from: s.from, to: nearest(e.clientX, e.clientY) });
+  };
+  const end = () => {
+    const s = st.current;
+    st.current = null;
+    if (!s) return;
+    clearTimeout(s.timer);
+    if (s.active) {
+      dragged.current = true;
+      setDrag(d => {
+        if (d && d.to !== d.from) {
+          const next = [...order];
+          const [x] = next.splice(d.from, 1);
+          next.splice(d.to, 0, x);
+          onChange(next);
+        }
+        return null;
+      });
+    }
+  };
+  const shown = drag ? (() => { const n = [...order.map((name, i) => ({ name, i }))]; const [x] = n.splice(drag.from, 1); n.splice(drag.to, 0, x); return n; })() : order.map((name, i) => ({ name, i }));
+  // `k` is where the chip is drawn now (the drag preview), so the nearest
+  // drawn chip's place is where the dragged one would land.
+  const props = (i, k) => ({
+    ref: (el) => { chips.current[k] = el; },
+    onPointerDown: (e) => start(e, i),
+    onPointerMove: moveTo,
+    onPointerUp: end,
+    onPointerCancel: () => { if (st.current) clearTimeout(st.current.timer); st.current = null; setDrag(null); },
+    onContextMenu: (e) => e.preventDefault(),
+    // A drag must not also open the chip's menu.
+    onClick: (e) => { if (dragged.current) { e.preventDefault(); dragged.current = false; } },
+  });
+  return { shown, drag, props };
+}
+
 function OrderBar({ order, names, onChange, styleOf }) {
   const [open, setOpen] = useState(null);
+  const { shown, drag, props } = useChipDrag(order, onChange);
   return (
-    <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+    <div className="flex flex-wrap items-center gap-1">
       <span className="shrink-0 pr-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>
-      {order.map((name, i) => (
-        <Popover key={`${name}${i}`} open={open === i} onOpenChange={(o) => setOpen(o ? i : null)}>
+      {shown.map(({ name, i }, k) => (
+        <Popover key={`${name}${i}`} open={!drag && open === i} onOpenChange={(o) => setOpen(o ? i : null)}>
           <PopoverTrigger asChild>
-            <button type="button" aria-label={`${name}, place ${i + 1}`} style={{ background: styleOf(name).bg, color: styleOf(name).b }}
-              className="flex h-8 min-h-0 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border-0 px-2 font-sans text-[12px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring">{compactLabel(name)}</button>
+            <button type="button" aria-label={`${name}, place ${i + 1}`} style={{ background: styleOf(name).bg, color: styleOf(name).b, touchAction: 'pan-y' }} {...props(i, k)}
+              className={cn('flex h-8 min-h-0 min-w-9 shrink-0 cursor-grab select-none items-center justify-center rounded-[7px] border-0 px-2 font-sans text-[12px] font-semibold outline-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring', drag?.from === i && 'scale-110 cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,.35)] ring-2 ring-ring')}>{compactLabel(name)}</button>
           </PopoverTrigger>
           <PopoverContent className="flex w-[220px] flex-col p-1.5">
             <span className="px-2.5 pb-1 pt-1 text-[13px] font-semibold text-muted-foreground">{name}</span>
@@ -295,10 +372,17 @@ function SectionCard({ arr, index, palette, editing, setEditing, onArr, onAddAft
         ) : (
           <>
             <b className="text-[15px] font-semibold" style={{ color: look.b }}>{sec.type}</b>
-            {sec.note && mode !== 'cue' && <span className="inline-flex h-6 min-w-0 items-center truncate rounded-full bg-warning-fill px-2 text-[12px] font-semibold text-[var(--chord)]">{sec.note}</span>}
+            {/* The band cue lives here, by the name, as the chart shows it: tap to change; "+ Cue" when there is none. */}
+            {mode !== 'cue' && (sec.note ? (
+              <button type="button" onClick={() => open('cue')} aria-label={`Band cue: ${sec.note}, change`}
+                className="inline-flex h-7 min-h-0 min-w-0 cursor-pointer items-center truncate rounded-full border-0 bg-warning-fill px-2.5 font-sans text-[12px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring">{sec.note}</button>
+            ) : (
+              <button type="button" onClick={() => open('cue')}
+                className="inline-flex h-7 min-h-0 cursor-pointer items-center gap-1 rounded-full border border-dashed border-chip-border bg-transparent px-2.5 font-sans text-[12px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><PlusIcon size={12} />Cue</button>
+            ))}
             <span className="flex-1" />
             <SectionMenu section={sec} index={index} count={arr.sections.length}
-              onRename={() => open('rename')} onCue={() => open('cue')} onText={() => open('text')}
+              onRename={() => open('rename')} onText={() => open('text')}
               onMove={(d) => onArr({ ...arr, sections: move(arr.sections, index, d) })}
               onDuplicate={() => { const { arr: a, index: i } = addSection(arr, index, sec.type.replace(/\s*\d+$/, '')); onArr(setSection(a, i, { lines: [...lines], note: sec.note })); }}
               onDelete={() => onArr(deleteSection(arr, index))} />
@@ -498,16 +582,34 @@ function TypePicker({ value, look, sure = true, onPick }) {
 }
 const ChevronIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>;
 
-/** Every section of this arrangement as one text, for big changes and pastes into the middle. */
-function WholeText({ arr, onDone, onCancel }) {
-  const [text, setText] = useState(() => arrangementToText(arr));
+function EditMenu({ items }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label="More ways to edit" className={cn(iconBtn, 'size-10')}><MoreIcon size={20} /></button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="flex w-[260px] flex-col p-1.5">
+        {items.map(it => (
+          <button key={it.label} type="button" className={cn(menuRow, it.sub && 'h-auto min-h-11 flex-col items-start gap-0 py-2')} onClick={() => { setOpen(false); it.onClick(); }}>
+            {it.label}{it.sub && <span className="text-[12px] text-muted-foreground">{it.sub}</span>}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Every section of this arrangement as one text (or the .md file), for big changes. */
+function WholeText({ initial, title, hint, onDone, onCancel }) {
+  const [text, setText] = useState(initial);
   return (
     <div className="flex flex-col gap-3">
-      <b className="text-[16px] font-semibold">The whole song as text</b>
-      <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} rows={Math.max(16, text.split('\n').length + 2)} spellCheck={false} aria-label="The whole song as text" className={area} />
-      <p className="m-0 text-[12px] text-muted-foreground">## Name starts a section, &gt; text under it is the band cue, [G] before a word puts the chord there.</p>
+      <b className="text-[16px] font-semibold">{title}</b>
+      <textarea autoFocus value={text} onChange={(e) => setText(e.target.value)} rows={Math.max(16, text.split('\n').length + 2)} spellCheck={false} aria-label={title} className={area} />
+      <p className="m-0 text-[12px] text-muted-foreground">{hint}</p>
       <div className="flex gap-2">
-        <Button onClick={() => onDone(textToSections(text))}>Done</Button>
+        <Button onClick={() => onDone(text)}>Done</Button>
         <Button variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
     </div>
@@ -539,7 +641,10 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
 
   const arr = getArrangement(working, arrId) || working.arrangements[0];
   const onArr = (next) => setWorking(w => withArrangement(w, arr.id, () => next));
-  const palette = useMemo(() => chordPalette(arr), [arr]);
+  // The chord row keeps its order while you edit; new chords join at the end.
+  const [rows, setRows] = useState({});
+  const palette = chordPalette(arr, rows[arr.id] || []);
+  if ((rows[arr.id] || []).length !== palette.length) setRows(r => ({ ...r, [arr.id]: palette }));
   const order = playOrder(arr);
   const names = [...new Set(arr.sections.map(s => s.type))];
   const arrangements = working.arrangements.map(a => ({ id: a.id, name: a.name || 'Untitled arrangement', key: a.key, tempo: a.tempo, capo: a.capo, isDefault: a.id === working.defaultArrangementId }));
@@ -579,17 +684,17 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
       onBlank={arr.sections.length === 0 ? () => { const r = addSection(arr, -1, 'Verse'); onArr(r.arr); setEditing({ sec: r.index, line: 0 }); setWhole(null); } : null}
       onCancel={whole === 'paste' ? () => setWhole(null) : null} />
   ) : whole === 'text' ? (
-    <WholeText arr={arr} onCancel={() => setWhole(null)} onDone={(sections) => { onArr({ ...arr, sections }); setWhole(null); setEditing(null); }} />
+    <WholeText key="text" title="The whole song as text" initial={arrangementToText(arr)} onCancel={() => setWhole(null)}
+      hint="## Name starts a section, > text under it is the band cue, [G] before a word puts the chord there."
+      onDone={(t) => { onArr({ ...arr, sections: textToSections(t) }); setWhole(null); setEditing(null); }} />
+  ) : whole === 'md' ? (
+    <WholeText key="md" title="Markdown" initial={songMarkdown(working, arr.id)} onCancel={() => setWhole(null)}
+      hint="The song's .md file for this arrangement: the details between the --- lines, then the sections. Done puts it back on the song."
+      onDone={(t) => { setWorking(w => applyMarkdown(w, arr.id, t)); setWhole(null); setEditing(null); }} />
   ) : (
     <div className="flex flex-col gap-5">
       <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => { setEditing(null); setWhole('text'); }}>Edit all as text</Button>
-          <Button size="sm" variant="outline" onClick={() => { setEditing(null); setWhole('paste'); }}>Paste a song</Button>
-        </div>
-        <p className="m-0 text-[13px] text-muted-foreground">Looks like the chart. Tap any line to change its words or chords.</p>
-      </div>
+      <p className="m-0 text-[13px] text-muted-foreground">Looks like the chart. Tap any line to change its words or chords.</p>
       {arr.sections.map((x, i) => (
         <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} palette={palette} editing={editing} setEditing={setEditing} onArr={onArr} styleOf={styleOf}
           onAddAfter={(t) => { const r = addSection(arr, i, t); onArr(r.arr); setEditing({ sec: r.index, line: 0 }); }} />
@@ -632,6 +737,12 @@ export default function SongEdit({ song, mode = 'edit', settings, onUpdateSettin
           <b className="max-w-full truncate text-[15px] font-semibold">{working.title?.trim() || (mode === 'new' ? 'New song' : 'Untitled')}</b>
           {arrChip || <span className="text-[12px] text-muted-foreground">{mode === 'new' ? 'New song' : mode === 'import' ? 'Check and add' : 'Editing'}</span>}
         </div>
+        <EditMenu items={[
+          { label: 'Edit all as text', onClick: () => { setEditing(null); setWhole('text'); setTab('chart'); } },
+          { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { setEditing(null); setWhole('md'); setTab('chart'); } },
+          mode === 'new' && { label: 'Paste a song', onClick: () => { setEditing(null); setWhole('paste'); setTab('chart'); } },
+          onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
+        ].filter(Boolean)} />
         <Button size="sm" onClick={save} disabled={!canSave} loading={saving}>{fresh ? 'Add' : 'Save'}</Button>
       </div>
       {wide ? (

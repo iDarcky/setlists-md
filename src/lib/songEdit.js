@@ -1,7 +1,8 @@
 // The new song editor's model, as pure functions over one arrangement.
 // SongEdit.jsx holds the state; the tests feed fixtures.
 
-import { parseSectionLines, serializeTabBlock, serializeModulate, parseSongMd, extractInlineNotes, lineToPlacement, placementToLine } from '@/parser';
+import { parseSectionLines, serializeTabBlock, serializeModulate, parseSongMd, songToMd, extractInlineNotes, lineToPlacement, placementToLine, EXTRA_META_KEYS } from '@/parser';
+import { withArrangement, getArrangement } from '@/arrangements';
 import { importChartText } from '@/lib/importChords';
 import { getDiatonicChords } from '@/music';
 
@@ -82,18 +83,22 @@ export function addSection(arr, at, base = 'Verse') {
 export const setLines = (arr, i, lines) => ({ ...arr, sections: arr.sections.map((s, n) => (n === i ? { ...s, lines } : s)) });
 export const setSection = (arr, i, patch) => ({ ...arr, sections: arr.sections.map((s, n) => (n === i ? { ...s, ...patch } : s)) });
 
-/** The chords to offer while editing: the ones the song already uses first, then the key's own. */
-export function chordPalette(arr, max = 10) {
-  const seen = new Map();
+/**
+ * The chords to offer while editing, in an order that never moves under your
+ * finger: the key's own six (G Am Bm C D Em for G), then the song's other
+ * chords in the order they first appear. Pass the row you are showing as
+ * `prev` and it is kept as it is, with chords new to the song added at the end.
+ */
+export function chordPalette(arr, prev = []) {
+  const used = [];
   for (const s of arr?.sections || []) {
     for (const l of s.lines || []) {
       if (typeof l !== 'string') continue;
-      for (const m of l.matchAll(/\[([A-G][^\]\s]*)\]/g)) seen.set(m[1], (seen.get(m[1]) || 0) + 1);
+      for (const m of l.matchAll(/\[([A-G][^\]\s]*)\]/g)) used.push(m[1]);
     }
   }
-  const used = [...seen.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
-  const all = [...used, ...getDiatonicChords(arr?.key || 'C')];
-  return [...new Set(all)].slice(0, max);
+  const base = prev.length ? prev : getDiatonicChords(arr?.key || 'C').slice(0, 6);
+  return [...new Set([...base, ...used])];
 }
 
 export const SECTION_TYPES = ['Intro', 'Verse', 'Pre Chorus', 'Chorus', 'Bridge', 'Instrumental', 'Interlude', 'Tag', 'Outro'];
@@ -154,4 +159,30 @@ export function setChordAt(value, pos, chord) {
   const rest = chords.filter(c => c.pos !== pos);
   const next = placementToLine({ plainText, chords: chord ? [...rest, { chord, pos }] : rest });
   return notes.length ? `${next} ${notes.map(n => `{!${n}}`).join(' ')}` : next;
+}
+
+/** The song as its .md file, one arrangement: what the Markdown editor shows. */
+export const songMarkdown = (song, arrId) => songToMd(song, getArrangement(song, arrId));
+
+/**
+ * The Markdown editor's text back onto the song: that arrangement's content
+ * and the song-level fields its frontmatter carries (the same patch the old
+ * editor made on save).
+ */
+export function applyMarkdown(song, arrId, md) {
+  const p = parseSongMd(md);
+  const next = withArrangement(song, arrId, (a) => ({
+    ...a,
+    key: p.key, tempo: p.tempo, time: p.time, capo: p.capo, notes: p.notes,
+    structure: Array.isArray(p.structure) ? p.structure : a.structure,
+    structureMode: p.structureMode || 'auto',
+    sections: Array.isArray(p.sections) ? p.sections : a.sections,
+    tabLibrary: Array.isArray(p.tabLibrary) ? p.tabLibrary : a.tabLibrary,
+  }));
+  next.title = p.title || next.title;
+  next.artist = p.artist || next.artist;
+  for (const k of ['ccli', 'tags', 'spotify', 'youtube', ...EXTRA_META_KEYS]) {
+    if (p[k] !== undefined) next[k] = p[k];
+  }
+  return next;
 }
