@@ -261,3 +261,15 @@ export function partsFor(token) {
  * again underneath. A picker takes two steps: `INSTRUMENT_IDS` first, then
  * `partsFor()` only for what was chosen.
  */
+
+/**
+ * What a schedule row says someone plays, in words: "Acoustic Guitar · Alto".
+ * Rows store ids (`acoustic-guitar`, `alto`); older rows hold free text,
+ * which is shown as written.
+ */
+export function partLabel(row) {
+  if (!row) return '';
+  const role = row.role ? (labelFor(row.role) || String(row.role)) : '';
+  const vocal = row.vocal_part ? (PART_BY_ID.get(row.vocal_part)?.label || String(row.vocal_part)) : '';
+  return [role, vocal].filter(Boolean).join(' · ');
+}

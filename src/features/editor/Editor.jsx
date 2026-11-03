@@ -477,9 +477,9 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
   const handleBack = useCallback(async () => {
     if (isDirty) {
       const ok = await confirm({
-        title: 'Discard unsaved changes?',
-        description: 'You have unsaved edits. Leaving now will lose them.',
-        confirmLabel: 'Discard',
+        title: 'Leave without saving?',
+        description: 'Your changes to this song aren’t saved yet. If you leave now, they’re gone.',
+        confirmLabel: 'Leave',
         cancelLabel: 'Keep editing',
         variant: 'danger',
       });

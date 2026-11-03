@@ -1,0 +1,210 @@
+import { describe, it, expect } from 'vitest';
+import { transposeArrangement } from '@/lib/transposeArrangement';
+import { songFacts, flowCodes } from '@/lib/songPage';
+
+describe('transposeArrangement', () => {
+  const arr = {
+    key: 'G',
+    sections: [{ type: 'Verse 1', lines: ['[G]Amazing [G7]grace, how [C/E]sweet', '[x2] [Intro]', { type: 'tab', raw: [] }, { type: 'modulate', semitones: 2 }] }],
+  };
+  it('moves the key and every chord together', () => {
+    const out = transposeArrangement(arr, 2);
+    expect(out.key).toBe('A');
+    expect(out.sections[0].lines[0]).toBe('[A]Amazing [A7]grace, how [D/F#]sweet');
+  });
+  it('leaves non-chords, tabs and modulate markers alone', () => {
+    const out = transposeArrangement(arr, 2);
+    expect(out.sections[0].lines[1]).toBe('[x2] [Intro]');
+    expect(out.sections[0].lines[2]).toBe(arr.sections[0].lines[2]);
+    expect(out.sections[0].lines[3]).toBe(arr.sections[0].lines[3]);
+  });
+  it('is a no-op at zero', () => {
+    expect(transposeArrangement(arr, 0)).toBe(arr);
+  });
+});
+
+describe('songFacts', () => {
+  const now = new Date('2026-10-28T12:00:00').getTime();
+  const setlists = [
+    { id: 'a', date: '2026-10-18', items: [{ songId: 's' }] },
+    { id: 'b', date: '2026-10-25', items: [{ songId: 's' }, { songId: 's' }] },
+    { id: 'c', date: '2026-11-01', time: '10:00', name: 'Sunday Morning', items: [{ songId: 'x' }, { type: 'break' }, { songId: 'y' }, { songId: 's' }] },
+  ];
+  it('counts plays and finds the next service with the song position', () => {
+    const f = songFacts({ id: 's' }, setlists, now);
+    expect(f.plays).toBe(2);
+    expect(f.last).toBe('25 Oct');
+    expect(f.next.name).toBe('Sunday Morning');
+    expect(f.next.position).toBe(3);
+  });
+  it('has no next service when the song is not planned', () => {
+    expect(songFacts({ id: 'z' }, setlists, now).next).toBeNull();
+  });
+});
+
+describe('flowCodes', () => {
+  it('shortens the play order', () => {
+    expect(flowCodes([{ type: 'Intro' }, { type: 'Verse 1' }, { type: 'Chorus' }])).toEqual(['I', 'V1', 'C']);
+  });
+});
+
+import { playOrder, renameSection, deleteSection, addSection, newSectionName, chordPalette, sectionToText, textToLines } from '@/lib/songEdit';
+
+describe('songEdit', () => {
+  const arr = { key: 'G', structureMode: 'custom', structure: ['Verse 1', 'Chorus', 'Verse 1'], sections: [{ type: 'Verse 1', lines: ['[G]Hi [C]there'] }, { type: 'Chorus', lines: ['[D]Yes', { type: 'modulate', semitones: 2 }] }] };
+  it('renames everywhere the order names it', () => {
+    expect(renameSection(arr, 0, 'Verse').structure).toEqual(['Verse', 'Chorus', 'Verse']);
+  });
+  it('deletes a section and its places in the order', () => {
+    expect(deleteSection(arr, 0).structure).toEqual(['Chorus']);
+  });
+  it('adds a numbered section into a custom order', () => {
+    const { arr: out, index } = addSection(arr, 0, 'Verse');
+    expect(index).toBe(1);
+    expect(out.sections[1].type).toBe('Verse 2');
+    expect(newSectionName([{ type: 'Verse 1' }, { type: 'Verse 2' }], 'Verse')).toBe('Verse 3');
+    expect(out.structure.at(-1)).toBe('Verse 2');
+  });
+  it('follows the sections when there is no custom order', () => {
+    expect(playOrder({ structureMode: 'auto', structure: ['X'], sections: [{ type: 'A' }] })).toEqual(['A']);
+    expect(playOrder(arr)).toEqual(arr.structure);
+  });
+  it('offers the chords the song uses first', () => {
+    expect(chordPalette(arr)).toEqual(['G', 'Am', 'Bm', 'C', 'D', 'Em']);
+    const row = chordPalette({ ...arr, sections: [{ type: 'V', lines: ['[G]a [Gsus4]b [D/F#]c'] }] });
+    expect(row.slice(6)).toEqual(['Gsus4', 'D/F#']);
+    // A chord placed later lands at the end; nothing already shown moves.
+    expect(chordPalette({ ...arr, sections: [{ type: 'V', lines: ['[A7]x [G]a [Gsus4]b [D/F#]c'] }] }, row)).toEqual([...row, 'A7']);
+  });
+  it('round-trips a section through text', () => {
+    expect(textToLines(sectionToText(arr.sections[1]))).toEqual(arr.sections[1].lines);
+  });
+});
+
+describe('whole-song text and paste', () => {
+  it('round-trips an arrangement through text', async () => {
+    const { arrangementToText, textToSections } = await import('@/lib/songEdit');
+    const arr = { sections: [{ type: 'Verse 1', note: 'Soft', lines: ['[G]Amazing grace', '{modulate: +2}'] }, { type: 'Chorus', lines: ['Yes'] }] };
+    const text = arrangementToText(arr);
+    expect(text).toBe('## Verse 1\n> Soft\n[G]Amazing grace\n{modulate: +2}\n\n## Chorus\nYes');
+    const back = textToSections(text);
+    expect(back.map(s => s.type)).toEqual(['Verse 1', 'Chorus']);
+    expect(back[0].note).toBe('Soft');
+    expect(back[0].lines[1]).toEqual({ type: 'modulate', semitones: 2 });
+  });
+
+  it('turns pasted blocks into sections, a repeated chorus into the order', async () => {
+    const { blocksToSections } = await import('@/lib/songEdit');
+    const { inferSections } = await import('@/lib/detectSections');
+    const raw = '[Verse 1]\nG        C\nAmazing grace how sweet\n\nChorus:\nD   G\nSing it now\n\n[Verse 2]\nThrough many dangers\n\nChorus:\nD   G\nSing it now';
+    const { sections, structure } = blocksToSections(inferSections(raw).map(b => ({ type: b.type.replace(/\s*\d+$/, ''), lines: b.lines, repeat: b.repeat })));
+    expect(sections.map(s => s.type)).toEqual(['Verse 1', 'Chorus', 'Verse 2']);
+    expect(sections[0].lines[0]).toBe('[G]Amazing g[C]race how sweet');
+    expect(structure).toEqual(['Verse 1', 'Chorus', 'Verse 2', 'Chorus']);
+  });
+});
+
+describe('setChordAt', () => {
+  it('puts, replaces and removes a chord at a letter', async () => {
+    const { setChordAt } = await import('@/lib/songEdit');
+    expect(setChordAt('Amazing grace', 8, 'G')).toBe('Amazing [G]grace');
+    expect(setChordAt('[C]Amazing [G]grace', 8, 'D')).toBe('[C]Amazing [D]grace');
+    expect(setChordAt('[C]Amazing [G]grace', 0, null)).toBe('Amazing [G]grace');
+    expect(setChordAt('Amazing grace', 13, 'G')).toBe('Amazing grace[G]');
+  });
+});
+
+describe('markdown editor', () => {
+  it('round-trips the song through its .md and applies edits', async () => {
+    const { songMarkdown, applyMarkdown } = await import('@/lib/songEdit');
+    const song = { id: 's1', title: 'Amazing Grace', artist: 'John Newton', defaultArrangementId: 'a', arrangements: [{ id: 'a', name: 'Main', key: 'G', tempo: 72, time: '3/4', capo: 0, structure: [], structureMode: 'auto', sections: [{ type: 'Verse 1', lines: ['[G]Amazing grace'] }] }] };
+    const md = songMarkdown(song, 'a');
+    expect(md).toContain('title: Amazing Grace');
+    expect(md).toContain('## Verse 1');
+    const next = applyMarkdown(song, 'a', md.replace('key: G', 'key: A').replace('[G]Amazing', '[A]Amazing'));
+    expect(next.arrangements[0].key).toBe('A');
+    expect(next.arrangements[0].sections[0].lines[0]).toBe('[A]Amazing grace');
+    expect(next.title).toBe('Amazing Grace');
+  });
+});
+
+import { linesToWords, remapWords, wordsToLines, lineRuns, runsToLines } from '@/lib/songEdit';
+
+describe('words: typing with chords riding along', () => {
+  const lines = ['[G]Amazing [G7]grace, how [C]sweet', 'That [G]saved a wretch {!softly}'];
+  const type = (w, next) => ({ text: next, marks: remapWords(w.text, next, w.marks) });
+  it('round-trips untouched lines', () => {
+    const w = linesToWords(lines);
+    expect(w.text).toBe('Amazing grace, how sweet\nThat saved a wretch ');
+    expect(wordsToLines(w.text, w.marks)).toEqual(['[G]Amazing [G7]grace, how [C]sweet', 'That [G]saved a wretch {!softly}']);
+  });
+  it('keeps a chord on its letter when typing before it', () => {
+    const w = linesToWords(lines);
+    const n = type(w, 'Oh Amazing grace, how sweet\nThat saved a wretch ');
+    expect(wordsToLines(n.text, n.marks)[0]).toBe('Oh [G]Amazing [G7]grace, how [C]sweet');
+  });
+  it('typing right at a chord pushes it along with the letter', () => {
+    const w = linesToWords(['[G]grace']);
+    const n = type(w, 'Sgrace');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['S[G]grace']);
+  });
+  it('Enter splits a line and the chords follow their words', () => {
+    const w = linesToWords(['[G]Amazing [C]grace']);
+    const n = type(w, 'Amazing \ngrace');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['[G]Amazing ', '[C]grace']);
+  });
+  it('a note stays on its line when Enter is pressed at the end', () => {
+    const w = linesToWords(['That [G]saved {!softly}']);
+    const n = type(w, 'That saved \n');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['That [G]saved {!softly}', '']);
+  });
+  it('deleting a chord’s letter keeps the chord at that spot', () => {
+    const w = linesToWords(['a[G]bc']);
+    const n = type(w, 'ac');
+    expect(wordsToLines(n.text, n.marks)).toEqual(['a[G]c']);
+  });
+  it('cuts a section into runs around key changes', () => {
+    const mod = { type: 'modulate', semitones: 2 };
+    const runs = lineRuns(['a', 'b', mod, 'c']);
+    expect(runs).toEqual([{ lines: ['a', 'b'] }, { obj: mod }, { lines: ['c'] }]);
+    expect(runsToLines(runs)).toEqual(['a', 'b', mod, 'c']);
+    expect(lineRuns(['a', mod])).toEqual([{ lines: ['a'] }, { obj: mod }, { lines: [] }]);
+  });
+});
+
+import { songMarkdown as mdOf, applyMarkdown as applyMd } from '@/lib/songEdit';
+import { songFromFlat as fromFlat } from '@/arrangements';
+
+describe('Markdown editor', () => {
+  const s = fromFlat({ id: 'abc123', title: 'T', artist: 'A', key: 'G', sections: [{ type: 'Verse', lines: ['[G]hi'] }] });
+  const arrId = s.arrangements[0].id;
+  it('never shows the ids', () => {
+    const md = mdOf(s, arrId);
+    expect(md).not.toMatch(/songId|arrangementId|arrangementName|abc123/);
+    expect(md).toMatch(/title: T/);
+  });
+  it('keeps artist and key when their lines are taken out, and ignores ids typed in', () => {
+    const n = applyMd(s, arrId, '---\ntitle: T2\nid: evil\nsongId: evil\n---\n## Verse\n[G]hi\n');
+    expect(n.id).toBe('abc123');
+    expect(n.artist).toBe('A');
+    expect(n.arrangements[0].key).toBe('G');
+    expect(n.arrangements[0].id).toBe(arrId);
+    expect(n.title).toBe('T2');
+  });
+  it('drops a link that is not http(s) and strips control characters', () => {
+    const n = applyMd(s, arrId, '---\ntitle: T\u0007\nyoutube: javascript:alert(1)\nspotify: https://open.spotify.com/track/x\n---\n## Verse\nhi\n');
+    expect(n.youtube).toBe('');
+    expect(n.spotify).toBe('https://open.spotify.com/track/x');
+    expect(n.title).toBe('T');
+  });
+});
+
+import { setLineNotes } from '@/lib/songEdit';
+describe('setLineNotes', () => {
+  it('adds, changes and removes a line note without moving chords', () => {
+    expect(setLineNotes('[G]Amazing [C]grace', ['softly'])).toBe('[G]Amazing [C]grace {!softly}');
+    expect(setLineNotes('[G]Amazing {!softly}', ['build'])).toBe('[G]Amazing {!build}');
+    expect(setLineNotes('[G]Amazing {!softly}', [])).toBe('[G]Amazing ');
+    expect(setLineNotes('', ['x}{'])).toBe('{!x}');
+  });
+});

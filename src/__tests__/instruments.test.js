@@ -133,3 +133,14 @@ describe('instruments — the musical axis', () => {
     expect(partsFor(null)).toEqual([]);
   });
 });
+
+describe('partLabel', () => {
+  it('turns stored ids into words, and keeps free text', async () => {
+    const { partLabel } = await import('@/data/instruments');
+    expect(partLabel({ role: 'acoustic-guitar' })).toBe('Acoustic Guitar');
+    expect(partLabel({ role: 'keys', vocal_part: 'alto' })).toBe('Keys · Alto');
+    expect(partLabel({ vocal_part: 'lead-female' })).toBe('Lead female');
+    expect(partLabel({ role: 'Trumpet' })).toBe('Trumpet');
+    expect(partLabel(null)).toBe('');
+  });
+});

@@ -11,6 +11,7 @@ import {
   clearPendingJoin,
   PENDING_JOIN_KEY,
   shouldResumeJoin,
+  joinDecisionFor,
   alreadyInLine,
   churchInitials,
   joinStepFor,
@@ -62,7 +63,7 @@ describe('parts', () => {
     expect(joinPartLabel('kazoo')).toBe('kazoo');
   });
   it('instrument chips are canonical tokens (approval copies them to team_members.instruments)', () => {
-    const instrumentChips = JOIN_PARTS.filter(p => !['sound-desk', 'other'].includes(p.id));
+    const instrumentChips = JOIN_PARTS.filter(p => !['sound-desk', 'lyrics-slides', 'other'].includes(p.id));
     for (const p of instrumentChips) expect(normalize(p.id)).toBe(p.id);
     expect(normalize('sound-desk')).toBeNull();
   });
@@ -88,6 +89,10 @@ describe('pending join across sign-in', () => {
     clearPendingJoin();
     expect(loadPendingJoin()).toBeNull();
   });
+  it('keeps the request id it is waiting on', () => {
+    savePendingJoin('abc23xyz9kmn', 'requested', 1000, { requestId: 'req-2' });
+    expect(loadPendingJoin(2000)).toEqual({ code: 'abc23xyz9kmn', stage: 'requested', at: 1000, requestId: 'req-2' });
+  });
   it('expires after a week', () => {
     savePendingJoin('abc23xyz9kmn', 'auth', 0);
     expect(loadPendingJoin(8 * 24 * 3600 * 1000)).toBeNull();
@@ -106,12 +111,35 @@ describe('pending join across sign-in', () => {
     savePendingJoin('nope');
     expect(localStorage.getItem(PENDING_JOIN_KEY)).toBe(JSON.stringify({ code: 'x' }));
   });
-  it('resumes only an unfinished sign-in', () => {
+  it('resumes an unfinished sign-in or a request still waiting', () => {
     expect(shouldResumeJoin({ pathCode: 'abc23xyz9kmn', pending: null, signedIn: false })).toBe(true);
     expect(shouldResumeJoin({ pathCode: null, pending: { code: 'abc23xyz9kmn', stage: 'auth' }, signedIn: true })).toBe(true);
     expect(shouldResumeJoin({ pathCode: null, pending: { code: 'abc23xyz9kmn', stage: 'auth' }, signedIn: false })).toBe(false);
-    expect(shouldResumeJoin({ pathCode: null, pending: { code: 'abc23xyz9kmn', stage: 'requested' }, signedIn: true })).toBe(false);
+    // A request still being decided reopens Waiting rather than the app.
+    expect(shouldResumeJoin({ pathCode: null, pending: { code: 'abc23xyz9kmn', stage: 'requested' }, signedIn: true })).toBe(true);
     expect(shouldResumeJoin({ pathCode: null, pending: null, signedIn: true })).toBe(false);
+  });
+});
+
+describe('which join decision to announce', () => {
+  const at = Date.parse('2026-10-25T17:59:00Z');
+  const old = { id: 'req-1', team_id: 't', status: 'approved', decided_at: '2026-10-25T15:08:51Z' };
+  const now = { id: 'req-2', team_id: 't', status: 'pending', decided_at: null };
+  it('ignores an older approval while the new request is pending', () => {
+    expect(joinDecisionFor([now, old], { stage: 'requested', at, requestId: 'req-2' })).toBeNull();
+    // Without a stored id: only decisions after this device asked.
+    expect(joinDecisionFor([now, old], { stage: 'requested', at })).toBeNull();
+  });
+  it('announces the request it is waiting on', () => {
+    const approved = { ...now, status: 'approved', decided_at: '2026-10-25T18:03:35Z' };
+    expect(joinDecisionFor([approved, old], { stage: 'requested', at, requestId: 'req-2' })).toBe(approved);
+    expect(joinDecisionFor([approved, old], { stage: 'requested', at })).toBe(approved);
+    const declined = { ...now, status: 'declined', decided_at: '2026-10-25T18:03:35Z' };
+    expect(joinDecisionFor([declined], { stage: 'requested', at, requestId: 'req-2' })).toBe(declined);
+  });
+  it('says nothing without a request being waited on', () => {
+    expect(joinDecisionFor([old], null)).toBeNull();
+    expect(joinDecisionFor([old], { stage: 'auth', at: 0 })).toBeNull();
   });
 });
 

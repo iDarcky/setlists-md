@@ -23,6 +23,11 @@ export function TeamProvider({ children }) {
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(false);
+  // The user whose memberships were last read from the server WITHOUT an
+  // error. Until it matches the signed-in user, an empty `teams` means "not
+  // known yet", not "in no church" — App must not drop a remembered church
+  // on that (the open-into-Personal-then-flicker on launch, 2026-11-03).
+  const [teamsLoadedFor, setTeamsLoadedFor] = useState(null);
   const loadedForUserRef = useRef(null);
   // Bumped to re-read memberships (e.g. a join request was just approved) or
   // the active roster (someone was approved in) without a reload.
@@ -70,29 +75,38 @@ export function TeamProvider({ children }) {
       if (!silent) setLoading(true);
       try {
         // All of the user's team memberships (no longer capped at one).
-        const { data: memberships } = await supabase
+        const { data: memberships, error: membershipsError } = await supabase
           .from('team_members')
           .select('team_id, role')
           .eq('user_id', user.id);
+        // Offline or failing: keep what we have and leave `teamsLoadedFor`
+        // unset, so a remembered church stays open from the device.
+        if (membershipsError) throw membershipsError;
 
         if (!memberships || memberships.length === 0) {
           setTeams([]);
           setActiveTeamId(null);
+          setTeamsLoadedFor(user.id);
           return;
         }
 
         const teamIds = memberships.map(m => m.team_id);
-        const { data: teamRows } = await supabase
+        const { data: teamRows, error: teamsError } = await supabase
           .from('teams')
           .select('*')
           .in('id', teamIds);
+        if (teamsError) throw teamsError;
 
-        const ordered = teamRows || [];
+        // Each team carries the user's own role in it, so a screen can ask
+        // "which churches do I lead?" without another query.
+        const roleOf = Object.fromEntries(memberships.map(m => [m.team_id, m.role]));
+        const ordered = (teamRows || []).map(t => ({ ...t, myRole: roleOf[t.id] || null }));
         setTeams(ordered);
         // Keep the current active team if it's still valid, else pick the first.
         setActiveTeamId(prev =>
           prev && ordered.some(t => t.id === prev) ? prev : (ordered[0]?.id || null)
         );
+        setTeamsLoadedFor(user.id);
       } catch (err) {
         console.error('[team] Failed to load teams:', err);
       } finally {
@@ -259,6 +273,7 @@ export function TeamProvider({ children }) {
       approveAllJoinRequests,
       refreshJoinRequests,
       teams,
+      teamsLoaded: !!user?.id && teamsLoadedFor === user.id,
       activeTeamId,
       setActiveTeam,
       team,
@@ -550,7 +565,7 @@ export function TeamProvider({ children }) {
         setInvites([]);
       },
     };
-  }, [teams, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
+  }, [teams, teamsLoadedFor, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }

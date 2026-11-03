@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./print.css";
+@import "./ds.css";
 
 @font-face {
   font-family: 'Geist Sans';

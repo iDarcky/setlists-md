@@ -412,6 +412,15 @@ Tab blocks live inside sections. Parsed into `{ type: 'tab', strings: [{note, co
 
 ## Styling (Geist Design System & Tailwind v4)
 
+**Redesign in progress (2026-10-25): warm black + Geist on shadcn/ui.** Tokens
+in `src/styles/ds.css` (shadcn names + `link`/`selected`/`raised`, status
+colours, `rounded-control|card|sheet`, `text-display|title|body|small|caption`);
+components in `src/ui/shadcn/`; the design system page is `/design`
+(`features/design/DesignSystem.jsx`, `?screen=<n>&theme=light` shows one
+screen alone). Signed-out + joining screens are on it (`features/auth/AuthLayout`
++ `AuthViews`, `features/join/JoinViews`). Every other screen still uses the
+older system below until it is rebuilt.
+
 We utilize standard Vercel Geist design tokens mapped via Tailwind CSS configuration in `styles/index.css`.
 - Backgrounds: `--ds-background-100`, `--ds-background-200`
 - Colors/Text: `--ds-gray-1000` (primary text), `--ds-gray-700` (secondary), `--ds-gray-400` (borders)
@@ -652,6 +661,11 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   `auth.users` foreign keys. `team_deletions` is deliberately NOT pruned
   (SYNC-REDESIGN §6 #2). ⚠ Write new policies with `(select auth.uid())`,
   never bare `auth.uid()`.
+
+- `20261031_church_info.sql` — `teams.address`, `teams.website`,
+  `teams.ccli_licence` (all nullable, length-checked) for the Team page's
+  church card. Owner-only edit through the existing "Owner can update team"
+  policy. The client hides those three fields' edits until the columns exist.
 
 RLS must allow each user to `select`/`update` their own profile row
 (typical policy: `auth.uid() = id`).

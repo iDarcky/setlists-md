@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { PERSONAL_BLOCKED_IN_CHURCH } from '@/lib/spaceDefaults';
 import Account from './Account';
 import { useAuth } from '@/auth/useAuth';
 import { usePushSubscription } from '@/push/usePushSubscription';
@@ -220,9 +221,12 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
       {/* Church-first (lib/spaceDefaults.js): Personal drops out of the Space
           switcher for church members with nothing in it. This brings it back.
           It is always shown when there are songs or setlists of your own. */}
-      <Row label="Show my own songs and setlists" description="Keep your Personal space in the Space switcher, even while it's empty. It always shows once you have songs or setlists of your own.">
-        <OnOffToggle value={settings?.showPersonalSpace === true} onChange={(v) => update('showPersonalSpace', v)} />
-      </Row>
+      {/* Hidden while Personal is blocked for church members: it would do nothing. */}
+      {!PERSONAL_BLOCKED_IN_CHURCH && (
+        <Row label="Show my own songs and setlists" description="Keep your Personal space in the Space switcher, even while it's empty. It always shows once you have songs or setlists of your own.">
+          <OnOffToggle value={settings?.showPersonalSpace === true} onChange={(v) => update('showPersonalSpace', v)} />
+        </Row>
+      )}
       <Row label="Lock orientation" description="Best-effort: keep the current orientation while reading. Most browsers only allow this in full screen / an installed PWA.">
         <OnOffToggle value={settings?.lockOrientation === true} onChange={(v) => update('lockOrientation', v)} />
       </Row>

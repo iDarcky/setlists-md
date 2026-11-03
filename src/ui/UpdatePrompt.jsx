@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { Dialog } from './Dialog';
-import { Button } from './Button';
+import { Sheet } from '@/ui/shadcn/sheet';
+import { Button } from '@/ui/shadcn/button';
 
 // Prominent "new version available" prompt. Replaces the old toast: when the
 // service worker finishes downloading a new bundle, a modal asks the user to
@@ -27,30 +27,16 @@ export default function UpdatePrompt({ suppress = false }) {
   const open = needRefresh && !suppress && !dismissed;
 
   return (
-    <Dialog open={open} onClose={() => setDismissed(true)} closeOnBackdrop={false} size="sm" ariaLabel="Update available">
-      <div className="p-6 flex flex-col gap-4 text-center">
-        <div className="flex flex-col gap-1.5">
-          <h2 className="text-heading-18 font-semibold text-[var(--ds-gray-1000)] m-0">
-            New version available
-          </h2>
-          <p className="text-copy-13 text-[var(--ds-gray-700)] m-0">
-            Reload to get the latest fixes and keep your library syncing correctly
-            across all your devices.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Button variant="brand" onClick={() => updateServiceWorker(true)}>
-            Reload now
-          </Button>
-          <button
-            type="button"
-            onClick={() => setDismissed(true)}
-            className="text-copy-13 text-[var(--ds-gray-600)] bg-transparent border-none cursor-pointer hover:text-[var(--ds-gray-1000)]"
-          >
-            Later
-          </button>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) setDismissed(true); }} title="A new version is ready" className="h-auto max-h-[80dvh] sm:max-w-[420px]">
+      <div className="flex flex-col gap-5 font-sans">
+        <p className="m-0 text-[15px] leading-6 text-muted-foreground">
+          Reload to get the latest fixes. It keeps every phone in the church on the same version, so your songs sync properly.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row-reverse sm:justify-start">
+          <Button onClick={() => updateServiceWorker(true)}>Reload now</Button>
+          <Button variant="ghost" onClick={() => setDismissed(true)}>Later</Button>
         </div>
       </div>
-    </Dialog>
+    </Sheet>
   );
 }

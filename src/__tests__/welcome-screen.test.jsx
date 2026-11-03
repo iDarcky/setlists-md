@@ -3,19 +3,17 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 
 describe('WelcomeScreen', () => {
-  it('offers exactly the three ways in and routes each one', () => {
+  // "Try it solo" was dropped on 2026-10-25: an account or nothing.
+  it('offers exactly the two ways in and routes each one', () => {
     const onSignIn = vi.fn();
     const onCreateAccount = vi.fn();
-    const onTrySolo = vi.fn();
-    render(<WelcomeScreen onSignIn={onSignIn} onCreateAccount={onCreateAccount} onTrySolo={onTrySolo} />);
+    render(<WelcomeScreen onSignIn={onSignIn} onCreateAccount={onCreateAccount} />);
 
-    expect(screen.getAllByRole('button')).toHaveLength(3);
+    expect(screen.getAllByRole('button')).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
     fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Try it solo, no account' }));
 
     expect(onCreateAccount).toHaveBeenCalledTimes(1);
     expect(onSignIn).toHaveBeenCalledTimes(1);
-    expect(onTrySolo).toHaveBeenCalledTimes(1);
   });
 });

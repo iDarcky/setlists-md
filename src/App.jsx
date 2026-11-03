@@ -3,12 +3,17 @@ import { toast } from "@/ui/use-toast";
 import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
+import StatusScreen from "@/ui/StatusScreen";
+import AppSkeleton from "@/ui/AppSkeleton";
+import { isQuotaError } from "@/lib/storageErrors";
 import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { parseSongMd, songToMd, generateId } from './parser';
-import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate, clearAll } from './storage';
+import { songToMd, generateId } from './parser';
+import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
-import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin } from '@/lib/joinLink';
+import { readySnapshot } from '@/lib/setlistView';
+import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
+import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -16,7 +21,7 @@ import { computeTempoHistories, applyTempoHistories, incrementTempoForSetlistDif
 import { healSetlistLinks, matchSongByTitle } from '@/lib/setlistLinks';
 import { seedDemoSongs, DEMO_BASELINES } from '@/data/demos';
 import { isLockedOut } from '@/lib/appGate';
-import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal } from '@/lib/spaceDefaults';
+import { churchDefaultSpaceId, defaultAfterJoin, hasOwnPersonalContent, homeSpaceStep, shouldHidePersonal, PERSONAL_BLOCKED_IN_CHURCH } from '@/lib/spaceDefaults';
 
 const DEMO_SONG_IDS = Object.keys(DEMO_BASELINES);
 import { createBackupMirror } from '@/sync/backup';
@@ -26,19 +31,20 @@ import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
+import { readLastLibrary, writeLastLibrary, waitingForHomeSpace } from '@/lib/lastLibrary';
 import { APP_HEIGHT } from '@/lib/appViewport';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
-import Dashboard from '@/features/dashboard/Dashboard';
-import Library from '@/features/library/Library';
-import Settings from '@/features/settings/Settings';
+import Home from '@/features/home/Home';
 import Account from '@/features/settings/Account';
 import Setlists from '@/features/setlists/Setlists';
-import BottomNav from '@/app/BottomNav';
 import DesktopLayout from '@/app/DesktopLayout';
-import MobileTopBar from '@/app/MobileTopBar';
-import MobileDrawer from '@/app/MobileDrawer';
-import NotificationTray from '@/features/notifications/NotificationTray';
-import NotificationsPage from '@/features/notifications/NotificationsPage';
+import { AppTopBar } from '@/app/AppTopBar';
+import { NavPill } from '@/app/NavPill';
+import { navItemFor } from '@/app/navItems';
+import { ChurchSheet } from '@/app/ChurchSheet';
+import YouPage from '@/features/you/YouPage';
+import NotificationsBell from '@/features/notifications/NotificationsBell';
+import SettingsPage from '@/features/settings/SettingsPage';
 import ConflictResolver from '@/features/sync/ConflictResolver';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import { usePreferenceSync } from '@/app/usePreferenceSync';
@@ -48,6 +54,7 @@ import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { exportSetlistZip, importSetlistZip, exportLibraryZip, slugify } from './setlist-io';
 import { exportSetlistPdf } from '@/pdf/exportSetlistPdf';
+import { printSetlist } from '@/pdf/printSetlist';
 import UpdatePrompt from '@/ui/UpdatePrompt';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { useTeamRealtime } from '@/hooks/useTeamRealtime';
@@ -61,6 +68,23 @@ import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 
+// Leaving an editor with changes not saved: one wording for every way out
+// (Cancel, Back, a tab in the nav, the phone's back swipe).
+const LEAVE_SETLIST = {
+  title: 'Leave without saving?',
+  description: 'Your changes to this setlist aren’t saved yet. If you leave now, they’re gone.',
+  confirmLabel: 'Leave',
+  cancelLabel: 'Keep editing',
+  variant: 'danger',
+};
+const LEAVE_SONG = {
+  title: 'Leave without saving?',
+  description: 'Your changes to this song aren’t saved yet. If you leave now, they’re gone.',
+  confirmLabel: 'Leave',
+  cancelLabel: 'Keep editing',
+  variant: 'danger',
+};
+
 async function maybeWarnQuota(warnedRef) {
   if (warnedRef.current) return;
   const est = await getStorageEstimate();
@@ -68,17 +92,20 @@ async function maybeWarnQuota(warnedRef) {
   warnedRef.current = true;
   const pct = Math.round(est.ratio * 100);
   toast({
-    title: 'Storage almost full',
-    description: `This device has used ${pct}% of its browser storage. Consider exporting and archiving older songs.`,
+    title: 'This device is nearly full',
+    description: `Setlists.md has used ${pct}% of the space it’s allowed here. Free up some space so new changes keep saving.`,
     variant: 'error',
   });
 }
 
 // Lazy-loaded: heavy secondary views not needed on initial render
-const SongHub = lazy(() => import('@/features/song/SongHub'));
+const Song = lazy(() => import('@/features/song/Song'));
+const SongEdit = lazy(() => import('@/features/song-edit/SongEdit'));
 const Editor = lazy(() => import('@/features/editor/Editor'));
 const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuilder'));
-const SetlistOverview = lazy(() => import('@/features/setlist-viewer/SetlistOverview'));
+const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
+const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'));
+import NewSetlistSheet from '@/features/setlist/NewSetlistSheet';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -99,18 +126,18 @@ const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 // corner is deliberately cheap rather than self-explanatory, and this is where
 // it gets explained. See `LiveIntro`.
 const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
-const LydianShowcase = lazy(() => import('@/features/design/LydianShowcase'));
+const DesignSystem = lazy(() => import('@/features/design/DesignSystem'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
 // replaced is deleted). Lazy — only fetched when the user adds a song.
-const AddSongModal = lazy(() => import('@/features/import/AddSongModal'));
 const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
 const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
 const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
-const Schedule = lazy(() => import('@/features/scheduling/Schedule'));
+const Schedule = lazy(() => import('@/features/schedule/Schedule'));
+const Songs = lazy(() => import('@/features/songs/Songs'));
 const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
 const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
@@ -171,8 +198,16 @@ export default function App() {
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
-  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams, pendingJoinCount = 0 } = useTeam();
-  const { schedules, updateSchedule } = useTeamSchedules(team?.id);
+  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
+  const signedOutSettled = !authLoading && !user?.id;
+  // Launch: give memberships a few seconds to say which church to open before
+  // falling back to whatever is open (offline, slow network).
+  const [homeSpaceTimedOut, setHomeSpaceTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setHomeSpaceTimedOut(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+  const { schedules, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
   const canEdit = canWriteLibrary;
@@ -183,7 +218,12 @@ export default function App() {
   // Native + iOS install affordance.
   const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
   const [showIOSHint, setShowIOSHint] = useState(false);
-  const [activeLibrary, setActiveLibrary] = useState('personal');
+  // Open straight into the space used last (the church, for almost everyone),
+  // read from the device before anything loads — so launch shows the church
+  // and its songs at once, offline too, instead of Personal and then a
+  // flicker into the church once memberships arrive (owner, 2026-11-03).
+  const [activeLibrary, setActiveLibrary] = useState(readLastLibrary);
+  useEffect(() => { writeLastLibrary(activeLibrary); }, [activeLibrary]);
   // One-shot flag: open the Team screen directly in its create-workspace form.
   const [teamCreateIntent, setTeamCreateIntent] = useState(false);
   const [songs, setSongs] = useState([]);
@@ -203,6 +243,7 @@ export default function App() {
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (window.location.pathname === '/copyright') return 'legal-copyright';
+      if (window.location.pathname === '/design') return 'design';
       // `/join/<code>` — a church's join link. Public: works before sign-in.
       if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
@@ -223,6 +264,8 @@ export default function App() {
   // Arrangement to open in the editor (the one the user was viewing). Reset
   // whenever we enter the editor unless an explicit id is passed.
   const [editArrangementId, setEditArrangementId] = useState(null);
+  // The song the user asked to open in the old editor instead (Info → "Open the old editor").
+  const [oldEditorFor, setOldEditorFor] = useState(null);
   const [editNewTitle, setEditNewTitle] = useState('');
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
@@ -249,11 +292,6 @@ export default function App() {
     members,
     setlistMap: teamSetlistMap,
   }), [user?.id, currentSetlist?.id, schedules, members, teamSetlistMap]);
-  // Schedule list/calendar view — lifted here so the BottomNav morphing FAB can
-  // toggle it (alongside the desktop header switch). Defaults to list on phones.
-  const [scheduleView, setScheduleView] = useState(() =>
-    (typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches) ? 'list' : 'calendar'
-  );
   // True while the setlist builder has unsaved edits — drives the discard
   // guard on header nav + browser back (the builder reports it via callback).
   const setlistDirtyRef = useRef(false);
@@ -289,21 +327,18 @@ export default function App() {
   }, [settings?.seenLiveIntro]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [authStartMode, setAuthStartMode] = useState('signin');
-  const [newSongModal, setNewSongModal] = useState(null);
+  // The church a join link is joining, shown on the log-in / create screens.
+  const [authJoining, setAuthJoining] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerOpenKey, setDrawerOpenKey] = useState(0);
-  const openDrawer = () => {
-    setDrawerOpenKey(k => k + 1);
-    setDrawerOpen(true);
-  };
-  const [notifTrayOpen, setNotifTrayOpen] = useState(false);
+  // The church switcher, opened from the church name in the top bar.
+  const [churchSheetOpen, setChurchSheetOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
   // Account-wall modal state — surfaced after the user saves their first
   // local item (song or setlist) without being signed in.
   const [accountWallTrigger, setAccountWallTrigger] = useState(null);
   // Founder note — queued by onTransposed, shown when the user lands on
   // the dashboard so it never interrupts the chart they're playing with.
-  const [founderNoteQueued, setFounderNoteQueued] = useState(false);
+  const [, setFounderNoteQueued] = useState(false);
   const [showFounderNote, setShowFounderNote] = useState(false);
   // Settings sub-panel ('hub' | 'appearance' | 'chart' | 'sync' | 'data' | 'about')
   // Lifted to App so it participates in the back-button history stack.
@@ -344,6 +379,21 @@ export default function App() {
   const triggerSyncRef = useRef(null);
   const historyRef = useRef([]);
   const quotaWarnedRef = useRef(false);
+  // A save this device refused. Out of space gets a drawer that says what to
+  // do, once per session; anything else is logged, as before.
+  const storageFullShownRef = useRef(false);
+  const onSaveFailedRef = useRef(null);
+  onSaveFailedRef.current = (err) => {
+    console.error('[storage] save failed:', err);
+    if (!isQuotaError(err) || storageFullShownRef.current) return;
+    storageFullShownRef.current = true;
+    confirm({
+      title: 'This device is out of space',
+      description: 'Your last changes couldn’t be saved here. Anything already synced is safe with your church.\n\nTo fix it: delete some photos, videos or apps you don’t need, then reopen Setlists.md. If you use it in a browser, clearing other websites’ data helps too.',
+      confirmLabel: 'Got it',
+      cancelLabel: null,
+    });
+  };
   const isSwitchingLibraryRef = useRef(false);
   // Tracks which user we've already applied the "home Space" default for, so we
   // do it once per sign-in and never override a later manual switch.
@@ -364,10 +414,13 @@ export default function App() {
     const ids = teams.map(t => t.id);
     if (ids.includes(activeLibrary)) {
       setActiveTeam(activeLibrary);
-    } else {
+    } else if (signedOutSettled || teamsLoaded) {
+      // Only once we KNOW: signed out, or memberships read from the server.
+      // Before that an empty list is "not loaded yet" (or offline), and the
+      // remembered church stays open from the device.
       setActiveLibrary('personal');
     }
-  }, [teams, activeLibrary, setActiveTeam]);
+  }, [teams, activeLibrary, setActiveTeam, teamsLoaded, signedOutSettled]);
 
   // "Home Space": members who live in a band/church can pick a default Space to
   // open into instead of Personal. Apply it once per sign-in, after settings +
@@ -393,6 +446,14 @@ export default function App() {
     if (!id) return;
     setSettings(prev => (prev && !prev.defaultSpaceId ? { ...prev, defaultSpaceId: id } : prev));
   }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
+
+  // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
+  // whoever is in it once their memberships load is moved to their church.
+  useEffect(() => {
+    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || activeLibrary !== 'personal') return;
+    const id = churchDefaultSpaceId({ current: null, teams });
+    if (id) setActiveLibrary(id);
+  }, [teamLoading, teams, activeLibrary]);
 
   // Does the personal library hold anything of the user's own? While it is
   // the open library the answer is in state; otherwise read it from IndexedDB
@@ -454,26 +515,22 @@ export default function App() {
     if (target) setView(target);
   }, [pendingSpaceSwitch, teams, activeLibrary]);
 
-  // Someone who asked to join and then left the Waiting screen: keep watching
-  // their request, and when a leader decides, say so wherever they are.
+  // Someone who asked to join and then left the Waiting screen (a launch
+  // reopens it, but they may have gone to Log in, say): keep watching that
+  // one request, and when a leader decides, say so wherever they are.
   const watchJoin = !!user?.id && view !== 'join' && loadPendingJoin()?.stage === 'requested';
   const { requests: myJoinRequests } = useMyJoinRequests(user?.id, { enabled: watchJoin });
   const announcedJoinRef = useRef(new Set());
   useEffect(() => {
     if (!watchJoin) return;
-    const decided = myJoinRequests.filter(r => r.status !== 'pending' && !announcedJoinRef.current.has(r.id));
-    if (decided.length === 0) return;
-    // Only announce decisions on requests this device is waiting on; the rest
-    // are history.
-    const stillPending = myJoinRequests.some(r => r.status === 'pending');
-    const fresh = decided.filter(r => r.decided_at && Date.now() - Date.parse(r.decided_at) < 7 * 24 * 3600 * 1000);
-    decided.forEach(r => announcedJoinRef.current.add(r.id));
-    if (!stillPending) clearPendingJoin();
-    const approved = fresh.find(r => r.status === 'approved');
-    if (approved) {
-      handleJoinedSpace(approved.team_id, { switchTo: activeLibrary === 'personal' ? 'home' : null });
-      toast({ title: `You're in ${approved.team_name || 'the team'}`, description: 'A leader approved your request.' });
-    } else if (fresh.some(r => r.status === 'declined')) {
+    const decision = joinDecisionFor(myJoinRequests, loadPendingJoin());
+    if (!decision || announcedJoinRef.current.has(decision.id)) return;
+    announcedJoinRef.current.add(decision.id);
+    clearPendingJoin();
+    if (decision.status === 'approved') {
+      handleJoinedSpace(decision.team_id, { switchTo: activeLibrary === 'personal' ? 'home' : null });
+      toast({ title: `You're in ${decision.team_name || 'the team'}`, description: 'A leader approved your request.' });
+    } else {
       toast({ title: 'Join request not approved', description: 'Talk to your worship leader if that is a mistake.' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -583,7 +640,14 @@ export default function App() {
     }
 
     syncEngineRef.current = createEngineForLibrary(activeLibrary, (status) => {
-      setSyncState(prev => ({ ...prev, ...status }));
+      // errorSince: when sync started failing, so Home can speak up once it
+      // has been failing for a while rather than on one dropped request.
+      setSyncState(prev => {
+        const next = { ...prev, ...status };
+        if (status.state === 'error') next.errorSince = prev.errorSince || Date.now();
+        else if (status.state === 'synced') next.errorSince = null;
+        return next;
+      });
     }, {
       readOnly: isTeamReadOnly,
       onConflicts: enqueueConflicts,
@@ -598,7 +662,7 @@ export default function App() {
   // or disconnecting in Settings needs no re-creation. It only ever WRITES;
   // `handleRestoreFromBackup` is the one read, on request.
   const backupRef = useRef(null);
-  const [backupState, setBackupState] = useState({ state: 'idle', provider: null, lastBackup: null });
+  const [, setBackupState] = useState({ state: 'idle', provider: null, lastBackup: null });
   if (!backupRef.current) {
     backupRef.current = createBackupMirror((status) => setBackupState(prev => ({ ...prev, ...status })));
   }
@@ -645,6 +709,17 @@ export default function App() {
     }
   }, [songs, setlists, tombstones, activeLibrary, personalCloudId, adoptSyncResult]);
   triggerSyncRef.current = triggerSync;
+
+  // team_schedules points at the server row, so a setlist that has not synced
+  // yet cannot have a band. Push it now and read the row id the push returned,
+  // rather than asking the leader to go and sync first.
+  const ensureSetlistRow = useCallback(async (sl) => {
+    if (!sl?.id || activeLibrary === 'personal') return null;
+    if (teamSetlistMap[sl.id]) return teamSetlistMap[sl.id];
+    await triggerSyncRef.current?.({ silent: true });
+    const state = await getSyncState(activeLibrary);
+    return state?.replica?.rows?.setlist?.[sl.id]?.rowId || state?.setlistManifest?.[sl.id]?.remoteId || null;
+  }, [activeLibrary, teamSetlistMap]);
 
   // Subscribe to realtime changes for team libraries. Ignore the echo of our
   // own recent writes so a local edit doesn't bounce back as a redundant sync.
@@ -742,6 +817,8 @@ export default function App() {
         const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
         if (isAuthFlow) {
           // Keep the current auth view
+        } else if (view === 'design' && savedSettings.onboardingComplete) {
+          // /design: the design system page, opened by its address.
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
@@ -814,7 +891,7 @@ export default function App() {
   // Auto-save when data changes + debounced sync push
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
-      saveSongs(songs, activeLibrary);
+      saveSongs(songs, activeLibrary).catch(onSaveFailedRef.current);
       // Offline: the edit is durably saved locally above; skip the network push
       // and let the reconnect handler flush it via a full sync.
       if (navigator.onLine) {
@@ -826,7 +903,7 @@ export default function App() {
   }, [songs, loaded, activeLibrary]);
   useEffect(() => {
     if (loaded && !isSwitchingLibraryRef.current) {
-      saveSetlists(setlists, activeLibrary);
+      saveSetlists(setlists, activeLibrary).catch(onSaveFailedRef.current);
       if (navigator.onLine) {
         syncEngineRef.current?.debouncedPush(songs, setlists, tombstones, setTombstones);
         if (activeLibrary === 'personal') backupRef.current?.debouncedBackup(songs, setlists);
@@ -921,36 +998,6 @@ export default function App() {
     };
   }, [loaded, songs, setlists, tombstones, activeLibrary]);
 
-  // Backup folder actions (Settings → Cloud Sync). Restore adds what the
-  // folder holds and the library lacks — by id, so a song backed up from this
-  // account comes back as itself, not as a duplicate. Existing items are
-  // never overwritten: the folder is a copy, the library is the truth.
-  const handleBackupNow = useCallback(async () => {
-    const r = await backupRef.current?.backupNow(songs, setlists);
-    if (r?.skipped) return null;
-    if (r?.errors?.length) {
-      toast({ title: 'Backup had problems', description: r.errors[0].message, variant: 'error' });
-    } else if (r) {
-      const n = (r.uploaded?.songs || 0) + (r.uploaded?.setlists || 0);
-      toast({ title: 'Backed up', description: n ? `${n} file${n === 1 ? '' : 's'} written.` : 'The folder already matched your library.' });
-    }
-    return r;
-  }, [songs, setlists]);
-  const handleRestoreFromBackup = useCallback(async () => {
-    const r = await backupRef.current?.restore();
-    if (!r) return null;
-    const haveSongs = new Set(songs.map(s => s.id));
-    const haveSetlists = new Set(setlists.map(s => s.id));
-    const newSongs = r.songs.filter(s => !haveSongs.has(s.id));
-    const newSetlists = r.setlists.filter(s => !haveSetlists.has(s.id));
-    if (newSongs.length) setSongs(prev => [...prev, ...newSongs.filter(s => !prev.some(p => p.id === s.id))]);
-    if (newSetlists.length) setSetlists(prev => [...prev, ...newSetlists.filter(s => !prev.some(p => p.id === s.id))]);
-    const desc = newSongs.length + newSetlists.length
-      ? `Added ${newSongs.length} song${newSongs.length === 1 ? '' : 's'} and ${newSetlists.length} setlist${newSetlists.length === 1 ? '' : 's'} the library did not have.`
-      : 'Everything in the folder is already in your library.';
-    toast({ title: 'Restore finished', description: desc, variant: r.errors?.length ? 'error' : undefined });
-    return { songs: newSongs.length, setlists: newSetlists.length, errors: r.errors };
-  }, [songs, setlists]);
 
   // Document-level appearance: theme, Labs palette, orientation lock.
   useAppearance(settings);
@@ -979,12 +1026,20 @@ export default function App() {
   };
 
   // True (and toasts) when the active team library is read-only for this user.
+  // A member tried to change something only leaders can. One explanation in a
+  // drawer, the same everywhere, instead of seven differently worded toasts.
+  // A ref, so the useCallback handlers below can call it without new deps.
+  const onlyLeadersRef = useRef(null);
+  const currentWorkspaceNameRef = useRef('');
+  onlyLeadersRef.current = () => confirm({
+    title: 'Only leaders can change this',
+    description: `You can see everything in ${currentWorkspaceNameRef.current || 'your church'}, but changing songs and setlists is for its leaders. If something needs fixing, tell one of them.`,
+    confirmLabel: 'OK',
+    cancelLabel: null,
+  });
   const guardTeamReadOnly = () => {
     if (!isTeamReadOnly) return false;
-    toast({
-      title: 'Read-only library',
-      description: 'Only admins, leaders and editors can change songs here. Ask a team admin to change your role.',
-    });
+    onlyLeadersRef.current();
     return true;
   };
 
@@ -1006,6 +1061,15 @@ export default function App() {
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
     if (nextView === 'settings') setSettingsPanel('hub');
+  };
+
+  // A link to something that is gone (a notification about a deleted setlist,
+  // an activity row): a page that says so, instead of a tap that does nothing.
+  const [notFoundKind, setNotFoundKind] = useState('setlist');
+  const showNotFound = (kind = 'setlist') => {
+    pushHistory(snapshot());
+    setNotFoundKind(kind);
+    setView('not-found');
   };
 
   const goBack = useCallback(() => {
@@ -1042,22 +1106,10 @@ export default function App() {
   // true if it's safe to navigate (not dirty, or the user chose to discard).
   const confirmDiscardSetlist = async () => {
     if (view === 'setlist-build' && setlistDirtyRef.current) {
-      return await confirm({
-        title: 'Discard changes?',
-        description: 'You have unsaved changes to this setlist. They will be lost.',
-        confirmLabel: 'Discard',
-        cancelLabel: 'Keep editing',
-        variant: 'danger',
-      });
+      return await confirm(LEAVE_SETLIST);
     }
     if (view === 'editor' && editorDirtyRef.current) {
-      return await confirm({
-        title: 'Discard unsaved changes?',
-        description: 'You have unsaved edits to this song. Leaving now will lose them.',
-        confirmLabel: 'Discard',
-        cancelLabel: 'Keep editing',
-        variant: 'danger',
-      });
+      return await confirm(LEAVE_SONG);
     }
     return true;
   };
@@ -1070,13 +1122,7 @@ export default function App() {
       // flag false and fire back() again, which falls through to goBack().
       if (view === 'setlist-build' && setlistDirtyRef.current) {
         window.history.pushState(null, '');
-        confirm({
-          title: 'Discard changes?',
-          description: 'You have unsaved changes to this setlist. They will be lost.',
-          confirmLabel: 'Discard',
-          cancelLabel: 'Keep editing',
-          variant: 'danger',
-        }).then((ok) => {
+        confirm(LEAVE_SETLIST).then((ok) => {
           if (!ok) return;
           setlistDirtyRef.current = false;
           window.history.back();
@@ -1085,13 +1131,7 @@ export default function App() {
       }
       if (view === 'editor' && editorDirtyRef.current) {
         window.history.pushState(null, '');
-        confirm({
-          title: 'Discard unsaved changes?',
-          description: 'You have unsaved edits to this song. Leaving now will lose them.',
-          confirmLabel: 'Discard',
-          cancelLabel: 'Keep editing',
-          variant: 'danger',
-        }).then((ok) => {
+        confirm(LEAVE_SONG).then((ok) => {
           if (!ok) return;
           editorDirtyRef.current = false;
           window.history.back();
@@ -1104,28 +1144,9 @@ export default function App() {
     return () => window.removeEventListener('popstate', handler);
   }, [goBack, view, confirm]);
 
-  // Auto-fire: founder note when the user lands on the dashboard with a
-  // queued note. openFounderNote pushes history so back closes it.
-  useEffect(() => {
-    if (founderNoteQueued && view === 'home' && !showFounderNote && !settings?.seenFounderNote) {
-      openFounderNote();
-    }
-  }, [founderNoteQueued, view, showFounderNote, settings?.seenFounderNote]);
-
-  // Auto-fire: iOS Add-to-Home-Screen explainer once after onboarding on
-  // iOS Safari. iOS never fires beforeinstallprompt so we always need a
-  // custom UI affordance.
-  useEffect(() => {
-    if (
-      isIOS && !isStandalone &&
-      view === 'home' &&
-      settings?.onboardingComplete &&
-      !settings?.seenIOSInstallHint &&
-      !showIOSHint
-    ) {
-      openIOSHint();
-    }
-  }, [isIOS, isStandalone, view, settings?.onboardingComplete, settings?.seenIOSInstallHint, showIOSHint]);
+  // The founder note and the iOS "Add to Home Screen" steps no longer pop up
+  // on their own (owner, 2026-11-03: they came back after every sign-in).
+  // The install steps still open from Home's install row.
 
   // ⚠ The wake-lock sheet is GONE (2026-08-11), and with it the whole
   // `seenWakeLockExplainer` / `showWakeLockExplainer` apparatus.
@@ -1171,31 +1192,6 @@ export default function App() {
     setSettingsPanel(nextPanel);
   };
 
-  // Fully close Settings — pop history until we land on a non-settings view,
-  // so the desktop modal × button always exits regardless of how many
-  // sub-panels the user drilled through.
-  const closeSettings = useCallback(() => {
-    while (historyRef.current.length > 0) {
-      const prev = historyRef.current.pop();
-      if (prev && prev.view !== 'settings') {
-        setView(prev.view);
-        setCurrentSong(prev.song);
-        setCurrentSetlist(prev.setlist);
-        if (prev.settingsPanel !== undefined) setSettingsPanel(prev.settingsPanel);
-        setAccountWallTrigger(prev.accountWall ?? null);
-        setShowFounderNote(!!prev.founderNote);
-        setShowIOSHint(!!prev.iosHint);
-        if (typeof prev.isFullscreen === 'boolean') setIsFullscreen(prev.isFullscreen);
-        setSessionStats(prev.sessionStats ?? null);
-        setReaderMode(prev.readerMode || 'live');
-        return;
-      }
-    }
-    // Nothing else in history — fall back to home.
-    setView('home');
-    setSettingsPanel('hub');
-  }, []);
-
   // Modal openers — each one pushes history first so hardware Back closes
   // the modal instead of bypassing it. Modal close handlers call
   // window.history.back() which triggers popstate → goBack → modal hides.
@@ -1207,11 +1203,6 @@ export default function App() {
     // builder) instead of the just-saved item.
     pushHistory(snap || snapshot());
     setAccountWallTrigger(trigger);
-  };
-  const openFounderNote = () => {
-    if (showFounderNote) return;
-    pushHistory(snapshot());
-    setShowFounderNote(true);
   };
   const openIOSHint = () => {
     if (showIOSHint) return;
@@ -1232,10 +1223,7 @@ export default function App() {
     notifications: mergedNotifications,
     hasUnread: hasUnreadNotifications,
     markRead: handleMarkNotificationRead,
-    dismiss: handleDismissNotification,
-    clearAll: handleClearAllNotifications,
     markAllRead: handleMarkAllNotificationsRead,
-    onAction: handleNotificationAction,
   } = useNotificationFeed({
     schedules, setlists, members, teamNotifications, user, settings, setSettings,
     matchesSetlistId, markTeamNotifRead, dismissTeamNotif, dismissAllTeamNotifs,
@@ -1275,6 +1263,7 @@ export default function App() {
     ? (loaded ? hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS) : null)
     : storedPersonalHasContent;
   const hidePersonalSpace = shouldHidePersonal({
+    blocked: PERSONAL_BLOCKED_IN_CHURCH,
     showPersonalPref: settings?.showPersonalSpace,
     inChurch: teams.length > 0,
     hasPersonalContent: personalHasContent,
@@ -1291,7 +1280,6 @@ export default function App() {
   ];
 
   const goLibrary = () => goToMainView('library');
-  const goSetlists = () => goToMainView('setlists');
 
   // Safety net: if a member ends up on an editing surface in a read-only team
   // library (e.g. they switched into the workspace while the editor was open),
@@ -1319,6 +1307,24 @@ export default function App() {
     if (isTeamReadOnly) return;
     navigate('editor', { song, arrangementId, newTitle });
   };
+  const [newSetlistOpen, setNewSetlistOpen] = useState(false);
+  // What the new editor (SongEdit) edits. It only speaks the v2 shape, so a
+  // blank new song and an imported one (both flat, maybe without an id) are
+  // wrapped here, once per editor visit — SongEdit's dirty check is identity.
+  const editTarget = useMemo(() => {
+    if (view !== 'editor') return null;
+    if (currentSong?.arrangements?.length > 0) {
+      return { song: currentSong, mode: songs.some(s => s.id === currentSong.id) ? 'edit' : 'import' };
+    }
+    const mode = !currentSong ? 'new' : songs.some(s => s.id === currentSong.id) ? 'edit' : 'import';
+    const flat = currentSong || {};
+    const song = songFromFlat({ ...flat, id: flat.id || generateId() });
+    if (!currentSong) { song.title = editNewTitle || ''; song.artist = ''; song.arrangements[0].name = 'Main'; }
+    return { song, mode };
+    // `songs` is read once per visit on purpose: saving adds the song to the
+    // library, and a rebuilt target would reset the form under the user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, currentSong, editNewTitle]);
   const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
     // Warn before editing a setlist whose date has already passed — editing it
@@ -1338,6 +1344,8 @@ export default function App() {
         if (!ok) return;
       }
     }
+    // New: pick a service first (NewSetlistSheet), then the edit page.
+    if (!sl) { setNewSetlistOpen(true); return; }
     navigate('setlist-build', { setlist: sl });
   };
   const goSetlistView = (sl) => {
@@ -1402,9 +1410,7 @@ export default function App() {
   // it we surface a "limit reached / contact support" affordance instead.
   const eligibleToCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
   const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
-  const newWorkspaceLocked = eligibleToCreateWorkspace && atWorkspaceLimit;
   const goSchedule = () => navigate('schedule');
-  const goScheduling = () => navigate('scheduling');
 
   // Song CRUD
   // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
@@ -1413,7 +1419,7 @@ export default function App() {
   // arrangement so the song's other arrangements are preserved.
   const handleSaveSong = async (input, opts = {}) => {
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit songs here.', variant: 'error' });
+      onlyLeadersRef.current();
       return false;
     }
     // Duplicate-title guard for brand-new songs (covers create, copy, and the
@@ -1619,6 +1625,12 @@ export default function App() {
 
   // Candidate destinations for moving/copying a song — every workspace except
   // the one currently active.
+  // Churches the user can change songs in (owner, admin or leader). Move and
+  // Copy on Songs only appear when there is another one to send songs to.
+  const ledChurches = teams
+    .filter(t => t.owner_id === user?.id || roleCanWriteLibrary(t.myRole))
+    .map(t => ({ id: t.id, name: t.name }));
+
   const moveCopyWorkspaces = [
     { id: 'personal', name: 'Personal' },
     ...teams.map(t => ({ id: t.id, name: t.name })),
@@ -1653,7 +1665,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     const removed = songs.find((s) => s.id === id);
@@ -1697,7 +1709,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     if (settings?.confirmBeforeDelete !== false) {
@@ -1720,7 +1732,14 @@ export default function App() {
       ...prev,
       songs: [...prev.songs.filter(t => !idSet.has(t.id)), ...ids.map(id => ({ id, deletedAt: now }))],
     }));
-    toast({ title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}` });
+    showUndoToast({
+      title: `Deleted ${ids.length} song${ids.length === 1 ? '' : 's'}`,
+      onUndo: () => {
+        setSongs(prev => [...prev, ...removed.filter(r => !prev.some(s => s.id === r.id))]);
+        setTrash(prev => prev.filter(e => !idSet.has(e.song?.id)));
+        setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => !idSet.has(t.id)) }));
+      },
+    });
   };
 
   // ----- Trash bin (recover soft-deleted songs within 30 days) -----
@@ -1767,36 +1786,27 @@ export default function App() {
       : { title: 'Service removed', description: `“${oldName}” cleared from its setlists` });
   }, []);
 
-  const handleAddSongsToSetlist = (songIds, setlistId) => {
-    const target = setlists.find(s => s.id === setlistId);
-    if (!target) return;
-    let added = 0;
-    setSetlists(prev => prev.map(sl => {
-      if (sl.id !== setlistId) return sl;
-      const existing = new Set((sl.items || []).filter(i => i.songId).map(i => i.songId));
-      const newItems = songIds
-        .filter(id => !existing.has(id))
-        .map(id => {
-          const song = songs.find(s => s.id === id);
-          if (!song) return null;
-          const arr = (song.arrangements || []).find(a => a.id === song.defaultArrangementId) || song.arrangements?.[0];
-          return {
-            songId: id,
-            songTitle: song.title,
-            arrangementId: arr?.id,
-            arrangementName: arr?.name,
-            note: '',
-            transpose: 0,
-            capo: arr?.capo || 0,
-          };
-        })
-        .filter(Boolean);
-      added = newItems.length;
-      return { ...sl, items: [...(sl.items || []), ...newItems] };
-    }));
+  // Home's "Mark ready" on the next service: the same status the builder's
+  // Draft/Ready picker writes, saved through the usual auto-save.
+  const markSetlistReady = (target) => {
+    if (isTeamReadOnly || !target) return;
+    target = setlists.find(sl => sl.id === target.id) || target;
+    // readyItems: the order as it was when marked ready, for "Changed since Ready".
+    const ready = { status: 'ready', readyItems: readySnapshot(target), readyAt: Date.now(), updatedAt: Date.now() };
+    setSetlists(prev => prev.map(sl => (sl.id === target.id ? { ...sl, ...ready } : sl)));
+    setCurrentSetlist(cur => (cur?.id === target.id ? { ...cur, ...ready } : cur));
+    // Say what happens next: the server tells everyone on the band who hasn't
+    // said no (20261030_setlist_ready_notify.sql), not counting you.
+    const rowId = teamSetlistMap[target.id];
+    const told = rowId
+      ? new Set(schedules.filter(r => r.setlist_id === rowId && r.availability !== 'unavailable' && r.user_id !== user?.id).map(r => r.user_id)).size
+      : 0;
     toast({
-      title: 'Added to setlist',
-      description: `${added} song${added === 1 ? '' : 's'} → ${target.name || 'setlist'}`,
+      title: 'Marked ready',
+      description: told
+        ? `We told the band (${told} ${told === 1 ? 'person' : 'people'}).`
+        : (activeLibrary !== 'personal' ? 'No one is on the band yet, so no one was told.' : target.name || undefined),
+      variant: 'success',
     });
   };
 
@@ -1831,68 +1841,40 @@ export default function App() {
     for (const id of ids) await handleCopySongToLibrary(id, target);
   };
 
-  const handleImportParsedSongs = (parsedSongs) => {
-    if (!parsedSongs || parsedSongs.length === 0) return;
+  // Import (Songs → Add → Import): the songs the leader ticked in the review
+  // list. A song the library already has is updated in place — same id, play
+  // histories kept — so every setlist that points at it keeps working.
+  const handleAddImportedSongs = (list) => {
+    if (!list || list.length === 0) return;
     if (guardTeamReadOnly()) return;
-    setNewSongModal(null);
-    // Stable identity across re-imports (batch): if a song with this title
-    // already exists, adopt its id + play histories so Save UPDATES it in place and
-    // keeps every setlist reference intact, instead of minting a new id that
-    // orphans past setlists. Same rule as the single-paste import path.
-    const queue = parsedSongs.map(s => {
-      const existing = matchSongByTitle(songs, s.title);
-      return existing
-        ? { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory }
-        : s;
+    const now = Date.now();
+    setSongs(prev => {
+      const next = [...prev];
+      for (const s of list) {
+        const existing = matchSongByTitle(next, s.title);
+        if (existing) {
+          const i = next.findIndex(x => x.id === existing.id);
+          next[i] = { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory, updatedAt: now };
+        } else {
+          next.push({ ...s, updatedAt: now });
+        }
+      }
+      return next;
     });
-    if (queue.length === 1) {
-      navigate('editor', { song: queue[0] });
-      return;
-    }
-    // Queue the songs as drafts — each one only persists when the user
-    // hits Save in the editor; Skip drops it without writing to the library.
-    setImportQueue({ remaining: queue, total: queue.length });
-    navigate('editor', { song: queue[0] });
+    toast({ title: list.length === 1 ? `Added "${list[0].title || 'Untitled'}"` : `Added ${list.length} songs` });
   };
 
-  const handleImportSetlistFile = async (file) => {
-    setNewSongModal(null);
-    await handleImportSetlist(file);
-  };
-
-  // A catalog song is the one import path whose chart is already known-good —
-  // we shipped it. So it skips the editor: saved straight to the library and
-  // opened in the hub, with an Undo toast instead of a review step.
-  const handleAddCatalogSong = (mdText, entry) => {
+  // One imported song, opened in the editor before it is saved ("Edit first").
+  const handleEditImportedSong = (s) => {
     if (guardTeamReadOnly()) return;
-    let song;
-    try {
-      const parsed = parseSongMd(mdText);
-      song = songFromFlat({ ...parsed, id: generateId(), updatedAt: Date.now() });
-    } catch {
-      toast({ title: 'Could not add song', description: 'That chart failed to parse.', variant: 'error' });
-      return;
-    }
-    setSongs(prev => [...prev, song]);
-    setNewSongModal(null);
-    toast({
-      title: `Added "${song.title}"`,
-      description: entry?.license === 'public-domain' ? 'Public domain — yours to edit and transpose.' : undefined,
-    });
-    goChart(song);
-  };
-
-  // No default: opening the modal from a + button must not presume the user
-  // wants a file. Only an explicit 'import' request (the editor's empty-state
-  // Import button) pops the OS picker on open.
-  const openNewSongModal = (initialTab) => {
-    setNewSongModal({ initialTab });
+    const existing = matchSongByTitle(songs, s.title);
+    goEditor(existing ? { ...s, id: existing.id, keyHistory: existing.keyHistory, tempoHistory: existing.tempoHistory } : s);
   };
 
   // Setlist CRUD
   const handleSaveSetlist = (incomingSl) => {
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit setlists here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     // Determine isNew / prevSetlist synchronously from the current render's
@@ -1978,7 +1960,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     setSongs(prev => {
@@ -2032,7 +2014,7 @@ export default function App() {
   // into a new arrangement and puts the original back to its pre-edit snapshot.
   const handleSaveAsArrangement = useCallback(({ songId, arrangementId, restore }) => {
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     setSongs(prev => {
@@ -2052,12 +2034,6 @@ export default function App() {
     toast({ title: 'Saved as a new arrangement', description: 'The original is back the way it was.' });
   }, [isTeamReadOnly]);
 
-  // Manual trigger for the Settings → Sync "Setlist links" panel. Same heal the
-  // load path runs; useful right after re-importing a missing song.
-  const handleRepairSetlistLinks = useCallback(() => {
-    setSetlists(prev => healSetlistLinks(prev, songs).setlists);
-  }, [songs]);
-
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
     // A member's library is READ-ONLY, and the sync engine already refuses to
     // push their writes. Without this guard the write still lands in local
@@ -2066,7 +2042,7 @@ export default function App() {
     // hidden for members, but these handlers are reachable from several
     // surfaces, so the refusal belongs here rather than only in the UI.
     if (isTeamReadOnly) {
-      toast({ title: 'Read-only library', description: 'You don\'t have permission to edit here.', variant: 'error' });
+      onlyLeadersRef.current();
       return;
     }
     setSetlists(prev => {
@@ -2196,16 +2172,6 @@ export default function App() {
     }
   };
 
-  const handleClearAll = async () => {
-    await clearAll();
-    setSongs([]);
-    setSetlists([]);
-    setTombstones({ songs: [], setlists: [] });
-    setTrash([]);
-    historyRef.current = [];
-    setView('home');
-  };
-
   // Setlist export/import
   const handleExportSetlist = async (sl) => {
     try {
@@ -2237,16 +2203,6 @@ export default function App() {
     } catch {
       toast({ title: 'Import failed', description: 'Could not read setlist zip.', variant: 'error' });
     }
-  };
-
-  // Open a .zip picker then import — used by the mobile/tablet BottomNav menu,
-  // which (unlike the desktop list header) has no file input of its own.
-  const pickAndImportSetlist = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.zip';
-    input.onchange = (e) => { const f = e.target.files?.[0]; if (f) handleImportSetlist(f); };
-    input.click();
   };
 
   if (view === 'share-view') {
@@ -2310,6 +2266,14 @@ export default function App() {
     );
   }
 
+  // Only the signed-in app waits; public pages (guest link, join, legal,
+  // password reset, /design) draw at once.
+  const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'design', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
+  const settlingHomeSpace = !publicView && waitingForHomeSpace({
+    userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
+  });
+  // Signed in, church not known yet: the app's shape in grey, never Personal.
+  if (settlingHomeSpace) return <AppSkeleton />;
   if (!loaded) {
     return (
       <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
@@ -2342,10 +2306,11 @@ export default function App() {
               leaveJoinFlow();
               setView(resolveLandingView(settings?.landingView));
             }}
-            onPasswordSignIn={(mode = 'signin') => {
+            onPasswordSignIn={(mode = 'signin', church = null) => {
               // The code stays parked in localStorage; the resume effect brings
               // the flow back once AuthScreen signs in.
               leaveJoinFlow();
+              setAuthJoining(church);
               setAuthStartMode(mode === 'signup' ? 'signup' : 'signin');
               setView('signin');
             }}
@@ -2367,6 +2332,7 @@ export default function App() {
   const currentWorkspaceName = activeLibrary === 'personal'
     ? 'Personal'
     : (teams.find(t => t.id === activeLibrary)?.name || team?.name || 'Team');
+  currentWorkspaceNameRef.current = currentWorkspaceName;
   // Service suggestions for the builder dropdown — distinct service names
   // already used across this workspace's setlists (foundation for per-service
   // stats; a canonical team_services table can replace this source later).
@@ -2381,6 +2347,48 @@ export default function App() {
   } else if (profile?.is_pro) {
     plan = 'Pro';
   }
+  // ── The new navigation (canvas "Navigation options": pill B, menu B) ──
+  // Views that carry the nav pill. Everything else (a song, a service, the
+  // reader, the editor) has its own "← Back".
+  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'upgrade', 'you'];
+  // Schedule needs a church; on its own, Personal's Schedule is its setlists.
+  const goNavItem = (id) => goToMainView(
+    id === 'songs' ? 'library' : id === 'schedule' && activeLibrary === 'personal' ? 'setlists' : id,
+  );
+  const activeWorkspace = workspaces.find(w => w.id === activeLibrary);
+  const appTopBar = (
+    <AppTopBar
+      church={{ name: activeWorkspace?.name || currentWorkspaceName, logoUrl: activeWorkspace?.id === 'personal' ? null : activeWorkspace?.avatarUrl }}
+      onOpenChurches={workspaces.length > 1 ? () => setChurchSheetOpen(true) : undefined}
+      unread={hasUnreadNotifications}
+      notifications={{
+        open: bellOpen,
+        onOpenChange: setBellOpen,
+        content: (
+          <NotificationsBell
+            feed={mergedNotifications}
+            schedules={schedules}
+            setlists={setlists}
+            matchesSetlistId={matchesSetlistId}
+            settings={settings}
+            setSettings={setSettings}
+            onUpdateSchedule={updateSchedule}
+            onMarkRead={handleMarkNotificationRead}
+            onMarkAllRead={handleMarkAllNotificationsRead}
+            onOpenSetlist={goSetlistView}
+            onNotFound={showNotFound}
+            onSettings={() => goToMainView('settings', { settingsPanel: 'notifications' })}
+            onClose={() => setBellOpen(false)}
+          />
+        ),
+      }}
+      me={{ name: displayName, url: profile?.avatar_url || null }}
+      meBadge={pendingJoinCount}
+      onOpenYou={() => navigate('you')}
+      pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
+    />
+  );
+
   const handleSignOut = async () => {
     const ok = await confirm({
       title: 'Sign out?',
@@ -2428,24 +2436,12 @@ export default function App() {
           }}
           onSignedIn={() => goToMainView('home')}
           defaultMode={authStartMode}
-          onShowLegal={(doc) => navigate(`legal-${doc}`)}
+          joining={loadPendingJoin()?.stage === 'auth' ? authJoining : null}
         />
       )}
       {(view === 'onboarding' || lockedOut) && (
         <div style={{ height: APP_HEIGHT, overflowY: 'auto', overflowX: 'hidden' }}>
         <WelcomeScreen
-          onTrySolo={() => {
-            // Demos are seeded on a first run already; this covers a replay
-            // from Settings after the library was emptied.
-            setSongs(prev => {
-              if (prev.length > 0) return prev;
-              const demos = seedDemoSongs();
-              saveSongs(demos);
-              return demos;
-            });
-            setSettings(prev => ({ ...prev, onboardingComplete: true, soloMode: true }));
-            setView('home');
-          }}
           onSignIn={() => {
             setSettings(prev => ({ ...prev, onboardingComplete: true }));
             setAuthStartMode('signin');
@@ -2469,133 +2465,56 @@ export default function App() {
         <DesktopLayout
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
           activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
-          onNavigate={goToMainView} 
           isFullscreen={view === 'setlist-read' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
-          hideBanner={view === 'setlist-read'}
-          hasUnreadNotifications={hasUnreadNotifications} 
-          notifications={mergedNotifications} 
-          onMarkRead={handleMarkNotificationRead} 
-          onNotificationAction={handleNotificationAction} 
-          drawerOpen={drawerOpen}
-          drawerPresentation={settings?.accountPanel ? 'sheet' : 'drawer'} 
-          displayName={displayName}
-          plan={plan}
-          avatarUrl={profile?.avatar_url}
-          activeLibrary={activeLibrary}
-          setActiveLibrary={switchWorkspace}
-          team={team}
-          teams={teams}
-          onChangeWorkspace={goTeam}
-          onOpenHelp={() => navigate('help')}
-          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
-          newWorkspaceLocked={newWorkspaceLocked}
-          supportContact={SUPPORT_CONTACT}
-          syncState={syncState}
-          onSyncNow={() => triggerSync({ silent: false })}
-          isOnline={isOnline}
-          songs={songs}
-          setlists={setlists}
-          onSelectSong={goChart}
-          onSelectSetlist={goSetlistView}
-          // The header search hides on screens that already have their own
-          // search input: Dashboard (home), Library, Setlists, and the setlist
-          // builder (its library picker). Fullscreen views don't render the
-          // header at all.
-          showGlobalSearch={!['home', 'library', 'setlists', 'setlist-build'].includes(view)}
-          hidePersonal={hidePersonalSpace}
-          teamBadgeCount={pendingJoinCount}
-          hideBottomSpacer={!['home', 'library', 'setlists', 'settings', 'account', 'setlist-view', 'notifications'].includes(view)}
+          topBar={appTopBar}
+          topBarOnPhone={['home', 'library', 'setlists', 'schedule'].includes(view)}
+          hideBottomSpacer={!PILL_VIEWS.includes(view)}
         >
-          {['home', 'library', 'setlists'].includes(view) && (
-            <MobileTopBar
-              key={view}
-              view={view}
-            songs={songs}
-              setlists={setlists}
-              onOpenDrawer={openDrawer}
-              menuBadgeCount={activeLibrary !== 'personal' ? pendingJoinCount : 0}
-              onOpenNotifications={user ? () => navigate('notifications') : undefined}
-              unreadCount={user ? mergedNotifications.filter(n => !n.read).length : 0}
-              onSelectSong={goChart}
-              onSelectSetlist={goSetlistView}
-              activeLibrary={activeLibrary}
-              workspaces={workspaces}
-              setActiveLibrary={switchWorkspace}
-              onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
-              newWorkspaceLocked={newWorkspaceLocked}
-              supportContact={SUPPORT_CONTACT}
-              searchScope={
-                view === 'library' && settings?.songsLibraryPlus ? 'songs'
-                : view === 'setlists' && settings?.setlistsLibraryPlus ? 'setlists'
-                : 'all'
-              }
-              hmMenu={!!settings?.hmMenu}
-              accountPanel={!!settings?.accountPanel}
-            />
-          )}
-          {view === 'home' && (
-            <Dashboard
-            songs={songs}
+          {view === 'home' && settings && (
+            <Home
+              songs={songs}
               setlists={setlists}
               settings={settings}
-              onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
-              onViewSetlist={goSetlistView}
-              onPlaySetlist={(sl) => goSetlistRead(sl)}
-              onGoLibrary={goLibrary}
-              onGoSetlists={goSetlists}
-              onOpenSchedule={goSchedule}
-              hasCloud={!!syncState?.provider}
-              checklistActions={{
-                openFirstSong: () => {
-                  const song = songs.find(s => s.title === 'Amazing Grace') || songs[0];
-                  if (song) goChart(song);
-                },
-                newSong: () => openNewSongModal(),
-                newSetlist: () => goSetlistBuild(),
-                signIn: () => { setAuthStartMode('signin'); navigate('signin'); },
-              }}
-              onDismissChecklist={() => setSettings(prev => ({ ...prev, checklistDismissed: true }))}
-              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              displayName={displayName}
               syncState={syncState}
-              canEdit={canEdit}
-              onSignIn={!user ? () => { setAuthStartMode('signin'); navigate('signin'); } : undefined}
+              setlists={setlists}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              createSchedule={createSchedule}
+              deleteSchedule={deleteSchedule}
+              ensureRow={ensureSetlistRow}
+              setlistMap={teamSetlistMap}
+              onOpenSetlist={goSetlistView}
+              onEditSetlist={isTeamReadOnly ? null : goSetlistBuild}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              onMarkReady={isTeamReadOnly ? null : markSetlistReady}
+              onOpenSong={goChart}
+              onOpenSongs={goLibrary}
+              onOpenSchedule={goSchedule}
+              onOpenTeam={goTeam}
+              onNotFound={showNotFound}
+              onRetrySync={() => triggerSyncRef.current?.({ silent: false })}
+              install={!isStandalone && (isIOS || canInstall)
+                ? { onInstall: async () => { if (isIOS) openIOSHint(); else await promptInstall(); } }
+                : null}
             />
           )}
           {view === 'library' && (
-            <Library
-            songs={songs}
-              loaded={loaded}
-              onSelectSong={goChart}
-              onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-              onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
-              readOnly={isTeamReadOnly}
+            <Songs
+              songs={songs}
               setlists={setlists}
-              activeLibrary={activeLibrary}
-              workspaces={[{ id: 'personal', name: 'Personal' }, ...teams.map(t => ({ id: t.id, name: t.name }))]}
-              onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
-              onAddSongsToSetlist={isTeamReadOnly ? null : handleAddSongsToSetlist}
+              readOnly={isTeamReadOnly}
+              onOpenSong={goChart}
+              onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
+              onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
+              onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
+              onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
+              onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
-              plus={!!settings?.songsLibraryPlus}
-              tableColumns={settings?.tableColumns}
-              onSetTableColumns={setTableColumns}
-              onMoveSongs={!isTeamReadOnly && teams.length > 0 ? handleMoveSongs : null}
-              onCopySongs={teams.length > 0 ? handleCopySongs : null}
-              chartDefaults={{
-                defaultColumns: settings?.defaultColumns,
-                defaultFontSize: settings?.defaultFontSize,
-                showInlineNotes: settings?.showInlineNotes !== false,
-                inlineNoteStyle: settings?.inlineNoteStyle || 'dashes',
-                displayRole: settings?.displayRole || 'leader',
-                duplicateSections: settings?.duplicateSections || 'full',
-                chartLayout: settings?.chartLayout || 'columns',
-
-                settings,
-
-                onUpdateSettings: (key, value) => setSettings(prev => ({ ...prev, [key]: value })),
-              }}
-              canEdit={canEdit}
+              onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
+              onMoveSongs={isTeamReadOnly ? null : handleMoveSongs}
+              onCopySongs={isTeamReadOnly ? null : handleCopySongs}
+              otherChurches={ledChurches.filter(t => t.id !== activeLibrary)}
             />
           )}
           {view === 'setlists' && (
@@ -2638,13 +2557,15 @@ export default function App() {
           )}
           {view === 'song-hub' && currentSong && (
             <ErrorBoundary>
-            <SongHub
+            <Song
+              key={currentSong.id}
               song={currentSong}
+              setlists={setlists}
+              onOpenSetlist={goSetlistView}
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               onDelete={!isTeamReadOnly ? () => handleDeleteSong(currentSong.id) : null}
-              addedBy={displayName}
               onUpdateSong={isTeamReadOnly ? null : (updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? updated : s));
                 setCurrentSong(prev => (prev?.id === updated.id ? updated : prev));
@@ -2669,7 +2590,25 @@ export default function App() {
             />
             </ErrorBoundary>
           )}
-          {view === 'editor' && (
+          {/* An existing song opens the new editor (canvas → "Song, edit and chart");
+              new, imported and pasted songs still go through the old one, which
+              has the paste and import tools. "Open the old editor" switches. */}
+          {view === 'editor' && editTarget && !importQueue && oldEditorFor !== editTarget.song.id && (
+            <SongEdit
+              key={editTarget.song.id}
+              song={editTarget.song}
+              library={songs}
+              mode={editTarget.mode}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              initialArrangementId={editArrangementId}
+              onSave={handleSaveSong}
+              onBack={goBack}
+              onDirtyChange={markEditorDirty}
+              onOldEditor={() => setOldEditorFor(editTarget.song.id)}
+            />
+          )}
+          {view === 'editor' && !(editTarget && !importQueue && oldEditorFor !== editTarget.song.id) && (
             <Editor
               key={currentSong?.id || `new:${editNewTitle}`}
               song={currentSong}
@@ -2701,28 +2640,57 @@ export default function App() {
               }}
             />
           )}
+          {view === 'not-found' && (
+            <StatusScreen fill={false}
+              title={notFoundKind === 'song' ? 'Can’t find this song' : 'Can’t find this setlist'}
+              actions={[
+                { label: 'Back', onClick: goBack },
+                ...(syncState.provider ? [{ label: 'Sync now', onClick: () => triggerSyncRef.current?.({ silent: false }) }] : []),
+              ]}>
+              <p className="m-0">It was deleted, or it hasn’t reached this device yet.</p>
+            </StatusScreen>
+          )}
           {view === 'setlist-view' && currentSetlist && (
-            <SetlistOverview
+            <SetlistPage
               key={currentSetlist.id}
-              setlist={currentSetlist}
-            songs={songs}
+              setlist={setlists.find(s => s.id === currentSetlist.id) || currentSetlist}
+              songs={songs}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              setlistMap={teamSetlistMap}
+              settings={settings}
+              canEdit={canEdit && !isTeamReadOnly}
               onBack={goBack}
-              onEdit={isTeamReadOnly ? null : () => goSetlistBuild(currentSetlist)}
-              onExportZip={() => handleExportSetlist(currentSetlist)}
-              onExportPdfOverview={() => exportSetlistPdf(currentSetlist, songs, { mode: 'overview' })}
-              onExportPdfFull={() => exportSetlistPdf(currentSetlist, songs, { mode: 'full' })}
-              clockFormat={settings?.clockFormat || '12h'}
-              v2={settings?.setlistOverviewV2}
-              setlists={setlists}
-              overscheduleWarn={settings?.rosterOverscheduleWarning}
-              streakLimit={settings?.rosterStreakLimit || 3}
+              onEdit={() => goSetlistBuild(currentSetlist)}
               onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
-              onOpenSong={(song) => goChart(song)}
-              onDelete={isTeamReadOnly ? null : () => handleDeleteSetlist(currentSetlist.id)}
-              canEdit={canEdit}
+              onMarkReady={() => markSetlistReady(currentSetlist)}
+              onDelete={() => handleDeleteSetlist(currentSetlist.id)}
+              onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
+              ensureRow={ensureSetlistRow}
             />
           )}
-          {view === 'setlist-build' && (
+          {/* Every setlist edits on the new page. A new one arrives here as an
+              unsaved draft from NewSetlistSheet; Done saves it (handleSaveSetlist
+              sees it is new and lands on its page), Cancel leaves nothing behind. */}
+          {view === 'setlist-build' && currentSetlist?.id && (
+            <SetlistEditPage
+              key={currentSetlist.id}
+              setlist={setlists.find(s => s.id === currentSetlist.id) || currentSetlist}
+              isNew={!setlists.some(s => s.id === currentSetlist.id)}
+              songs={songs}
+              setlists={setlists}
+              schedules={schedules}
+              setlistMap={teamSetlistMap}
+              onSave={handleSaveSetlist}
+              onCancel={async () => {
+                if (!(await confirmDiscardSetlist())) return;
+                setlistDirtyRef.current = false;
+                goBack();
+              }}
+              onDirtyChange={markSetlistDirty}
+            />
+          )}
+          {view === 'setlist-build' && !currentSetlist?.id && (
             <SetlistBuilder
             songs={songs}
               setlist={currentSetlist}
@@ -2810,7 +2778,7 @@ export default function App() {
             />
           )}
           {view === "design" && (
-            <LydianShowcase onBack={goBack} />
+            <DesignSystem onBack={goBack} />
           )}
           {view === "help" && (
             <HelpPage
@@ -2822,28 +2790,46 @@ export default function App() {
               }}
             />
           )}
-          {view === "notifications" && (
-            <NotificationsPage
-              notifications={mergedNotifications}
+          {view === "you" && settings && (
+            <YouPage
+              me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
+              signedIn={isSignedIn}
+              church={activeLibrary !== 'personal' ? { name: currentWorkspaceName } : null}
+              teamBadge={pendingJoinCount}
               onBack={goBack}
-              onMarkRead={handleMarkNotificationRead}
-              onDismiss={handleDismissNotification}
-              onClearAll={handleClearAllNotifications}
-              onUpdateSchedule={updateSchedule}
-              onAction={(action) => handleNotificationAction?.(action)}
+              onProfile={() => goToMainView('settings', { settingsPanel: 'profile' })}
+              onTeam={goTeam}
+              onSettings={() => goToMainView('settings')}
+              theme={settings?.theme}
+              onThemeChange={(theme) => setSettings(prev => ({ ...prev, theme }))}
+              onHelp={() => navigate('help')}
+              onWhatsNew={() => goToMainView('settings', { settingsPanel: 'whatsnew' })}
+              onAbout={() => goToMainView('settings', { settingsPanel: 'about' })}
+              hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
+              onInstall={!isStandalone && (isIOS || canInstall)
+                ? async () => { if (isIOS) openIOSHint(); else await promptInstall(); }
+                : undefined}
+              onDesign={() => navigate('design')}
+              onSignOut={handleSignOut}
+              onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
             />
           )}
           {view === "settings" && settings && (
-            <Settings
-              settings={settings}
-              onUpdate={setSettings}
-              onBack={goBack}
-              onClose={closeSettings}
+            <SettingsPage
               panel={settingsPanel}
               onChangePanel={goSettingsPanel}
-              onShowHelp={() => navigate('help')}
-              onReplayOnboarding={() => { setSettings(prev => ({ ...prev, onboardingComplete: false })); navigate('onboarding'); }}
-              onClearAll={handleClearAll}
+              onBack={goBack}
+              settings={settings}
+              onUpdate={setSettings}
+              isSignedIn={isSignedIn}
+              displayName={displayName}
+              displayEmail={displayEmail}
+              onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
+              activeLibrary={activeLibrary}
+              setlists={setlists}
+              songs={songs}
+              trash={trash}
+              onRemapService={handleRemapService}
               onDownloadSongs={() => {
                 songs.forEach(s => {
                   const md = songToMd(s);
@@ -2877,36 +2863,12 @@ export default function App() {
                   toast({ title: 'Backup failed', description: err?.message || String(err), variant: 'error' });
                 }
               }}
-              songCount={songs.length}
-              setlistCount={setlists.length}
-              syncState={syncState}
-              onSyncStateChange={setSyncState}
-              onSyncNow={() => triggerSync({ silent: false })}
-              backupState={backupState}
-              onBackupStateChange={setBackupState}
-              onBackupNow={handleBackupNow}
-              onRestoreFromBackup={handleRestoreFromBackup}
-              cloudAllowed={personalCloudAllowed}
-              onRequestSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
-              onUpgrade={() => navigate('upgrade')}
-              onShowLegal={(doc) => navigate(`legal-${doc}`)}
-              plan={plan}
-              isSignedIn={isSignedIn}
-              displayName={displayName}
-              displayEmail={displayEmail}
-              onSignOut={handleSignOut}
-              onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
-              onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
-              activeLibrary={activeLibrary}
-              team={team}
-              setlists={setlists}
-            songs={songs}
-              onRepairSetlistLinks={handleRepairSetlistLinks}
-              onRemapService={handleRemapService}
-              trash={trash}
               onRestoreSong={handleRestoreSong}
               onPurgeSong={handlePurgeSong}
               onEmptyTrash={handleEmptyTrash}
+              onUpgrade={() => navigate('upgrade')}
+              onShowLegal={(doc) => navigate(`legal-${doc}`)}
+              onHelp={() => navigate('help')}
             />
           )}
           {view === "account" && settings && (
@@ -2932,16 +2894,23 @@ export default function App() {
               onCreateHandled={() => setTeamCreateIntent(false)}
               defaultSpaceId={settings?.defaultSpaceId || 'personal'}
               onSetDefaultSpace={(id) => setSettings(prev => ({ ...prev, defaultSpaceId: id }))}
+              setlists={setlists}
+              songs={songs}
+              schedules={schedules}
+              setlistMap={teamSetlistMap}
+              onOpenSong={(id) => { const s = songs.find(x => x.id === id); if (s) goChart(s); }}
             />
           )}
           {view === 'schedule' && (
             <Schedule
               setlists={setlists}
-              onBack={goBack}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              createSchedule={isTeamReadOnly ? null : createSchedule}
+              deleteSchedule={deleteSchedule}
+              setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
-              onOpenGrid={goScheduling}
-              viewMode={scheduleView}
-              onSetView={setScheduleView}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
@@ -2956,112 +2925,24 @@ export default function App() {
           )}
         </DesktopLayout>
       )}
-      {/* Mobile glass nav lives at the App root (not inside <main>) so the
-          drawer's transform/will-change doesn't capture its fixed positioning
-          or break the glass backdrop-filter. */}
-      {['home', 'library', 'setlists', 'settings', 'account', 'team', 'setlist-view', 'upgrade', 'schedule', 'scheduling', 'notifications'].includes(view) && !drawerOpen && (
-        <BottomNav
-          teamBadgeCount={pendingJoinCount}
-          activeView={view}
-          onNavigate={goToMainView}
-          activeLibrary={activeLibrary}
-          onNewSong={isTeamReadOnly ? null : () => openNewSongModal()}
-          onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
-          onImportSetlist={isTeamReadOnly ? null : pickAndImportSetlist}
-          scheduleView={scheduleView}
-          onToggleScheduleView={() => setScheduleView(v => (v === 'list' ? 'calendar' : 'list'))}
-          onMarkAllRead={hasUnreadNotifications ? handleMarkAllNotificationsRead : null}
-          onClearAllNotifications={view === 'notifications' && mergedNotifications.some(n => n.type !== 'schedule_request') ? handleClearAllNotifications : null}
-          // The Setlists branch is gone with the docked pane: it fired off the
-          // pane's selection, and with no pane nothing can select a setlist
-          // from the list any more — the row opens the setlist instead.
-          onPlay={
-            view === 'setlist-view' && currentSetlist
-              ? () => goSetlistRead(currentSetlist)
-              : null
-          }
-        />
+      {/* The nav pill floats at the bottom below 1024px (phone, iPad
+          portrait); from 1024px it sits in the top bar. Rendered at the App
+          root so nothing inside <main> captures its fixed positioning. */}
+      {!lockedOut && PILL_VIEWS.includes(view) && view !== 'setlist-view' && (
+        <div className="lg:hidden">
+          <NavPill placement="bottom" active={navItemFor(view)} onSelect={goNavItem} />
+        </div>
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && ['home', 'library', 'setlists'].includes(view) && !drawerOpen && (
-        <EdgeSwipeHotspot onOpen={openDrawer} />
-      )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
-        <MobileDrawer
-          open={drawerOpen}
-          openKey={drawerOpenKey}
-          onClose={() => setDrawerOpen(false)}
-          userName={displayName}
-          email={displayEmail}
-          plan={plan}
-          isSignedIn={isSignedIn}
-          hasUnreadNotifications={hasUnreadNotifications}
-          hmMenu={!!settings?.hmMenu}
-          accountPanel={!!settings?.accountPanel}
+      {!lockedOut && accountsEnabled && (
+        <ChurchSheet
+          open={churchSheetOpen}
+          onOpenChange={setChurchSheetOpen}
           workspaces={workspaces}
-          setActiveLibrary={switchWorkspace}
-          onNewWorkspace={canCreateWorkspace ? goNewWorkspace : undefined}
-          avatarUrl={profile?.avatar_url || null}
-          onOpenAccount={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'account' }); }}
-          onOpenSettings={() => { setDrawerOpen(false); goToMainView('settings'); }}
-          onOpenPlan={() => { setDrawerOpen(false); goToMainView('settings', { settingsPanel: 'plan' }); }}
-          onOpenNotifications={() => { setDrawerOpen(false); navigate('notifications'); }}
-          onOpenHelp={() => { setDrawerOpen(false); navigate('help'); }}
-          onOpenWhatsNew={() => {
-            setDrawerOpen(false);
-            goToMainView('settings', { settingsPanel: 'whatsnew' });
-          }}
-          hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
-          onSignOut={async () => { setDrawerOpen(false); await handleSignOut(); }}
-          onUpgrade={() => { setDrawerOpen(false); navigate('upgrade'); }}
-          onSignIn={() => { setDrawerOpen(false); setAuthStartMode('signin'); navigate('signin'); }}
-          onCreateAccount={() => { setDrawerOpen(false); setAuthStartMode('signup'); navigate('signin'); }}
-          onOpenTeam={() => { setDrawerOpen(false); goTeam(); }}
-          teamBadgeCount={pendingJoinCount}
-          teams={teams}
-          activeLibrary={activeLibrary}
-          canInstall={canInstall}
-          isIOS={isIOS}
-          isStandalone={isStandalone}
-          onInstall={async () => {
-            setDrawerOpen(false);
-            if (isIOS) {
-              openIOSHint();
-            } else if (canInstall) {
-              await promptInstall();
-            }
-          }}
+          activeId={activeLibrary}
+          onPick={switchWorkspace}
+          onNew={canCreateWorkspace ? goNewWorkspace : undefined}
         />
       )}
-      {!['onboarding', 'signin', 'upgrade', 'recovery'].includes(view) && (
-        <NotificationTray
-          open={notifTrayOpen}
-          onClose={() => setNotifTrayOpen(false)}
-          notifications={mergedNotifications}
-          onUpdateSchedule={updateSchedule}
-          onMarkRead={handleMarkNotificationRead}
-          onDismiss={handleDismissNotification}
-          onClearAll={handleClearAllNotifications}
-          onAction={(action) => {
-            setNotifTrayOpen(false);
-            handleNotificationAction?.(action);
-          }}
-        />
-      )}
-      {newSongModal && (
-        <Suspense fallback={null}>
-          <AddSongModal
-            autoOpenPicker={newSongModal.initialTab === 'import'}
-            songs={songs}
-            onClose={() => setNewSongModal(null)}
-            onStartBlank={(title) => { setNewSongModal(null); goEditor(null, null, title); }}
-            onOpenSong={(s) => { setNewSongModal(null); goChart(s); }}
-            onImportSongs={handleImportParsedSongs}
-            onImportSetlistFile={handleImportSetlistFile}
-            onAddCatalogSong={handleAddCatalogSong}
-          />
-        </Suspense>
-      )}
-
       {/* Workspace destination picker for move/copy from the song kebab. */}
       {moveCopyDialog && (
         <WorkspacePickerDialog
@@ -3106,6 +2987,14 @@ export default function App() {
         />
       )}
 
+      <NewSetlistSheet
+        open={newSetlistOpen}
+        onOpenChange={setNewSetlistOpen}
+        setlists={setlists}
+        onCreate={(draft) => { setNewSetlistOpen(false); navigate('setlist-build', { setlist: draft }); }}
+        onEditTemplates={() => { setNewSetlistOpen(false); goToMainView('settings', { settingsPanel: 'services' }); }}
+      />
+
       {/* Founder note — surfaced on the dashboard once after the user has
           transposed their first chart (the engagement signal). */}
       {showFounderNote && (
@@ -3133,47 +3022,4 @@ export default function App() {
   );
 }
 
-// Fixed strip on the left edge of mobile viewport — captures a swipe-right
-// gesture to open the drawer. Rendered only on main tabs while drawer is closed.
-function EdgeSwipeHotspot({ onOpen }) {
-  const startRef = useRef(null);
-  const firedRef = useRef(false);
-
-  const onTouchStart = (e) => {
-    const t = e.touches?.[0];
-    if (!t) return;
-    startRef.current = { x: t.clientX, y: t.clientY };
-    firedRef.current = false;
-  };
-  const onTouchMove = (e) => {
-    if (firedRef.current || !startRef.current) return;
-    const t = e.touches?.[0];
-    if (!t) return;
-    const dx = t.clientX - startRef.current.x;
-    const dy = Math.abs(t.clientY - startRef.current.y);
-    if (dx > 40 && dy < 30) {
-      firedRef.current = true;
-      onOpen();
-    }
-  };
-  const reset = () => { startRef.current = null; };
-
-  return (
-    <div
-      aria-hidden="true"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={reset}
-      onTouchCancel={reset}
-      className="fixed top-0 left-0 z-[150] sm:hidden"
-      style={{
-        width: '24px',
-        height: APP_HEIGHT,
-        // Keep the strip transparent but touch-reachable
-        background: 'transparent',
-        touchAction: 'pan-y',
-      }}
-    />
-  );
-}
 

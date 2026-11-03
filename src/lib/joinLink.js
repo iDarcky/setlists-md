@@ -69,6 +69,7 @@ export const JOIN_PARTS = [
   { id: 'keys', label: 'Keys' },
   { id: 'drums', label: 'Drums' },
   { id: 'sound-desk', label: 'Sound desk' },
+  { id: 'lyrics-slides', label: 'Lyrics / slides' },
   { id: 'other', label: 'Something else' },
 ];
 
@@ -90,16 +91,19 @@ export function toggleJoinPart(selected, id) {
 // OAuth leaves the page and a magic link opens a new tab on `/`, so the code
 // rides in localStorage until the flow finishes. `stage` says how far it got:
 //   'auth'      — opened the link, not signed in yet → resume after sign-in
-//   'requested' — asked to join; don't force the screen again, just watch
+//   'requested' — asked to join; reopen Waiting on the next launch, so nobody
+//                 waits inside the app as if they were already in
 export const PENDING_JOIN_KEY = 'setlists-md:pending-join';
 // A link opened a week ago and abandoned should not hijack a later launch.
 const PENDING_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function savePendingJoin(code, stage = 'auth', now = Date.now()) {
+export function savePendingJoin(code, stage = 'auth', now = Date.now(), { requestId = null } = {}) {
   const c = normalizeJoinCode(code);
   if (!c) return;
   try {
-    localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ code: c, stage, at: now }));
+    const v = { code: c, stage, at: now };
+    if (requestId) v.requestId = requestId;
+    localStorage.setItem(PENDING_JOIN_KEY, JSON.stringify(v));
   } catch { /* private mode / blocked storage — the flow still works in-tab */ }
 }
 
@@ -111,10 +115,28 @@ export function loadPendingJoin(now = Date.now()) {
     const code = normalizeJoinCode(v?.code);
     if (!code) return null;
     if (typeof v.at === 'number' && now - v.at > PENDING_TTL_MS) return null;
-    return { code, stage: v.stage === 'requested' ? 'requested' : 'auth', at: v.at };
+    const out = { code, stage: v.stage === 'requested' ? 'requested' : 'auth', at: v.at };
+    if (typeof v.requestId === 'string' && v.requestId) out.requestId = v.requestId;
+    return out;
   } catch {
     return null;
   }
+}
+
+/**
+ * The decision to announce for the request this device is waiting on, or
+ * null. Only that request counts: an older request that was approved earlier
+ * (asking, being let in, leaving, asking again) must not announce "You're in"
+ * while the new one is still pending. A record saved before the request id
+ * was kept falls back to "decided after this device asked".
+ */
+export function joinDecisionFor(rows, pending) {
+  if (!pending || pending.stage !== 'requested') return null;
+  const list = Array.isArray(rows) ? rows : [];
+  const mine = pending.requestId
+    ? list.filter(r => r && r.id === pending.requestId)
+    : list.filter(r => r && r.decided_at && typeof pending.at === 'number' && Date.parse(r.decided_at) >= pending.at);
+  return mine.find(r => r.status === 'approved' || r.status === 'declined') || null;
 }
 
 export function clearPendingJoin() {
@@ -123,11 +145,12 @@ export function clearPendingJoin() {
 
 /**
  * Should the app open the join flow on launch? Yes for a `/join/<code>` URL;
- * otherwise only to resume a link opened before signing in, once a user exists.
+ * otherwise to resume a link opened before signing in, or the Waiting screen of a
+ * request still being decided, once a user exists.
  */
 export function shouldResumeJoin({ pathCode, pending, signedIn }) {
   if (pathCode) return true;
-  return !!(pending && pending.stage === 'auth' && signedIn);
+  return !!(pending && signedIn);
 }
 
 // ── "<leader> and N others are already in" ──────────────────────────────────
@@ -177,4 +200,9 @@ export function findJoinRequest(rows, { teamId, requestId } = {}) {
   return list.find(r => r.team_id === teamId && r.status === 'pending')
     || list.find(r => r.team_id === teamId)
     || null;
+}
+
+/** A peek in the shape the joining screens take. */
+export function churchFromPeek(peek) {
+  return { name: peek?.team_name || '', logoUrl: peek?.logo_url || null, initials: peek?.initials || null };
 }

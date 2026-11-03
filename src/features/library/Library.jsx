@@ -390,7 +390,6 @@ export default function Library({
   // Card and Compact lists can show different details.
   const [cardFieldsSaved, setCardFieldsSaved] = usePersistentJSON('setlists-md:songs-card-fields');
 
-  const fabRef = useRef(null);
   const sentinelRef = useRef(null);
   const bulkBarRef = useRef(null);
 
@@ -605,8 +604,8 @@ export default function Library({
             <h1 className="text-heading-32 font-bold text-[var(--modes-text)] m-0 mr-2 hidden sm:block">Songs</h1>
 
             <SearchBar
-              className="flex-1 min-w-[200px] hidden sm:flex"
-              placeholder="Search songs & setlists…"
+              className="flex-1 min-w-[200px]"
+              placeholder="Search songs…"
               value={query}
               onChange={e => setQuery(e.target.value)}
             />
@@ -681,12 +680,6 @@ export default function Library({
               </button>
             )}
 
-            {/* Import + New song (desktop) */}
-            {!readOnly && onNewSong && (
-              <div className="hidden lg:block">
-                <Button variant="brand" size="sm" onClick={onNewSong}>+ New Song</Button>
-              </div>
-            )}
           </div>
 
           {effectiveView === 'gallery' && (
@@ -879,18 +872,6 @@ export default function Library({
       </div>
 
       </div>{/* /list column */}
-
-      {/* FAB — narrow mouse-driven windows only. Touch tablets get the
-          bottom-nav FAB instead, so gating on !isTablet avoids a duplicate. */}
-      {!readOnly && onNewSong && !isTablet && (
-        <div ref={fabRef} className="fixed right-6 z-[150] hidden sm:block lg:hidden" style={{ bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
-          <button onClick={onNewSong} aria-label="New song" className="w-14 h-14 rounded-full bg-[var(--color-brand)] text-white shadow-lg flex items-center justify-center cursor-pointer hover:opacity-90 transition-all duration-150 active:scale-95 border-none">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-        </div>
-      )}
 
       {/* Bulk action bar — desktop + tablet, plus phones when songsLibraryPlus
           multi-select is active (the card gallery lets you select on mobile). */}
