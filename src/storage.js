@@ -299,22 +299,19 @@ export const DEFAULT_SETTINGS = {
   firstDayOfWeek: 'sunday',
   clockFormat: '12h',
   helpPageSeen: false,
-  notifications: [
-    {
-      id: 'welcome-help',
-      title: 'Welcome to setlists.md!',
-      message: 'Learn how to use the app — tap to read the getting started guide.',
-      read: false,
-      action: { type: 'navigate', view: 'help' },
-      createdAt: Date.now(),
-    },
-  ],
+  notifications: [],
 };
 
 export async function loadSettings() {
   try {
     const s = await get(SETTINGS_KEY);
-    return { ...DEFAULT_SETTINGS, ...s };
+    const merged = { ...DEFAULT_SETTINGS, ...s };
+    // The old "Welcome to setlists.md!" row is retired (2026-11-03): drop it
+    // from devices that still carry it.
+    if (Array.isArray(merged.notifications)) {
+      merged.notifications = merged.notifications.filter(n => n?.id !== 'welcome-help');
+    }
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

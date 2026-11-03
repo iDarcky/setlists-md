@@ -29,7 +29,7 @@ const dayLabel = (date, opts) => new Date(`${date}T12:00:00`).toLocaleDateString
 export default function SetlistPage({
   setlist, songs = [], setlists = [], schedules = [], updateSchedule, createSchedule, deleteSchedule, ensureRow, setlistMap = {}, settings,
   canEdit = false, onBack, onEdit, onPlay, onMarkReady, onDelete,
-  onExportZip, onPrint,
+  onPrint,
 }) {
   const { user } = useAuth();
   const { team, members = [], isAdmin, canManageBand } = useTeam();
@@ -114,7 +114,6 @@ export default function SetlistPage({
     leader && onEdit && ['Edit name, date and time', () => onEdit()],
     canShare && ['Share a guest link', () => setShareOpen(true)],
     onPrint && ['Print for the band', () => setPrintOpen(true)],
-    leader && onExportZip && ['Download songs (.zip)', onExportZip],
     order.rows.length > 0 && ['Copy the order', copyOrder],
   ].filter(Boolean);
 

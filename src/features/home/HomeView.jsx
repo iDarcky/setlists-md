@@ -10,6 +10,7 @@ import {
   ClockIcon, PinIcon, PlayIcon,
 } from '@/app/navIcons';
 import { partLabel } from '@/data/instruments';
+import { PlusIcon } from '@/app/navIcons';
 
 // Home, built from zero (canvas "Signed out and joining" → Home, v2). Pure
 // view: Home.jsx works out the data, /design renders this with samples.
@@ -436,24 +437,32 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
  * @param {Array} [p.setup]               [{ id, label, hint, done, onClick }]
  * @param {Array} [p.activity]            from recentActivity() / activityFromSongs()
  * @param {boolean} [p.showNothingPlanned]
+ * @param {Function} [p.onNewSetlist]     leaders: the "New setlist" button by the hello
  */
 export default function HomeView({
   name, dateLabel, sync, syncProblem, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
   strip, whoCanPlay, onOpenSchedule, setup, activity, now, onOpenActivity, onOpenSongs,
-  showNothingPlanned = false, embedded = false, layout = 'auto',
+  showNothingPlanned = false, onNewSetlist, embedded = false, layout = 'auto',
 }) {
   // One tree, picked by width (rendering both and hiding one would mount the
   // asks' own state twice). `layout` pins it for /design's frames.
   const wideScreen = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'auto' ? wideScreen : layout === 'wide';
   const hello = (
-    <header className="flex flex-col gap-0.5 pb-1">
-      <h1 className={cn('m-0 font-semibold', wide ? 'text-[32px] leading-10 tracking-[-1px]' : 'text-[24px] leading-8 tracking-[-0.5px]')}>Hi {name}</h1>
-      <div className="flex flex-wrap items-center gap-x-2 text-[14px] text-muted-foreground">
-        <span>{dateLabel}</span>
-        {sync && <><span aria-hidden="true" className="text-border">·</span><SyncLine sync={sync} /></>}
+    <header className="flex items-start justify-between gap-3 pb-1">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <h1 className={cn('m-0 font-semibold', wide ? 'text-[32px] leading-10 tracking-[-1px]' : 'text-[24px] leading-8 tracking-[-0.5px]')}>Hi {name}</h1>
+        <div className="flex flex-wrap items-center gap-x-2 text-[14px] text-muted-foreground">
+          <span>{dateLabel}</span>
+          {sync && <><span aria-hidden="true" className="text-border">·</span><SyncLine sync={sync} /></>}
+        </div>
       </div>
+      {leader && onNewSetlist && (
+        <Button size="sm" className={cn('shrink-0', wide ? 'mt-1.5' : 'mt-0.5')} onClick={onNewSetlist}>
+          <PlusIcon size={18} />New setlist
+        </Button>
+      )}
     </header>
   );
   const needsEl = leader && <NeedsYou items={needs} onOpen={onNeed} />;

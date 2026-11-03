@@ -30,6 +30,7 @@ import { reconcileAdopt, applyPulled } from '@/sync/adopt';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
+import { readLastLibrary, writeLastLibrary, waitingForHomeSpace } from '@/lib/lastLibrary';
 import { APP_HEIGHT } from '@/lib/appViewport';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Home from '@/features/home/Home';
@@ -196,7 +197,15 @@ export default function App() {
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
-  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, refreshTeams, pendingJoinCount = 0 } = useTeam();
+  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
+  const signedOutSettled = !authLoading && !user?.id;
+  // Launch: give memberships a few seconds to say which church to open before
+  // falling back to whatever is open (offline, slow network).
+  const [homeSpaceTimedOut, setHomeSpaceTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setHomeSpaceTimedOut(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
   const { schedules, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
@@ -208,7 +217,12 @@ export default function App() {
   // Native + iOS install affordance.
   const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
   const [showIOSHint, setShowIOSHint] = useState(false);
-  const [activeLibrary, setActiveLibrary] = useState('personal');
+  // Open straight into the space used last (the church, for almost everyone),
+  // read from the device before anything loads — so launch shows the church
+  // and its songs at once, offline too, instead of Personal and then a
+  // flicker into the church once memberships arrive (owner, 2026-11-03).
+  const [activeLibrary, setActiveLibrary] = useState(readLastLibrary);
+  useEffect(() => { writeLastLibrary(activeLibrary); }, [activeLibrary]);
   // One-shot flag: open the Team screen directly in its create-workspace form.
   const [teamCreateIntent, setTeamCreateIntent] = useState(false);
   const [songs, setSongs] = useState([]);
@@ -323,7 +337,7 @@ export default function App() {
   const [accountWallTrigger, setAccountWallTrigger] = useState(null);
   // Founder note — queued by onTransposed, shown when the user lands on
   // the dashboard so it never interrupts the chart they're playing with.
-  const [founderNoteQueued, setFounderNoteQueued] = useState(false);
+  const [, setFounderNoteQueued] = useState(false);
   const [showFounderNote, setShowFounderNote] = useState(false);
   // Settings sub-panel ('hub' | 'appearance' | 'chart' | 'sync' | 'data' | 'about')
   // Lifted to App so it participates in the back-button history stack.
@@ -399,10 +413,13 @@ export default function App() {
     const ids = teams.map(t => t.id);
     if (ids.includes(activeLibrary)) {
       setActiveTeam(activeLibrary);
-    } else {
+    } else if (signedOutSettled || teamsLoaded) {
+      // Only once we KNOW: signed out, or memberships read from the server.
+      // Before that an empty list is "not loaded yet" (or offline), and the
+      // remembered church stays open from the device.
       setActiveLibrary('personal');
     }
-  }, [teams, activeLibrary, setActiveTeam]);
+  }, [teams, activeLibrary, setActiveTeam, teamsLoaded, signedOutSettled]);
 
   // "Home Space": members who live in a band/church can pick a default Space to
   // open into instead of Personal. Apply it once per sign-in, after settings +
@@ -1126,28 +1143,9 @@ export default function App() {
     return () => window.removeEventListener('popstate', handler);
   }, [goBack, view, confirm]);
 
-  // Auto-fire: founder note when the user lands on the dashboard with a
-  // queued note. openFounderNote pushes history so back closes it.
-  useEffect(() => {
-    if (founderNoteQueued && view === 'home' && !showFounderNote && !settings?.seenFounderNote) {
-      openFounderNote();
-    }
-  }, [founderNoteQueued, view, showFounderNote, settings?.seenFounderNote]);
-
-  // Auto-fire: iOS Add-to-Home-Screen explainer once after onboarding on
-  // iOS Safari. iOS never fires beforeinstallprompt so we always need a
-  // custom UI affordance.
-  useEffect(() => {
-    if (
-      isIOS && !isStandalone &&
-      view === 'home' &&
-      settings?.onboardingComplete &&
-      !settings?.seenIOSInstallHint &&
-      !showIOSHint
-    ) {
-      openIOSHint();
-    }
-  }, [isIOS, isStandalone, view, settings?.onboardingComplete, settings?.seenIOSInstallHint, showIOSHint]);
+  // The founder note and the iOS "Add to Home Screen" steps no longer pop up
+  // on their own (owner, 2026-11-03: they came back after every sign-in).
+  // The install steps still open from Home's install row.
 
   // ⚠ The wake-lock sheet is GONE (2026-08-11), and with it the whole
   // `seenWakeLockExplainer` / `showWakeLockExplainer` apparatus.
@@ -1204,11 +1202,6 @@ export default function App() {
     // builder) instead of the just-saved item.
     pushHistory(snap || snapshot());
     setAccountWallTrigger(trigger);
-  };
-  const openFounderNote = () => {
-    if (showFounderNote) return;
-    pushHistory(snapshot());
-    setShowFounderNote(true);
   };
   const openIOSHint = () => {
     if (showIOSHint) return;
@@ -2272,7 +2265,13 @@ export default function App() {
     );
   }
 
-  if (!loaded) {
+  // Only the signed-in app waits; public pages (guest link, join, legal,
+  // password reset, /design) draw at once.
+  const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'design', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
+  const settlingHomeSpace = !publicView && waitingForHomeSpace({
+    userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
+  });
+  if (!loaded || settlingHomeSpace) {
     return (
       <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
         <img src="/setlists-md-mark.svg" alt="setlists.md" width="80" height="80" className="rounded-2xl" />
@@ -2383,9 +2382,6 @@ export default function App() {
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
       onOpenYou={() => navigate('you')}
-      add={isTeamReadOnly ? undefined
-        : ['schedule', 'scheduling', 'setlists'].includes(view) ? { label: 'New setlist', onClick: () => goSetlistBuild() }
-        : undefined}
       pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
     />
   );
@@ -2487,6 +2483,7 @@ export default function App() {
               setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
               onEditSetlist={isTeamReadOnly ? null : goSetlistBuild}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onMarkReady={isTeamReadOnly ? null : markSetlistReady}
               onOpenSong={goChart}
               onOpenSongs={goLibrary}
@@ -2665,7 +2662,6 @@ export default function App() {
               onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
               onMarkReady={() => markSetlistReady(currentSetlist)}
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
-              onExportZip={() => handleExportSetlist(currentSetlist)}
               onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
               ensureRow={ensureSetlistRow}
             />
