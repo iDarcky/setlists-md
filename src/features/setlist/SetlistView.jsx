@@ -160,21 +160,20 @@ export default function SetlistView({
   return (
     <div data-slot="setlist-view" className={cn('@container bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       <div className={cn('mx-auto flex w-full max-w-[1180px] flex-col px-4 pb-32 @min-[640px]:px-6 @min-[1024px]:grid @min-[1024px]:grid-cols-[minmax(0,1fr)_360px] @min-[1024px]:gap-x-8 @min-[1024px]:pb-12')}>
-        <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex h-14 items-center justify-between @min-[640px]:mt-4" style={{ marginTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
-            <button type="button" onClick={onBack} className="-ml-2 flex h-11 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-              <BackIcon />{backLabel}
-            </button>
-            <div className="flex items-center gap-2">
-              {leader && <span className="hidden gap-2 @min-[1024px]:flex">
-                {!ready && onMarkReady && <Button variant="outline" size="sm" onClick={onMarkReady}>Mark ready</Button>}
-                {onEdit && <Button variant="outline" size="sm" onClick={onEdit}><EditIcon size={16} />Edit</Button>}
-              </span>}
-              {onRunSheet && <Button variant="ghost" size="icon" aria-label="Run sheet" title="Run sheet" onClick={onRunSheet}><ListIcon /></Button>}
-              {onMenu && <Button variant="ghost" size="icon" aria-label="More" onClick={onMenu}><MoreIcon /></Button>}
-            </div>
+        <div className="mb-3 flex h-14 items-center justify-between @min-[640px]:mt-4 @min-[1024px]:col-span-2" style={{ marginTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
+          <button type="button" onClick={onBack} className="-ml-2 flex h-11 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+            <BackIcon />{backLabel}
+          </button>
+          <div className="flex items-center gap-2">
+            {leader && <span className="hidden gap-2 @min-[1024px]:flex">
+              {!ready && onMarkReady && <Button variant="outline" size="sm" onClick={onMarkReady}>Mark ready</Button>}
+              {onEdit && <Button variant="outline" size="sm" onClick={onEdit}><EditIcon size={16} />Edit</Button>}
+            </span>}
+            {onRunSheet && <Button variant="ghost" size="icon" aria-label="Run sheet" title="Run sheet" onClick={onRunSheet}><ListIcon /></Button>}
+            {onMenu && <Button variant="ghost" size="icon" aria-label="More" onClick={onMenu}><MoreIcon /></Button>}
           </div>
-
+        </div>
+        <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               {head.date && <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{head.date}</span>}
@@ -216,7 +215,7 @@ export default function SetlistView({
           <div className="hidden @min-[1024px]:block @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:px-4 @min-[1024px]:py-1">{orderEl}</div>
         </div>
 
-        <aside className="hidden @min-[1024px]:mt-[76px] @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-2 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
+        <aside className="hidden @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-2 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
           <div className="flex items-center justify-between pb-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
             <span>Band{band.length ? ` · ${band.filter(b => b.status === 'available').length} of ${band.length} said yes` : ''}</span>
           </div>
