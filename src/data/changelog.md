@@ -2,6 +2,28 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.20.0 — A new look, built for your church
+*November 2026*
+
+### Added
+- **New navigation** — Home, Schedule and Songs in one bar, your church on the left, notifications and You on the right.
+- **A new Home** — what's next for you, your next two weeks, what needs a leader, and a New setlist button for leaders.
+- **Schedule** — answer "Can you play?", set the days you're away, and leaders pick the band by part.
+- **A new setlist page** — the order, the band and the run sheet in one place, Mark ready to tell the band it's final, and a print layout for the band.
+- **Live guest links** — share a setlist with a guest; it follows your changes and ends a few hours after the service.
+- **A new song page and editor** — details first, arrangements as tabs with their own key and BPM, notes, and drafts that keep your work.
+- **Team page and church info** — who's in the church, their parts, and how often each song is used.
+
+### Improved
+- **Opens straight into your church** — no more Personal first and a flicker on launch.
+- **Songs** — a faster library with filters, select to tag, move or delete, and a new import.
+- **Settings** — one simple page for profile, appearance, notifications and data.
+- **Clear error screens** — a missing song or setlist, being offline, or a link that has ended each say what happened and what to do.
+
+### Removed
+- The welcome notification, the founder note and the setup checklist no longer pop up.
+- Download songs from inside a setlist (the full backup stays in Settings).
+
 ## 0.19.0 — Join your church with one link
 *October 2026*
 

@@ -4,6 +4,7 @@ import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
+import AppSkeleton from "@/ui/AppSkeleton";
 import { isQuotaError } from "@/lib/storageErrors";
 import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
@@ -2271,7 +2272,9 @@ export default function App() {
   const settlingHomeSpace = !publicView && waitingForHomeSpace({
     userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
   });
-  if (!loaded || settlingHomeSpace) {
+  // Signed in, church not known yet: the app's shape in grey, never Personal.
+  if (settlingHomeSpace) return <AppSkeleton />;
+  if (!loaded) {
     return (
       <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
         <img src="/setlists-md-mark.svg" alt="setlists.md" width="80" height="80" className="rounded-2xl" />
