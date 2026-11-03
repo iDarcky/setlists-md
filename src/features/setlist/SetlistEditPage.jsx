@@ -1,10 +1,12 @@
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { bandFor } from '@/lib/homeData';
-import SetlistEdit from './SetlistEdit';
+import SetlistFlow from './SetlistFlow';
 
-// Edit's container: who can lead a song is the band on this setlist (anyone
-// who has not said no), or, with no band yet, everyone in the church.
+// New setlist and Edit's container (canvas → New setlist): who can lead a
+// song is the band on this setlist — the people asked (anyone who has not
+// said no) plus a new setlist's planned picks — or, with no band yet,
+// everyone in the church.
 
 function nameFor(members, uid, myId) {
   const m = members.find(x => x.user_id === uid);
@@ -15,8 +17,14 @@ export default function SetlistEditPage({ setlist, schedules = [], setlistMap = 
   const { user } = useAuth();
   const { team, members = [] } = useTeam();
   const nameOf = (uid) => nameFor(members, uid, user?.id);
-  const band = team ? bandFor(setlist, schedules, setlistMap).filter(r => r.availability !== 'unavailable') : [];
-  const ids = band.length ? [...new Set(band.map(r => r.user_id))] : members.map(m => m.user_id);
-  const people = ids.map(id => ({ id, name: nameOf(id) }));
-  return <SetlistEdit setlist={setlist} people={people} nameOf={nameOf} {...rest} />;
+  const peopleOf = (sl) => {
+    const band = team ? bandFor(sl, schedules, setlistMap).filter(r => r.availability !== 'unavailable').map(r => r.user_id) : [];
+    const planned = (sl.plannedBand || []).map(a => a.userId).filter(Boolean);
+    const ids = band.length || planned.length ? [...new Set([...band, ...planned])] : members.map(m => m.user_id);
+    return ids.map(id => ({ id, name: nameOf(id) }));
+  };
+  return (
+    <SetlistFlow setlist={setlist} peopleOf={peopleOf} nameOf={nameOf}
+      team={team} members={members} schedules={schedules} setlistMap={setlistMap} {...rest} />
+  );
 }

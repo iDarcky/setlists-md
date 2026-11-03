@@ -20,21 +20,21 @@ import { useDragReorder, moveItem } from './useDragReorder';
 export const NOTE_MAX = 500;
 const LENGTHS = [1, 2, 5, 10];
 
-const Label = ({ children }) => <span className="text-[13px] font-semibold text-muted-foreground">{children}</span>;
-const Pill = ({ on, children, ...p }) => (
+export const Label = ({ children }) => <span className="text-[13px] font-semibold text-muted-foreground">{children}</span>;
+export const Pill = ({ on, children, ...p }) => (
   <button type="button" {...p}
     className={cn('flex h-9 min-h-0 cursor-pointer items-center rounded-full border px-3.5 font-sans text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
       on ? 'border-transparent bg-selected font-semibold text-foreground' : 'border-border bg-transparent font-medium text-muted-foreground')}>
     {children}
   </button>
 );
-const Grip = (props) => (
+export const Grip = (props) => (
   <span {...props} aria-hidden="true" className="flex h-11 w-7 shrink-0 items-center justify-center text-input">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
   </span>
 );
 
-function MoveButtons({ index, count, onMove, onRemove }) {
+export function MoveButtons({ index, count, onMove, onRemove }) {
   return (
     <div className="grid grid-cols-3 gap-2 pt-1">
       <Button variant="outline" disabled={index === 0} onClick={() => onMove(index, index - 1)}>↑ Move up</Button>
@@ -80,7 +80,7 @@ function SongFields({ item, song, people, onChange }) {
   );
 }
 
-function MomentFields({ item, onChange, onOpenNote }) {
+export function MomentFields({ item, onChange, onOpenNote }) {
   const custom = item.duration && !LENGTHS.includes(item.duration);
   return (
     <div className="flex flex-col gap-4">
@@ -110,7 +110,7 @@ function MomentFields({ item, onChange, onOpenNote }) {
 }
 
 /** Full-screen note editor with a small markdown toolbar and a preview. */
-function NoteEditor({ open, title, value, onDone, onCancel }) {
+export function NoteEditor({ open, title, value, onDone, onCancel }) {
   const [text, setText] = useState(value || '');
   const [preview, setPreview] = useState(false);
   const [el, setEl] = useState(null);

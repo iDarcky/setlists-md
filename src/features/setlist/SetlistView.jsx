@@ -44,6 +44,17 @@ function OrderRow({ row, onOpen, now = false }) {
       ? <button type="button" onClick={() => onOpen(row)} className={cn(cls, 'cursor-pointer outline-none focus-visible:bg-raised')}>{body}<ChevronRightIcon /></button>
       : <div className={cls}>{body}</div>;
   }
+  if (row.placeholder) {
+    return (
+      <div className="flex min-h-[58px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 font-sans first:border-t-0">
+        <span className="flex w-5 shrink-0 justify-end text-[13px] tabular-nums text-muted-foreground">{row.n}</span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-[15px] font-semibold text-muted-foreground">{row.title}</span>
+          <span className="text-[13px] text-muted-foreground">To be chosen</span>
+        </span>
+      </div>
+    );
+  }
   const sub = [row.tempo ? `${row.tempo} BPM` : '', row.leads && `${row.leads} leads`, row.time, row.capo ? `capo ${row.capo}` : ''].filter(Boolean).join(' · ');
   return (
     <button

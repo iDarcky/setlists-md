@@ -1344,8 +1344,9 @@ export default function App() {
         if (!ok) return;
       }
     }
-    // New: pick a service first (NewSetlistSheet), then the edit page.
-    if (!sl) { setNewSetlistOpen(true); return; }
+    // New: the step-by-step New setlist (Service → Band → Songs → Who leads)
+    // gets a blank unsaved draft; it starts itself from the first template.
+    if (!sl?.id) { navigate('setlist-build', { setlist: { name: '', status: 'draft', items: [], ...sl, date: sl?.date || '', id: generateId() } }); return; }
     navigate('setlist-build', { setlist: sl });
   };
   const goSetlistView = (sl) => {
@@ -2118,6 +2119,37 @@ export default function App() {
     toast({ title: 'Setlist duplicated', description: copy.name });
   };
 
+  // Service templates (New setlist → Edit templates). A template is a setlist
+  // with isTemplate, so it syncs like one; it never touches a made setlist.
+  const handleSaveTemplate = (tpl) => {
+    if (isTeamReadOnly) { onlyLeadersRef.current(); return; }
+    const stamped = { ...tpl, isTemplate: true, updatedAt: Date.now() };
+    setSetlists(prev => (prev.some(s => s.id === tpl.id) ? prev.map(s => (s.id === tpl.id ? stamped : s)) : [...prev, stamped]));
+    toast({ title: 'Template saved', description: tpl.templateName || tpl.name });
+  };
+  const handleDeleteTemplate = async (id) => {
+    const tpl = setlists.find(s => s.id === id);
+    if (!tpl) return;
+    const ok = await confirm({
+      title: `Delete “${tpl.templateName || tpl.name || 'template'}”?`,
+      description: 'Setlists made from it stay as they are.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setSetlists(prev => prev.filter(s => s.id !== id));
+    setTombstones(prev => ({ ...prev, setlists: [...prev.setlists.filter(t => t.id !== id), { id, deletedAt: Date.now() }] }));
+  };
+  // A new setlist's band picks ride along as `plannedBand` until the setlist
+  // page has sent them; then they are dropped.
+  const clearPlannedBand = (id) => {
+    setSetlists(prev => prev.map(s => {
+      if (s.id !== id || !s.plannedBand) return s;
+      const { plannedBand: _p, ...rest } = s;
+      return rest;
+    }));
+  };
+
   const handleSaveSetlistAsTemplate = (id) => {
     const src = setlists.find(s => s.id === id);
     if (!src) return;
@@ -2667,6 +2699,10 @@ export default function App() {
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
               onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
               ensureRow={ensureSetlistRow}
+              setlists={setlists}
+              createSchedule={isTeamReadOnly ? null : createSchedule}
+              deleteSchedule={deleteSchedule}
+              onPlanSent={() => clearPlannedBand(currentSetlist.id)}
             />
           )}
           {/* Every setlist edits on the new page. A new one arrives here as an
@@ -2688,6 +2724,11 @@ export default function App() {
                 goBack();
               }}
               onDirtyChange={markSetlistDirty}
+              createSchedule={createSchedule}
+              deleteSchedule={deleteSchedule}
+              ensureRow={ensureSetlistRow}
+              onSaveTemplate={handleSaveTemplate}
+              onDeleteTemplate={handleDeleteTemplate}
             />
           )}
           {view === 'setlist-build' && !currentSetlist?.id && (
