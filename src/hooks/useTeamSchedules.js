@@ -7,6 +7,9 @@ export function useTeamSchedules(teamId) {
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // The team whose schedules have answered at least once (or failed), so the
+  // launch can wait for "who plays when" instead of drawing an empty Home.
+  const [loadedFor, setLoadedFor] = useState(null);
 
   const fetchSchedules = useCallback(async () => {
     if (!teamId || !user) return;
@@ -26,6 +29,7 @@ export function useTeamSchedules(teamId) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setLoadedFor(teamId);
     }
   }, [teamId, user]);
 
@@ -119,6 +123,7 @@ export function useTeamSchedules(teamId) {
   return {
     schedules,
     loading,
+    loaded: !!teamId && loadedFor === teamId,
     error,
     updateSchedule,
     createSchedule,

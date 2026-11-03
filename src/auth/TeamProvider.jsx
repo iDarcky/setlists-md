@@ -227,30 +227,17 @@ export function TeamProvider({ children }) {
     const ownedWorkspaceCount = teams.filter(t => t.owner_id === user?.id).length;
     const atWorkspaceLimit = ownedWorkspaceCount >= MAX_OWNED_WORKSPACES;
 
-    const isAdmin = team
-      ? members.some(m => m.user_id === user?.id && m.role === 'admin')
-      : false;
-
-    const isEditor = team
-      ? members.some(m => m.user_id === user?.id && m.role === 'editor')
-      : false;
-
-    const isMember = team
-      ? members.some(m => m.user_id === user?.id && m.role === 'member')
-      : false;
-
-    const isLeader = team
-      ? members.some(m => m.user_id === user?.id && m.role === 'leader')
-      : false;
-
-    // My administrative role in the active Space, and what it may do. The
-    // capability answers come from `lib/teamRoles.js` — the one place the role
-    // model is written — rather than from `isAdmin || isEditor || …` chains
-    // spelled out at each call site, which is how `leader` ended up able to plan
-    // a service but not change a song in it.
+    // My role in the active Space. The roster says it; until the roster has
+    // loaded, the membership row the teams list came with says it, so a leader
+    // never opens as a member for a second (Home's member cards, then the
+    // leader's).
     const myRole = team
-      ? (members.find(m => m.user_id === user?.id)?.role || 'member')
+      ? (members.find(m => m.user_id === user?.id)?.role || team.myRole || 'member')
       : null;
+    const isAdmin = myRole === 'admin';
+    const isEditor = myRole === 'editor';
+    const isMember = myRole === 'member';
+    const isLeader = myRole === 'leader';
 
     // Who may run the schedule/band: admins (full power) and leaders (worship
     // leaders — manage availability + assignments, but not billing/team config).

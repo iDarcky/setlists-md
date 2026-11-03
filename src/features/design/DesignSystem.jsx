@@ -253,11 +253,6 @@ function HomeDemo({ leader = false, empty = false, layout }) {
         ...Array(2).fill({ date: '2026-11-08', status: 'available' }), { date: '2026-11-08', status: 'unavailable' },
       ], memberCount: 10, now: H_NOW }) : null}
       onOpenSchedule={noop}
-      setup={empty ? [
-        { id: 'join', label: 'Join Grace Church', done: true },
-        { id: 'install', label: 'Put the app on your home screen', done: false, onClick: noop },
-        { id: 'push', label: 'Turn on notifications', hint: 'So you hear when you are asked to play', done: false, onClick: noop },
-      ] : null}
       activity={H_ACTIVITY}
       now={H_NOW}
       onOpenActivity={noop}
