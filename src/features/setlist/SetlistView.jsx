@@ -44,7 +44,7 @@ function OrderRow({ row, onOpen, now = false }) {
       ? <button type="button" onClick={() => onOpen(row)} className={cn(cls, 'cursor-pointer outline-none focus-visible:bg-raised')}>{body}<ChevronRightIcon /></button>
       : <div className={cls}>{body}</div>;
   }
-  const sub = [row.leads && `${row.leads} leads`, row.time, row.capo ? `capo ${row.capo}` : ''].filter(Boolean).join(' · ');
+  const sub = [row.tempo ? `${row.tempo} BPM` : '', row.leads && `${row.leads} leads`, row.time, row.capo ? `capo ${row.capo}` : ''].filter(Boolean).join(' · ');
   return (
     <button
       type="button"
@@ -61,7 +61,6 @@ function OrderRow({ row, onOpen, now = false }) {
         )}
       </span>
       {row.key && <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-md bg-raised font-mono text-[13px] font-semibold text-[var(--chord)]">{row.key}</span>}
-      <span className="w-8 shrink-0 text-right text-[13px] tabular-nums text-muted-foreground">{row.tempo || ''}</span>
     </button>
   );
 }

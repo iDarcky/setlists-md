@@ -28,7 +28,7 @@ function syncLine(syncState, now) {
 export default function Home({
   songs = [], setlists = [], settings, displayName, syncState,
   schedules = [], updateSchedule, setlistMap = {},
-  onOpenSetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady,
+  onOpenSetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady, onNewSetlist,
   onRetrySync, onNotFound,
   install, // { onInstall } when this device can still put the app on the home screen
 }) {
@@ -133,6 +133,7 @@ export default function Home({
       onOpenActivity={openActivity}
       onOpenSongs={onOpenSongs}
       showNothingPlanned={!next && asks.length === 0}
+      onNewSetlist={onNewSetlist}
     />
   );
 }
