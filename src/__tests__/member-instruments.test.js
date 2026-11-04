@@ -59,3 +59,33 @@ describe('who may set parts, and who has none', () => {
     expect(needsYou({})).toEqual([]);
   });
 });
+
+import { saveMemberRole, deleteMember } from '@/lib/memberInstruments';
+
+function fakeWrite({ rpcError = null, rows = [{ id: 'm1' }] }) {
+  const tail = { eq: () => ({ select: async () => ({ data: rows, error: null }) }) };
+  const update = vi.fn(() => tail);
+  const del = vi.fn(() => tail);
+  return { rpc: vi.fn(async () => ({ data: null, error: rpcError })), from: vi.fn(() => ({ update, delete: del })), update, del };
+}
+
+describe('roles and removing people', () => {
+  it('uses set_member_role / remove_member', async () => {
+    const sb = fakeWrite({});
+    await saveMemberRole(sb, { memberId: 'm1', role: 'editor' });
+    await deleteMember(sb, { memberId: 'm1' });
+    expect(sb.rpc).toHaveBeenNthCalledWith(1, 'set_member_role', { p_member_id: 'm1', p_role: 'editor' });
+    expect(sb.rpc).toHaveBeenNthCalledWith(2, 'remove_member', { p_member_id: 'm1' });
+    expect(sb.from).not.toHaveBeenCalled();
+  });
+  it('passes the server refusal on', async () => {
+    const sb = fakeWrite({ rpcError: { code: '42501', message: 'Only the church owner can let someone change roles.' } });
+    await expect(saveMemberRole(sb, { memberId: 'm1', role: 'admin' })).rejects.toThrow('Only the church owner');
+  });
+  it('fails loudly when the old write changed nothing (before the SQL)', async () => {
+    const missing = { code: 'PGRST202', message: 'Could not find the function' };
+    await expect(saveMemberRole(fakeWrite({ rpcError: missing, rows: [] }), { memberId: 'm1', role: 'member' })).rejects.toThrow(NOT_SAVED);
+    await expect(deleteMember(fakeWrite({ rpcError: missing, rows: [] }), { memberId: 'm1' })).rejects.toThrow(NOT_SAVED);
+    await expect(deleteMember(fakeWrite({ rpcError: missing }), { memberId: 'm1' })).resolves.toBeUndefined();
+  });
+});

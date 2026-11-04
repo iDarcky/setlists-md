@@ -269,11 +269,19 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
     try { setLink(await setTeamJoinLinkEnabled(team.id, enabled)); setLinkError(null); } catch (err) { setLinkError(err.message); }
   });
 
-  const changeRole = (role) => run('role', () => onRoleChange(person.id, role));
+  // Show what went wrong in the pop-up; a failed save used to look like success.
+  const [personError, setPersonError] = useState('');
+  const changeRole = (role) => run('role', async () => {
+    setPersonError('');
+    try { await onRoleChange(person.id, role); } catch (err) { setPersonError(err?.message || 'Couldn’t change the role. Try again.'); }
+  });
   const remove = async () => {
     const name = memberName(person);
     const ok = await confirm({ title: `Remove ${name}?`, description: `They lose access to ${team.name}: songs, setlists and the band. They would have to ask to join again.`, confirmLabel: 'Remove', cancelLabel: 'Keep', variant: 'danger' });
-    if (ok) { await run('remove', () => onRemove(person.id)); setPersonId(null); }
+    if (!ok) return;
+    setPersonError('');
+    try { await run('remove', () => onRemove(person.id)); setPersonId(null); }
+    catch (err) { setPersonError(err?.message || 'Couldn’t remove them. Try again.'); }
   };
   const leave = async () => {
     const ok = await confirm({ title: `Leave ${team.name}?`, description: 'You lose access to its songs and setlists. You can ask to join again with the link.', confirmLabel: 'Leave', variant: 'danger' });
@@ -315,17 +323,18 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
         footer={footer}
       />
       <PersonSheet
-        open={!!person} onOpenChange={(o) => { if (!o) setPersonId(null); }}
+        open={!!person} onOpenChange={(o) => { if (!o) { setPersonId(null); setPersonError(''); } }}
         member={person}
         isOwnerRow={!!person && person.user_id === team.owner_id}
         me={!!person && person.user_id === meId}
         since={person?.joined_at ? `In ${team.name} since ${new Date(person.joined_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}` : ''}
         upcoming={upcoming}
-        canManage={canManage}
+        canManage={canManage && (isOwner || person?.role !== 'admin')}
         canMakeAdmin={isOwner}
         busy={!!busy}
         onRole={changeRole}
         onRemove={remove}
+        error={personError}
         onLeave={leave}
         onSaveParts={canSetParts ? setMemberInstruments : undefined}
       />
