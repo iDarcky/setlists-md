@@ -23,52 +23,6 @@ export function nextFreeDay(dow, taken = new Set(), from = ymd(new Date())) {
   return d;
 }
 
-const countLine = (items = []) => {
-  const songs = items.filter(it => it && it.type !== 'break' && it.songId).length;
-  const moments = items.filter(it => it?.type === 'break').length;
-  return [songs && `${songs} ${songs === 1 ? 'song' : 'songs'}`, moments && `${moments} ${moments === 1 ? 'moment' : 'moments'}`].filter(Boolean).join(', ');
-};
-
-const shortDay = (date) => dayOf(date).toLocaleDateString('en-GB', { weekday: 'short' });
-
-/**
- * → [{ id, name, sub, date, from }] templates first, then services, newest
- * pattern wins. `from` is what `newSetlistFrom` copies.
- */
-export function serviceStarts(setlists = [], today = ymd(new Date())) {
-  const real = setlists.filter(s => s && !s.isTemplate);
-  const newestOf = (name) => real
-    .filter(s => s.date && ((s.service || '').trim() === name || baseName(s) === name))
-    .sort((a, b) => b.date.localeCompare(a.date))[0] || null;
-  const takenFor = (name) => new Set(real.filter(s => s.date && ((s.service || '').trim() === name || baseName(s) === name)).map(s => s.date));
-
-  const out = [];
-  const seen = new Set();
-  const push = (name, pattern, items, kind) => {
-    const key = name.toLowerCase();
-    if (!name || seen.has(key)) return;
-    seen.add(key);
-    const dow = pattern?.date ? weekday(pattern.date) : 0;
-    const date = nextFreeDay(dow, takenFor(name), today);
-    const sub = [pattern?.date && [shortDay(pattern.date), pattern.time].filter(Boolean).join(' '), pattern?.location, countLine(items)].filter(Boolean).join(' · ');
-    out.push({ id: `${kind}:${key}`, name, sub, date, from: { name, pattern, items, service: pattern?.service || (kind === 'service' ? name : '') } });
-  };
-
-  setlists.filter(s => s?.isTemplate).forEach(t => {
-    const name = baseName(t) || 'Setlist';
-    const pattern = newestOf(name) || t;
-    push(name, { ...pattern, service: pattern.service || t.service || '' }, t.items || [], 'template');
-  });
-  const names = [...new Set(real.map(s => (s.service || '').trim()).filter(Boolean))];
-  names
-    .map(n => newestOf(n))
-    .filter(Boolean)
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .forEach(p => push(p.service.trim(), p, (p.items || []).filter(it => it?.type === 'break'), 'service'));
-  return out;
-}
-
-/** The default date for a blank setlist: the next Sunday. */
 export const blankDate = (today = ymd(new Date())) => nextFreeDay(0, new Set(), today);
 
 /** A fresh, unsaved draft setlist. `from` null = blank. */
@@ -99,14 +53,19 @@ export const dayLabel = (date) => (date ? dayOf(date).toLocaleDateString('en-GB'
 // these fields: templateName, service, weekday (0 = Sunday), time, location,
 // rehearsalOn, rehearsalOffset (days before), rehearsalTime, rehearsalLocation,
 // namePattern ("BBPT #{n} AM"), startNumber, parts (part ids, repeated for
-// two), items (moments + "Song" placeholders). Every field is optional: older
-// templates (saved from a setlist) carry only templateName + items.
+// two), items (moments + "Song" placeholders), templateKind ('service').
 
 /** A slot in the order that still waits for a song. */
 export const isPlaceholder = (it) => !!it && it.type !== 'break' && !it.songId && !!it.placeholder;
 export const placeholderItem = (label = '') => ({ placeholder: true, ...(label ? { label } : {}) });
 
-export const templatesOf = (setlists = []) => setlists.filter(s => s?.isTemplate);
+// A template is its own kind: made only in the template editor, which stamps
+// `templateKind: 'service'`. Never derived from service names on setlists, and
+// never an old "Save as template" copy (those keep `isTemplate` without the
+// kind, stay in the data untouched, and are no longer shown anywhere).
+export const TEMPLATE_KIND = 'service';
+export const isRealTemplate = (s) => !!s?.isTemplate && s.templateKind === TEMPLATE_KIND;
+export const templatesOf = (setlists = []) => setlists.filter(isRealTemplate);
 export const templateTitle = (t) => (t?.templateName || baseName(t) || 'Service').trim();
 
 const NUM_TOKEN = '{n}';
@@ -205,7 +164,7 @@ export function draftFromTemplate(tpl, setlists = [], today = ymd(new Date())) {
 
 /** A blank template. */
 export const blankTemplate = () => ({
-  id: generateId(), isTemplate: true, templateName: '', name: '', weekday: 0, time: '10:00', location: '',
+  id: generateId(), isTemplate: true, templateKind: TEMPLATE_KIND, templateName: '', name: '', weekday: 0, time: '10:00', location: '',
   rehearsalOn: false, rehearsalOffset: 1, rehearsalTime: '18:00', rehearsalLocation: '',
   namePattern: '', startNumber: 1, parts: [], items: [placeholderItem(), placeholderItem(), placeholderItem()],
 });
@@ -226,28 +185,6 @@ export function lastPlayed(songId, setlists = [], today = ymd(new Date()), excep
 }
 
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-/**
- * Services the church already runs that have no template yet, read from its
- * setlists, as template-shaped objects (not saved, not editable), so New
- * setlist can still start from "Sunday Morning" before anyone makes one.
- */
-export function serviceTemplates(setlists = []) {
-  const named = new Set(templatesOf(setlists).map(t => templateTitle(t).toLowerCase()));
-  return serviceStarts(setlists)
-    .filter(s => s.id.startsWith('service:') && !named.has(s.name.toLowerCase()))
-    .map(s => {
-      const p = s.from.pattern || {};
-      const gap = p.rehearsalDate && p.date ? Math.round((dayOf(p.date) - dayOf(p.rehearsalDate)) / 86400000) : null;
-      return {
-        id: s.id, virtual: true, isTemplate: true, templateName: s.name, service: s.from.service || s.name,
-        weekday: p.date ? weekday(p.date) : 0, time: p.time || '', location: p.location || '',
-        rehearsalOn: !!(p.rehearsalDate || p.rehearsalTime), rehearsalOffset: gap != null && gap >= 0 && gap < 14 ? gap : 1,
-        rehearsalTime: p.rehearsalTime || '', rehearsalLocation: p.rehearsalLocation || '',
-        items: (s.from.items || []).map(it => ({ ...it })),
-      };
-    });
-}
 
 /** "Sun 8" */
 export const shortDayLabel = (date) => (date ? dayOf(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }) : '');

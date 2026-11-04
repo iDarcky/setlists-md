@@ -6,7 +6,7 @@ import { Input } from '@/ui/shadcn/input';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { ChevronRightIcon, PlusIcon } from '@/app/navIcons';
 import { partName, ADDABLE_PARTS } from '@/lib/bandParts';
-import { WEEKDAYS, splitPattern, joinPattern, nextNumber, templateTitle, blankTemplate, placeholderItem, isPlaceholder } from '@/lib/newSetlist';
+import { WEEKDAYS, splitPattern, joinPattern, nextNumber, templateTitle, blankTemplate, placeholderItem, isPlaceholder, TEMPLATE_KIND } from '@/lib/newSetlist';
 import { Chip, TimeSheet } from './WhenPickers';
 import { useDragReorder, moveItem } from './useDragReorder';
 import { Grip } from './SetlistEdit';
@@ -53,8 +53,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
     const name = t.templateName.trim();
     // The template IS the service now: renaming it renames the service, and
     // App carries the new name onto the setlists that had the old one.
-    const { virtual: _v, ...rest } = t;
-    onSave({ ...rest, templateName: name, name, service: name, isTemplate: true, updatedAt: Date.now() }, { previousService: template?.service || templateTitle(template) || '' });
+    onSave({ ...t, templateName: name, name, service: name, isTemplate: true, templateKind: TEMPLATE_KIND, updatedAt: Date.now() }, { previousService: template?.service || templateTitle(template) || '' });
   };
 
   return createPortal(
@@ -172,9 +171,7 @@ export function TemplatesList({ templates = [], onEdit, onNew }) {
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="truncate text-[15px] font-semibold">{templateTitle(t)}</span>
               <span className="truncate text-[13px] text-muted-foreground">
-                {t.virtual
-                  ? 'From your setlists · tap to set it up'
-                  : [Number.isInteger(t.weekday) && `${WEEKDAYS[t.weekday]} ${t.time || ''}`.trim(), t.location, `${(t.items || []).filter(i => i.type !== 'break').length} songs`].filter(Boolean).join(' · ')}
+                {[Number.isInteger(t.weekday) && `${WEEKDAYS[t.weekday]} ${t.time || ''}`.trim(), t.location, `${(t.items || []).filter(i => i.type !== 'break').length} songs`].filter(Boolean).join(' · ')}
               </span>
             </span>
             <ChevronRightIcon />
@@ -183,7 +180,7 @@ export function TemplatesList({ templates = [], onEdit, onNew }) {
         {!templates.length && <p className="m-0 px-4 py-5 text-[14px] text-muted-foreground">No templates yet. A template holds a service’s day, time, rehearsal, band parts and order.</p>}
       </div>
       <Button onClick={onNew}><PlusIcon size={16} />New template</Button>
-      <p className="m-0 text-[13px] text-muted-foreground">Each service is a template. Renaming one renames it on the setlists made with it.</p>
+      <p className="m-0 text-[13px] text-muted-foreground">Templates are made here only. Renaming one renames the service on the setlists made with it.</p>
     </div>
   );
 }

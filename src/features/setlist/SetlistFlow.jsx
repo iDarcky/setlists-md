@@ -10,7 +10,7 @@ import { searchSongs } from '@/lib/search';
 import { suggestSongs } from '@/lib/suggestSongs';
 import { buildOrder } from '@/lib/setlistView';
 import {
-  templatesOf, serviceTemplates, templateTitle, autoName, nextDates, takenDates, shiftDate,
+  templatesOf, templateTitle, autoName, nextDates, takenDates, shiftDate,
   isPlaceholder, placeholderItem, lastPlayed, dayLabel as longDay, shortDayLabel as shortDay, flowHints, playedRecently,
 } from '@/lib/newSetlist';
 import { useDragReorder, moveItem } from './useDragReorder';
@@ -293,7 +293,7 @@ export default function SetlistFlow({
   onSave, onCancel, onDirtyChange, initialStep, space = 'personal',
 }) {
   const wide = useWide();
-  const templates = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
+  const templates = useMemo(() => templatesOf(setlists), [setlists]);
   const [draft, setDraft] = useState(() => ({ ...setlist, items: (setlist.items || []).map(it => ({ ...it })) }));
   const [step, setStep] = useState(initialStep === 'songs' || initialStep === 'details' ? initialStep : (isNew ? 'details' : 'songs'));
   const [nameTouched, setNameTouched] = useState(!isNew);

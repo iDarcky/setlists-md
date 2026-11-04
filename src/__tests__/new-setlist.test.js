@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serviceStarts, newSetlistFrom, nextFreeDay, blankDate, dayLabel } from '@/lib/newSetlist';
+import { newSetlistFrom, nextFreeDay, blankDate, dayLabel } from '@/lib/newSetlist';
 
 const TODAY = '2026-11-02'; // a Monday
 
@@ -19,29 +19,6 @@ describe('nextFreeDay', () => {
   });
   it('blankDate is the next Sunday', () => {
     expect(blankDate(TODAY)).toBe('2026-11-08');
-  });
-});
-
-describe('serviceStarts', () => {
-  const starts = serviceStarts(setlists, TODAY);
-  it('lists templates first, then services newest first', () => {
-    expect(starts.map(s => s.name)).toEqual(['Christmas', 'Sunday morning', 'Youth night']);
-  });
-  it('dates a service on its weekday, after the ones already planned', () => {
-    const sun = starts.find(s => s.name === 'Sunday morning');
-    expect(sun.date).toBe('2026-11-15');
-    expect(starts.find(s => s.name === 'Youth night').date).toBe('2026-11-06');
-  });
-  it('a service brings only its moments; a template brings its songs too', () => {
-    expect(starts.find(s => s.name === 'Youth night').from.items).toHaveLength(1);
-    expect(starts.find(s => s.name === 'Christmas').from.items).toHaveLength(2);
-  });
-  it('describes the service', () => {
-    expect(starts.find(s => s.name === 'Sunday morning').sub).toBe('Sun 10:00');
-    expect(starts.find(s => s.name === 'Youth night').sub).toBe('Fri 19:00 · 1 moment');
-  });
-  it('is empty with no setlists', () => {
-    expect(serviceStarts([], TODAY)).toEqual([]);
   });
 });
 

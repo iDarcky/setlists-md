@@ -107,6 +107,7 @@ const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
 const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'));
 import NewSetlistSheet from '@/features/setlist/NewSetlistSheet';
 import { writeNewDraft } from '@/lib/setlistDraft';
+import { TEMPLATE_KIND } from '@/lib/newSetlist';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -2109,10 +2110,8 @@ export default function App() {
   // with isTemplate, so it syncs like one; it never touches a made setlist.
   const handleSaveTemplate = (tpl, { previousService = '' } = {}) => {
     if (isTeamReadOnly) { onlyLeadersRef.current(); return; }
-    // A template made from a service that had none yet gets its own id.
-    const id = String(tpl.id || '').startsWith('service:') ? generateId() : tpl.id;
-    const stamped = { ...tpl, id, isTemplate: true, updatedAt: Date.now() };
-    delete stamped.virtual;
+    const id = tpl.id || generateId();
+    const stamped = { ...tpl, id, isTemplate: true, templateKind: TEMPLATE_KIND, updatedAt: Date.now() };
     const from = (previousService || '').trim();
     const to = (stamped.service || '').trim();
     setSetlists(prev => {
@@ -2158,41 +2157,6 @@ export default function App() {
     if (sl.plannedBand?.length) { handleSaveSetlist({ ...sl, readyAfterAsks: true }); return; }
     handleSaveSetlist(sl);
     markSetlistReady(sl);
-  };
-
-  const handleSaveSetlistAsTemplate = (id) => {
-    const src = setlists.find(s => s.id === id);
-    if (!src) return;
-    const tpl = {
-      ...src,
-      id: generateId(),
-      name: `${(src.name || 'Untitled').replace(/\s*template$/i, '')} template`,
-      isTemplate: true,
-      updatedAt: Date.now(),
-      items: (src.items || []).map(it => ({ ...it })),
-    };
-    // Templates are date-less + band-less (those are per-service).
-    delete tpl.date; delete tpl.time; delete tpl.endTime; delete tpl.rehearsal;
-    setSetlists(prev => [...prev, tpl]);
-    toast({ title: 'Saved as template', description: tpl.name });
-  };
-
-  const handleNewFromTemplate = (id) => {
-    const tpl = setlists.find(s => s.id === id);
-    if (!tpl) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const fresh = {
-      ...tpl,
-      id: generateId(),
-      name: tpl.templateName || (tpl.name || 'Setlist').replace(/\s*template$/i, '') || 'New setlist',
-      isTemplate: false,
-      date: today,
-      status: 'draft',
-      updatedAt: Date.now(),
-      items: (tpl.items || []).map(it => ({ ...it })),
-    };
-    setSetlists(prev => [...prev, fresh]);
-    goSetlistBuild(fresh);
   };
 
   const handleTagSetlists = (ids, { add = [], remove = [] } = {}) => {
@@ -2591,8 +2555,6 @@ export default function App() {
               onDeleteSetlists={isTeamReadOnly ? null : handleDeleteSetlists}
               plus={!!settings?.setlistsLibraryPlus}
               onDuplicateSetlist={isTeamReadOnly ? null : handleDuplicateSetlist}
-              onSaveAsTemplate={isTeamReadOnly ? null : handleSaveSetlistAsTemplate}
-              onNewFromTemplate={isTeamReadOnly ? null : handleNewFromTemplate}
               onTagSetlists={isTeamReadOnly ? null : handleTagSetlists}
               canEdit={canEdit}
             />

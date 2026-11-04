@@ -664,7 +664,7 @@ const SL_PEOPLE = [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }, { id: '
 const NS_SETLISTS = [
   { id: 'n1', name: 'Sunday Morning', service: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall', items: [{ type: 'break', label: 'Welcome' }, { type: 'break', label: 'Offering' }, { type: 'break', label: 'Sermon' }] },
   { id: 'n2', name: 'Youth Night', service: 'Youth Night', date: '2026-10-30', time: '19:00', items: [{ type: 'break', label: 'Games' }] },
-  { id: 'n3', isTemplate: true, templateName: 'Christmas Eve', items: [{ songId: 'a' }, { songId: 'b' }, { type: 'break', label: 'Carols' }] },
+  { id: 'n3', isTemplate: true, templateKind: 'service', templateName: 'Christmas Eve', items: [{ songId: 'a' }, { songId: 'b' }, { type: 'break', label: 'Carols' }] },
 ];
 
 function SetlistEditGallery() {
@@ -923,7 +923,7 @@ const NF_GRACE = {
 };
 const NF_SONGS = [NF_GRACE, ...SL_SONGS];
 const NF_TPL = {
-  id: 'tpl-am', isTemplate: true, templateName: 'Sunday Morning', service: 'Sunday Morning', weekday: 0, time: '10:00', location: 'Main hall',
+  id: 'tpl-am', isTemplate: true, templateKind: 'service', templateName: 'Sunday Morning', service: 'Sunday Morning', weekday: 0, time: '10:00', location: 'Main hall',
   rehearsalOn: true, rehearsalOffset: 1, rehearsalTime: '18:00', rehearsalLocation: 'Main hall',
   namePattern: 'BBPT #{n} AM', startNumber: 1, parts: ['vocals', 'vocals', 'keys', 'electric-guitar', 'bass-guitar', 'drums'],
   items: [{ placeholder: true }, { placeholder: true }, { type: 'break', label: 'Prayer', duration: 5 }, { placeholder: true }, { type: 'break', label: 'Sermon', duration: 35 }, { placeholder: true }],

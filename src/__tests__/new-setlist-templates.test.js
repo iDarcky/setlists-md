@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   splitPattern, joinPattern, nextNumber, autoName, nextDates, draftFromTemplate, lastPlayed,
-  serviceTemplates, isPlaceholder, placeholderItem,
+  templatesOf, isPlaceholder, placeholderItem,
 } from '@/lib/newSetlist';
 import { buildOrder } from '@/lib/setlistView';
 
-const AM = { id: 'am', isTemplate: true, templateName: 'Sunday Morning', weekday: 0, time: '10:00', location: 'Main hall',
+const AM = { id: 'am', isTemplate: true, templateKind: 'service', templateName: 'Sunday Morning', weekday: 0, time: '10:00', location: 'Main hall',
   rehearsalOn: true, rehearsalOffset: 1, rehearsalTime: '18:00', namePattern: 'BBPT #{n} AM', startNumber: 1,
   items: [placeholderItem(), { type: 'break', label: 'Prayer', duration: 5 }, placeholderItem()] };
 const PM = { ...AM, id: 'pm', templateName: 'Sunday Evening', time: '18:00', namePattern: 'BBPT #{n} PM' };
@@ -66,17 +66,14 @@ describe('draft from a template', () => {
   });
 });
 
-describe('services without a template', () => {
-  it('reads one from the newest setlist of each service', () => {
+describe('templates are their own kind', () => {
+  it('lists only templates made in the editor', () => {
     const setlists = [
-      { id: 'a', name: 'Youth', service: 'Youth', date: '2026-10-30', time: '19:00', rehearsalDate: '2026-10-29', rehearsalTime: '18:00', items: [{ type: 'break', label: 'Games' }, { songId: 's1' }] },
+      { id: 'a', name: 'Youth', service: 'Youth', date: '2026-10-30', items: [] },
+      { id: 'old', isTemplate: true, name: 'Christmas template', items: [{ songId: 's1' }] },
       AM,
     ];
-    const [y] = serviceTemplates(setlists);
-    expect(y.templateName).toBe('Youth');
-    expect(y.weekday).toBe(5);
-    expect(y.rehearsalOffset).toBe(1);
-    expect(y.items).toEqual([{ type: 'break', label: 'Games' }]);
+    expect(templatesOf(setlists).map(t => t.id)).toEqual(['am']);
   });
 });
 

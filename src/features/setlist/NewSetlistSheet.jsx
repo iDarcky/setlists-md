@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
-import { templatesOf, serviceTemplates, templateTitle, draftFromTemplate, dayLabel, blankTemplate } from '@/lib/newSetlist';
+import { templatesOf, templateTitle, draftFromTemplate, dayLabel, blankTemplate } from '@/lib/newSetlist';
 import { TemplateEditor, TemplatesSheet } from './TemplateEditor';
 import { readNewDraft, writeNewDraft } from '@/lib/setlistDraft';
 
@@ -27,7 +27,7 @@ function Row({ on, title, sub, name, onPick }) {
 }
 
 export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, space = 'personal' }) {
-  const templates = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
+  const templates = useMemo(() => templatesOf(setlists), [setlists]);
   const drafts = useMemo(() => Object.fromEntries(templates.map(t => [t.id, draftFromTemplate(t, setlists)])), [templates, setlists]);
   // A setlist started here earlier and never saved (the app was closed).
   const [kept] = useState(() => { const d = readNewDraft(space); return d && !setlists.some(s => s.id === d.id) ? d : null; });
@@ -65,7 +65,7 @@ export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, space
 export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onCreate, onSaveTemplate, onDeleteTemplate, space = 'personal' }) {
   const [list, setList] = useState(false);
   const [edit, setEdit] = useState(null);
-  const saved = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
+  const saved = useMemo(() => templatesOf(setlists), [setlists]);
   return (
     <>
       <Sheet open={open && !list && !edit} onOpenChange={onOpenChange} title="New setlist" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
@@ -76,7 +76,7 @@ export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onC
       {open && edit && (
         <TemplateEditor template={edit} setlists={setlists} onCancel={() => setEdit(null)}
           onSave={(tpl, meta) => { onSaveTemplate?.(tpl, meta); setEdit(null); }}
-          onDelete={!edit.virtual && templatesOf(setlists).some(t => t.id === edit.id) && onDeleteTemplate ? () => { onDeleteTemplate(edit.id); setEdit(null); } : null} />
+          onDelete={templatesOf(setlists).some(t => t.id === edit.id) && onDeleteTemplate ? () => { onDeleteTemplate(edit.id); setEdit(null); } : null} />
       )}
     </>
   );

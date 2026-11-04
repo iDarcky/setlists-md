@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TemplatesList, TemplateEditor } from '@/features/setlist/TemplateEditor';
-import { templatesOf, serviceTemplates, blankTemplate } from '@/lib/newSetlist';
+import { templatesOf, blankTemplate } from '@/lib/newSetlist';
 import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { usePushSubscription } from '@/push/usePushSubscription';
@@ -57,7 +57,7 @@ export default function SettingsPage({
 
   // Services are templates now (2026-11-04): each service the church runs,
   // saved or still only a name on its setlists.
-  const templates = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
+  const templates = useMemo(() => templatesOf(setlists), [setlists]);
   const [tplEdit, setTplEdit] = useState(null);
 
   const planKey = (church?.plan || 'free').toLowerCase();
@@ -206,7 +206,7 @@ export default function SettingsPage({
           {tplEdit && (
             <TemplateEditor template={tplEdit} setlists={setlists} onCancel={() => setTplEdit(null)}
               onSave={(tpl, meta) => { onSaveTemplate?.(tpl, meta); setTplEdit(null); }}
-              onDelete={!tplEdit.virtual && templatesOf(setlists).some(t => t.id === tplEdit.id) && onDeleteTemplate ? () => { onDeleteTemplate(tplEdit.id); setTplEdit(null); } : null} />
+              onDelete={templatesOf(setlists).some(t => t.id === tplEdit.id) && onDeleteTemplate ? () => { onDeleteTemplate(tplEdit.id); setTplEdit(null); } : null} />
           )}
         </SettingsShell>
       );
