@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
+import { Sheet } from '@/ui/shadcn/sheet';
 import { PlusIcon } from '@/app/navIcons';
 import { transposeKey, transposeChord } from '@/music';
 import { parseLine } from '@/parser';
@@ -10,12 +11,12 @@ import { searchSongs } from '@/lib/search';
 import { suggestSongs } from '@/lib/suggestSongs';
 import { buildOrder } from '@/lib/setlistView';
 import {
-  templatesOf, templateTitle, autoName, nextDates, takenDates, shiftDate,
-  isPlaceholder, placeholderItem, lastPlayed, dayLabel as longDay, shortDayLabel as shortDay, flowHints, playedRecently,
+  templatesOf, autoName, nextDates, takenDates, shiftDate,
+  isPlaceholder, placeholderItem, lastPlayed, dayLabel as longDay, flowHints, playedRecently,
 } from '@/lib/newSetlist';
 import { useDragReorder, moveItem } from './useDragReorder';
 import { MomentFields, NoteEditor, Grip, NOTE_MAX } from './SetlistEdit';
-import { Chip, DateSheet, TimeSheet } from './WhenPickers';
+import { Chip, DateSheet, TimeInput, TimeSigInput } from './WhenPickers';
 import BandSection from './BandSection';
 import { writeNewDraft } from '@/lib/setlistDraft';
 
@@ -27,7 +28,6 @@ import { writeNewDraft } from '@/lib/setlistDraft';
 // the setlist page sends those asks once it is saved.
 
 const STEPS = [['details', 'Details and band'], ['songs', 'Songs']];
-const TIMES = ['4/4', '3/4', '6/8', '2/4'];
 
 const WIDE = '(min-width: 1024px)';
 const sub = (cb) => { const m = window.matchMedia(WIDE); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb); };
@@ -63,18 +63,16 @@ const lastLine = (lp, song, nameOf) => {
 /* ── Step 1 · Details ─────────────────────────────────────────────────────── */
 
 function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, setNameTouched }) {
-  const [sheet, setSheet] = useState(null);   // 'date' | 'time' | 'rDate' | 'rTime'
+  const [sheet, setSheet] = useState(null);   // 'date' | 'rDate'
   const weekday = Number.isInteger(template?.weekday) ? template.weekday : (draft.date ? new Date(`${draft.date}T12:00:00`).getDay() : 0);
   const dates = useMemo(() => {
     const n = wide ? 3 : 2;
     const xs = nextDates(weekday, template ? takenDates(template, setlists.filter(s => s.id !== draft.id)) : new Set(), n);
     return draft.date && !xs.includes(draft.date) ? [draft.date, ...xs.slice(0, n - 1)] : xs;
   }, [wide, weekday, template, setlists, draft.id, draft.date]);
-  const times = [...new Set([template?.time, draft.time].filter(Boolean))];
   const rehearsal = !!(draft.rehearsalDate || draft.rehearsalTime);
   const rDates = draft.date ? [shiftDate(draft.date, -1), shiftDate(draft.date, -2), draft.date].slice(0, wide ? 3 : 2) : [];
   if (draft.rehearsalDate && !rDates.includes(draft.rehearsalDate)) rDates.unshift(draft.rehearsalDate);
-  const rTimes = [...new Set([template?.rehearsalTime, draft.rehearsalTime, '18:00'].filter(Boolean))].slice(0, 2);
 
   const setDate = (date) => setDraft(d => {
     const gap = d.date && d.rehearsalDate ? Math.round((new Date(`${d.date}T12:00:00`) - new Date(`${d.rehearsalDate}T12:00:00`)) / 86400000) : null;
@@ -96,12 +94,11 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
             className="h-10 font-mono font-semibold" />
         </Field>
         <Field label="Date">
-          {dates.map(d => <Chip key={d} on={draft.date === d} className="h-8 px-3 text-[13px]" onClick={() => setDate(d)}>{shortDay(d)}</Chip>)}
+          {dates.map(d => <Chip key={d} on={draft.date === d} className="h-8 px-3 text-[13px]" onClick={() => setDate(d)}>{longDay(d)}</Chip>)}
           <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setSheet('date')}>Other…</Chip>
         </Field>
         <Field label="Time">
-          {times.map(t => <Chip key={t} on={draft.time === t} className="h-8 px-3 text-[13px]" onClick={() => setDraft(d => ({ ...d, time: t }))}>{t}</Chip>)}
-          <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setSheet('time')}>Other…</Chip>
+          <TimeInput aria-label="Service time" value={draft.time} onChange={v => setDraft(d => ({ ...d, time: v }))} />
         </Field>
         <Field label="Place">
           <Input value={draft.location || ''} maxLength={80} placeholder="Main hall" aria-label="Place" onChange={e => setDraft(d => ({ ...d, location: e.target.value }))} className="h-10" />
@@ -112,29 +109,22 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
       {rehearsal && (
         <div className="rounded-card border border-border bg-card">
           <Field label="Date">
-            {rDates.map(d => <Chip key={d} on={draft.rehearsalDate === d} className="h-8 px-3 text-[13px]" onClick={() => setDraft(x => ({ ...x, rehearsalDate: d }))}>{shortDay(d)}</Chip>)}
+            {rDates.map(d => <Chip key={d} on={draft.rehearsalDate === d} className="h-8 px-3 text-[13px]" onClick={() => setDraft(x => ({ ...x, rehearsalDate: d }))}>{longDay(d)}</Chip>)}
             <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setSheet('rDate')}>Other…</Chip>
           </Field>
           <Field label="Time">
-            {rTimes.map(t => <Chip key={t} on={draft.rehearsalTime === t} className="h-8 px-3 text-[13px]" onClick={() => setDraft(d => ({ ...d, rehearsalTime: t }))}>{t}</Chip>)}
-            <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setSheet('rTime')}>Other…</Chip>
+            <TimeInput aria-label="Rehearsal time" value={draft.rehearsalTime} onChange={v => setDraft(d => ({ ...d, rehearsalTime: v }))} />
           </Field>
           <Field label="Place">
             <Input value={draft.rehearsalLocation || ''} maxLength={80} placeholder={draft.location || 'Main hall'} aria-label="Rehearsal place" onChange={e => setDraft(d => ({ ...d, rehearsalLocation: e.target.value }))} className="h-10" />
           </Field>
         </div>
       )}
-      {template && <p className="m-0 text-[12px] leading-[17px] text-muted-foreground">All of it comes from the “{templateTitle(template)}” template. A change here is for this setlist only.</p>}
 
       {(sheet === 'date' || sheet === 'rDate') && (
         <DateSheet key={sheet} open onOpenChange={o => { if (!o) setSheet(null); }} title={sheet === 'date' ? 'Service date' : 'Rehearsal date'}
           value={sheet === 'date' ? draft.date : draft.rehearsalDate} marked={sheet === 'date' ? weekday : null}
           onPick={(v) => { if (sheet === 'date') setDate(v); else setDraft(d => ({ ...d, rehearsalDate: v })); setSheet(null); }} />
-      )}
-      {(sheet === 'time' || sheet === 'rTime') && (
-        <TimeSheet key={sheet} open onOpenChange={o => { if (!o) setSheet(null); }} title={sheet === 'time' ? 'Service time' : 'Rehearsal time'}
-          value={sheet === 'time' ? draft.time : draft.rehearsalTime}
-          onPick={(v) => { setDraft(d => ({ ...d, [sheet === 'time' ? 'time' : 'rehearsalTime']: v })); setSheet(null); }} />
       )}
     </div>
   );
@@ -259,15 +249,17 @@ function SongSettings({ item, song, people, setlists, draftId, nameOf, today, on
       <SettingRow label="BPM">
         <div className="flex items-center overflow-hidden rounded-control border border-border">
           <Button variant="ghost" className="h-9 w-10 rounded-none" aria-label="Slower" onClick={() => onChange({ tempo: Math.max(30, (Number(tempo) || 100) - 1) })}>−</Button>
-          <Input type="number" inputMode="numeric" aria-label="BPM" value={tempo ?? ''} placeholder="—"
-            onChange={e => onChange({ tempo: e.target.value === '' ? undefined : Math.max(30, Math.min(260, Number(e.target.value) || 0)) })}
+          <Input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} aria-label="BPM" value={tempo ?? ''} placeholder="—"
+            onChange={e => { const v = e.target.value.replace(/\D/g, ''); onChange({ tempo: v === '' ? undefined : Math.min(260, Number(v)) }); }}
+            onBlur={() => { if (tempo != null && tempo < 30) onChange({ tempo: 30 }); }}
             className="h-9 w-[64px] rounded-none border-0 border-x border-border text-center font-semibold" />
           <Button variant="ghost" className="h-9 w-10 rounded-none" aria-label="Faster" onClick={() => onChange({ tempo: Math.min(260, (Number(tempo) || 100) + 1) })}>+</Button>
         </div>
         {view?.tempo ? <span className="text-[12px] text-muted-foreground">usual {view.tempo}</span> : null}
       </SettingRow>
       <SettingRow label="Time">
-        {[...new Set([view?.time, ...TIMES].filter(Boolean))].map(x => <Chip key={x} on={time === x} className={sm} onClick={() => onChange({ time: x === view?.time ? undefined : x })}>{x}</Chip>)}
+        <TimeSigInput value={time} onChange={v => onChange({ time: !v || v === view?.time ? undefined : v })} />
+        {view?.time ? <span className="text-[12px] text-muted-foreground">usual {view.time}</span> : null}
       </SettingRow>
       {arrs.length > 1 && (
         <SettingRow label="Version">
@@ -301,6 +293,7 @@ export default function SetlistFlow({
   const [open, setOpen] = useState(null);              // order index opened in place
   const [slot, setSlot] = useState(null);              // index of the "Song" (or song) being filled
   const [previewId, setPreviewId] = useState(null);    // desktop: library song shown in the right column
+  const [peek, setPeek] = useState(null);              // a song in the order, previewed as it will be played
   const [noteFor, setNoteFor] = useState(null);
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const [ready, setReady] = useState(false);           // Save and mark ready
@@ -359,6 +352,8 @@ export default function SetlistFlow({
     setPreviewId(null);
   };
   const emptySlot = (label) => { setItems(xs => [...xs, placeholderItem(label)]); };
+  // "+ Add song": a new "Song" slot at the end, then straight to the library to fill it.
+  const addSongSlot = () => { const at = items.length; setItems(xs => [...xs, placeholderItem()]); setSlot(at); setOpen(null); goToLibrary(); };
   const addMoment = () => { setItems(xs => [...xs, { type: 'break', label: '', note: '', duration: 0 }]); setOpen(items.length); };
   const tapRow = (i) => {
     if (isPlaceholder(items[i])) { setSlot(i); setOpen(null); goToLibrary(); return; }
@@ -366,6 +361,7 @@ export default function SetlistFlow({
   };
 
   const previewSong = previewId ? songs.find(s => s.id === previewId) : null;
+  const peekSong = peek ? songs.find(s => s.id === peek.songId) : null;
   const idx = STEPS.findIndex(([k]) => k === step);
   const nextStep = STEPS[idx + 1];
   const save = (final = false) => {
@@ -430,6 +426,7 @@ export default function SetlistFlow({
                 <KeyChip k={r.key} />
                 {!isSlot && <span className={cn('w-3.5 shrink-0 text-center text-[13px] text-muted-foreground transition-transform', isOpen ? 'rotate-180' : '')} aria-hidden="true">⌄</span>}
               </button>
+              {isSlot && <Button variant="ghost" size="icon" className="mr-1 size-9 shrink-0 text-muted-foreground" aria-label="Remove this Song slot" onClick={() => remove(i)}>✕</Button>}
             </div>
             {isOpen && (
               <div className="pb-1">
@@ -439,7 +436,12 @@ export default function SetlistFlow({
                   <SongSettings item={it} song={songs.find(s => s.id === it.songId)} people={people} setlists={setlists} draftId={draft.id} nameOf={nameOf} today={today} onChange={p => patchItem(i, p)} />
                 )}
                 <div className="flex items-center justify-between border-t border-border py-2 pl-10 pr-3">
-                  {it.songId ? <Button variant="link" className="text-[14px]" onClick={() => { setSlot(i); setOpen(null); goToLibrary(); }}>Change song</Button> : <span />}
+                  {it.songId ? (
+                    <span className="flex items-center gap-4">
+                      <Button variant="link" className="text-[14px]" onClick={() => { setPreviewId(null); setPeek({ songId: it.songId, transpose: it.transpose || 0, arrangementId: it.arrangementId }); }}>Preview</Button>
+                      <Button variant="link" className="text-[14px]" onClick={() => { setSlot(i); setOpen(null); goToLibrary(); }}>Change song</Button>
+                    </span>
+                  ) : <span />}
                   <Button variant="link" className="text-[14px] text-danger" onClick={() => remove(i)}>Remove</Button>
                 </div>
               </div>
@@ -462,7 +464,10 @@ export default function SetlistFlow({
       </div>
       {wide && <span className="-mt-2 text-[12px] text-muted-foreground">{[longDay(draft.date), draft.time, draft.location].filter(Boolean).join(' · ')} · drag ⠿ to move</span>}
       {orderList}
-      <div className="flex gap-2"><Chip onClick={addMoment}><PlusIcon size={16} />Add moment</Chip></div>
+      <div className="flex gap-2">
+        <Chip onClick={addSongSlot}><PlusIcon size={16} />Add song</Chip>
+        <Chip onClick={addMoment}><PlusIcon size={16} />Add moment</Chip>
+      </div>
       {canReady && (
         <div className="mt-2 flex items-center gap-3 rounded-card border border-border bg-card px-4 py-3">
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -478,7 +483,7 @@ export default function SetlistFlow({
   const addSongs = (
     <AddSongs songs={songs} draft={draft} setlists={setlists} at={fillAt >= 0 ? fillAt : items.length} today={today}
       filling={slot != null ? fillingN : null} onAdd={addSong} onEmptySlot={emptySlot} searchRef={searchRef}
-      onPreview={wide ? (id) => setPreviewId(id) : null} previewId={previewId} />
+      onPreview={wide ? (id) => { setPeek(null); setPreviewId(id); } : null} previewId={previewId} />
   );
 
   const bandBlock = (
@@ -518,7 +523,9 @@ export default function SetlistFlow({
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(360px,420px)] border-t border-border">
         <div className="min-h-0 overflow-y-auto border-r border-border px-6 py-5"><div className="mx-auto max-w-[760px]">{orderBlock}</div></div>
         <div className="flex min-h-0 flex-col overflow-y-auto">
-          {previewSong
+          {peekSong && wide
+            ? <DeskPreview song={peekSong} arrangementId={peek.arrangementId} transpose={peek.transpose} onBack={() => setPeek(null)} setlists={setlists} draftId={draft.id} nameOf={nameOf} today={today} />
+            : previewSong
             ? <DeskPreview song={previewSong} onBack={() => setPreviewId(null)} onAdd={() => addSong(previewSong)} slotN={fillingN || order.songCount + 1} setlists={setlists} draftId={draft.id} nameOf={nameOf} today={today} />
             : <div className="p-5">{addSongs}</div>}
         </div>
@@ -592,6 +599,11 @@ export default function SetlistFlow({
           <Button variant="link" className="text-[14px]" onClick={undoRemove}>Undo</Button>
         </div>
       )}
+      {!wide && peekSong && (
+        <Sheet open onOpenChange={o => { if (!o) setPeek(null); }} title={peekSong.title} className="h-[85dvh]">
+          <div className="min-h-0 flex-1 overflow-y-auto"><ChartPreview view={resolveSongView(peekSong, peek.arrangementId)} transpose={peek.transpose} /></div>
+        </Sheet>
+      )}
       {noteFor != null && (
         <NoteEditor open key={noteFor} title={items[noteFor]?.label || 'Moment'} value={items[noteFor]?.note}
           onCancel={() => setNoteFor(null)} onDone={(text) => { patchItem(noteFor, { note: text }); setNoteFor(null); }} />
@@ -603,20 +615,20 @@ export default function SetlistFlow({
 const initials = (name) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
 
 /** Desktop: a library song's chart in the right column, before adding it. */
-function DeskPreview({ song, onAdd, onBack, slotN, setlists, draftId, nameOf, today }) {
-  const view = resolveSongView(song);
+function DeskPreview({ song, onAdd, onBack, slotN, setlists, draftId, nameOf, today, arrangementId, transpose = 0 }) {
+  const view = resolveSongView(song, arrangementId);
   const lp = lastLine(lastPlayed(song.id, setlists, today, draftId), song, nameOf);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-1.5 border-b border-border px-5 pb-3 pt-4">
-        <Button variant="link" className="self-start text-[14px]" onClick={onBack}>‹ Add songs</Button>
+        <Button variant="link" className="self-start text-[14px]" onClick={onBack}>‹ {onAdd ? 'Add songs' : 'Back'}</Button>
         <b className="text-[20px] font-semibold">{song.title}</b>
         <span className="text-[13px] text-muted-foreground">
-          {[view?.key && `usually ${view.key}`, view?.tempo && `${view.tempo} BPM`, view?.time, typeof lp === 'string' ? lp.toLowerCase() : `last ${lp.date}`].filter(Boolean).join(' · ')}
+          {[view?.key && (transpose ? `in ${transposeKey(view.key, transpose)} (usually ${view.key})` : `usually ${view.key}`), view?.tempo && `${view.tempo} BPM`, view?.time, typeof lp === 'string' ? lp.toLowerCase() : `last ${lp.date}`].filter(Boolean).join(' · ')}
         </span>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4"><ChartPreview view={view} /></div>
-      <div className="px-5 pb-5 pt-2"><Button className="h-11 w-full" onClick={onAdd}>Add as song {slotN}</Button></div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4"><ChartPreview view={view} transpose={transpose} /></div>
+      {onAdd && <div className="px-5 pb-5 pt-2"><Button className="h-11 w-full" onClick={onAdd}>Add as song {slotN}</Button></div>}
     </div>
   );
 }

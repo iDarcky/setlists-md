@@ -101,7 +101,7 @@ export default function BandSection({
     <>
       <BandPlanner
         slots={slots} person={person}
-        note={planOnly ? 'Nobody is asked yet. The asks go out when you save the setlist.' : (from.length && !neededParts ? `Parts from the last ${setlist.name}.` : '')}
+        note={planOnly ? '' : (from.length && !neededParts ? `Parts from the last ${setlist.name}.` : '')}
         onSlot={(s) => setOpen(s)} onAddPart={() => setAdding(true)}
         pending={pending} sendLabel={sendLabel} onSend={send} sending={sending} error={error}
       />

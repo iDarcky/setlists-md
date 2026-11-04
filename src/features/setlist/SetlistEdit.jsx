@@ -92,8 +92,8 @@ export function MomentFields({ item, onChange, onOpenNote }) {
         <Label>Length</Label>
         <div className="flex flex-wrap items-center gap-1.5">
           {LENGTHS.map(m => <Pill key={m} on={item.duration === m} onClick={() => onChange({ duration: item.duration === m ? 0 : m })}>{m} min</Pill>)}
-          <Input type="number" inputMode="numeric" min={0} max={120} aria-label="Other length in minutes" placeholder="Other"
-            value={custom ? item.duration : ''} onChange={e => onChange({ duration: Math.max(0, Math.min(120, Number(e.target.value) || 0)) })}
+          <Input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} aria-label="Other length in minutes" placeholder="Other"
+            value={custom ? item.duration : ''} onChange={e => onChange({ duration: Math.max(0, Math.min(120, Number(e.target.value.replace(/\D/g, '')) || 0)) })}
             className="h-9 w-[84px]" />
         </div>
       </div>
@@ -101,7 +101,7 @@ export function MomentFields({ item, onChange, onOpenNote }) {
         <Label>Note</Label>
         <button type="button" onClick={onOpenNote}
           className="flex min-h-[88px] cursor-pointer flex-col items-start rounded-control border border-input bg-transparent px-3 py-2.5 text-left font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          {item.note ? <Markdown text={item.note} className="line-clamp-4 text-[15px] leading-5" /> : <span className="text-muted-foreground">Add a note: what happens, who speaks, what the band plays under it</span>}
+          {item.note ? <Markdown text={item.note} className="line-clamp-4 text-[15px] leading-5" /> : <span className="text-muted-foreground">Add a note</span>}
         </button>
         <span className="text-right text-[12px] text-muted-foreground">{(item.note || '').length} / {NOTE_MAX}</span>
       </div>
@@ -131,7 +131,7 @@ export function NoteEditor({ open, title, value, onDone, onCancel }) {
     setText(next);
     requestAnimationFrame(() => el.focus());
   };
-  const tools = [['H1', () => line('# ')], ['H2', () => line('## ')], ['B', () => wrap('**')], ['I', () => wrap('*')], ['• List', () => line('- ')]];
+  const tools = [['# Title', () => line('# ')], ['## Subtitle', () => line('## ')], ['B', () => wrap('**')], ['I', () => wrap('*')], ['• List', () => line('- ')]];
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={`Note · ${title}`} className="fixed inset-0 z-[70] flex flex-col bg-background font-sans text-foreground">
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
@@ -151,7 +151,7 @@ export function NoteEditor({ open, title, value, onDone, onCancel }) {
         {preview
           ? <Markdown text={text} className="overflow-y-auto text-[16px] leading-6" />
           : <textarea ref={setEl} autoFocus value={text} maxLength={NOTE_MAX} onChange={e => setText(e.target.value)}
-              placeholder={'# Offering\nPastor Dan prays.\n- Keys pad in D\n- **Straight into** Living Hope'}
+              placeholder={'# Title\n## Subtitle\nWhat happens here'}
               className="min-h-0 flex-1 resize-none border-0 bg-transparent font-sans text-[16px] leading-6 text-foreground outline-none placeholder:text-muted-foreground" />}
         <span className="pt-2 text-right text-[12px] text-muted-foreground">{text.length} / {NOTE_MAX}</span>
       </div>

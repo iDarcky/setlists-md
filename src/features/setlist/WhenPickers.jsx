@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
-import { dayLabel as longDay, parseTime, typeTime } from '@/lib/newSetlist';
+import { dayLabel as longDay, parseTime, typeTime, typeTimeSig, isTimeSig } from '@/lib/newSetlist';
 
 // Our own small date and time pickers (canvas → New setlist, NS1Pick), so
 // "Other…" looks the same on every phone instead of the system wheels.
@@ -109,3 +109,20 @@ export function TimeInput({ value, onChange, className, ...p }) {
         bad ? 'border-danger' : 'border-input', className)} {...p} />
   );
 }
+
+/** A time signature typed as x/x ("68" → "6/8"); anything else reverts on blur. */
+export function TimeSigInput({ value, onChange, className, ...p }) {
+  const [text, setText] = useState(value || '');
+  const commit = () => {
+    if (!text.trim()) { onChange(''); return; }
+    if (isTimeSig(text)) onChange(text); else setText(value || '');
+  };
+  return (
+    <input type="text" inputMode="numeric" autoComplete="off" placeholder="4/4" maxLength={5} value={text} aria-label="Time signature"
+      onChange={e => setText(typeTimeSig(e.target.value, text))} onBlur={commit}
+      onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
+      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+      className={cn('h-9 w-[72px] rounded-control border border-input bg-transparent px-3 font-mono text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', className)} {...p} />
+  );
+}
+

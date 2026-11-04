@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   splitPattern, joinPattern, nextNumber, autoName, nextDates, draftFromTemplate, lastPlayed,
-  templatesOf, patternFromName, formatName, parseTime, typeTime, isPlaceholder, placeholderItem,
+  templatesOf, typeTimeSig, patternFromName, formatName, parseTime, typeTime, isPlaceholder, placeholderItem,
 } from '@/lib/newSetlist';
 import { buildOrder } from '@/lib/setlistView';
 
@@ -138,5 +138,16 @@ describe('the name as typed', () => {
     expect(patternFromName('No number')).toBe(null);
     expect(formatName('BBPT #{n} AM', 7, 3)).toBe('BBPT #007 AM');
     expect(formatName('Sunday Morning #{n}', 12)).toBe('Sunday Morning #12');
+  });
+});
+
+describe('typing a time signature', () => {
+  it('puts the slash in by itself', () => {
+    expect(typeTimeSig('6', '')).toBe('6/');
+    expect(typeTimeSig('6/8', '6/')).toBe('6/8');
+    expect(typeTimeSig('1', '')).toBe('1');
+    expect(typeTimeSig('12', '1')).toBe('12/');
+    expect(typeTimeSig('12/8', '12/')).toBe('12/8');
+    expect(typeTimeSig('6', '6/')).toBe('');
   });
 });

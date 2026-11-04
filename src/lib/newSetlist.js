@@ -293,3 +293,19 @@ export function typeTime(next, prev = '') {
   return d.length >= 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d;
 }
 
+/**
+ * A time signature as it is typed: "68" → "6/8", "34" → "3/4", "128" →
+ * "12/8". The slash comes by itself; a backspace over it takes the digit too.
+ */
+export function typeTimeSig(next, prev = '') {
+  if (String(next).length < String(prev).length) {
+    if (/\/$/.test(prev) && !/\//.test(next)) return String(next).replace(/\D/g, '').slice(0, -1);
+    return String(next).replace(/[^\d/]/g, '');
+  }
+  const d = String(next || '').replace(/\D/g, '').slice(0, 4);
+  if (!d || d === '1') return d;
+  const top = d.startsWith('12') ? 2 : 1;
+  return `${d.slice(0, top)}/${d.slice(top, top + 2)}`;
+}
+export const isTimeSig = (s) => /^\d{1,2}\/\d{1,2}$/.test(String(s || ''));
+

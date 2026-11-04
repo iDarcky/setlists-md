@@ -166,8 +166,8 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
                   <>
                     <Input value={it.label || ''} maxLength={60} placeholder="Moment, e.g. Prayer" aria-label="Moment name"
                       onChange={e => setItems(xs => xs.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} className="h-9 flex-1" />
-                    <Input type="number" inputMode="numeric" min={0} max={120} aria-label="Minutes" placeholder="min" value={it.duration || ''}
-                      onChange={e => setItems(xs => xs.map((x, j) => (j === i ? { ...x, duration: Math.max(0, Math.min(120, Number(e.target.value) || 0)) } : x)))} className="h-9 w-[64px]" />
+                    <Input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} aria-label="Minutes" placeholder="min" value={it.duration || ''}
+                      onChange={e => setItems(xs => xs.map((x, j) => (j === i ? { ...x, duration: Math.max(0, Math.min(120, Number(e.target.value.replace(/\D/g, '')) || 0)) } : x)))} className="h-9 w-[64px]" />
                   </>
                 ) : (
                   <span className="flex-1 text-[15px] font-semibold">{it.songId ? (it.songTitle || 'Song') : 'Song'}{it.songId && <span className="ml-2 text-[12px] font-normal text-muted-foreground">always this song</span>}</span>
