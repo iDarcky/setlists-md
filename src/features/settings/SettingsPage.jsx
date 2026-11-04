@@ -6,7 +6,7 @@ import { useTeam } from '@/auth/useTeam';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import { REMINDER_OPTIONS, normalizeReminders } from '@/lib/reminderOffsets';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '@/lib/billingCheckout';
-import { INSTRUMENTS, VOCAL_PARTS, normalize } from '@/data/instruments';
+import { normalize } from '@/data/instruments';
 import { clearAll } from '@/storage';
 import { useConfirm } from '@/ui/useConfirmHook';
 import AvatarUploader from '@/ui/AvatarUploader';
@@ -82,16 +82,14 @@ export default function SettingsPage({
 
   const myMember = church && user ? members.find(m => m.user_id === user.id) : null;
   const tokens = useMemo(() => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))), [myMember?.instruments]);
-  const picked = useMemo(() => tokens.filter(t => !t.startsWith('vocals')), [tokens]);
-  const vocal = tokens.find(t => t.startsWith('vocals:'))?.split(':')[1] || null;
   const [partsBusy, setPartsBusy] = useState(false);
   const [partsError, setPartsError] = useState('');
-  // Any number of instruments plus one sung part (owner, 2026-10-26).
-  const saveParts = async (nextPicked, nextVocal) => {
+  // Any number of instruments and sung parts (owner, 2026-11-04).
+  const saveParts = async (next) => {
     setPartsBusy(true);
     setPartsError('');
     try {
-      await updateMyInstruments([...nextPicked, nextVocal ? `vocals:${nextVocal}` : null].filter(Boolean));
+      await updateMyInstruments(next);
     } catch (err) {
       setPartsError(err?.message || 'Couldn’t save that. Try again.');
     } finally { setPartsBusy(false); }
@@ -154,8 +152,7 @@ export default function SettingsPage({
             ) : null}
             nameDraft={nameDraft} onNameDraft={(v) => { setNameDraft(v); setNameSaved(false); }} onSaveName={saveName} nameBusy={nameBusy} nameSaved={nameSaved}
             church={church && myMember ? { name: church.name } : null}
-            instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} picked={picked} vocal={vocal}
-            onInstrument={(id) => saveParts(picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id], vocal)} onVocal={(id) => saveParts(picked, id)}
+            parts={tokens} onParts={saveParts}
             partsBusy={partsBusy} partsError={partsError}
             onChangePassword={isSignedIn ? () => { setPwError(''); setPwOpen(true); } : undefined}
             onDeleteAccount={isSignedIn ? () => { setDelError(''); setDelOpen(true); } : undefined}

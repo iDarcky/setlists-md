@@ -183,6 +183,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
   onRoleChange, onRemove, onUpdate, onLeave, onDelete, onBack, onCreate, isDefaultSpace, onToggleDefaultSpace,
   setlists = [], songs = [], schedules = [], setlistMap = {}, onOpenSong }) {
   const confirm = useConfirm();
+  const { canSetParts, setMemberInstruments } = useTeam();
   const [page, setPage] = useState('team');
   const [personId, setPersonId] = useState(null);
   const [churchOpen, setChurchOpen] = useState(false);
@@ -326,6 +327,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
         onRole={changeRole}
         onRemove={remove}
         onLeave={leave}
+        onSaveParts={canSetParts ? setMemberInstruments : undefined}
       />
       {isOwner && (
         <ChurchSheet
