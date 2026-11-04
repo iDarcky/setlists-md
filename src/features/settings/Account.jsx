@@ -57,25 +57,10 @@ export default function Account({
     }
   };
 
-  // **At most ONE instrument, plus singing** (owner, 2026-08-07/08). Playing
-  // two instruments in one service is not the normal case, and a profile
-  // claiming three is what made `resolveMyInstrument` give up and show every
-  // tab — it refuses to guess from an ambiguous list. Picking a second
-  // instrument REPLACES the first rather than erroring.
-  const toggleInstrument = (id) => {
-    const on = myTokens.some(t => t.split(':')[0] === id);
-    // Whatever happens, anything under `vocals:` survives — singing is the
-    // other axis now, not one of the instruments.
-    const sung = myTokens.filter(t => t.split(':')[0] === 'vocals');
-    save(on ? sung : [...sung, id]);
-  };
-
-  // Singing is independent of the instrument, and a person sings ONE part.
-  const togglePart = (partId) => {
-    const token = `vocals:${partId}`;
-    const others = myTokens.filter(t => t.split(':')[0] !== 'vocals');
-    save(myTokens.includes(token) ? others : [...others, token]);
-  };
+  // No limit (owner, 2026-11-04): any number of instruments and sung parts.
+  const toggleToken = (token) => save(myTokens.includes(token) ? myTokens.filter(t => t !== token) : [...myTokens, token]);
+  const toggleInstrument = (id) => toggleToken(id);
+  const togglePart = (partId) => toggleToken(`vocals:${partId}`);
 
   // Prefer the cloud display_name so the input matches what the rest of the UI
   // shows for signed-in users; fall back to the local userName for guests.
@@ -268,7 +253,7 @@ export default function Account({
                 a typed "Klavier" maps to nothing at all. */}
             <div className="flex flex-wrap gap-2">
               {INSTRUMENTS.map(inst => {
-                const active = myTokens.some(t => t.split(':')[0] === inst.id);
+                const active = myTokens.includes(inst.id);
                 return (
                   <button
                     key={inst.id}

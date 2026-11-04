@@ -32,7 +32,6 @@ import { buildNotifs } from '@/lib/notifData';
 import {
   SettingsHubView, ProfileView, AppearanceView, NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView,
 } from '@/features/settings/SettingsViews';
-import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
 import SetlistFlow from '@/features/setlist/SetlistFlow';
@@ -54,6 +53,7 @@ import GuestView from '@/features/sharing/GuestView';
 import { PrintBody } from '@/features/setlist/PrintSheet';
 import TeamPage, { InviteCard, UsageEntry, Waiting } from '@/features/team/TeamPage';
 import { PersonBody, ChurchBody } from '@/features/team/TeamSheets';
+import { PartsPicker } from '@/features/team/PartsPicker';
 import SongUsage, { SongPlays } from '@/features/team/SongUsage';
 import { songUsage } from '@/lib/songUsage';
 
@@ -226,7 +226,7 @@ const H_ACTIVITY = recentActivity([
   { id: 5, action: 'member_joined', entity_id: 'tp', actor_id: 'tp', created_at: hAgo(80) },
 ], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
 
-function HomeDemo({ leader = false, empty = false, layout }) {
+function HomeDemo({ leader = false, empty = false, noParts = false, layout }) {
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState('2026-11-01');
   const asks = empty ? [] : myAsks({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
@@ -241,7 +241,8 @@ function HomeDemo({ leader = false, empty = false, layout }) {
       dateLabel="Sunday, 25 October"
       sync={{ state: 'ok', label: 'Up to date' }}
       leader={leader}
-      needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW }) : []}
+      needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW, noParts: noParts ? ['Lia S', 'Tim P', 'Rob K', 'Mara D'] : [] }) : []}
+      parts={noParts ? { church: 'Grace Church', onOpen: noop } : null}
       asks={ask}
       onAnswer={noop}
       next={empty ? null : { setlist: H_SETLISTS[0], part: leader ? null : 'Keys', band, days: 7 }}
@@ -550,8 +551,7 @@ function SettingsDemo({ page, leader = true }) {
   const [theme, setTheme] = useState('dark');
   const [day, setDay] = useState('sunday');
   const [clock, setClock] = useState('12h');
-  const [inst, setInst] = useState(['acoustic-guitar']);
-  const [vocal, setVocal] = useState('tenor');
+  const [parts, setParts] = useState(['acoustic-guitar', 'vocals:tenor']);
   const [svc, setSvc] = useState([1440]);
   const [reh, setReh] = useState([180]);
   const [name, setName] = useState('Joe Doe');
@@ -560,7 +560,7 @@ function SettingsDemo({ page, leader = true }) {
   switch (page) {
     case 'profile':
       return <ProfileView embedded me={ST_ME} nameDraft={name} onNameDraft={setName} onSaveName={noop} church={CHURCH}
-        instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} picked={inst} vocal={vocal} onInstrument={(id) => setInst(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id])} onVocal={setVocal}
+        parts={parts} onParts={setParts}
         onChangePassword={noop} onDeleteAccount={noop} onBack={back} />;
     case 'appearance':
       return <AppearanceView embedded theme={theme} onTheme={setTheme} firstDay={day} onFirstDay={setDay} clock={clock} onClock={setClock} onBack={back} />;
@@ -977,7 +977,26 @@ const SCREENS = [
   ['Edit setlist: songs', () => <NewSetlistFlowDemo step="songs" isNew={false} />],
   ['Template editor', () => <TemplateEditor template={NF_TPL} setlists={NF_SETLISTS} onSave={noop} onCancel={noop} onDelete={noop} />],
   ['New setlist: no template yet', () => <NewSetlistPopupDemo first />],
+  ['Home: what do you play?', () => <HomeDemo layout="phone" noParts />],
+  ['Home: leader, people without parts', () => <HomeDemo layout="phone" leader noParts />],
+  ['What do you play? pop-up', () => <PartsPopupDemo />],
+  ['Person: leader edits what they play', () => (
+    <DrawerFrame title="Joe T."><PersonBody member={T_MEMBERS[3]} since="In Grace Church since March 2026" canManage canMakeAdmin startEditingParts onSaveParts={async () => {}}
+      upcoming={[]} onRole={noop} onRemove={noop} /></DrawerFrame>
+  )],
+  ['Home: desktop, what do you play?', () => <HomeDemo layout="wide" leader noParts />],
 ];
+
+function PartsPopupDemo() {
+  const [parts, setParts] = useState(['keys', 'vocals:alto']);
+  return (
+    <DrawerFrame title="What do you play?">
+      <p className="m-0 text-[14px] leading-5 text-muted-foreground">Pick everything you play and sing. You can change it any time in your profile.</p>
+      <PartsPicker tokens={parts} onChange={setParts} playLabel="You play" singLabel="You sing" />
+      <Button>Save</Button>
+    </DrawerFrame>
+  );
+}
 
 function Gallery() {
   return (

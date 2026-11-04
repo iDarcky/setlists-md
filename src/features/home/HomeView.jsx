@@ -77,6 +77,13 @@ function NeedsYou({ items, onOpen }) {
         sub: it.names.slice(0, 3).join(', ') + (it.names.length > 3 ? '…' : ''),
       };
     }
+    if (it.kind === 'parts') {
+      return {
+        icon: <TeamIcon />,
+        title: it.count === 1 ? '1 person hasn’t said what they play' : `${it.count} people haven’t said what they play`,
+        sub: it.names.slice(0, 3).join(', ') + (it.names.length > 3 ? '…' : ''),
+      };
+    }
     const sl = it.setlist;
     const when = shortDate(sl.date);
     if (it.kind === 'noband') return { icon: <CalendarIcon size={20} />, title: `${when} has no band yet`, sub: sl.name || 'Service' };
@@ -100,6 +107,26 @@ function NeedsYou({ items, onOpen }) {
         })}
       </List>
     </Section>
+  );
+}
+
+// ── What do you play? ───────────────────────────────────────────────────────
+
+/** Until you have said what you play and sing. No "Later": it stays until set. */
+function PartsCard({ church, onOpen }) {
+  return (
+    <section aria-label="What do you play?" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 sm:flex-row sm:items-center sm:gap-5">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-selected text-link"><MusicIcon size={22} /></span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h2 className="m-0 text-[16px] font-semibold leading-6">What do you play?</h2>
+          <p className="m-0 text-[14px] leading-5 text-muted-foreground">
+            Tell {church || 'your church'} what you play and sing. Leaders use it to plan the band, and your charts open on your part.
+          </p>
+        </div>
+      </div>
+      <Button className="sm:shrink-0" onClick={onOpen}>Pick what you play</Button>
+    </section>
   );
 }
 
@@ -414,12 +441,13 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
  * @param {Array} [p.activity]            from recentActivity() / activityFromSongs()
  * @param {boolean} [p.showNothingPlanned]
  * @param {Function} [p.onNewSetlist]     leaders: the "New setlist" button by the hello
+ * @param {{church, onOpen}} [p.parts]    you have not said what you play yet
  */
 export default function HomeView({
   name, dateLabel, sync, syncProblem, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
   strip, whoCanPlay, onOpenSchedule, activity, now, onOpenActivity, onOpenSongs,
-  showNothingPlanned = false, onNewSetlist, embedded = false, layout = 'auto',
+  showNothingPlanned = false, onNewSetlist, parts, embedded = false, layout = 'auto',
 }) {
   // One tree, picked by width (rendering both and hiding one would mount the
   // asks' own state twice). `layout` pins it for /design's frames.
@@ -454,6 +482,7 @@ export default function HomeView({
       <div className={cn('mx-auto flex w-full max-w-[1040px] flex-col gap-3 pb-8', wide ? 'px-8 pt-8' : layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-4')}>
         {hello}
         {syncProblem && <SyncProblem {...syncProblem} />}
+        {parts && <PartsCard {...parts} />}
         {wide ? (
           // From 1024px: the service and your weeks on the left, asks and lists on the right.
           <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">

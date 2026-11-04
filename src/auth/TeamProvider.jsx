@@ -6,6 +6,7 @@ import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
 import { canPlanServices, canWriteLibrary as roleCanWriteLibrary, canApproveJoins } from '@/lib/teamRoles';
 import { useTeamJoinRequests } from '@/hooks/useTeamJoinRequests';
 import { cachedTeams, cacheTeams, cachedMembers, cacheMembers } from '@/lib/launchCache';
+import { saveMemberInstruments as saveInstrumentsRow, canSetOthersParts } from '@/lib/memberInstruments';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -240,6 +241,12 @@ export function TeamProvider({ children }) {
       if (!user?.id) throw new Error('No user signed in.');
     };
 
+    const saveMemberInstruments = async (memberId, instruments) => {
+      const saved = await saveInstrumentsRow(supabase, { memberId, instruments });
+      setMembers(prev => prev.map(m => m.id === memberId ? { ...m, instruments: saved } : m));
+      return saved;
+    };
+
     // How many Spaces this account owns, and whether that's hit the cap.
     const ownedWorkspaceCount = teams.filter(t => t.owner_id === user?.id).length;
     const atWorkspaceLimit = ownedWorkspaceCount >= MAX_OWNED_WORKSPACES;
@@ -255,6 +262,8 @@ export function TeamProvider({ children }) {
     const isEditor = myRole === 'editor';
     const isMember = myRole === 'member';
     const isLeader = myRole === 'leader';
+    // Owner and leaders may set what someone else plays.
+    const canSetParts = !!team && canSetOthersParts({ role: myRole, isOwner: team.owner_id === user?.id });
 
     // Who may run the schedule/band: admins (full power) and leaders (worship
     // leaders — manage availability + assignments, but not billing/team config).
@@ -288,6 +297,7 @@ export function TeamProvider({ children }) {
       isEditor,
       isMember,
       isLeader,
+      canSetParts,
       canManageBand,
       hasTeamPlan,
       ownedWorkspaceCount,
@@ -532,19 +542,21 @@ export function TeamProvider({ children }) {
       updateMyInstruments: async (instruments) => {
         guard();
         if (!team) throw new Error('No team exists.');
-        const clean = Array.isArray(instruments)
-          ? Array.from(new Set(instruments.map(s => String(s).trim()).filter(Boolean)))
-          : [];
-        const { error } = await supabase
-          .from('team_members')
-          .update({ instruments: clean })
-          .eq('team_id', team.id)
-          .eq('user_id', user.id);
-        if (error) throw error;
-        setMembers(prev => prev.map(m =>
-          m.user_id === user.id ? { ...m, instruments: clean } : m
-        ));
-        return clean;
+        const mine = members.find(m => m.user_id === user.id);
+        if (!mine) throw new Error('You are not in this church yet.');
+        return saveMemberInstruments(mine.id, instruments);
+      },
+
+      /**
+       * Set what someone plays. Yourself, or anyone if you are the owner or a
+       * leader (the server checks; 20261104_member_instruments.sql).
+       * @param {string} memberId  team_members.id
+       * @param {string[]} instruments
+       */
+      setMemberInstruments: async (memberId, instruments) => {
+        guard();
+        if (!team) throw new Error('No team exists.');
+        return saveMemberInstruments(memberId, instruments);
       },
 
       /**
