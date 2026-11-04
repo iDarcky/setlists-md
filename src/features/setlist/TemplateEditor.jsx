@@ -8,6 +8,8 @@ import { ChevronRightIcon, PlusIcon } from '@/app/navIcons';
 import { partName, ADDABLE_PARTS } from '@/lib/bandParts';
 import { WEEKDAYS, splitPattern, joinPattern, nextNumber, templateTitle, blankTemplate, placeholderItem, isPlaceholder } from '@/lib/newSetlist';
 import { Chip, TimeSheet } from './WhenPickers';
+import { useDragReorder, moveItem } from './useDragReorder';
+import { Grip } from './SetlistEdit';
 
 // Service templates (canvas → New setlist, NS7Template): when, where, the
 // rehearsal, the setlist NAME with its running number, the band's parts and
@@ -43,13 +45,16 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
   const next = numbered ? nextNumber(t.namePattern, setlists, '', t.startNumber) : null;
   const items = t.items;
   const setItems = (fn) => setT(x => ({ ...x, items: fn(x.items) }));
-  const move = (i, d) => setItems(xs => { const n = [...xs]; const j = i + d; if (j < 0 || j >= n.length) return n; [n[i], n[j]] = [n[j], n[i]]; return n; });
+  const { listRef, gripProps, rowStyle } = useDragReorder((from, to) => setItems(xs => moveItem(xs, from, to)));
   const title = templateTitle(t);
   const canSave = !!(t.templateName || '').trim();
 
   const save = () => {
     const name = t.templateName.trim();
-    onSave({ ...t, templateName: name, name, service: t.service || name, isTemplate: true, updatedAt: Date.now() });
+    // The template IS the service now: renaming it renames the service, and
+    // App carries the new name onto the setlists that had the old one.
+    const { virtual: _v, ...rest } = t;
+    onSave({ ...rest, templateName: name, name, service: name, isTemplate: true, updatedAt: Date.now() }, { previousService: template?.service || templateTitle(template) || '' });
   };
 
   return createPortal(
@@ -110,9 +115,10 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           </div>
 
           <Caps>Order</Caps>
-          <div className="rounded-card border border-border bg-card px-2 py-1">
+          <div ref={listRef} className="rounded-card border border-border bg-card px-2 py-1">
             {items.map((it, i) => (
-              <div key={i} className={cn('my-1 flex min-h-12 items-center gap-2 rounded-control px-2', isPlaceholder(it) ? 'border border-dashed border-input' : 'border border-transparent')}>
+              <div key={i} data-drag-row style={rowStyle(i)} className={cn('my-1 flex min-h-12 items-center gap-2 rounded-control bg-card pr-1', isPlaceholder(it) ? 'border border-dashed border-input' : 'border border-transparent')}>
+                <Grip {...gripProps(i)} />
                 {it.type === 'break' ? (
                   <>
                     <Input value={it.label || ''} maxLength={60} placeholder="Moment, e.g. Prayer" aria-label="Moment name"
@@ -123,8 +129,6 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
                 ) : (
                   <span className="flex-1 text-[15px] font-semibold">{it.songId ? (it.songTitle || 'Song') : 'Song'}{it.songId && <span className="ml-2 text-[12px] font-normal text-muted-foreground">always this song</span>}</span>
                 )}
-                <Button variant="ghost" size="icon" className="size-9" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>↑</Button>
-                <Button variant="ghost" size="icon" className="size-9" aria-label="Move down" disabled={i === items.length - 1} onClick={() => move(i, 1)}>↓</Button>
                 <Button variant="ghost" size="icon" className="size-9 text-danger" aria-label="Remove" onClick={() => setItems(xs => xs.filter((_, j) => j !== i))}>✕</Button>
               </div>
             ))}
@@ -158,27 +162,36 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
 }
 
 /** Every template, with New template. Opens the editor for one. */
+export function TemplatesList({ templates = [], onEdit, onNew }) {
+  return (
+    <div className="flex flex-col gap-3 font-sans">
+      <div className="rounded-card border border-border bg-card">
+        {templates.map(t => (
+          <button key={t.id} type="button" onClick={() => onEdit(t)}
+            className="flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-solid border-border bg-transparent px-4 py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="truncate text-[15px] font-semibold">{templateTitle(t)}</span>
+              <span className="truncate text-[13px] text-muted-foreground">
+                {t.virtual
+                  ? 'From your setlists · tap to set it up'
+                  : [Number.isInteger(t.weekday) && `${WEEKDAYS[t.weekday]} ${t.time || ''}`.trim(), t.location, `${(t.items || []).filter(i => i.type !== 'break').length} songs`].filter(Boolean).join(' · ')}
+              </span>
+            </span>
+            <ChevronRightIcon />
+          </button>
+        ))}
+        {!templates.length && <p className="m-0 px-4 py-5 text-[14px] text-muted-foreground">No templates yet. A template holds a service’s day, time, rehearsal, band parts and order.</p>}
+      </div>
+      <Button onClick={onNew}><PlusIcon size={16} />New template</Button>
+      <p className="m-0 text-[13px] text-muted-foreground">Each service is a template. Renaming one renames it on the setlists made with it.</p>
+    </div>
+  );
+}
+
 export function TemplatesSheet({ open, onOpenChange, templates = [], onEdit, onNew }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Service templates" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
-      <div className="flex flex-col gap-3 font-sans">
-        <div className="rounded-card border border-border bg-card">
-          {templates.map(t => (
-            <button key={t.id} type="button" onClick={() => onEdit(t)}
-              className="flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-solid border-border bg-transparent px-4 py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised">
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-[15px] font-semibold">{templateTitle(t)}</span>
-                <span className="truncate text-[13px] text-muted-foreground">
-                  {[Number.isInteger(t.weekday) && `${WEEKDAYS[t.weekday]} ${t.time || ''}`.trim(), t.location, `${(t.items || []).filter(i => i.type !== 'break').length} songs`].filter(Boolean).join(' · ')}
-                </span>
-              </span>
-              <ChevronRightIcon />
-            </button>
-          ))}
-          {!templates.length && <p className="m-0 px-4 py-5 text-[14px] text-muted-foreground">No templates yet. A template holds a service’s day, time, rehearsal, band parts and order.</p>}
-        </div>
-        <Button onClick={onNew}><PlusIcon size={16} />New template</Button>
-      </div>
+    <Sheet open={open} onOpenChange={onOpenChange} title="Templates" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
+      <TemplatesList templates={templates} onEdit={onEdit} onNew={onNew} />
     </Sheet>
   );
 }

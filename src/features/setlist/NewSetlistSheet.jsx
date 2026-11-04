@@ -2,66 +2,73 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
-import { Input } from '@/ui/shadcn/input';
-import { serviceStarts, newSetlistFrom, blankDate, dayLabel } from '@/lib/newSetlist';
+import { templatesOf, serviceTemplates, templateTitle, draftFromTemplate, dayLabel, blankTemplate } from '@/lib/newSetlist';
+import { TemplateEditor, TemplatesSheet } from './TemplateEditor';
 
-// "New setlist" (canvas → Setlist, SetNew): start from a service the church
-// already runs, or blank. Drawer on a phone, dialog from the iPad up. Create
-// opens the new edit page with the draft; nothing is saved until Done.
+// "+ New setlist" (canvas → New setlist v2, V2Popup): pick a template — each
+// service the church runs is one — or an empty setlist. The next free date
+// and the automatic name are already worked out; Continue opens Details and
+// band with the draft. Nothing is saved until the flow saves it.
 
-function Row({ id, name, sub, right, pick, onPick }) {
+function Row({ on, title, sub, name, onPick }) {
   return (
-    <button type="button" role="radio" aria-checked={pick === id} onClick={() => onPick(id)}
-      className={cn('flex w-full cursor-pointer items-center gap-3 rounded-card border px-4 py-2.5 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        pick === id ? 'border-link bg-selected' : 'border-border bg-transparent hover:bg-raised/50')}>
+    <button type="button" role="radio" aria-checked={on} onClick={onPick}
+      className={cn('flex w-full cursor-pointer items-center gap-3 rounded-card border px-4 py-3 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        on ? 'border-link bg-selected' : 'border-border bg-transparent hover:bg-raised/50')}>
+      <span className={cn('size-5 shrink-0 rounded-full border-2', on ? 'border-[6px] border-link' : 'border-input')} aria-hidden="true" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[15px] font-semibold">{name}</span>
-        {sub && <span className="text-[13px] leading-5 text-muted-foreground">{sub}</span>}
+        <span className="truncate text-[16px] font-semibold">{title}</span>
+        {sub && <span className="truncate text-[13px] text-muted-foreground">{sub}</span>}
+        {name && <span className="truncate font-mono text-[12px] text-foreground">{name}</span>}
       </span>
-      {right && <span className="shrink-0 text-[13px] font-semibold text-link">{right}</span>}
     </button>
   );
 }
 
-export function NewSetlistBody({ starts, onCreate, onEditTemplates }) {
-  const [pick, setPick] = useState(starts[0]?.id || 'blank');
-  const chosen = starts.find(s => s.id === pick) || null;
-  const [dates, setDates] = useState({});
-  const date = dates[pick] ?? (chosen ? chosen.date : blankDate());
-  const [changing, setChanging] = useState(false);
-  const onPick = (id) => { setPick(id); setChanging(false); };
-
+export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates }) {
+  const templates = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
+  const drafts = useMemo(() => Object.fromEntries(templates.map(t => [t.id, draftFromTemplate(t, setlists)])), [templates, setlists]);
+  const [pick, setPick] = useState(templates[0]?.id || 'blank');
+  const create = () => {
+    const tpl = templates.find(t => t.id === pick) || null;
+    onCreate(tpl ? drafts[tpl.id] : draftFromTemplate(null, setlists));
+  };
   return (
-    <div className="flex flex-col gap-4 font-sans">
-      {starts.length > 0 && <h3 className="m-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Start from a service</h3>}
+    <div className="flex flex-col gap-3 font-sans">
+      <p className="m-0 -mt-1 text-[13px] text-muted-foreground">Pick a template. Everything in it can be changed after.</p>
       <div role="radiogroup" aria-label="Start from" className="flex flex-col gap-2">
-        {starts.map(s => <Row key={s.id} id={s.id} name={s.name} sub={s.sub} right={dayLabel(dates[s.id] ?? s.date)} pick={pick} onPick={onPick} />)}
-        <Row id="blank" name="Blank setlist" sub="No template" right={pick === 'blank' ? dayLabel(date) : ''} pick={pick} onPick={onPick} />
+        {templates.map(t => {
+          const d = drafts[t.id];
+          return (
+            <Row key={t.id} on={pick === t.id} onPick={() => setPick(t.id)} title={templateTitle(t)}
+              sub={[dayLabel(d.date), d.time, d.location].filter(Boolean).join(' · ')}
+              name={d.name && d.name !== templateTitle(t) ? d.name : ''} />
+          );
+        })}
+        <Row on={pick === 'blank'} onPick={() => setPick('blank')} title="Empty setlist" sub="No band, no order" />
       </div>
-      <div className="flex items-center justify-between gap-3 text-[14px]">
-        {onEditTemplates ? <Button variant="link" onClick={onEditTemplates}>Edit templates</Button> : <span />}
-        <span className="text-muted-foreground">
-          {changing ? null : <>Date: {chosen ? 'next free day' : 'next Sunday'} · <Button variant="link" onClick={() => setChanging(true)}>change it</Button></>}
-        </span>
-      </div>
-      {changing && (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[14px] font-medium">Date</span>
-          <Input type="date" value={date} onChange={(e) => setDates(prev => ({ ...prev, [pick]: e.target.value }))} />
-        </label>
-      )}
-      <Button onClick={() => onCreate(newSetlistFrom(chosen?.from || null, date))}>
-        {date ? `Create for ${dayLabel(date)}` : 'Create'}
-      </Button>
+      {onEditTemplates && <Button variant="link" className="self-start text-[14px]" onClick={onEditTemplates}>Edit templates</Button>}
+      <Button className="h-12" onClick={create}>Continue</Button>
     </div>
   );
 }
 
-export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onCreate, onEditTemplates }) {
-  const starts = useMemo(() => (open ? serviceStarts(setlists) : []), [open, setlists]);
+export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onCreate, onSaveTemplate, onDeleteTemplate }) {
+  const [list, setList] = useState(false);
+  const [edit, setEdit] = useState(null);
+  const saved = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="New setlist" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
-      {open && <NewSetlistBody starts={starts} onCreate={onCreate} onEditTemplates={onEditTemplates} />}
-    </Sheet>
+    <>
+      <Sheet open={open && !list && !edit} onOpenChange={onOpenChange} title="New setlist" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
+        {open && <NewSetlistBody setlists={setlists} onCreate={onCreate} onEditTemplates={onSaveTemplate ? () => setList(true) : null} />}
+      </Sheet>
+      <TemplatesSheet open={open && list} onOpenChange={setList} templates={saved}
+        onEdit={(t) => { setList(false); setEdit(t); }} onNew={() => { setList(false); setEdit(blankTemplate()); }} />
+      {open && edit && (
+        <TemplateEditor template={edit} setlists={setlists} onCancel={() => setEdit(null)}
+          onSave={(tpl, meta) => { onSaveTemplate?.(tpl, meta); setEdit(null); }}
+          onDelete={!edit.virtual && templatesOf(setlists).some(t => t.id === edit.id) && onDeleteTemplate ? () => { onDeleteTemplate(edit.id); setEdit(null); } : null} />
+      )}
+    </>
   );
 }

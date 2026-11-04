@@ -1344,9 +1344,9 @@ export default function App() {
         if (!ok) return;
       }
     }
-    // New: the step-by-step New setlist (Service → Band → Songs → Who leads)
-    // gets a blank unsaved draft; it starts itself from the first template.
-    if (!sl?.id) { navigate('setlist-build', { setlist: { name: '', status: 'draft', items: [], ...sl, date: sl?.date || '', id: generateId() } }); return; }
+    // New: the template pop-up first, then Details and band → Songs with
+    // the draft it worked out. Nothing is saved until the flow saves it.
+    if (!sl?.id) { setNewSetlistOpen(true); return; }
     navigate('setlist-build', { setlist: sl });
   };
   const goSetlistView = (sl) => {
@@ -1772,21 +1772,6 @@ export default function App() {
     setTrash([]);
   };
 
-  // Rename or clear a service across every setlist that uses it. Passing an
-  // empty newName "deletes" the service (it disappears once unused). Mutates
-  // via setSetlists like other setlist edits, so the auto-save effect persists.
-  const handleRemapService = useCallback((oldName, newName) => {
-    const next = (newName || '').trim();
-    setSetlists(prev => prev.map(sl =>
-      (sl.service || '') === oldName
-        ? { ...sl, service: next, updatedAt: Date.now() }
-        : sl
-    ));
-    toast(next
-      ? { title: 'Service renamed', description: `“${oldName}” → “${next}”` }
-      : { title: 'Service removed', description: `“${oldName}” cleared from its setlists` });
-  }, []);
-
   // Home's "Mark ready" on the next service: the same status the builder's
   // Draft/Ready picker writes, saved through the usual auto-save.
   const markSetlistReady = (target) => {
@@ -2121,10 +2106,20 @@ export default function App() {
 
   // Service templates (New setlist → Edit templates). A template is a setlist
   // with isTemplate, so it syncs like one; it never touches a made setlist.
-  const handleSaveTemplate = (tpl) => {
+  const handleSaveTemplate = (tpl, { previousService = '' } = {}) => {
     if (isTeamReadOnly) { onlyLeadersRef.current(); return; }
-    const stamped = { ...tpl, isTemplate: true, updatedAt: Date.now() };
-    setSetlists(prev => (prev.some(s => s.id === tpl.id) ? prev.map(s => (s.id === tpl.id ? stamped : s)) : [...prev, stamped]));
+    // A template made from a service that had none yet gets its own id.
+    const id = String(tpl.id || '').startsWith('service:') ? generateId() : tpl.id;
+    const stamped = { ...tpl, id, isTemplate: true, updatedAt: Date.now() };
+    delete stamped.virtual;
+    const from = (previousService || '').trim();
+    const to = (stamped.service || '').trim();
+    setSetlists(prev => {
+      const next = prev.some(s => s.id === id) ? prev.map(s => (s.id === id ? stamped : s)) : [...prev, stamped];
+      // Renaming the template renames its service on the setlists made with it.
+      if (!from || !to || from === to) return next;
+      return next.map(s => (!s.isTemplate && (s.service || '') === from ? { ...s, service: to, updatedAt: Date.now() } : s));
+    });
     toast({ title: 'Template saved', description: tpl.templateName || tpl.name });
   };
   const handleDeleteTemplate = async (id) => {
@@ -2727,8 +2722,6 @@ export default function App() {
               createSchedule={createSchedule}
               deleteSchedule={deleteSchedule}
               ensureRow={ensureSetlistRow}
-              onSaveTemplate={handleSaveTemplate}
-              onDeleteTemplate={handleDeleteTemplate}
             />
           )}
           {view === 'setlist-build' && !currentSetlist?.id && (
@@ -2870,7 +2863,8 @@ export default function App() {
               setlists={setlists}
               songs={songs}
               trash={trash}
-              onRemapService={handleRemapService}
+              onSaveTemplate={isTeamReadOnly ? null : handleSaveTemplate}
+              onDeleteTemplate={handleDeleteTemplate}
               onDownloadSongs={() => {
                 songs.forEach(s => {
                   const md = songToMd(s);
@@ -3033,7 +3027,8 @@ export default function App() {
         onOpenChange={setNewSetlistOpen}
         setlists={setlists}
         onCreate={(draft) => { setNewSetlistOpen(false); navigate('setlist-build', { setlist: draft }); }}
-        onEditTemplates={() => { setNewSetlistOpen(false); goToMainView('settings', { settingsPanel: 'services' }); }}
+        onSaveTemplate={isTeamReadOnly ? null : handleSaveTemplate}
+        onDeleteTemplate={handleDeleteTemplate}
       />
 
       {/* Founder note — surfaced on the dashboard once after the user has

@@ -155,7 +155,7 @@ export function SettingsHubView({ signedIn = true, summary = {}, church, own, on
           <GroupLabel>{church.name}</GroupLabel>
           <Group>
             <NavRow icon={<CardIcon />} label="Plan and billing" detail={summary.plan} onClick={() => onOpen('plan')} />
-            <NavRow icon={<CalendarIcon />} label="Services" detail={summary.services} onClick={() => onOpen('services')} />
+            <NavRow icon={<CalendarIcon />} label="Templates" detail={summary.services} onClick={() => onOpen('services')} />
             <NavRow icon={<DataIcon />} label="Data" detail={summary.data} onClick={() => onOpen('data')} />
           </Group>
           <Note>Only leaders see this.</Note>

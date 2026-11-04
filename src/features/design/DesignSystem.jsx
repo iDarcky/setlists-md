@@ -38,7 +38,6 @@ import SetlistEdit from '@/features/setlist/SetlistEdit';
 import SetlistFlow from '@/features/setlist/SetlistFlow';
 import { TemplateEditor } from '@/features/setlist/TemplateEditor';
 import { NewSetlistBody } from '@/features/setlist/NewSetlistSheet';
-import { serviceStarts } from '@/lib/newSetlist';
 import RunSheet from '@/features/setlist/RunSheet';
 import { toast } from '@/ui/use-toast';
 import { showUndoToast } from '@/lib/undoToast';
@@ -667,7 +666,6 @@ const NS_SETLISTS = [
   { id: 'n2', name: 'Youth Night', service: 'Youth Night', date: '2026-10-30', time: '19:00', items: [{ type: 'break', label: 'Games' }] },
   { id: 'n3', isTemplate: true, templateName: 'Christmas Eve', items: [{ songId: 'a' }, { songId: 'b' }, { type: 'break', label: 'Carols' }] },
 ];
-const NS_STARTS = serviceStarts(NS_SETLISTS, '2026-11-02');
 
 function SetlistEditGallery() {
   const edit = (picked) => <SetlistEdit embedded setlist={SL} songs={SL_SONGS} setlists={SL_PAST} people={SL_PEOPLE} nameOf={(u) => SL_NAMES[u] || ''} initialPicked={picked} onSave={noop} onCancel={noop} />;
@@ -677,7 +675,7 @@ function SetlistEditGallery() {
         <Frame key={'ns' + t.id} theme={t.id} width={390} height={620} scale={0.6} label={`New setlist · ${t.label}`}>
           <div className="min-h-full bg-background p-4 text-foreground">
             <h2 className="m-0 mb-4 font-sans text-title font-semibold">New setlist</h2>
-            <NewSetlistBody starts={NS_STARTS} onCreate={noop} onEditTemplates={noop} />
+            <NewSetlistBody setlists={NS_SETLISTS} onCreate={noop} onEditTemplates={noop} />
           </div>
         </Frame>
       ))}
@@ -944,7 +942,13 @@ const nfPeople = () => [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }];
 const NewSetlistFlowDemo = ({ step, isNew = true }) => (
   <SetlistFlow setlist={NF_DRAFT} isNew={isNew} initialStep={step} songs={NF_SONGS} setlists={NF_SETLISTS} peopleOf={nfPeople}
     nameOf={(u) => ({ jd: 'Joe', am: 'Ana' }[u] || bdName(u))} team={{ id: 'demo' }} members={BD_MEMBERS}
-    onSave={noop} onCancel={noop} onSaveTemplate={noop} onDeleteTemplate={noop} />
+    onSave={noop} onCancel={noop} />
+);
+const NewSetlistPopupDemo = () => (
+  <div className="min-h-full bg-background p-4 font-sans text-foreground">
+    <h2 className="m-0 mb-3 text-[18px] font-semibold">New setlist</h2>
+    <NewSetlistBody setlists={NF_SETLISTS} onCreate={noop} onEditTemplates={noop} />
+  </div>
 );
 
 const FILLED = { name: 'Joe Doe', email: 'joe@example.com', password: 'password1', confirm: 'password1' };
@@ -972,10 +976,10 @@ const SCREENS = [
   )],
   ['Join: not approved', () => <DeclinedView embedded church={CHURCH} onOpenApp={noop} onSignOut={noop} />],
   ['Join: link doesn’t work', () => <BadLinkView embedded onOpenApp={noop} />],
-  ['New setlist: service', () => <NewSetlistFlowDemo step="service" />],
-  ['New setlist: band', () => <NewSetlistFlowDemo step="band" />],
+  ['New setlist: pick a template', () => <NewSetlistPopupDemo />],
+  ['New setlist: details and band', () => <NewSetlistFlowDemo step="details" />],
   ['New setlist: songs', () => <NewSetlistFlowDemo step="songs" />],
-  ['New setlist: who leads', () => <NewSetlistFlowDemo step="leads" />],
+  ['Edit setlist: songs', () => <NewSetlistFlowDemo step="songs" isNew={false} />],
   ['Template editor', () => <TemplateEditor template={NF_TPL} setlists={NF_SETLISTS} onSave={noop} onCancel={noop} onDelete={noop} />],
 ];
 

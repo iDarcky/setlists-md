@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
-import { Sheet } from '@/ui/shadcn/sheet';
-import { PlusIcon, MoreIcon } from '@/app/navIcons';
+import { PlusIcon } from '@/app/navIcons';
 import { transposeKey, transposeChord } from '@/music';
 import { parseLine } from '@/parser';
 import { resolveSongView, getArrangement } from '@/arrangements';
@@ -12,22 +10,22 @@ import { searchSongs } from '@/lib/search';
 import { suggestSongs } from '@/lib/suggestSongs';
 import { buildOrder } from '@/lib/setlistView';
 import {
-  templatesOf, serviceTemplates, templateTitle, draftFromTemplate, autoName, nextDates, takenDates, shiftDate,
-  isPlaceholder, placeholderItem, lastPlayed, blankTemplate, dayLabel as longDay, shortDayLabel as shortDay,
+  templatesOf, serviceTemplates, templateTitle, autoName, nextDates, takenDates, shiftDate,
+  isPlaceholder, placeholderItem, lastPlayed, dayLabel as longDay, shortDayLabel as shortDay,
 } from '@/lib/newSetlist';
 import { useDragReorder, moveItem } from './useDragReorder';
-import { MomentFields, NoteEditor, MoveButtons, Grip, Label, NOTE_MAX } from './SetlistEdit';
+import { MomentFields, NoteEditor, Grip, NOTE_MAX } from './SetlistEdit';
 import { Chip, DateSheet, TimeSheet } from './WhenPickers';
-import { TemplateEditor, TemplatesSheet } from './TemplateEditor';
 import BandSection from './BandSection';
 
-// New setlist, step by step (canvas → New setlist): Service → Band → Songs →
-// Who leads. The same screens edit a setlist later, with the steps as tabs.
+// New setlist (canvas → New setlist v2): the template pop-up picks where to
+// start, then two steps: Details and band, then Songs. The same two screens
+// edit a setlist later, opening on Songs.
 // A copy is edited here and saved on Save, so nothing reaches the band
 // half-made; a new setlist's band picks travel with it as `plannedBand` and
 // the setlist page sends those asks once it is saved.
 
-const STEPS = [['service', 'Service'], ['band', 'Band'], ['songs', 'Songs'], ['leads', 'Who leads']];
+const STEPS = [['details', 'Details and band'], ['songs', 'Songs']];
 const TIMES = ['4/4', '3/4', '6/8', '2/4'];
 
 const WIDE = '(min-width: 1024px)';
@@ -61,9 +59,9 @@ const lastLine = (lp, song, nameOf) => {
   return { date: longDay(lp.date), bits, who: lp.leadBy ? nameOf(lp.leadBy) : '' };
 };
 
-/* ── Step 1 · Service ─────────────────────────────────────────────────────── */
+/* ── Step 1 · Details ─────────────────────────────────────────────────────── */
 
-function ServiceStep({ wide, draft, setDraft, isNew, templates, template, onPickTemplate, onEditTemplates, setlists, nameTouched, setNameTouched }) {
+function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, setNameTouched }) {
   const [sheet, setSheet] = useState(null);   // 'date' | 'time' | 'rDate' | 'rTime'
   const weekday = Number.isInteger(template?.weekday) ? template.weekday : (draft.date ? new Date(`${draft.date}T12:00:00`).getDay() : 0);
   const dates = useMemo(() => {
@@ -90,16 +88,6 @@ function ServiceStep({ wide, draft, setDraft, isNew, templates, template, onPick
 
   return (
     <div className="flex flex-col gap-3">
-      {isNew && (
-        <>
-          <Caps>Service</Caps>
-          <div className="flex flex-wrap gap-2">
-            {templates.map(t => <Chip key={t.id} on={template?.id === t.id} onClick={() => onPickTemplate(t)}>{templateTitle(t)}</Chip>)}
-            <Chip dashed={!!template} on={!template} onClick={() => onPickTemplate(null)}>Empty</Chip>
-          </div>
-          {onEditTemplates && <Button variant="link" className="self-start text-[14px]" onClick={onEditTemplates}>Edit templates</Button>}
-        </>
-      )}
       <div className="rounded-card border border-border bg-card">
         <Field label="Name">
           <Input value={draft.name || ''} maxLength={80} placeholder="Sunday Morning" aria-label="Setlist name"
@@ -151,7 +139,7 @@ function ServiceStep({ wide, draft, setDraft, isNew, templates, template, onPick
   );
 }
 
-/* ── Step 3 · Songs ───────────────────────────────────────────────────────── */
+/* ── Step 2 · Songs ───────────────────────────────────────────────────────── */
 
 /** A song's chart, chords over words, for the desktop preview. */
 function ChartPreview({ view, transpose = 0 }) {
@@ -178,42 +166,43 @@ function ChartPreview({ view, transpose = 0 }) {
   );
 }
 
-function PickList({ songs, draft, setlists, at, nameOf, onAdd, onPreview, previewId, onKeepSong, today }) {
+const shortDate = (date) => (date ? new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '');
+
+/**
+ * "Add songs": search, then one line per song (key · last played) with +.
+ * Plain on purpose (2026-11-04: the three-column picker was "too busy").
+ */
+function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview, previewId, onEmptySlot, searchRef }) {
   const [q, setQ] = useState('');
-  const [tab, setTab] = useState('suggested');
   const inSet = new Set((draft.items || []).map(i => i?.songId).filter(Boolean));
-  const suggested = useMemo(() => suggestSongs({ songs, setlist: draft, setlists, at, limit: 6 }), [songs, draft, setlists, at]);
+  const suggested = useMemo(() => suggestSongs({ songs, setlist: draft, setlists, at, limit: 8 }), [songs, draft, setlists, at]);
   const sorted = useMemo(() => [...songs].sort((a, b) => (a.title || '').localeCompare(b.title || '')), [songs]);
-  const last = (s) => lastPlayed(s.id, setlists, today, draft.id);
-  let list;
-  if (q.trim()) list = searchSongs(songs, q, { limit: 40 }).map(s => ({ song: s }));
-  else if (tab === 'suggested' && suggested.length) { const ids = new Set(suggested.map(x => x.song.id)); list = [...suggested, ...sorted.filter(s => !ids.has(s.id)).map(s => ({ song: s }))]; }
-  else if (tab === 'stale') list = sorted.map(s => ({ song: s, lp: last(s) })).sort((a, b) => (a.lp?.date || '').localeCompare(b.lp?.date || '')).slice(0, 40);
-  else list = sorted.map(s => ({ song: s }));
+  let list; let label;
+  if (q.trim()) { list = searchSongs(songs, q, { limit: 40 }); label = null; }
+  else if (suggested.length) {
+    const ids = new Set(suggested.map(x => x.song.id));
+    list = [...suggested.map(x => x.song), ...sorted.filter(s => !ids.has(s.id))]; label = 'Suggested';
+  } else { list = sorted; label = 'All songs'; }
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
-      <Input type="search" inputMode="search" autoFocus={!onPreview} placeholder="Search the library" value={q} onChange={e => setQ(e.target.value)} className="h-11" />
-      {!q.trim() && (
-        <div className="flex gap-1.5 overflow-x-auto">
-          {[['suggested', 'Suggested'], ['all', 'All'], ['stale', 'Not played lately']].map(([k, l]) => <Chip key={k} on={tab === k} className="h-8 px-3 text-[13px]" onClick={() => setTab(k)}>{l}</Chip>)}
-        </div>
-      )}
+      <div className="flex items-baseline justify-between gap-3">
+        <b className="text-[17px] font-semibold">Add songs</b>
+        <span className="truncate text-[13px] text-muted-foreground">{filling ? `filling song ${filling}` : '+ fills the next “Song”'}</span>
+      </div>
+      <Input ref={searchRef} type="search" inputMode="search" placeholder="Search the library" value={q} onChange={e => setQ(e.target.value)} className="h-11" />
+      {label && <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>}
       <div className="rounded-card border border-border bg-card">
-        {list.map(({ song: s, why, lp: lp0 }) => {
-          const lp = lp0 !== undefined ? lp0 : last(s);
-          const l = lastLine(lp, s, nameOf);
-          const added = inSet.has(s.id);
+        {list.map(s => {
+          const lp = lastPlayed(s.id, setlists, today, draft.id);
+          const v = resolveSongView(s);
+          const line = [v?.key && transposeKey(v.key, lp?.transpose || 0), lp ? `last ${shortDate(lp.date)}` : 'never played', inSet.has(s.id) && 'in this setlist'].filter(Boolean).join(' · ');
           return (
-            <div key={s.id} className={cn('flex min-h-14 items-center gap-2 border-t border-border px-3 py-2 first:border-t-0', previewId === s.id && 'bg-selected shadow-[inset_3px_0_0_var(--color-link)]')}>
+            <div key={s.id} className={cn('flex min-h-[52px] items-center gap-2 border-t border-border px-3 py-1.5 first:border-t-0', previewId === s.id && 'bg-selected')}>
               <button type="button" onClick={() => (onPreview ? onPreview(s.id) : onAdd(s))}
                 className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:underline">
-                <span className="truncate text-[15px] font-semibold">{s.title}</span>
-                <span className="truncate text-[12px] text-muted-foreground">
-                  {typeof l === 'string' ? l : <>Last: {l.date} · <span className="text-foreground">{l.bits}</span></>}
-                  {added && ' · in this setlist'}
-                </span>
-                {why && <span className="truncate text-[12px] text-link">{why}</span>}
+                <span className="truncate text-[14px] font-semibold">{s.title}</span>
+                <span className="truncate text-[12px] text-muted-foreground">{line}</span>
               </button>
               <Button variant="outline" size="icon" className="size-9 shrink-0 rounded-full" aria-label={`Add ${s.title}`} onClick={() => onAdd(s)}><PlusIcon size={18} /></Button>
             </div>
@@ -221,132 +210,105 @@ function PickList({ songs, draft, setlists, at, nameOf, onAdd, onPreview, previe
         })}
         {!list.length && <p className="m-0 px-4 py-6 text-center text-[14px] text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
       </div>
-      <div className="rounded-card border border-border bg-card">
-        <button type="button" onClick={() => onKeepSong(q.trim())}
-          className="flex min-h-12 w-full cursor-pointer flex-col items-start justify-center gap-0.5 border-0 bg-transparent px-3 py-2 text-left font-sans text-foreground outline-none">
-          <span className="text-[15px] font-semibold">Keep it as “{q.trim() || 'Song'}”</span>
-          <span className="text-[12px] text-muted-foreground">Choose the song later; the band sees “to be chosen”</span>
-        </button>
-      </div>
+      <Button variant="link" className="self-start text-[14px]" onClick={() => onEmptySlot(q.trim())}>
+        {q.trim() ? `Keep a “${q.trim()}” slot, choose the song later` : 'Add an empty “Song”, choose later'}
+      </Button>
     </div>
   );
 }
 
-/** Key, BPM, time, version and the note for one song in this setlist. */
-function SongSettings({ item, song, setlists, draftId, nameOf, today, onChange }) {
+const SettingRow = ({ label, children }) => (
+  <div className="flex min-h-[50px] items-center gap-3 border-t border-border py-2 pl-10 pr-3">
+    <span className="w-[58px] shrink-0 text-[13px] text-muted-foreground">{label}</span>
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
+  </div>
+);
+const sm = 'h-8 px-3 text-[13px]';
+
+/** One song, opened in place: who leads, key, BPM, time, version, note. */
+function SongSettings({ item, song, people, setlists, draftId, nameOf, today, onChange }) {
+  const [allKeys, setAllKeys] = useState(false);
   const view = resolveSongView(song, item.arrangementId);
   const arrs = song?.arrangements || [];
   const base = view?.key || '';
   const t = item.transpose || 0;
-  const keys = base ? Array.from({ length: 12 }, (_, i) => i - 5).map(x => ({ t: x, key: transposeKey(base, x) })) : [];
+  const span = allKeys ? Array.from({ length: 12 }, (_, i) => i - 5) : [-2, -1, 0, 1, 2].map(x => x + t).filter(x => x >= -6 && x <= 6);
+  const keys = base ? span.map(x => ({ t: x, key: transposeKey(base, x) })) : [];
   const tempo = item.tempo ?? view?.tempo ?? null;
   const time = item.time || view?.time || '';
-  const lp = lastLine(lastPlayed(item.songId, setlists, today, draftId), song, nameOf);
+  const raw = lastPlayed(item.songId, setlists, today, draftId);
+  const lp = lastLine(raw, song, nameOf);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="rounded-control bg-raised px-3 py-2.5 text-[13px] text-muted-foreground">
+    <>
+      <div className="mx-3 mb-2.5 ml-10 rounded-control bg-background/60 px-3 py-2 text-[13px] text-muted-foreground">
         {typeof lp === 'string' ? lp : <>Last time: {lp.date} · <span className="font-medium text-foreground">{lp.bits}</span>{lp.who && ` · led by ${lp.who}`}</>}
       </div>
+      <SettingRow label="Leads">
+        {people.map(p => <Chip key={p.id} on={item.leadBy === p.id} className={sm} onClick={() => onChange({ leadBy: item.leadBy === p.id ? undefined : p.id })}>{p.name}</Chip>)}
+        {!people.length && <span className="text-[13px] text-muted-foreground">Pick singers in Details and band</span>}
+      </SettingRow>
       {keys.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <Label>Key</Label>
-          <div className="grid grid-cols-6 gap-1.5">
-            {keys.map(k => (
-              <button key={k.t} type="button" onClick={() => onChange({ transpose: k.t })} aria-pressed={k.t === t}
-                className={cn('flex h-9 min-h-0 cursor-pointer items-center justify-center rounded-control border font-mono text-[13px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  k.t === t ? 'border-link bg-selected text-link' : k.t === 0 ? 'border-dashed border-input bg-transparent text-foreground' : 'border-border bg-transparent text-foreground')}>
-                {k.key}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SettingRow label="Key">
+          {keys.map(k => (
+            <Chip key={k.t} on={k.t === t} dashed={k.t === 0 && k.t !== t} className="h-8 px-2.5 font-mono text-[13px]" onClick={() => onChange({ transpose: k.t })}>{k.key}</Chip>
+          ))}
+          <Chip dashed className="h-8 px-2.5 text-[13px]" onClick={() => setAllKeys(v => !v)}>{allKeys ? 'Fewer' : 'More'}</Chip>
+        </SettingRow>
       )}
-      <div className="flex flex-col gap-2">
-        <Label>BPM</Label>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center overflow-hidden rounded-control border border-border">
-            <Button variant="ghost" className="h-10 w-11 rounded-none" aria-label="Slower" onClick={() => onChange({ tempo: Math.max(30, (Number(tempo) || 100) - 1) })}>−</Button>
-            <Input type="number" inputMode="numeric" aria-label="BPM" value={tempo ?? ''} placeholder="—"
-              onChange={e => onChange({ tempo: e.target.value === '' ? undefined : Math.max(30, Math.min(260, Number(e.target.value) || 0)) })}
-              className="h-10 w-[72px] rounded-none border-0 border-x border-border text-center font-semibold" />
-            <Button variant="ghost" className="h-10 w-11 rounded-none" aria-label="Faster" onClick={() => onChange({ tempo: Math.min(260, (Number(tempo) || 100) + 1) })}>+</Button>
-          </div>
-          {view?.tempo ? <span className="text-[12px] text-muted-foreground">Usual {view.tempo}</span> : null}
+      <SettingRow label="BPM">
+        <div className="flex items-center overflow-hidden rounded-control border border-border">
+          <Button variant="ghost" className="h-9 w-10 rounded-none" aria-label="Slower" onClick={() => onChange({ tempo: Math.max(30, (Number(tempo) || 100) - 1) })}>−</Button>
+          <Input type="number" inputMode="numeric" aria-label="BPM" value={tempo ?? ''} placeholder="—"
+            onChange={e => onChange({ tempo: e.target.value === '' ? undefined : Math.max(30, Math.min(260, Number(e.target.value) || 0)) })}
+            className="h-9 w-[64px] rounded-none border-0 border-x border-border text-center font-semibold" />
+          <Button variant="ghost" className="h-9 w-10 rounded-none" aria-label="Faster" onClick={() => onChange({ tempo: Math.min(260, (Number(tempo) || 100) + 1) })}>+</Button>
         </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label>Time</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {[...new Set([view?.time, ...TIMES].filter(Boolean))].map(x => <Chip key={x} on={time === x} className="h-8 px-3 text-[13px]" onClick={() => onChange({ time: x === view?.time ? undefined : x })}>{x}</Chip>)}
-        </div>
-      </div>
+        {view?.tempo ? <span className="text-[12px] text-muted-foreground">usual {view.tempo}</span> : null}
+      </SettingRow>
+      <SettingRow label="Time">
+        {[...new Set([view?.time, ...TIMES].filter(Boolean))].map(x => <Chip key={x} on={time === x} className={sm} onClick={() => onChange({ time: x === view?.time ? undefined : x })}>{x}</Chip>)}
+      </SettingRow>
       {arrs.length > 1 && (
-        <div className="flex flex-col gap-2">
-          <Label>Version</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {arrs.map(a => <Chip key={a.id} on={(item.arrangementId || getArrangement(song)?.id) === a.id} className="h-8 px-3 text-[13px]" onClick={() => onChange({ arrangementId: a.id, arrangementName: a.name })}>{a.name || 'Main'}</Chip>)}
-          </div>
-        </div>
+        <SettingRow label="Version">
+          {arrs.map(a => <Chip key={a.id} on={(item.arrangementId || getArrangement(song)?.id) === a.id} className={sm} onClick={() => onChange({ arrangementId: a.id, arrangementName: a.name })}>{a.name || 'Main'}</Chip>)}
+        </SettingRow>
       )}
-      <label className="flex flex-col gap-2">
-        <Label>Note for the band</Label>
-        <Input value={item.note || ''} maxLength={NOTE_MAX} placeholder="e.g. Start soft, keys only" onChange={e => onChange({ note: e.target.value.slice(0, NOTE_MAX) })} />
-      </label>
-    </div>
+      <SettingRow label="Note">
+        <Input value={item.note || ''} maxLength={NOTE_MAX} placeholder="Add a cue for the band…" aria-label="Note for the band" onChange={e => onChange({ note: e.target.value.slice(0, NOTE_MAX) })} className="h-9" />
+      </SettingRow>
+    </>
   );
 }
 
 /* ── The flow ─────────────────────────────────────────────────────────────── */
 
 /**
- * @param {object} setlist   a fresh draft (isNew) or the saved setlist
- * @param {(draft) => Array<{id,name}>} peopleOf  who can lead (the band, else everyone)
+ * @param {object} setlist   a fresh draft (isNew, already filled from a template) or the saved setlist
+ * @param {(draft) => Array<{id,name}>} peopleOf  who can lead (the band, else the church's singers)
  */
 export default function SetlistFlow({
   setlist, isNew = false, songs = [], setlists = [], peopleOf = () => [], nameOf = () => '',
   team = null, members = [], schedules = [], setlistMap = {}, createSchedule, deleteSchedule, ensureRow,
-  onSave, onCancel, onDirtyChange, onSaveTemplate, onDeleteTemplate, initialStep,
+  onSave, onCancel, onDirtyChange, initialStep,
 }) {
   const wide = useWide();
-  const saved = useMemo(() => templatesOf(setlists), [setlists]);
-  const templates = useMemo(() => [...saved, ...serviceTemplates(setlists)], [saved, setlists]);
+  const templates = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
   const [draft, setDraft] = useState(() => ({ ...setlist, items: (setlist.items || []).map(it => ({ ...it })) }));
-  const [step, setStep] = useState(initialStep || (isNew ? 'service' : 'songs'));
+  const [step, setStep] = useState(initialStep === 'songs' || initialStep === 'details' ? initialStep : (isNew ? 'details' : 'songs'));
   const [nameTouched, setNameTouched] = useState(!isNew);
   const [bandExtra, setBandExtra] = useState([]);
-  const [pickAt, setPickAt] = useState(null);          // { index, replace } — the song picker
-  const [previewId, setPreviewId] = useState(null);
-  const [picked, setPicked] = useState(null);          // order index whose settings are open
+  const [open, setOpen] = useState(null);              // order index opened in place
+  const [slot, setSlot] = useState(null);              // index of the "Song" (or song) being filled
+  const [previewId, setPreviewId] = useState(null);    // desktop: library song shown in the right column
   const [noteFor, setNoteFor] = useState(null);
-  const [tplList, setTplList] = useState(false);
-  const [tplEdit, setTplEdit] = useState(null);
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const searchRef = useRef(null);
+  const libRef = useRef(null);
   const template = templates.find(t => t.id === draft.templateId) || null;
 
   const dirty = isNew || JSON.stringify(draft) !== JSON.stringify(setlist);
   useEffect(() => { onDirtyChange?.(JSON.stringify(draft) !== JSON.stringify(setlist)); }, [draft, setlist, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
-
-  // A new setlist starts from the first template, if the church has one.
-  useEffect(() => {
-    if (isNew && !draft.templateId && templates.length && !(draft.items || []).length && !draft.name) pickTemplate(templates[0], setlist.date);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function pickTemplate(tpl, onDate = '') {
-    setDraft(d => {
-      const fresh = draftFromTemplate(tpl, setlists);
-      if (onDate && fresh.date !== onDate) {
-        if (fresh.rehearsalDate) fresh.rehearsalDate = shiftDate(onDate, Math.round((new Date(`${fresh.rehearsalDate}T12:00:00`) - new Date(`${fresh.date}T12:00:00`)) / 86400000));
-        fresh.date = onDate;
-        if (tpl) fresh.name = autoName(tpl, setlists, onDate, d.id);
-      }
-      const keepSongs = (d.items || []).some(it => it.songId);
-      return { ...fresh, id: d.id, items: keepSongs ? d.items : fresh.items, ...(d.plannedBand ? { plannedBand: d.plannedBand } : {}) };
-    });
-    setNameTouched(false);
-    setBandExtra([]);
-  }
 
   const people = peopleOf(draft);
   const items = draft.items || [];
@@ -358,128 +320,128 @@ export default function SetlistFlow({
     Object.keys(patch).forEach(k => { if (patch[k] === undefined) delete n[k]; });
     return n;
   }));
-  const move = (from, to) => { setItems(xs => moveItem(xs, from, to)); setPicked(p => (p === from ? to : p)); };
-  const remove = (i) => { setItems(xs => xs.filter((_, j) => j !== i)); setPicked(null); };
+  const follow = (i, from, to) => (i == null ? i : i === from ? to : from < i && to >= i ? i - 1 : from > i && to <= i ? i + 1 : i);
+  const move = (from, to) => { setItems(xs => moveItem(xs, from, to)); setOpen(o => follow(o, from, to)); setSlot(x => follow(x, from, to)); };
+  const remove = (i) => { setItems(xs => xs.filter((_, j) => j !== i)); setOpen(null); setSlot(null); };
   const { listRef, gripProps, rowStyle } = useDragReorder(move);
 
   const songItem = (s) => {
     const arr = getArrangement(s);
     return { songId: s.id, songTitle: s.title, arrangementId: arr?.id, arrangementName: arr?.name || 'Main Arrangement', note: '', transpose: 0, capo: 0 };
   };
-  // The slot being filled: an empty "Song", a song being changed, or the end.
-  const target = pickAt ?? (wide ? { index: items.findIndex(isPlaceholder), replace: true } : null);
+  // Where + puts a song: the slot being filled, else the next empty "Song", else the end.
+  const fillAt = slot != null && items[slot] ? slot : items.findIndex(isPlaceholder);
+  const goToLibrary = () => {
+    if (wide) { setPreviewId(null); searchRef.current?.focus(); return; }
+    libRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => searchRef.current?.focus({ preventScroll: true }), 350);
+  };
   const addSong = (s) => {
-    const t = target && target.index >= 0 ? target : null;
-    if (t?.replace) setItems(xs => xs.map((x, j) => (j === t.index ? { ...songItem(s), ...(x.note ? { note: x.note } : {}) } : x)));
+    if (fillAt >= 0) setItems(xs => xs.map((x, j) => (j === fillAt ? { ...songItem(s), ...(x.note ? { note: x.note } : {}), ...(x.leadBy ? { leadBy: x.leadBy } : {}) } : x)));
     else setItems(xs => [...xs, songItem(s)]);
-    setPickAt(null);
+    setSlot(null);
     setPreviewId(null);
   };
-  const keepSong = (label) => {
-    const t = target && target.index >= 0 ? target : null;
-    if (t?.replace) setItems(xs => xs.map((x, j) => (j === t.index ? placeholderItem(label) : x)));
-    else setItems(xs => [...xs, placeholderItem(label)]);
-    setPickAt(null);
-  };
-  const addMoment = () => { setItems(xs => [...xs, { type: 'break', label: '', note: '', duration: 0 }]); setPicked(items.length); };
-  const openRow = (i) => {
-    const it = items[i];
-    if (isPlaceholder(it)) { setPickAt({ index: i, replace: true }); setPicked(null); return; }
-    setPicked(i);
+  const emptySlot = (label) => { setItems(xs => [...xs, placeholderItem(label)]); };
+  const addMoment = () => { setItems(xs => [...xs, { type: 'break', label: '', note: '', duration: 0 }]); setOpen(items.length); };
+  const tapRow = (i) => {
+    if (isPlaceholder(items[i])) { setSlot(i); setOpen(null); goToLibrary(); return; }
+    setOpen(o => (o === i ? null : i));
   };
 
-  const pickedItem = picked != null ? items[picked] : null;
-  const pickedSong = pickedItem?.songId ? songs.find(s => s.id === pickedItem.songId) : null;
   const previewSong = previewId ? songs.find(s => s.id === previewId) : null;
   const idx = STEPS.findIndex(([k]) => k === step);
   const nextStep = STEPS[idx + 1];
   const save = () => { onDirtyChange?.(false); onSave?.(draft); };
   const canSave = !!(draft.name || '').trim() || !!draft.date;
-
-  const saveTemplate = (tpl) => { onSaveTemplate?.(tpl); setTplEdit(null); };
+  const asks = isNew && draft.plannedBand?.length;
+  const saveLabel = asks ? 'Save and ask band' : 'Save setlist';
+  const fillingN = fillAt >= 0 ? order.rows[fillAt]?.n : null;
 
   /* ── Pieces ─────────────────────────────────────────────────────────── */
+  const leadChip = (it) => {
+    if (!it?.songId) return null;
+    const name = it.leadBy ? nameOf(it.leadBy) : '';
+    return name
+      ? <span className="flex h-[26px] max-w-[110px] shrink-0 items-center gap-1.5 rounded-full bg-raised pl-[3px] pr-2 text-[12px] text-muted-foreground">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-background text-[9px] font-bold text-link">{initials(name)}</span>
+          <span className="truncate">{name.split(' ')[0]}</span>
+        </span>
+      : <span className="flex h-[26px] shrink-0 items-center rounded-full border border-dashed border-input px-2 text-[12px] text-muted-foreground">Who leads?</span>;
+  };
+
   const orderList = (
-    <div ref={listRef} className="flex flex-col rounded-card border border-border bg-card px-1.5 py-1">
+    <div ref={listRef} className="flex flex-col overflow-hidden rounded-card border border-border bg-card">
       {order.rows.map((r, i) => {
         const it = items[i];
-        const slot = isPlaceholder(it);
-        const filling = slot && target?.replace && target.index === i && (wide || pickAt);
+        const isSlot = isPlaceholder(it);
+        const isOpen = open === i;
+        const filling = isSlot && fillAt === i && (slot === i || wide);
         return (
           <div key={i} data-drag-row style={rowStyle(i)}
-            className={cn('flex min-h-[54px] items-center gap-1 bg-card', slot ? 'my-1 rounded-control border border-dashed border-input' : 'border-t border-border first:border-t-0',
-              (picked === i || filling) && 'rounded-control bg-selected shadow-[inset_3px_0_0_var(--color-link)]', filling && 'border-link')}>
-            <Grip {...gripProps(i)} />
-            <button type="button" onClick={() => openRow(i)}
-              className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent py-1.5 pr-2 text-left font-sans text-foreground outline-none focus-visible:underline">
-              {r.kind === 'song' && <span className="w-4 shrink-0 text-right text-[13px] tabular-nums text-muted-foreground">{r.n}</span>}
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className={cn('truncate text-[15px]', r.kind === 'moment' ? 'font-medium text-muted-foreground' : 'font-semibold')}>
-                  {r.kind === 'moment' && !it.label ? 'New moment' : r.title}
+            className={cn('border-t border-border bg-card first:border-t-0', isOpen && 'bg-raised', isSlot && 'border-t-0 px-1.5 py-1')}>
+            <div className={cn('flex min-h-[54px] items-center gap-1', isSlot && 'rounded-control border border-dashed border-input', filling && 'border-link bg-selected')}>
+              <Grip {...gripProps(i)} />
+              <button type="button" onClick={() => tapRow(i)} aria-expanded={isSlot ? undefined : isOpen}
+                className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-2.5 border-0 bg-transparent py-1.5 pr-3 text-left font-sans text-foreground outline-none focus-visible:underline">
+                {r.kind === 'song' && !isSlot && <span className="w-4 shrink-0 text-right text-[13px] tabular-nums text-muted-foreground">{r.n}</span>}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className={cn('truncate', r.kind === 'moment' ? 'text-[14px] text-muted-foreground' : 'text-[15px] font-semibold')}>
+                    {r.kind === 'moment' && !it.label ? 'New moment' : r.title}
+                  </span>
+                  {!isSlot && r.kind === 'song' && <span className="truncate text-[12px] text-muted-foreground">{[r.tempo && `${r.tempo} BPM`, r.time].filter(Boolean).join(' · ') || ' '}</span>}
                 </span>
-                {!slot && r.kind === 'song' && <span className="truncate text-[12px] text-muted-foreground">{[r.tempo && `${r.tempo} BPM`, r.time, r.leads && `${r.leads} leads`].filter(Boolean).join(' · ') || ' '}</span>}
-              </span>
-              {r.kind === 'moment' && r.minutes > 0 && <span className="text-[12px] text-muted-foreground">{r.minutes} min</span>}
-              {slot && <span className="text-[13px] font-medium text-link">{filling ? 'choosing…' : 'Choose'}</span>}
-              <KeyChip k={r.key} />
-              {!slot && <span className="flex size-7 shrink-0 items-center justify-center text-muted-foreground"><MoreIcon size={18} /></span>}
-            </button>
+                {r.kind === 'moment' && r.minutes > 0 && <span className="text-[12px] text-muted-foreground">{r.minutes} min</span>}
+                {isSlot && <span className="text-[13px] font-medium text-link">{filling ? 'choosing…' : 'Choose'}</span>}
+                {!isOpen && leadChip(it)}
+                <KeyChip k={r.key} />
+                {!isSlot && <span className={cn('w-3.5 shrink-0 text-center text-[13px] text-muted-foreground transition-transform', isOpen ? 'rotate-180' : '')} aria-hidden="true">⌄</span>}
+              </button>
+            </div>
+            {isOpen && (
+              <div className="pb-1">
+                {it.type === 'break' ? (
+                  <div className="px-3 pb-3 pl-10"><MomentFields item={it} onChange={p => patchItem(i, p)} onOpenNote={() => setNoteFor(i)} /></div>
+                ) : (
+                  <SongSettings item={it} song={songs.find(s => s.id === it.songId)} people={people} setlists={setlists} draftId={draft.id} nameOf={nameOf} today={today} onChange={p => patchItem(i, p)} />
+                )}
+                <div className="flex items-center justify-between border-t border-border py-2 pl-10 pr-3">
+                  {it.songId ? <Button variant="link" className="text-[14px]" onClick={() => { setSlot(i); setOpen(null); goToLibrary(); }}>Change song</Button> : <span />}
+                  <Button variant="link" className="text-[14px] text-danger" onClick={() => remove(i)}>Remove</Button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
-      {!order.rows.length && <p className="m-0 py-8 text-center text-[14px] text-muted-foreground">Nothing here yet. Add a song or a moment.</p>}
-    </div>
-  );
-  const orderAdds = (
-    <div className="flex flex-wrap gap-2">
-      <Chip onClick={() => setPickAt({ index: -1, replace: false })}><PlusIcon size={16} />Song</Chip>
-      <Chip onClick={addMoment}><PlusIcon size={16} />Moment</Chip>
-      <Chip dashed onClick={() => setItems(xs => [...xs, placeholderItem()])}><PlusIcon size={16} />“Song”</Chip>
-    </div>
-  );
-  const pickedFields = pickedItem && (pickedItem.type === 'break'
-    ? <MomentFields item={pickedItem} onChange={p => patchItem(picked, p)} onOpenNote={() => setNoteFor(picked)} />
-    : <SongSettings item={pickedItem} song={pickedSong} setlists={setlists} draftId={draft.id} nameOf={nameOf} today={today} onChange={p => patchItem(picked, p)} />);
-  const pickedActions = pickedItem && (
-    <div className="flex flex-col gap-2">
-      {pickedItem.songId && <Button variant="outline" onClick={() => { setPickAt({ index: picked, replace: true }); setPicked(null); }}>Change song</Button>}
-      <MoveButtons index={picked} count={items.length} onMove={move} onRemove={remove} />
+      {!order.rows.length && <p className="m-0 py-8 text-center text-[14px] text-muted-foreground">Nothing here yet. Add songs below, or a moment.</p>}
     </div>
   );
 
-  const leadsStep = (
+  const orderBlock = (
     <div className="flex flex-col gap-3">
-      <h2 className="m-0 text-[24px] font-semibold leading-[30px] tracking-[-0.5px]">Who leads each song?</h2>
-      <p className="m-0 -mt-1 text-[14px] text-muted-foreground">{people.length ? 'People from the band, else everyone in the church.' : 'Add people to the band first.'}</p>
-      <div className="rounded-card border border-border bg-card">
-        {order.rows.filter(r => r.kind === 'song').map(r => {
-          const it = items[r.idx];
-          const lp = it.songId ? lastPlayed(it.songId, setlists, today, draft.id) : null;
-          return (
-            <div key={r.idx} className={cn('flex flex-col gap-2 border-t border-border px-4 py-3 first:border-t-0', r.placeholder && 'opacity-60')}>
-              <div className="flex items-center gap-3">
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <b className="truncate text-[15px] font-semibold">{r.title}</b>
-                  <span className="truncate text-[12px] text-muted-foreground">{r.placeholder ? 'To be chosen' : [r.key, r.tempo && `${r.tempo} BPM`, lp?.leadBy && `${nameOf(lp.leadBy)} led it last time`].filter(Boolean).join(' · ')}</span>
-                </span>
-              </div>
-              {!r.placeholder && (
-                <div className="flex flex-wrap gap-1.5">
-                  {people.map(p => <Chip key={p.id} on={it.leadBy === p.id} className="h-8 px-3 text-[13px]" onClick={() => patchItem(r.idx, { leadBy: it.leadBy === p.id ? undefined : p.id })}>{p.name}</Chip>)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-        {!order.songCount && <p className="m-0 px-4 py-6 text-center text-[14px] text-muted-foreground">No songs yet.</p>}
+      <div className="flex items-baseline justify-between gap-3">
+        <b className="text-[17px] font-semibold">Order</b>
+        <span className="flex items-center gap-3 truncate text-[13px] text-muted-foreground">
+          {order.songCount} {order.songCount === 1 ? 'song' : 'songs'}{order.totalSeconds ? ` · ~${Math.round(order.totalSeconds / 60)} min` : ''}
+          {!wide && <Button variant="link" className="text-[13px]" onClick={goToLibrary}>Add songs ↓</Button>}
+        </span>
       </div>
+      {wide && <span className="-mt-2 text-[12px] text-muted-foreground">{[longDay(draft.date), draft.time, draft.location].filter(Boolean).join(' · ')} · drag ⠿ to move</span>}
+      {orderList}
+      <div className="flex gap-2"><Chip onClick={addMoment}><PlusIcon size={16} />Add moment</Chip></div>
     </div>
   );
 
-  const bandStep = (
+  const addSongs = (
+    <AddSongs songs={songs} draft={draft} setlists={setlists} at={fillAt >= 0 ? fillAt : items.length} today={today}
+      filling={slot != null ? fillingN : null} onAdd={addSong} onEmptySlot={emptySlot} searchRef={searchRef}
+      onPreview={wide ? (id) => setPreviewId(id) : null} previewId={previewId} />
+  );
+
+  const bandBlock = (
     <div className="flex flex-col gap-3">
-      <h2 className="m-0 text-[24px] font-semibold leading-[30px] tracking-[-0.5px]">Who’s playing?</h2>
-      <p className="m-0 -mt-1 text-[14px] text-muted-foreground">{[longDay(draft.date), draft.time].filter(Boolean).join(' · ')}{template?.parts?.length ? '. Parts come from the template.' : ''}</p>
+      <Caps>Band</Caps>
       {team ? (
         <div className="rounded-card border border-border bg-card px-4">
           <BandSection
@@ -492,62 +454,53 @@ export default function SetlistFlow({
           />
         </div>
       ) : (
-        <p className="m-0 rounded-card bg-raised px-4 py-3 text-[14px] text-muted-foreground">The band is picked in a church space. Skip this step.</p>
+        <p className="m-0 rounded-card bg-raised px-4 py-3 text-[14px] text-muted-foreground">The band is picked in a church space.</p>
       )}
     </div>
   );
-
-  const songsPhone = (
+  const serviceBlock = (
     <div className="flex flex-col gap-3">
-      <h2 className="m-0 text-[24px] font-semibold leading-[30px] tracking-[-0.5px]">Order</h2>
-      <p className="m-0 -mt-1 text-[14px] text-muted-foreground">{items.some(isPlaceholder) ? 'Tap a “Song” to choose it.' : 'Drag ⠿ to reorder, tap a row to change it.'}</p>
-      {orderList}
-      {orderAdds}
-    </div>
-  );
-
-  const songsDesk = (
-    <div className="grid min-h-0 flex-1 grid-cols-[minmax(320px,380px)_minmax(0,1fr)_minmax(320px,400px)] gap-0 border-t border-border">
-      <div className="flex min-h-0 flex-col gap-3 overflow-y-auto border-r border-border p-4">
-        {orderList}
-        {orderAdds}
-      </div>
-      <div className="flex min-h-0 flex-col overflow-y-auto border-r border-border p-4">
-        <PickList songs={songs} draft={draft} setlists={setlists} at={target?.index >= 0 ? target.index : items.length} nameOf={nameOf}
-          onAdd={addSong} onPreview={(id) => { setPreviewId(id); setPicked(null); }} previewId={previewId} onKeepSong={keepSong} today={today} />
-      </div>
-      <div className="flex min-h-0 flex-col overflow-y-auto">
-        {pickedItem ? (
-          <div className="flex flex-col gap-4 p-5">
-            <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{pickedItem.type === 'break' ? 'Moment' : pickedSong?.title || 'Song'}</span>
-            {pickedFields}
-            {pickedActions}
-          </div>
-        ) : previewSong ? (
-          <DeskPreview song={previewSong} onAdd={() => addSong(previewSong)} slot={target?.replace && target.index >= 0 ? order.rows[target.index]?.n : null} setlists={setlists} draftId={draft.id} nameOf={nameOf} today={today} />
-        ) : (
-          <p className="m-0 p-5 text-[14px] text-muted-foreground">Click a song in the library to see its chart, or a row in the order to set its key, BPM and time.</p>
-        )}
-      </div>
+      {wide && <Caps>Service</Caps>}
+      <ServiceStep wide={wide} draft={draft} setDraft={setDraft} template={template} setlists={setlists} nameTouched={nameTouched} setNameTouched={setNameTouched} />
     </div>
   );
 
   /* ── Frame ──────────────────────────────────────────────────────────── */
-  const body = step === 'service'
-    ? <ServiceStep wide={wide} draft={draft} setDraft={setDraft} isNew={isNew} templates={templates} template={template} onPickTemplate={pickTemplate}
-        onEditTemplates={onSaveTemplate ? () => setTplList(true) : null} setlists={setlists} nameTouched={nameTouched} setNameTouched={setNameTouched} />
-    : step === 'band' ? bandStep : step === 'leads' ? leadsStep : songsPhone;
+  let body;
+  if (step === 'details') {
+    body = wide
+      ? <div className="mx-auto grid w-full max-w-[1100px] grid-cols-2 gap-8 px-6 pb-16 pt-4">{serviceBlock}{bandBlock}</div>
+      : <div className="mx-auto flex w-full max-w-[600px] flex-col gap-5 px-4 pb-36 pt-2">{serviceBlock}{bandBlock}</div>;
+  } else if (wide) {
+    body = (
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(360px,420px)] border-t border-border">
+        <div className="min-h-0 overflow-y-auto border-r border-border px-6 py-5"><div className="mx-auto max-w-[760px]">{orderBlock}</div></div>
+        <div className="flex min-h-0 flex-col overflow-y-auto">
+          {previewSong
+            ? <DeskPreview song={previewSong} onBack={() => setPreviewId(null)} onAdd={() => addSong(previewSong)} slotN={fillingN || order.songCount + 1} setlists={setlists} draftId={draft.id} nameOf={nameOf} today={today} />
+            : <div className="p-5">{addSongs}</div>}
+        </div>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="mx-auto flex w-full max-w-[600px] flex-col gap-6 px-4 pb-36 pt-2">
+        {orderBlock}
+        <div ref={libRef} className="scroll-mt-28">{addSongs}</div>
+      </div>
+    );
+  }
   const deskSongs = wide && step === 'songs';
 
   return (
     <div data-slot="setlist-flow" className={cn('flex flex-col bg-background font-sans text-foreground', deskSongs ? 'h-full min-h-[calc(100dvh-64px)]' : 'min-h-full')}>
       <div className="sticky top-0 z-10 flex flex-col bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="flex h-14 items-center gap-3 px-4 @container">
+        <div className="flex h-14 items-center gap-3 px-4">
           <Button variant="ghost" className="-ml-3" onClick={onCancel}>Cancel</Button>
           {!wide && <b className="flex-1 text-center text-[16px] font-semibold">{isNew ? 'New setlist' : 'Edit setlist'}</b>}
           {wide && (
             <>
-              <b className="text-[16px] font-semibold">{isNew ? 'New setlist' : 'Edit setlist'}</b>
+              <b className="truncate font-mono text-[16px] font-semibold">{draft.name || (isNew ? 'New setlist' : 'Edit setlist')}</b>
               <nav aria-label="Steps" className="ml-6 flex gap-1">
                 {STEPS.map(([k, l], i) => (
                   <button key={k} type="button" onClick={() => setStep(k)} aria-current={step === k ? 'step' : undefined}
@@ -559,14 +512,10 @@ export default function SetlistFlow({
               </nav>
               <span className="flex-1" />
               <Button variant="outline" disabled={!canSave || (!dirty && !isNew)} onClick={save}>{isNew ? 'Save draft' : 'Save'}</Button>
-              {nextStep ? <Button onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button> : <Button disabled={!canSave} onClick={save}>Save setlist</Button>}
+              {nextStep ? <Button onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button> : <Button disabled={!canSave} onClick={save}>{saveLabel}</Button>}
             </>
           )}
-          {!wide && (
-            step === 'band' && isNew
-              ? <Button variant="ghost" className="-mr-3 text-link" onClick={() => setStep('songs')}>Skip</Button>
-              : <Button variant="ghost" className="-mr-3 text-link" disabled={!canSave || (!dirty && !isNew)} onClick={save}>{isNew ? 'Save draft' : 'Save'}</Button>
-          )}
+          {!wide && <Button variant="ghost" className="-mr-3 text-link" disabled={!canSave || (!dirty && !isNew)} onClick={save}>{isNew ? 'Save draft' : 'Save'}</Button>}
         </div>
         {!wide && (
           <div className="flex flex-col gap-1.5 px-4 pb-2">
@@ -577,77 +526,49 @@ export default function SetlistFlow({
               ))}
             </div>
             <div className="flex justify-between text-[12px] text-muted-foreground">
-              <span>Step {idx + 1} of 4 · <b className="font-semibold text-foreground">{STEPS[idx][1]}</b></span>
+              <span>Step {idx + 1} of {STEPS.length} · <b className="font-semibold text-foreground">{STEPS[idx][1]}</b></span>
               <span className="truncate pl-3 font-mono">{draft.name}</span>
             </div>
           </div>
         )}
       </div>
 
-      {deskSongs ? songsDesk : (
-        <div className="mx-auto w-full max-w-[600px] px-4 pb-36 pt-2 lg:pb-16">{body}</div>
-      )}
+      {body}
 
       {!wide && (
         <div className="fixed inset-x-0 bottom-0 z-20 flex gap-2 border-t border-border bg-background px-4 pt-3" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
           {idx > 0 && <Button variant="outline" className="h-12" onClick={() => setStep(STEPS[idx - 1][0])}>Back</Button>}
           {nextStep
             ? <Button className="h-12 flex-1" onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button>
-            : <Button className="h-12 flex-1" disabled={!canSave} onClick={save}>{isNew && draft.plannedBand?.length ? 'Save and ask band' : 'Save setlist'}</Button>}
+            : <Button className="h-12 flex-1" disabled={!canSave} onClick={save}>{saveLabel}</Button>}
         </div>
       )}
 
-      {/* Phone: the song picker covers the screen, one song at a time. */}
-      {!wide && pickAt && createPortal(
-        <div role="dialog" aria-modal="true" aria-label="Choose a song" className="fixed inset-0 z-[70] flex flex-col bg-background font-sans text-foreground">
-          <div className="flex h-14 items-center gap-2 border-b border-border px-4" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', boxSizing: 'content-box' }}>
-            <Button variant="ghost" className="-ml-3" onClick={() => setPickAt(null)}>‹ Order</Button>
-            <b className="flex-1 text-center text-[16px] font-semibold">{pickAt.replace && pickAt.index >= 0 ? `Choose song ${order.rows[pickAt.index]?.n || ''}` : 'Add a song'}</b>
-            <span className="w-[60px]" />
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10 pt-3">
-            <PickList songs={songs} draft={draft} setlists={setlists} at={pickAt.index >= 0 ? pickAt.index : items.length} nameOf={nameOf} onAdd={addSong} onKeepSong={keepSong} today={today} />
-          </div>
-        </div>,
-        document.body,
-      )}
-
-      <Sheet open={!wide && !!pickedItem && noteFor == null} onOpenChange={(o) => { if (!o) setPicked(null); }}
-        title={pickedItem?.type === 'break' ? 'Moment' : pickedSong?.title || 'Song'} className="h-auto max-h-[92dvh]">
-        {pickedItem && <div className="flex flex-col gap-4">{pickedFields}{pickedActions}</div>}
-      </Sheet>
       {noteFor != null && (
         <NoteEditor open key={noteFor} title={items[noteFor]?.label || 'Moment'} value={items[noteFor]?.note}
           onCancel={() => setNoteFor(null)} onDone={(text) => { patchItem(noteFor, { note: text }); setNoteFor(null); }} />
-      )}
-      <TemplatesSheet open={tplList} onOpenChange={setTplList} templates={saved}
-        onEdit={(t) => { setTplList(false); setTplEdit(t); }} onNew={() => { setTplList(false); setTplEdit(blankTemplate()); }} />
-      {tplEdit && (
-        <TemplateEditor template={tplEdit} setlists={setlists} onCancel={() => setTplEdit(null)} onSave={saveTemplate}
-          onDelete={saved.some(t => t.id === tplEdit.id) && onDeleteTemplate ? () => { onDeleteTemplate(tplEdit.id); setTplEdit(null); } : null} />
       )}
     </div>
   );
 }
 
-function DeskPreview({ song, onAdd, slot, setlists, draftId, nameOf, today }) {
-  const [arrId, setArrId] = useState(null);
-  const view = resolveSongView(song, arrId || undefined);
+const initials = (name) => (name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+
+/** Desktop: a library song's chart in the right column, before adding it. */
+function DeskPreview({ song, onAdd, onBack, slotN, setlists, draftId, nameOf, today }) {
+  const view = resolveSongView(song);
   const lp = lastLine(lastPlayed(song.id, setlists, today, draftId), song, nameOf);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-col gap-2 border-b border-border px-5 pb-3 pt-4">
+      <div className="flex flex-col gap-1.5 border-b border-border px-5 pb-3 pt-4">
+        <Button variant="link" className="self-start text-[14px]" onClick={onBack}>‹ Add songs</Button>
         <b className="text-[20px] font-semibold">{song.title}</b>
-        <span className="text-[13px] text-muted-foreground">{[song.artist, view?.key && `usually ${view.key}`, view?.tempo && `${view.tempo} BPM`, view?.time].filter(Boolean).join(' · ')}</span>
-        <span className="text-[12px] text-muted-foreground">{typeof lp === 'string' ? lp : <>Last: {lp.date} · <span className="text-foreground">{lp.bits}</span></>}</span>
-        {(song.arrangements || []).length > 1 && (
-          <div className="flex flex-wrap gap-1.5">
-            {song.arrangements.map(a => <Chip key={a.id} on={(view?._arrangementId) === a.id} className="h-8 px-3 text-[13px]" onClick={() => setArrId(a.id)}>{a.name || 'Main'}</Chip>)}
-          </div>
-        )}
+        <span className="text-[13px] text-muted-foreground">
+          {[view?.key && `usually ${view.key}`, view?.tempo && `${view.tempo} BPM`, view?.time, typeof lp === 'string' ? lp.toLowerCase() : `last ${lp.date}`].filter(Boolean).join(' · ')}
+        </span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4"><ChartPreview view={view} /></div>
-      <div className="px-5 pb-4 pt-2"><Button className="h-11 w-full" onClick={onAdd}>{slot ? `Put in slot ${slot}` : 'Add to the order'}</Button></div>
+      <div className="px-5 pb-5 pt-2"><Button className="h-11 w-full" onClick={onAdd}>Add as song {slotN}</Button></div>
     </div>
   );
 }
