@@ -13,7 +13,7 @@ import { ChevronDownIcon, ChevronRightIcon, CheckIcon, PlusIcon, BackIcon, Calen
 //
 // Details first, the chart one tap away: title, then Key ▾ and arrangement ▾
 // (small popovers, not drawers), the numbers, then one ink "Open chart". Under
-// it: how often you play it, the next service, Listen, how it goes, credits.
+// it: how often you play it, the next service, Listen, credits.
 
 const Svg = ({ size = 20, children, fill = 'none' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -215,7 +215,7 @@ function Flow({ codes }) {
   if (!codes?.length) return null;
   return (
     <>
-      <h2 className={label}>How it goes</h2>
+      <h2 className={cn(label, 'pt-0')}>Order</h2>
       <div className="flex flex-wrap gap-1">
         {codes.map((c, n) => (
           <span key={n} className="flex h-7 min-w-8 items-center justify-center rounded-[7px] bg-selected px-1.5 text-[12px] font-semibold text-link">{c}</span>
@@ -299,7 +299,7 @@ export default function SongView({
   const page = 'wide-container flex flex-col !px-3';
 
   // One page, one scroll (owner, 2026-11-04): the details on top, the chart
-  // right under them, how it goes and the credits after the song. The chart is
+  // right under them (the Order on top), the credits after the song. The chart is
   // passed in (`chart(lead, tail)`): Song.jsx gives it the Reader, which draws
   // `lead` and `tail` inside its own scroller; /design can give it a sample.
   const lead = (
@@ -326,6 +326,7 @@ export default function SongView({
         {song.time && <span className={fact}>{song.time}</span>}
         {Number(song.capo) > 0 && <span className={fact}>Capo {song.capo}</span>}
       </div>
+      {flow.length > 0 && <div className="flex flex-col gap-1.5 pb-4"><Flow codes={flow} /></div>}
       <div className={cn('grid gap-2.5 pb-4', wide && 'grid-cols-[minmax(0,1fr)_340px] items-start')}>
         <div className="flex flex-col gap-2.5">
           <Stats facts={facts} short={wide} />
@@ -339,9 +340,8 @@ export default function SongView({
       </div>
     </div>
   );
-  const tail = (flow.length > 0 || about.length > 0) ? (
+  const tail = about.length > 0 ? (
     <div className={cn(page, 'gap-2.5 border-t border-border pb-10 pt-4 font-sans text-foreground')}>
-      <Flow codes={flow} />
       <About rows={about} />
     </div>
   ) : <div className="pb-10" />;

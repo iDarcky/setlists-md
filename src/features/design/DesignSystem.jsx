@@ -1138,7 +1138,7 @@ export default function DesignSystem({ onBack }) {
           <SongsGallery />
         </Section>
 
-        <Section title="Song" sub="One scroll: the details on top (Key and arrangement in small popovers, the numbers, how often you play it, the next service, Listen), then the chart with a Chords / Lyrics switch, then how it goes and the credits. Tap around: these are the real screens.">
+        <Section title="Song" sub="One scroll: the details on top (Key and arrangement in small popovers, the numbers, how often you play it, the next service, Listen), the Order, then the chart with a Chords / Lyrics switch, then the credits. Tap around: these are the real screens.">
           <SongGallery />
         </Section>
 
