@@ -1,15 +1,15 @@
 import { cn } from '@/ui/shadcn/utils';
 import { BackIcon } from '@/app/navIcons';
-import { KeyChip, ArrangementChip, FullIcon, SongTabs } from './SongView';
+import { KeyChip, ArrangementChip, FullIcon } from './SongView';
 
-// "Open chart" (or the Chart / Lyrics tab): the chart on its own screen, with Key ▾ and the arrangement
+// "Open chart": the chart on its own screen, with Key ▾ and the arrangement
 // still at hand, and ⤢ for full screen (the reader with its ☰, click and
 // track). The chart itself is passed in: Song.jsx gives it the Reader, /design
 // gives it a sample.
 
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
-export default function SongChartView({ title, onBack, tab = 'chart', onTab, keyCtl, arrangements = [], arrangementId, onArrangement, onNewArrangement, onFullScreen, children, embedded = false }) {
+export default function SongChartView({ title, onBack, keyCtl, arrangements = [], arrangementId, onArrangement, onNewArrangement, onFullScreen, children, embedded = false }) {
   return (
     <div data-slot="song-chart" className={cn('flex h-full min-h-0 flex-col bg-background font-sans text-foreground', embedded && 'absolute inset-0')}>
       <div className="mx-auto flex w-full max-w-[1180px] shrink-0 flex-col px-4 sm:px-6">
@@ -19,7 +19,6 @@ export default function SongChartView({ title, onBack, tab = 'chart', onTab, key
           </button>
           {onFullScreen && <button type="button" aria-label="Full screen" onClick={onFullScreen} className={iconBtn}><FullIcon /></button>}
         </div>
-        {onTab && <SongTabs value={tab} onChange={onTab} className="mb-3 sm:max-w-[360px]" />}
         <div className="flex flex-wrap gap-2 pb-3">
           {keyCtl && <KeyChip {...keyCtl} />}
           <ArrangementChip arrangements={arrangements} current={arrangementId} onPick={onArrangement} onNew={onNewArrangement} />
