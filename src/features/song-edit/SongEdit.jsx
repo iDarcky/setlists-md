@@ -8,7 +8,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getArrangement, withArrangement, addArrangement, deleteArrangement, setDefaultArrangement, resolveSongView } from '@/arrangements';
 import { transposeArrangement } from '@/lib/transposeArrangement';
 import { parseLine, parseTabBlock, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
-import { compactLabel, keyOptions, sectionStyle, getDiatonicChords, semitonesBetween } from '@/music';
+import { compactLabel, keyOptions, sectionStyle, semitonesBetween } from '@/music';
 import { isChordToken } from '@/importer';
 import { normalizeText } from '@/lib/search';
 import { youtubeDuration, formatLength } from '@/lib/embedPlayers';
@@ -161,10 +161,10 @@ const chip = 'flex h-10 min-h-0 min-w-12 shrink-0 cursor-pointer items-center ju
  * The old editor's chord bar, drawn new. On a phone it sits at the bottom
  * with no keyboard (chips, not typing); on a computer it opens at the letter
  * with the typing box ready ("D/F#", Enter). Chips, a box, Remove, close. The key's chords keep their
- * order; this song's own chords follow at the end. It stays open, so the
+ * order; this song's own chords follow at the end, drawn the same. It stays open, so the
  * next letter is one tap away.
  */
-function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClose }) {
+function ChordBar({ line, lineId, pos, palette, popover, onPut, onClose }) {
   const { chords } = lineToPlacement(extractInlineNotes(line).clean);
   const current = chords.find(c => c.pos === pos)?.chord || null;
   const [typed, setTyped] = useState('');
@@ -211,13 +211,12 @@ function ChordBar({ line, lineId, pos, palette, diatonic, popover, onPut, onClos
       className={cn('z-30 flex flex-col gap-2.5 bg-card p-3',
         popover ? 'w-[384px] rounded-card border border-border shadow-[0_12px_32px_rgba(0,0,0,.35)]' : 'shrink-0 border-t border-border pb-[max(12px,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,.18)]')}>
       <div className="flex flex-wrap gap-1.5">
-        {palette.map(c => {
-          const own = !diatonic.includes(c);
-          return (
-            <button key={c} type="button" aria-pressed={c === current} onClick={() => put(c)}
-              className={cn(chip, c === current ? 'bg-[var(--chord)] text-background' : own ? 'bg-transparent text-[var(--chord)] shadow-[inset_0_0_0_1px_var(--chord)]' : 'bg-warning-fill text-[var(--chord)]')}>{c}</button>
-          );
-        })}
+        {/* One look for every chord: a Bm7 or F/A the writer typed is as much
+            this song's chord as the key's own G (to-do 142). */}
+        {palette.map(c => (
+          <button key={c} type="button" aria-pressed={c === current} onClick={() => put(c)}
+            className={cn(chip, c === current ? 'bg-[var(--chord)] text-background' : 'bg-warning-fill text-[var(--chord)]')}>{c}</button>
+        ))}
       </div>
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (typed.trim() && !bad) put(typed.trim()); }}>
         <Input autoFocus={popover} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Type a chord…" aria-label="Type a chord" aria-invalid={!!bad}
@@ -950,7 +949,6 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
   // The chord row keeps its order while you edit; new chords join at the end.
   const [rows, setRows] = useState({});
   const palette = chordPalette(arr, rows[arr.id] || []);
-  const diatonic = useMemo(() => getDiatonicChords(arr.key || 'C').slice(0, 6), [arr.key]);
   const closeAll = () => { setEditing(null); setPick(null); setWords(null); };
   const doUndo = () => { closeAll(); undo(); };
   const doRedo = () => { closeAll(); redo(); };
@@ -1032,7 +1030,7 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
     </div>
   );
   const chordBar = pick && typeof pickedLine === 'string' && !whole && (wide || tab === 'chart') ? (
-    <ChordBar key={`${pick.sec}-${pick.line}-${pick.pos}`} line={pickedLine} lineId={`${pick.sec}-${pick.line}`} pos={pick.pos} palette={palette} diatonic={diatonic} popover={wide}
+    <ChordBar key={`${pick.sec}-${pick.line}-${pick.pos}`} line={pickedLine} lineId={`${pick.sec}-${pick.line}`} pos={pick.pos} palette={palette} popover={wide}
       onClose={closePick}
       onPut={(c) => onArr(setLines(arr, pick.sec, arr.sections[pick.sec].lines.map((l, n) => (n === pick.line ? setChordAt(l, pick.pos, c) : l))))} />
   ) : null;

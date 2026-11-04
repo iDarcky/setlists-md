@@ -473,7 +473,7 @@ function SongEditGallery() {
 function SongGallery() {
   return (
     <div className="flex flex-wrap gap-6">
-      {[['Leader', {}], ['Member', { leader: false }], ['Open chart', { initialScreen: 'chart' }]].map(([label, props]) => THEMES.map(t => (
+      {[['Leader', {}], ['Member', { leader: false }], ['Open chart', { initialScreen: 'chart' }], ['Lyrics', { initialScreen: 'lyrics' }]].map(([label, props]) => THEMES.map(t => (
         <Frame key={label + t.id} theme={t.id} width={390} height={900} scale={0.6} label={`${label} · ${t.label}`}>
           <SongDemo layout="phone" {...props} />
         </Frame>

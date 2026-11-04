@@ -41,6 +41,65 @@ export function splitBlocks(text) {
   return blocks;
 }
 
+// ─── Section names the writer typed ──────────────────────────────────────
+//
+// A paste from a songbook often names its blocks on a line of their own:
+// "Verse 1", "CHORUS:", "[Bridge]", "(Refren)". Repetition is a guess; a name
+// the writer typed is not, so it wins. Romanian names are here because the
+// first church on the app sings in Romanian.
+
+const LABEL_WORDS = [
+  [/^(?:verses?|strof[aă]|stanza)$/i, 'Verse'],
+  [/^(?:pre[\s-]*(?:chorus|refren))$/i, 'Pre Chorus'],
+  [/^(?:chorus|refrain|refren)$/i, 'Chorus'],
+  [/^(?:bridge|punte|pod)$/i, 'Bridge'],
+  [/^(?:intro)$/i, 'Intro'],
+  [/^(?:outro|ending|final|coda)$/i, 'Outro'],
+  [/^(?:tag|vamp)$/i, 'Tag'],
+  [/^(?:instrumental|solo|interlude)$/i, 'Instrumental'],
+];
+
+/**
+ * The section a line names, or null. "Verse 1" → "Verse 1", "CHORUS:" →
+ * "Chorus", "[Pre-Chorus 2]" → "Pre Chorus 2", "Refren x2" → "Chorus".
+ */
+export function sectionLabel(line) {
+  let t = String(line ?? '').trim();
+  if (!t || t.length > 28) return null;
+  t = t.replace(/^[[(]\s*/, '').replace(/\s*[\])]$/, '').replace(/[:.\-–—]+$/, '').trim();
+  // A trailing repeat count belongs to the play order, not the name.
+  t = t.replace(/\s*(?:[x×]\s*\d+|\d+\s*[x×])$/i, '').trim();
+  const m = t.match(/^(.*?)[\s#]*(\d+)?$/);
+  const word = (m?.[1] || '').trim();
+  const num = m?.[2];
+  for (const [re, type] of LABEL_WORDS) {
+    if (re.test(word)) return num && type !== 'Chorus' ? `${type} ${num}` : type;
+  }
+  return null;
+}
+
+/**
+ * Re-cut blocks around typed names: a name on a line of its own (blank line
+ * after it) belongs to the block below; a name in the middle of a block starts
+ * a new one.
+ */
+function cutAtLabels(blocks) {
+  const out = [];
+  let pending = null;
+  for (const block of blocks) {
+    let current = pending ? [pending] : [];
+    pending = null;
+    for (const line of block) {
+      if (sectionLabel(line) && current.length) { out.push(current); current = []; }
+      current.push(line);
+    }
+    if (current.length === 1 && sectionLabel(current[0])) pending = current[0];
+    else out.push(current);
+  }
+  if (pending) out.push([pending]);
+  return out;
+}
+
 /**
  * Label unlabelled blocks.
  * @returns {Array<{ lines: string[], type: string, confident: boolean }>}
@@ -48,8 +107,21 @@ export function splitBlocks(text) {
  *   a guess differently from a deduction.
  */
 export function inferSections(text) {
-  const blocks = splitBlocks(text);
-  if (blocks.length === 0) return [];
+  const cut = cutAtLabels(splitBlocks(text));
+  if (cut.length === 0) return [];
+
+  // Peel the typed name off each block. A bare name with nothing under it
+  // ("Chorus" again at the end) means "sing that one again": it takes the
+  // words of the last block with the same name.
+  const named = new Map();
+  const labelled = cut.map((lines) => {
+    const label = sectionLabel(lines[0]);
+    const rest = label ? lines.slice(1) : lines;
+    if (label && rest.length === 0 && named.has(label)) return { label, lines: named.get(label) };
+    if (label && rest.length) named.set(label, rest);
+    return { label, lines: rest.length ? rest : lines };
+  });
+  const blocks = labelled.map(b => b.lines);
 
   const counts = new Map();
   const prints = blocks.map(b => {
@@ -68,6 +140,12 @@ export function inferSections(text) {
     const { lines: clean, repeat } = stripRepeatMarks(lines);
     // `rawLines` keeps the marks for callers with nowhere to record a repeat —
     // stripping "//:" without storing "×2" would quietly lose the instruction.
+    const { label } = labelled[i];
+    if (label) {
+      if (/^Verse \d+$/.test(label)) verseNo = Math.max(verseNo, parseInt(label.slice(6), 10));
+      else if (label === 'Verse') verseNo += 1;
+      return { lines: clean, rawLines: lines, type: label === 'Verse' ? `Verse ${verseNo}` : label, confident: true, repeat };
+    }
     const isChorus = repeated.has(prints[i]) && prints[i] !== '';
     if (isChorus) return { lines: clean, rawLines: lines, type: 'Chorus', confident: true, repeat };
     verseNo += 1;

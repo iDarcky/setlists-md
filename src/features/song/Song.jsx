@@ -24,7 +24,7 @@ export default function Song({
   const [now] = useState(() => Date.now());
   const [arrId, setArrId] = useState(songInput?.arrangements ? songInput.defaultArrangementId : undefined);
   const [semis, setSemis] = useState(0);
-  const [screen, setScreen] = useState(initialScreen); // 'details' | 'chart'
+  const [screen, setScreen] = useState(initialScreen); // 'details' | 'chart' | 'lyrics'
   const [full, setFull] = useState(false);
   useWakeLock(settings?.keepAwake === true);
 
@@ -84,14 +84,14 @@ export default function Song({
 
   return (
     <>
-      {screen === 'chart' ? (
-        <SongChartView embedded={embedded} title={song.title} onBack={() => setScreen('details')} onFullScreen={() => setFull(true)} {...shared}>
+      {screen !== 'details' ? (
+        <SongChartView embedded={embedded} title={song.title} tab={screen} onTab={setScreen} onBack={() => setScreen('details')} onFullScreen={() => setFull(true)} {...shared}>
           {/* Unmounted while full screen is open: two Readers in the DOM share ids (see SongHub's note). */}
           {!full && (
             <Reader
               embedded
               song={song}
-              displayMode="chords"
+              displayMode={screen === 'lyrics' ? 'lyrics' : 'chords'}
               settings={settings}
               onUpdateSettings={onUpdateSettings}
               selectedKey={shown}
@@ -111,6 +111,7 @@ export default function Song({
           onEdit={onEdit ? () => onEdit(arrId) : null}
           menu={menu}
           onOpenChart={() => setScreen('chart')}
+          onTab={setScreen}
           onFullScreen={() => setFull(true)}
           onOpenSetlist={onOpenSetlist}
         />
@@ -121,7 +122,7 @@ export default function Song({
           settings={settings}
           onUpdateSettings={onUpdateSettings}
           onUpgrade={onUpgrade}
-          displayMode="chords"
+          displayMode={screen === 'lyrics' ? 'lyrics' : 'chords'}
           selectedKey={shown}
           onSelectKey={pickKey}
           onClose={() => setFull(false)}

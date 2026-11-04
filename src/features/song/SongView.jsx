@@ -31,6 +31,25 @@ const fact = 'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-control bg-r
 const label = 'm-0 px-1 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
+/**
+ * Details · Chart · Lyrics — the song's three pages side by side (to-do 143).
+ * Same pills on every screen of the song, so the way back is where you left it.
+ */
+const SONG_TABS = [['details', 'Details'], ['chart', 'Chart'], ['lyrics', 'Lyrics']];
+export function SongTabs({ value, onChange, className }) {
+  return (
+    <div role="tablist" aria-label="Song" className={cn('flex gap-1 rounded-control bg-raised p-1', className)}>
+      {SONG_TABS.map(([id, name]) => (
+        <button key={id} type="button" role="tab" aria-selected={value === id} onClick={() => onChange?.(id)}
+          className={cn('flex h-9 min-h-0 flex-1 cursor-pointer items-center justify-center rounded-[7px] border-0 px-3 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            value === id ? 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,.25)]' : 'bg-transparent text-muted-foreground hover:text-foreground')}>
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Key ▾: − / + by semitone. Leaders can make the new key the song's own. */
 export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryone }) {
   return (
@@ -267,7 +286,7 @@ export function MenuSheet({ open, onOpenChange, title, items = [] }) {
 export default function SongView({
   song, keyCtl, arrangements = [], arrangementId, onArrangement, onNewArrangement,
   facts = { plays: 0, last: null, usualKey: '', next: null }, flow = [],
-  onBack, backLabel = 'Songs', onEdit, menu = [], onOpenChart, onFullScreen, onOpenSetlist,
+  onBack, backLabel = 'Songs', onEdit, menu = [], onOpenChart, onTab, onFullScreen, onOpenSetlist,
   embedded = false, layout = 'auto', listenOpen: listenInit = false,
 }) {
   const desk = useMediaQuery('(min-width: 1024px)');
@@ -306,6 +325,7 @@ export default function SongView({
       {Number(song.capo) > 0 && <span className={fact}>Capo {song.capo}</span>}
     </div>
   );
+  const tabs = onTab ? <SongTabs value="details" onChange={onTab} className={cn('mb-4', wide && 'max-w-[360px]')} /> : null;
   const listenEl = <Listen url={song.youtube} title={song.title} open={listen} onOpen={() => setListen(true)} onClose={() => setListen(false)} compact={wide} />;
 
   return (
@@ -313,7 +333,7 @@ export default function SongView({
       {wide ? (
         <div className="mx-auto flex w-full max-w-[1180px] gap-8 px-6 pb-10 pt-3">
           <div className="flex min-w-0 flex-1 flex-col">
-            {bar}{hero}{facts1}
+            {bar}{hero}{tabs}{facts1}
             <div className="flex gap-2 pb-5">
               <Button onClick={onOpenChart} className="px-7"><ChartIcon />Open chart</Button>
               {onFullScreen && <Button variant="outline" onClick={onFullScreen}><FullIcon />Full screen</Button>}
@@ -329,7 +349,7 @@ export default function SongView({
         </div>
       ) : (
         <div className="mx-auto flex w-full max-w-[680px] flex-col px-4 pb-10">
-          {bar}{hero}{facts1}
+          {bar}{hero}{tabs}{facts1}
           <Button onClick={onOpenChart} className="mb-4 w-full"><ChartIcon />Open chart</Button>
           <div className="flex flex-col gap-2.5">
             <Stats facts={facts} />
