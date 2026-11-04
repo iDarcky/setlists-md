@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
+import { Alert } from '@/ui/shadcn/alert';
 import { Input } from '@/ui/shadcn/input';
 import { Avatar } from '@/app/AppTopBar';
 import { CheckIcon } from '@/app/navIcons';
@@ -31,7 +32,7 @@ const Label = ({ children }) => <h3 className="m-0 text-[13px] font-semibold upp
  * Body of the person pop-up. `canManage`: may change their role and remove
  * them. `canMakeAdmin`: the owner, who alone hands out "can change roles".
  */
-export function PersonBody({ member, isOwnerRow = false, me = false, since = '', upcoming = [], canManage = false, canMakeAdmin = false, onRole, onRemove, onLeave, busy = false, onSaveParts, startEditingParts = false }) {
+export function PersonBody({ member, isOwnerRow = false, me = false, since = '', upcoming = [], canManage = false, canMakeAdmin = false, onRole, onRemove, onLeave, busy = false, onSaveParts, startEditingParts = false, error = '' }) {
   const parts = displayTokens(member.instruments);
   // Owner and leaders: Edit what this person plays. Quiet — no one is told,
   // and the person can still change it themselves (owner, 2026-11-04).
@@ -129,6 +130,7 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
         ) : <p className="m-0 text-[14px] text-muted-foreground">Not in any band coming up.</p>}
       </div>
 
+      {error && <Alert variant="danger">{error}</Alert>}
       {editable && onRemove && <Button variant="outline" className="text-danger" disabled={busy} onClick={onRemove}>Remove from the church</Button>}
       {me && !isOwnerRow && onLeave && <Button variant="outline" className="text-danger" disabled={busy} onClick={onLeave}>Leave this church</Button>}
     </div>

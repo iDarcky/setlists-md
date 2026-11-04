@@ -6,7 +6,7 @@ import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
 import { canPlanServices, canWriteLibrary as roleCanWriteLibrary, canApproveJoins } from '@/lib/teamRoles';
 import { useTeamJoinRequests } from '@/hooks/useTeamJoinRequests';
 import { cachedTeams, cacheTeams, cachedMembers, cacheMembers } from '@/lib/launchCache';
-import { saveMemberInstruments as saveInstrumentsRow, canSetOthersParts } from '@/lib/memberInstruments';
+import { saveMemberInstruments as saveInstrumentsRow, canSetOthersParts, saveMemberRole, deleteMember } from '@/lib/memberInstruments';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -442,13 +442,7 @@ export function TeamProvider({ children }) {
         guard();
         if (!team) throw new Error('No team exists.');
 
-        const { error } = await supabase
-          .from('team_members')
-          .update({ role })
-          .eq('id', memberId)
-          .eq('team_id', team.id);
-
-        if (error) throw error;
+        await saveMemberRole(supabase, { memberId, role });
         setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role } : m));
       },
 
@@ -480,13 +474,7 @@ export function TeamProvider({ children }) {
         guard();
         if (!team) throw new Error('No team exists.');
 
-        const { error } = await supabase
-          .from('team_members')
-          .delete()
-          .eq('id', memberId)
-          .eq('team_id', team.id);
-
-        if (error) throw error;
+        await deleteMember(supabase, { memberId });
         setMembers(prev => prev.filter(m => m.id !== memberId));
       },
 
