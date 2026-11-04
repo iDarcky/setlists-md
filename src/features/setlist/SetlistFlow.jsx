@@ -168,12 +168,14 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
   const inSet = new Set((draft.items || []).map(i => i?.songId).filter(Boolean));
   const suggested = useMemo(() => suggestSongs({ songs, setlist: draft, setlists, at, limit: 8 }), [songs, draft, setlists, at]);
   const sorted = useMemo(() => [...songs].sort((a, b) => (a.title || '').localeCompare(b.title || '')), [songs]);
-  let list; let label;
-  if (q.trim()) { list = searchSongs(songs, q, { limit: 40 }); label = null; }
+  // Two lists when not searching: the suggestions, then the whole library A–Z.
+  let groups;
+  if (q.trim()) groups = [{ label: null, list: searchSongs(songs, q, { limit: 40 }) }];
   else if (suggested.length) {
     const ids = new Set(suggested.map(x => x.song.id));
-    list = [...suggested.map(x => x.song), ...sorted.filter(s => !ids.has(s.id))]; label = 'Suggested';
-  } else { list = sorted; label = 'All songs'; }
+    groups = [{ label: 'Suggested', list: suggested.map(x => x.song) }, { label: 'All songs', list: sorted.filter(s => !ids.has(s.id)) }];
+  } else groups = [{ label: 'All songs', list: sorted }];
+  const empty = groups.every(g => !g.list.length);
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
@@ -182,25 +184,29 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
         <span className="truncate text-[13px] text-muted-foreground">{filling ? `filling song ${filling}` : '+ fills the next “Song”'}</span>
       </div>
       <Input ref={searchRef} type="search" inputMode="search" placeholder="Search the library" value={q} onChange={e => setQ(e.target.value)} className="h-11" />
-      {label && <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>}
-      <div className="rounded-card border border-border bg-card">
-        {list.map(s => {
-          const lp = lastPlayed(s.id, setlists, today, draft.id);
-          const v = resolveSongView(s);
-          const line = [v?.key && transposeKey(v.key, lp?.transpose || 0), lp ? `last ${shortDate(lp.date)}` : 'never played', inSet.has(s.id) && 'in this setlist'].filter(Boolean).join(' · ');
-          return (
-            <div key={s.id} className={cn('flex min-h-[52px] items-center gap-2 border-t border-border px-3 py-1.5 first:border-t-0', previewId === s.id && 'bg-selected')}>
-              <button type="button" onClick={() => (onPreview ? onPreview(s.id) : onAdd(s))}
-                className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:underline">
-                <span className="truncate text-[14px] font-semibold">{s.title}</span>
-                <span className="truncate text-[12px] text-muted-foreground">{line}</span>
-              </button>
-              <Button variant="outline" size="icon" className="size-9 shrink-0 rounded-full" aria-label={`Add ${s.title}`} onClick={() => onAdd(s)}><PlusIcon size={18} /></Button>
-            </div>
-          );
-        })}
-        {!list.length && <p className="m-0 px-4 py-6 text-center text-[14px] text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
-      </div>
+      {groups.map(({ label, list }) => (list.length > 0 || !label) && (
+        <div key={label || 'results'} className="flex flex-col gap-2">
+          {label && <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>}
+          <div className="rounded-card border border-border bg-card">
+            {list.map(s => {
+              const lp = lastPlayed(s.id, setlists, today, draft.id);
+              const v = resolveSongView(s);
+              const line = [v?.key && transposeKey(v.key, lp?.transpose || 0), lp ? `last ${shortDate(lp.date)}` : 'never played', inSet.has(s.id) && 'in this setlist'].filter(Boolean).join(' · ');
+              return (
+                <div key={s.id} className={cn('flex min-h-[52px] items-center gap-2 border-t border-border px-3 py-1.5 first:border-t-0', previewId === s.id && 'bg-selected')}>
+                  <button type="button" onClick={() => (onPreview ? onPreview(s.id) : onAdd(s))}
+                    className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:underline">
+                    <span className="truncate text-[14px] font-semibold">{s.title}</span>
+                    <span className="truncate text-[12px] text-muted-foreground">{line}</span>
+                  </button>
+                  <Button variant="outline" size="icon" className="size-9 shrink-0 rounded-full" aria-label={`Add ${s.title}`} onClick={() => onAdd(s)}><PlusIcon size={18} /></Button>
+                </div>
+              );
+            })}
+            {empty && <p className="m-0 px-4 py-6 text-center text-[14px] text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
+          </div>
+        </div>
+      ))}
       <Button variant="link" className="self-start text-[14px]" onClick={() => onEmptySlot(q.trim())}>
         {q.trim() ? `Keep a “${q.trim()}” slot, choose the song later` : 'Add an empty “Song”, choose later'}
       </Button>
