@@ -251,3 +251,61 @@ export function serviceTemplates(setlists = []) {
 
 /** "Sun 8" */
 export const shortDayLabel = (date) => (date ? dayOf(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }) : '');
+
+// ── Hints on the order (2026-11-04) ─────────────────────────────────────────
+
+const PITCH = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
+const pitchOf = (key) => {
+  const m = /^([A-G])([#b♯♭]?)(m(?!aj))?/.exec(String(key || '').trim());
+  if (!m) return null;
+  const acc = m[2] === '♯' ? '#' : m[2] === '♭' ? 'b' : m[2];
+  const p = PITCH[m[1] + acc];
+  return p == null ? null : { p, minor: !!m[3] };
+};
+/** Steps apart on the circle of fifths (0–6); a minor key counts as its relative major. */
+export function keyDistance(a, b) {
+  const x = pitchOf(a); const y = pitchOf(b);
+  if (!x || !y) return null;
+  const px = x.minor ? (x.p + 3) % 12 : x.p;
+  const py = y.minor ? (y.p + 3) % 12 : y.p;
+  const k = (((py - px) * 7) % 12 + 12) % 12;
+  return Math.min(k, 12 - k);
+}
+
+/**
+ * "E♭ → A, far key" / "72 → 128 BPM" between a song and the song before it
+ * (moments and empty slots in between don't count). { [rowIdx]: text }
+ */
+export function flowHints(rows = []) {
+  const out = {};
+  let prev = null;
+  rows.forEach(r => {
+    if (r.kind !== 'song' || r.placeholder) return;
+    if (prev) {
+      const bits = [];
+      const d = keyDistance(prev.key, r.key);
+      if (d != null && d >= 3) bits.push(`${prev.key} → ${r.key}, far key`);
+      const a = Number(prev.tempo); const b = Number(r.tempo);
+      if (a && b && Math.abs(a - b) >= 35) bits.push(`${a} → ${b} BPM`);
+      if (bits.length) out[r.idx] = bits.join(' · ');
+    }
+    prev = r;
+  });
+  return out;
+}
+
+/** "Played last Sunday" / "Played 1 Nov" when a song was played in the 3 weeks before `date`. */
+export function playedRecently(songId, setlists = [], date = ymd(new Date()), exceptId = null) {
+  if (!songId || !date) return '';
+  let best = '';
+  setlists.forEach(sl => {
+    if (!sl || sl.isTemplate || sl.id === exceptId || !sl.date || sl.date >= date) return;
+    if ((sl.items || []).some(it => it?.songId === songId) && sl.date > best) best = sl.date;
+  });
+  if (!best) return '';
+  const days = Math.round((dayOf(date) - dayOf(best)) / 86400000);
+  if (days > 21) return '';
+  if (days === 7 && weekday(best) === 0) return 'Played last Sunday';
+  if (days <= 7) return `Played ${dayOf(best).toLocaleDateString('en-GB', { weekday: 'long' })}`;
+  return `Played ${dayOf(best).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}

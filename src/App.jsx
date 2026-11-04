@@ -106,6 +106,7 @@ const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuild
 const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
 const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'));
 import NewSetlistSheet from '@/features/setlist/NewSetlistSheet';
+import { writeNewDraft } from '@/lib/setlistDraft';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -2138,11 +2139,25 @@ export default function App() {
   // A new setlist's band picks ride along as `plannedBand` until the setlist
   // page has sent them; then they are dropped.
   const clearPlannedBand = (id) => {
+    const was = setlists.find(s => s.id === id);
     setSetlists(prev => prev.map(s => {
-      if (s.id !== id || !s.plannedBand) return s;
-      const { plannedBand: _p, ...rest } = s;
+      if (s.id !== id || (!s.plannedBand && !s.readyAfterAsks)) return s;
+      const { plannedBand: _p, readyAfterAsks: _r, ...rest } = s;
       return rest;
     }));
+    // "Mark ready when I save" on a new setlist with a band: ready once the
+    // asks are out, so the band's "it's final" reaches the people just asked.
+    if (was?.readyAfterAsks) {
+      const { plannedBand: _p, readyAfterAsks: _r, ...rest } = was;
+      markSetlistReady(rest);
+    }
+  };
+  // The New setlist / Edit flow's Save; `ready` = "Mark ready when I save".
+  const saveSetlistFromFlow = (sl, { ready = false } = {}) => {
+    if (!ready || sl.status === 'ready') { handleSaveSetlist(sl); return; }
+    if (sl.plannedBand?.length) { handleSaveSetlist({ ...sl, readyAfterAsks: true }); return; }
+    handleSaveSetlist(sl);
+    markSetlistReady(sl);
   };
 
   const handleSaveSetlistAsTemplate = (id) => {
@@ -2712,10 +2727,12 @@ export default function App() {
               setlists={setlists}
               schedules={schedules}
               setlistMap={teamSetlistMap}
-              onSave={handleSaveSetlist}
+              space={activeLibrary}
+              onSave={saveSetlistFromFlow}
               onCancel={async () => {
                 if (!(await confirmDiscardSetlist())) return;
                 setlistDirtyRef.current = false;
+                writeNewDraft(activeLibrary, null);
                 goBack();
               }}
               onDirtyChange={markSetlistDirty}
@@ -3026,6 +3043,7 @@ export default function App() {
         open={newSetlistOpen}
         onOpenChange={setNewSetlistOpen}
         setlists={setlists}
+        space={activeLibrary}
         onCreate={(draft) => { setNewSetlistOpen(false); navigate('setlist-build', { setlist: draft }); }}
         onSaveTemplate={isTeamReadOnly ? null : handleSaveTemplate}
         onDeleteTemplate={handleDeleteTemplate}

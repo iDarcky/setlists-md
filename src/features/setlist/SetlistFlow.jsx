@@ -11,12 +11,13 @@ import { suggestSongs } from '@/lib/suggestSongs';
 import { buildOrder } from '@/lib/setlistView';
 import {
   templatesOf, serviceTemplates, templateTitle, autoName, nextDates, takenDates, shiftDate,
-  isPlaceholder, placeholderItem, lastPlayed, dayLabel as longDay, shortDayLabel as shortDay,
+  isPlaceholder, placeholderItem, lastPlayed, dayLabel as longDay, shortDayLabel as shortDay, flowHints, playedRecently,
 } from '@/lib/newSetlist';
 import { useDragReorder, moveItem } from './useDragReorder';
 import { MomentFields, NoteEditor, Grip, NOTE_MAX } from './SetlistEdit';
 import { Chip, DateSheet, TimeSheet } from './WhenPickers';
 import BandSection from './BandSection';
+import { writeNewDraft } from '@/lib/setlistDraft';
 
 // New setlist (canvas → New setlist v2): the template pop-up picks where to
 // start, then two steps: Details and band, then Songs. The same two screens
@@ -289,7 +290,7 @@ function SongSettings({ item, song, people, setlists, draftId, nameOf, today, on
 export default function SetlistFlow({
   setlist, isNew = false, songs = [], setlists = [], peopleOf = () => [], nameOf = () => '',
   team = null, members = [], schedules = [], setlistMap = {}, createSchedule, deleteSchedule, ensureRow,
-  onSave, onCancel, onDirtyChange, initialStep,
+  onSave, onCancel, onDirtyChange, initialStep, space = 'personal',
 }) {
   const wide = useWide();
   const templates = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
@@ -302,6 +303,8 @@ export default function SetlistFlow({
   const [previewId, setPreviewId] = useState(null);    // desktop: library song shown in the right column
   const [noteFor, setNoteFor] = useState(null);
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const [ready, setReady] = useState(false);           // Save and mark ready
+  const [removed, setRemoved] = useState(null);        // { item, index } — for Undo
   const searchRef = useRef(null);
   const libRef = useRef(null);
   const template = templates.find(t => t.id === draft.templateId) || null;
@@ -309,6 +312,14 @@ export default function SetlistFlow({
   const dirty = isNew || JSON.stringify(draft) !== JSON.stringify(setlist);
   useEffect(() => { onDirtyChange?.(JSON.stringify(draft) !== JSON.stringify(setlist)); }, [draft, setlist, onDirtyChange]);
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  // A new setlist keeps itself on the device as it is made (the pop-up then
+  // offers "Continue your setlist"); saving it clears that.
+  useEffect(() => { if (isNew) writeNewDraft(space, draft); }, [isNew, space, draft]);
+  useEffect(() => {
+    if (!removed) return undefined;
+    const t = setTimeout(() => setRemoved(null), 6000);
+    return () => clearTimeout(t);
+  }, [removed]);
 
   const people = peopleOf(draft);
   const items = draft.items || [];
@@ -322,7 +333,12 @@ export default function SetlistFlow({
   }));
   const follow = (i, from, to) => (i == null ? i : i === from ? to : from < i && to >= i ? i - 1 : from > i && to <= i ? i + 1 : i);
   const move = (from, to) => { setItems(xs => moveItem(xs, from, to)); setOpen(o => follow(o, from, to)); setSlot(x => follow(x, from, to)); };
-  const remove = (i) => { setItems(xs => xs.filter((_, j) => j !== i)); setOpen(null); setSlot(null); };
+  const remove = (i) => { setRemoved({ item: items[i], index: i, title: order.rows[i]?.title }); setItems(xs => xs.filter((_, j) => j !== i)); setOpen(null); setSlot(null); };
+  const undoRemove = () => {
+    if (!removed) return;
+    setItems(xs => { const n = [...xs]; n.splice(Math.min(removed.index, n.length), 0, removed.item); return n; });
+    setRemoved(null);
+  };
   const { listRef, gripProps, rowStyle } = useDragReorder(move);
 
   const songItem = (s) => {
@@ -352,10 +368,16 @@ export default function SetlistFlow({
   const previewSong = previewId ? songs.find(s => s.id === previewId) : null;
   const idx = STEPS.findIndex(([k]) => k === step);
   const nextStep = STEPS[idx + 1];
-  const save = () => { onDirtyChange?.(false); onSave?.(draft); };
+  const save = (final = false) => {
+    onDirtyChange?.(false);
+    if (isNew) writeNewDraft(space, null);
+    onSave?.(draft, { ready: final === true && ready });
+  };
   const canSave = !!(draft.name || '').trim() || !!draft.date;
   const asks = isNew && draft.plannedBand?.length;
-  const saveLabel = asks ? 'Save and ask band' : 'Save setlist';
+  const canReady = draft.status !== 'ready';
+  const saveLabel = asks ? 'Save and ask band' : ready && canReady ? 'Save and mark ready' : 'Save setlist';
+  const hints = flowHints(order.rows);
   const fillingN = fillAt >= 0 ? order.rows[fillAt]?.n : null;
 
   /* ── Pieces ─────────────────────────────────────────────────────────── */
@@ -390,6 +412,17 @@ export default function SetlistFlow({
                     {r.kind === 'moment' && !it.label ? 'New moment' : r.title}
                   </span>
                   {!isSlot && r.kind === 'song' && <span className="truncate text-[12px] text-muted-foreground">{[r.tempo && `${r.tempo} BPM`, r.time].filter(Boolean).join(' · ') || ' '}</span>}
+                  {!isSlot && r.kind === 'song' && (() => {
+                    const recent = playedRecently(it.songId, setlists, draft.date || today, draft.id);
+                    if (!recent && !hints[i]) return null;
+                    return (
+                      <span className="truncate text-[12px]">
+                        {hints[i] && <span className="text-warning-text">{hints[i]}</span>}
+                        {hints[i] && recent && <span className="text-muted-foreground"> · </span>}
+                        {recent && <span className="text-muted-foreground">{recent}</span>}
+                      </span>
+                    );
+                  })()}
                 </span>
                 {r.kind === 'moment' && r.minutes > 0 && <span className="text-[12px] text-muted-foreground">{r.minutes} min</span>}
                 {isSlot && <span className="text-[13px] font-medium text-link">{filling ? 'choosing…' : 'Choose'}</span>}
@@ -430,6 +463,15 @@ export default function SetlistFlow({
       {wide && <span className="-mt-2 text-[12px] text-muted-foreground">{[longDay(draft.date), draft.time, draft.location].filter(Boolean).join(' · ')} · drag ⠿ to move</span>}
       {orderList}
       <div className="flex gap-2"><Chip onClick={addMoment}><PlusIcon size={16} />Add moment</Chip></div>
+      {canReady && (
+        <div className="mt-2 flex items-center gap-3 rounded-card border border-border bg-card px-4 py-3">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[15px] font-medium">Mark ready when I save</span>
+            <span className="text-[12px] text-muted-foreground">{asks ? 'The band hears it’s final once they’re asked.' : 'The band hears it’s final.'}</span>
+          </span>
+          <Switch label="Mark ready when I save" on={ready} onChange={setReady} />
+        </div>
+      )}
     </div>
   );
 
@@ -511,11 +553,11 @@ export default function SetlistFlow({
                 ))}
               </nav>
               <span className="flex-1" />
-              <Button variant="outline" disabled={!canSave || (!dirty && !isNew)} onClick={save}>{isNew ? 'Save draft' : 'Save'}</Button>
-              {nextStep ? <Button onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button> : <Button disabled={!canSave} onClick={save}>{saveLabel}</Button>}
+              <Button variant="outline" disabled={!canSave || (!dirty && !isNew)} onClick={() => save()}>{isNew ? 'Save draft' : 'Save'}</Button>
+              {nextStep ? <Button onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button> : <Button disabled={!canSave} onClick={() => save(true)}>{saveLabel}</Button>}
             </>
           )}
-          {!wide && <Button variant="ghost" className="-mr-3 text-link" disabled={!canSave || (!dirty && !isNew)} onClick={save}>{isNew ? 'Save draft' : 'Save'}</Button>}
+          {!wide && <Button variant="ghost" className="-mr-3 text-link" disabled={!canSave || (!dirty && !isNew)} onClick={() => save()}>{isNew ? 'Save draft' : 'Save'}</Button>}
         </div>
         {!wide && (
           <div className="flex flex-col gap-1.5 px-4 pb-2">
@@ -540,10 +582,16 @@ export default function SetlistFlow({
           {idx > 0 && <Button variant="outline" className="h-12" onClick={() => setStep(STEPS[idx - 1][0])}>Back</Button>}
           {nextStep
             ? <Button className="h-12 flex-1" onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button>
-            : <Button className="h-12 flex-1" disabled={!canSave} onClick={save}>{saveLabel}</Button>}
+            : <Button className="h-12 flex-1" disabled={!canSave} onClick={() => save(true)}>{saveLabel}</Button>}
         </div>
       )}
 
+      {removed && (
+        <div role="status" className={cn('fixed inset-x-0 z-30 mx-auto flex w-[calc(100%-32px)] max-w-[420px] items-center gap-3 rounded-card border border-border bg-raised px-4 py-2.5 shadow-lg', wide ? 'bottom-6' : 'bottom-[88px]')}>
+          <span className="min-w-0 flex-1 truncate text-[14px]">Removed “{removed.title || removed.item?.label || 'Song'}”</span>
+          <Button variant="link" className="text-[14px]" onClick={undoRemove}>Undo</Button>
+        </div>
+      )}
       {noteFor != null && (
         <NoteEditor open key={noteFor} title={items[noteFor]?.label || 'Moment'} value={items[noteFor]?.note}
           onCancel={() => setNoteFor(null)} onDone={(text) => { patchItem(noteFor, { note: text }); setNoteFor(null); }} />

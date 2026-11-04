@@ -4,6 +4,7 @@ import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
 import { templatesOf, serviceTemplates, templateTitle, draftFromTemplate, dayLabel, blankTemplate } from '@/lib/newSetlist';
 import { TemplateEditor, TemplatesSheet } from './TemplateEditor';
+import { readNewDraft, writeNewDraft } from '@/lib/setlistDraft';
 
 // "+ New setlist" (canvas → New setlist v2, V2Popup): pick a template — each
 // service the church runs is one — or an empty setlist. The next free date
@@ -25,11 +26,15 @@ function Row({ on, title, sub, name, onPick }) {
   );
 }
 
-export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates }) {
+export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, space = 'personal' }) {
   const templates = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
   const drafts = useMemo(() => Object.fromEntries(templates.map(t => [t.id, draftFromTemplate(t, setlists)])), [templates, setlists]);
-  const [pick, setPick] = useState(templates[0]?.id || 'blank');
+  // A setlist started here earlier and never saved (the app was closed).
+  const [kept] = useState(() => { const d = readNewDraft(space); return d && !setlists.some(s => s.id === d.id) ? d : null; });
+  const [pick, setPick] = useState(kept ? 'kept' : (templates[0]?.id || 'blank'));
   const create = () => {
+    if (pick === 'kept' && kept) { onCreate(kept); return; }
+    if (kept) writeNewDraft(space, null);
     const tpl = templates.find(t => t.id === pick) || null;
     onCreate(tpl ? drafts[tpl.id] : draftFromTemplate(null, setlists));
   };
@@ -37,6 +42,10 @@ export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates }) {
     <div className="flex flex-col gap-3 font-sans">
       <p className="m-0 -mt-1 text-[13px] text-muted-foreground">Pick a template. Everything in it can be changed after.</p>
       <div role="radiogroup" aria-label="Start from" className="flex flex-col gap-2">
+        {kept && (
+          <Row on={pick === 'kept'} onPick={() => setPick('kept')} title="Continue your setlist"
+            sub={[kept.name, dayLabel(kept.date), `${(kept.items || []).filter(i => i?.songId).length} songs`].filter(Boolean).join(' · ')} />
+        )}
         {templates.map(t => {
           const d = drafts[t.id];
           return (
@@ -53,14 +62,14 @@ export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates }) {
   );
 }
 
-export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onCreate, onSaveTemplate, onDeleteTemplate }) {
+export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onCreate, onSaveTemplate, onDeleteTemplate, space = 'personal' }) {
   const [list, setList] = useState(false);
   const [edit, setEdit] = useState(null);
   const saved = useMemo(() => [...templatesOf(setlists), ...serviceTemplates(setlists)], [setlists]);
   return (
     <>
       <Sheet open={open && !list && !edit} onOpenChange={onOpenChange} title="New setlist" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
-        {open && <NewSetlistBody setlists={setlists} onCreate={onCreate} onEditTemplates={onSaveTemplate ? () => setList(true) : null} />}
+        {open && <NewSetlistBody space={space} setlists={setlists} onCreate={onCreate} onEditTemplates={onSaveTemplate ? () => setList(true) : null} />}
       </Sheet>
       <TemplatesSheet open={open && list} onOpenChange={setList} templates={saved}
         onEdit={(t) => { setList(false); setEdit(t); }} onNew={() => { setList(false); setEdit(blankTemplate()); }} />
