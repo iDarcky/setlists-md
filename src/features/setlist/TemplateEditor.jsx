@@ -126,7 +126,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
             <Popover open={addPart} onOpenChange={setAddPart}>
               <PopoverTrigger asChild>
                 <button type="button" className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent px-4 text-left font-sans text-[15px] font-medium text-link outline-none focus-visible:bg-raised">
-                  <PlusIcon size={16} />Add a part<span aria-hidden="true" className="ml-auto text-muted-foreground">▾</span>
+                  <PlusIcon size={16} />Add to band<span aria-hidden="true" className="ml-auto text-muted-foreground">▾</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent className="z-[80] max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
