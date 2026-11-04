@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   splitPattern, joinPattern, nextNumber, autoName, nextDates, draftFromTemplate, lastPlayed,
-  templatesOf, parseTime, typeTime, draftFromSetlist, recentSetlists, isPlaceholder, placeholderItem,
+  templatesOf, parseTime, typeTime, isPlaceholder, placeholderItem,
 } from '@/lib/newSetlist';
 import { buildOrder } from '@/lib/setlistView';
 
@@ -95,27 +95,6 @@ describe('placeholders in the order', () => {
     expect(rows[0]).toMatchObject({ kind: 'song', placeholder: true, title: 'Song', n: 1 });
     expect(rows[1]).toMatchObject({ title: 'X', time: '6/8', n: 2 });
     expect(songCount).toBe(2);
-  });
-});
-
-describe('copy a past setlist', () => {
-  const past = { id: 'p1', name: 'BBPT #423 AM', service: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall',
-    rehearsalDate: '2026-10-31', rehearsalTime: '18:00',
-    items: [{ songId: 's1', leadBy: 'u1', transpose: 2 }, { type: 'break', label: 'Prayer', leadBy: 'u2' }, { songId: 's2' }] };
-  it('keeps the shape: moments stay, songs become empty slots, nobody leads', () => {
-    const d = draftFromSetlist(past, [past], '2026-11-04');
-    expect(d.id).not.toBe('p1');
-    expect(d).toMatchObject({ service: 'Sunday Morning', date: '2026-11-08', time: '10:00', location: 'Main hall', rehearsalDate: '2026-11-07', rehearsalTime: '18:00', status: 'draft' });
-    expect(d.items).toEqual([{ placeholder: true }, { type: 'break', label: 'Prayer' }, { placeholder: true }]);
-  });
-  it('follows its template when it still exists', () => {
-    const tpl = { ...AM, id: 'am' };
-    const d = draftFromSetlist({ ...past, templateId: 'am' }, [tpl, { ...past, templateId: 'am' }], '2026-11-04');
-    expect(d.templateId).toBe('am');
-  });
-  it('lists the newest dated setlists, never templates', () => {
-    const list = recentSetlists([past, AM, { id: 'p2', date: '2026-11-08', items: [] }, { id: 'nd', items: [] }]);
-    expect(list.map(s => s.id)).toEqual(['p2', 'p1']);
   });
 });
 

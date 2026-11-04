@@ -101,8 +101,8 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           {numbered ? (
             <div className="rounded-card border border-border bg-card">
               <Row label="Start at">
-                <Input type="number" inputMode="numeric" min={1} aria-label="Start at number" value={next}
-                  onChange={e => set({ startNumber: Math.max(1, Number(e.target.value) || 1) })} className="h-10 w-[96px] font-mono" />
+                <Input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="Start at number" value={next} onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
+                  onChange={e => set({ startNumber: Math.max(1, Number(e.target.value.replace(/\D/g, '')) || 1) })} className="h-10 w-[96px] font-mono" />
               </Row>
               <p className="m-0 border-t border-border px-4 py-3 text-[13px] text-muted-foreground">
                 Setlists are called <b className="font-mono text-foreground">{baseTitle} #{next}</b>, then #{next + 1}, and so on.
