@@ -421,6 +421,22 @@ export async function pushVersion(songId, md) {
   }
 }
 
+// The new editor keeps the whole song (every arrangement), not one .md.
+export async function pushSongVersion(songId, doc) {
+  if (!songId || !doc) return;
+  try {
+    const json = JSON.stringify(doc);
+    const list = (await get(VERSIONS_KEY(songId))) || [];
+    const last = list[list.length - 1];
+    if (last && last.doc && JSON.stringify(last.doc) === json) return;
+    list.push({ ts: Date.now(), doc });
+    while (list.length > MAX_VERSIONS) list.shift();
+    await set(VERSIONS_KEY(songId), list);
+  } catch {
+    /* history is best-effort */
+  }
+}
+
 export async function clearAll(libraryId = 'personal') {
   // Per-song entries: enumerate keys under the library's song prefix.
   try {

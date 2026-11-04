@@ -2603,6 +2603,7 @@ export default function App() {
               key={editTarget.song.id}
               song={editTarget.song}
               library={songs}
+              historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
               mode={editTarget.mode}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}

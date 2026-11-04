@@ -14,6 +14,10 @@ import { normalizeText } from '@/lib/search';
 import { youtubeDuration, formatLength } from '@/lib/embedPlayers';
 import { youtubeId } from '@/lib/coverArt';
 import TabTool from './TabTool';
+import VersionHistory from './VersionHistory';
+import { useTeam } from '@/auth/useTeam';
+import { songDoc, songFromDoc } from '@/sync/songDoc';
+import { pushSongVersion } from '@/storage';
 import { TAB_INSTRUMENTS, instrumentForStrings } from '@/data/tabInstruments';
 import { resolveSectionColors } from '@/lib/sectionIdentity';
 import { inferSections } from '@/lib/detectSections';
@@ -66,7 +70,7 @@ function LineView({ line }) {
     const instr = TAB_INSTRUMENTS[line.instrument || instrumentForStrings(line.strings?.length)]?.label || 'Guitar';
     return (
       <span className="flex flex-col gap-1 rounded-card border border-border bg-card px-3 py-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Tab · {instr}{line.time ? ` · ${line.time}` : ''}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{line.savedName ? `Saved tab · ${line.savedName}` : `Tab · ${instr}`}{line.time ? ` · ${line.time}` : ''}</span>
         <pre className="m-0 overflow-x-auto font-mono text-[12px] leading-4 text-foreground">{(line.strings || []).map(x => `${x.note}|${x.content}`).join('\n') || 'Empty tab'}</pre>
       </span>
     );
@@ -308,7 +312,7 @@ function SectionName({ name, look, onPick }) {
   );
 }
 
-function SectionMenu({ section, index, count, onText, onMove, onDuplicate, onDelete, onKeyChange, onTab }) {
+function SectionMenu({ section, index, count, onText, onMove, onDuplicate, onDelete, onKeyChange, onTab, saved = [], onSaved }) {
   const [open, setOpen] = useState(false);
   const run = (fn) => () => { setOpen(false); fn(); };
   return (
@@ -319,6 +323,7 @@ function SectionMenu({ section, index, count, onText, onMove, onDuplicate, onDel
       <PopoverContent align="end" className="flex w-[240px] flex-col p-1.5">
         <button type="button" className={menuRow} onClick={run(onKeyChange)}>Add key change</button>
         <button type="button" className={menuRow} onClick={run(onTab)}>Add tab</button>
+        {saved.map(name => <button key={name} type="button" className={menuRow} onClick={run(() => onSaved(name))}>Add saved tab: {name}</button>)}
         <button type="button" className={menuRow} onClick={run(onText)}>Edit as text</button>
         <div className="mx-1 my-1 h-px bg-border" />
         <button type="button" className={menuRow} disabled={index === 0} onClick={run(() => onMove(-1))}>Move up</button>
@@ -465,7 +470,7 @@ function OrderBar({ order, names, onChange, styleOf }) {
   );
 }
 
-function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, setWords, onArr, onAddAfter, onTab, styleOf }) {
+function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, setWords, onArr, onAddAfter, onTab, styleOf, folded = false, onFold }) {
   const sec = arr.sections[index];
   const look = styleOf(sec.type);
   const [mode, setMode] = useState(null); // null | 'cue' | 'text'
@@ -482,6 +487,10 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
   return (
     <section className="flex flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: look.br }}>
       <div className="flex min-h-9 items-center gap-2">
+        <button type="button" onClick={onFold} aria-expanded={!folded} aria-label={folded ? `Open ${sec.type}` : `Fold ${sec.type} shut`}
+          className={cn(iconBtn, '-ml-1.5 size-7 text-muted-foreground')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={cn('transition-transform', folded && '-rotate-90')}><path d="m6 9 6 6 6-6" /></svg>
+        </button>
         {sectionTag(sec.type, look)}
         {(
           <>
@@ -505,6 +514,8 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
               onText={() => { setWords(null); open('text'); }}
               onKeyChange={() => { setWords(null); setPick(null); onArr(setLines(arr, index, [{ type: 'modulate', semitones: 2 }, ...(sec.lines || [])])); setEditing({ sec: index, line: 0 }); }}
               onTab={() => { setWords(null); setPick(null); onTab(null); }}
+              saved={(arr.tabLibrary || []).map(t => t.name)}
+              onSaved={(name) => { setWords(null); setPick(null); onArr(setLines(arr, index, [...(sec.lines || []), { type: 'tabref', name, tab: (arr.tabLibrary || []).find(t => t.name === name)?.tab || null }])); }}
               onMove={(d) => onArr({ ...arr, sections: move(arr.sections, index, d) })}
               onDuplicate={() => { const { arr: a, index: i } = addSection(arr, index, sec.type.replace(/\s*\d+$/, '')); onArr(setSection(a, i, { lines: [...lines], note: sec.note })); }}
               onDelete={() => { setWords(null); setPick(null); onArr(deleteSection(arr, index)); }} />
@@ -517,7 +528,11 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
           <Button size="sm" type="submit">Done</Button>
         </form>
       )}
-      {mode === 'text' ? (
+      {folded ? (
+        <button type="button" onClick={onFold} className="-mx-2 min-h-0 cursor-pointer self-start truncate rounded-control border-0 bg-transparent px-2 py-0.5 text-left font-sans text-[14px] text-muted-foreground outline-none hover:bg-raised">
+          {(() => { const ls = (sec.lines || []).filter(l => (typeof l === 'string' ? l.trim() : l)); const first = ls.find(l => typeof l === 'string'); return `${ls.length} ${ls.length === 1 ? 'line' : 'lines'}${first ? ` · ${lineToPlacement(extractInlineNotes(first).clean).plainText.trim().slice(0, 40)}…` : ''}`; })()}
+        </button>
+      ) : mode === 'text' ? (
         <div className="flex flex-col gap-2">
           <textarea autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} rows={Math.max(4, draft.split('\n').length + 1)} spellCheck={false} aria-label={`${sec.type} as text`}
             className="w-full rounded-control border border-input bg-background p-3 font-mono text-[14px] leading-6 text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring" />
@@ -569,6 +584,13 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
               return (
                 <button key={n} type="button" onClick={() => { setPick(null); setEditing({ sec: index, line: n }); }} aria-label="Edit key change"
                   className="-mx-2 min-h-0 cursor-pointer self-start rounded-control border-0 bg-transparent px-2 py-0.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised"><LineView line={l} /></button>
+              );
+            }
+            if (l?.type === 'tabref') {
+              const libTab = (arr.tabLibrary || []).find(t => t.name === l.name)?.tab || l.tab;
+              return (
+                <button key={n} type="button" onClick={() => { setPick(null); onTab(n); }} aria-label={`Edit saved tab ${l.name}`}
+                  className="-mx-2 min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-2 py-0.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised"><LineView line={{ ...(libTab || { strings: [] }), type: 'tab', savedName: l.name }} /></button>
               );
             }
             if (l?.type === 'tab') {
@@ -716,7 +738,7 @@ const withoutLabel = (lines) => (LABEL_LINE.test((lines[0] || '').trim()) ? line
  * fixed, rather than being asked up front (same rules as the old editor's
  * PasteReview, drawn new).
  */
-function PasteSong({ styleOf, onUse, onBlank, onCancel }) {
+function PasteSong({ styleOf, onUse, onBlank, onCancel, replacing = null, onNewArr = null }) {
   const [text, setText] = useState('');
   const [blocks, setBlocks] = useState(null);
   const read = () => setBlocks(inferSections(text).map(b => ({ type: baseType(b.type), lines: b.lines, repeat: b.repeat || 1, sure: b.confident })));
@@ -744,7 +766,8 @@ function PasteSong({ styleOf, onUse, onBlank, onCancel }) {
           );
         })}
         <div className="flex flex-wrap gap-2 pt-1">
-          <Button disabled={!blocks.length} onClick={() => onUse(blocksToSections(blocks))}>Use these sections</Button>
+          <Button disabled={!blocks.length} onClick={() => onUse(blocksToSections(blocks))}>{replacing ? `Replace ${replacing}` : 'Use these sections'}</Button>
+          {onNewArr && <Button variant="outline" disabled={!blocks.length} onClick={() => onNewArr(blocksToSections(blocks))}>Add as a new arrangement</Button>}
           <Button variant="ghost" onClick={() => setBlocks(null)}>Back to the text</Button>
         </div>
       </div>
@@ -823,6 +846,18 @@ function WholeText({ initial, title, hint, onDone, onCancel }) {
 // mode: 'edit' (a song in the library) · 'new' (blank, from + New song) ·
 // 'import' (parsed from a file or paste, not saved yet). A new or imported song
 // can be saved untouched; an edit only once something changed.
+/** Things worth a look before saving (never a block): empty sections, an order naming a section that isn't there. */
+function reviewIssues(song) {
+  const many = song.arrangements.length > 1;
+  return song.arrangements.flatMap(a => {
+    const pre = many ? `${a.name || 'Arrangement'}: ` : '';
+    const empty = (a.sections || []).filter(sc => !(sc.lines || []).some(l => (typeof l === 'string' ? l.trim() : l))).map(sc => `${pre}${sc.type} is empty`);
+    const names = new Set((a.sections || []).map(sc => sc.type));
+    const missing = [...new Set(playOrder(a).filter(n => !names.has(n)))].map(n => `${pre}the order lists ${n}, which has no section`);
+    return [...empty, ...missing];
+  });
+}
+
 /**
  * The arrangement you are editing: tabs, then its key, BPM, time and length
  * in one band under them. Living together says "these belong to this
@@ -884,7 +919,7 @@ function ArrangementBar({ arrangements, arr, defaultId, showTabs, onPick, onRena
   );
 }
 
-export default function SongEdit({ song, library = [], mode = 'edit', settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+export default function SongEdit({ song, library = [], historyTeamId = null, mode = 'edit', settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -910,6 +945,10 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
   const [pick, setPick] = useState(null); // { sec, line, pos }: the letter the chord bar is for
   const [words, setWords] = useState(null); // the section typed as words
   const [saving, setSaving] = useState(false);
+  const [folded, setFolded] = useState(() => new Set()); // `${arrId}:${index}` of sections folded shut
+  const [history, setHistory] = useState(false);
+  const { members = [] } = useTeam() || {};
+  const nameOf = (uid) => members.find(m => m.user_id === uid)?.profile?.display_name || null;
   const dirty = working !== song;
   const fresh = mode !== 'edit';
   // No song without a name, and none without a single line of words or chords.
@@ -986,10 +1025,14 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
     // A song needs a name; Info opens with the title box focused.
     if (missing) return;
     if (fresh && sameTitle && !(await confirm({ title: `You already have ${sameTitle.title}`, description: [sameTitle.artist, sameTitle.arrangements?.[0]?.key && `in ${sameTitle.arrangements[0].key}`].filter(Boolean).join(', ') || 'A song with this name is in the library.', confirmLabel: 'Add anyway' }))) return;
+    const issues = reviewIssues(working);
+    if (issues.length && !(await confirm({ title: 'Check before saving', description: issues.join(' · '), confirmLabel: fresh ? 'Add anyway' : 'Save anyway' }))) return;
     setSaving(true);
     try {
-      const ok = await onSave?.({ ...working, title: working.title.trim(), tags: (Array.isArray(working.tags) ? working.tags : []).map(t => String(t).trim()).filter(Boolean), updatedAt: Date.now() });
-      if (ok !== false) { dropDraft(); onDirtyChange?.(false); }
+      const out = { ...working, title: working.title.trim(), tags: (Array.isArray(working.tags) ? working.tags : []).map(t => String(t).trim()).filter(Boolean), updatedAt: Date.now() };
+      // Same title was already asked about above; the app must not ask twice.
+      const ok = await onSave?.(out, { allowDuplicate: true });
+      if (ok !== false) { pushSongVersion(out.id, songDoc(out)); dropDraft(); onDirtyChange?.(false); }
     } finally { setSaving(false); }
   };
 
@@ -1009,7 +1052,13 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
   };
 
   const chart = pasting ? (
-    <PasteSong styleOf={styleOf} onUse={useSections}
+    <PasteSong styleOf={styleOf} onUse={useSections} replacing={arr.sections.length > 0 ? (arr.name || 'this arrangement') : null}
+      onNewArr={mode === 'edit' && arr.sections.length > 0 ? ({ sections, structure }) => {
+        const r = addArrangement(working, 'Pasted', { ...arr, sections: [] });
+        const fresh2 = getArrangement(r.song, r.arrangementId);
+        const filled = structure ? withOrder({ ...fresh2, sections }, structure) : { ...fresh2, sections, structure: [], structureMode: 'auto' };
+        setWorking(withArrangement(r.song, r.arrangementId, () => filled), true); setArrId(r.arrangementId); setWhole(null);
+      } : null}
       onBlank={arr.sections.length === 0 ? () => { const r = addSection(arr, -1, 'Verse'); onArr(r.arr); setWords(r.index); setWhole(null); } : null}
       onCancel={whole === 'paste' ? () => setWhole(null) : null} />
   ) : whole === 'text' ? (
@@ -1026,6 +1075,8 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
       {arr.sections.map((x, i) => (
         <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} editing={editing} setEditing={setEditing} pick={pick} setPick={setPick} words={words} setWords={setWords} onArr={onArr} styleOf={styleOf}
           onTab={(line) => setTabEdit({ sec: i, line })}
+          folded={folded.has(`${arr.id}:${i}`)}
+          onFold={() => { closeAll(); setFolded(f => { const n = new Set(f); const k = `${arr.id}:${i}`; if (n.has(k)) n.delete(k); else n.add(k); return n; }); }}
           onAddAfter={(t) => { const r = addSection(arr, i, t); onArr(r.arr); setPick(null); setWords(r.index); }} />
       ))}
       {arr.sections.length === 0 && <AddSection big onAdd={(t) => { const r = addSection(arr, -1, t); onArr(r.arr); setWords(r.index); }} />}
@@ -1037,15 +1088,28 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
       onPut={(c) => onArr(setLines(arr, pick.sec, arr.sections[pick.sec].lines.map((l, n) => (n === pick.line ? setChordAt(l, pick.pos, c) : l))))} />
   ) : null;
   const tabLine = tabEdit && tabEdit.line != null ? arr.sections[tabEdit.sec]?.lines?.[tabEdit.line] : null;
+  const savedName = tabLine?.type === 'tabref' ? tabLine.name : null;
+  const savedTab = savedName ? ((arr.tabLibrary || []).find(t => t.name === savedName)?.tab || tabLine.tab || null) : null;
+  const savedUses = savedName ? arr.sections.reduce((n, sc) => n + (sc.lines || []).filter(l => l?.type === 'tabref' && l.name === savedName).length, 0) : 0;
   const tabTool = tabEdit && (
-    <TabTool initialTab={tabLine} time={arr.time} title={`${tabLine ? 'Tab' : 'New tab'} · ${arr.sections[tabEdit.sec]?.type || ''}`}
+    <TabTool initialTab={savedName ? savedTab : tabLine} time={arr.time}
+      title={savedName ? `Saved tab · ${savedName}${savedUses > 1 ? ` · used ${savedUses} times` : ''}` : `${tabLine ? 'Tab' : 'New tab'} · ${arr.sections[tabEdit.sec]?.type || ''}`}
       onClose={() => setTabEdit(null)}
+      removeLabel={savedName ? 'Take out of this section' : 'Remove tab'}
       onRemove={tabEdit.line != null ? () => { onArr(setLines(arr, tabEdit.sec, (arr.sections[tabEdit.sec].lines || []).filter((_, n) => n !== tabEdit.line))); setTabEdit(null); } : null}
       onSave={(saved) => {
-        const tab = tabFromGrid(saved, tabLine);
-        const lines = [...(arr.sections[tabEdit.sec].lines || [])];
-        if (tabEdit.line != null) lines[tabEdit.line] = tab; else lines.push(tab);
-        onArr(setLines(arr, tabEdit.sec, lines));
+        const tab = tabFromGrid(saved, savedName ? savedTab : tabLine);
+        if (savedName) {
+          // One saved tab, every place it is used: the library entry and each reference change together.
+          const lib = (arr.tabLibrary || []).some(t => t.name === savedName)
+            ? arr.tabLibrary.map(t => (t.name === savedName ? { ...t, tab } : t))
+            : [...(arr.tabLibrary || []), { name: savedName, tab }];
+          onArr({ ...arr, tabLibrary: lib, sections: arr.sections.map(sc => ({ ...sc, lines: (sc.lines || []).map(l => (l?.type === 'tabref' && l.name === savedName ? { ...l, tab } : l)) })) });
+        } else {
+          const lines = [...(arr.sections[tabEdit.sec].lines || [])];
+          if (tabEdit.line != null) lines[tabEdit.line] = tab; else lines.push(tab);
+          onArr(setLines(arr, tabEdit.sec, lines));
+        }
         setTabEdit(null);
       }} />
   );
@@ -1109,7 +1173,9 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
         <EditMenu items={[
           { label: 'Edit all as text', onClick: () => { closeAll(); setWhole('text'); setTab('chart'); } },
           { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
-          mode === 'new' && { label: 'Paste a song', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
+          { label: 'Paste a song', sub: mode === 'new' ? null : 'Replace this arrangement, or add it as a new one', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
+          arr.sections.length > 1 && { label: arr.sections.every((_, i) => folded.has(`${arr.id}:${i}`)) ? 'Open all sections' : 'Fold all sections', onClick: () => { closeAll(); setFolded(f => { const keys = arr.sections.map((_, i) => `${arr.id}:${i}`); const all = keys.every(k => f.has(k)); const n = new Set(f); keys.forEach(k => (all ? n.delete(k) : n.add(k))); return n; }); } },
+          mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
         <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{fresh ? 'Add' : 'Save'}</Button>
@@ -1146,6 +1212,14 @@ export default function SongEdit({ song, library = [], mode = 'edit', settings, 
           {chordBar}
           {tabTool}
         </>
+      )}
+      {history && (
+        <VersionHistory songId={song.id} teamId={historyTeamId} nameOf={nameOf} onClose={() => setHistory(false)}
+          onRestore={(v) => {
+            const back = v.doc ? songFromDoc(v.doc, working.id, v.ts, working) : v.md ? applyMarkdown(working, arr.id, v.md) : null;
+            if (back) { setWorking(back, true); setArrId(back.arrangements.some(a => a.id === arr.id) ? arr.id : (back.defaultArrangementId || back.arrangements[0].id)); }
+            setHistory(false);
+          }} />
       )}
     </div>
   );
