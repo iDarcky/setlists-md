@@ -21,11 +21,22 @@ export function writeLastLibrary(id) {
   } catch { /* private mode: launch falls back to waiting for memberships */ }
 }
 
-// While a signed-in user's memberships are still loading and nothing was
-// remembered, Personal is only a placeholder: hold the loading screen (for a
-// few seconds at most) rather than draw it and then jump to the church.
-export function waitingForHomeSpace({ userId, authLoading, teamsLoaded, activeLibrary, timedOut }) {
-  if (timedOut || activeLibrary !== 'personal') return false;
-  if (authLoading) return true;
-  return !!userId && !teamsLoaded;
+// Hold the loading screen (for a few seconds at most) until the space the app
+// opens into is fully known, so nothing is drawn and then redrawn:
+// - signed in, memberships loading, nothing remembered: Personal is only a
+//   placeholder, so wait rather than draw it and jump to the church;
+// - a church: wait until it is the active team (its name, and my role in it,
+//   so a leader never flashes the member Home) and its schedules have
+//   answered (so Home does not say "Nothing planned" and then fill in);
+// - the library itself (songs, setlists from the device) has loaded.
+export function waitingForHomeSpace({
+  userId, authLoading, teamsLoaded, activeLibrary, timedOut,
+  loaded = true, teamId = null, schedulesLoaded = true,
+}) {
+  if (authLoading) return !timedOut;
+  if (!userId) return false;
+  if (!loaded) return true;
+  if (timedOut) return false;
+  if (activeLibrary === 'personal') return !teamsLoaded;
+  return !teamsLoaded || teamId !== activeLibrary || !schedulesLoaded;
 }

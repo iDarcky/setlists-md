@@ -3,8 +3,6 @@ import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamActivity } from '@/hooks/useTeamActivity';
-import { usePushSubscription } from '@/push/usePushSubscription';
-import { useAskForPush } from '@/push/useAskForPush';
 import {
   myAsks, myServices, nextUp, syncProblem, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
 } from '@/lib/homeData';
@@ -30,15 +28,12 @@ export default function Home({
   schedules = [], updateSchedule, setlistMap = {},
   onOpenSetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady, onNewSetlist,
   onRetrySync, onNotFound,
-  install, // { onInstall } when this device can still put the app on the home screen
 }) {
   const { user } = useAuth();
   const { team, members, isAdmin, canManageBand, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
   const { availability } = useTeamAvailability(leader ? team?.id : null);
   const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
-  const push = usePushSubscription();
-  const askForPush = useAskForPush(push);
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
   const ticking = useNow(60000, syncState?.state === 'error');
@@ -79,13 +74,6 @@ export default function Home({
     else onOpenSetlist?.(it.setlist);
   };
 
-  const setup = inTeam && !leader ? [
-    { id: 'join', label: `Join ${team.name}`, done: true },
-    ...(install ? [{ id: 'install', label: 'Put the app on your home screen', done: false, onClick: install.onInstall }] : []),
-    ...(push.supported && !push.denied
-      ? [{ id: 'push', label: 'Turn on notifications', hint: 'So you hear when you are asked to play', done: push.subscribed, onClick: askForPush }]
-      : []),
-  ] : null;
 
   const nameOf = (uid) => {
     const m = (members || []).find(x => x.user_id === uid);
@@ -127,7 +115,6 @@ export default function Home({
       strip={{ days, offset, onOffset: setOffset, selected, onSelect: setPicked }}
       whoCanPlay={leader ? whoCanPlay({ setlists, availability, schedules, setlistMap, memberCount: (members || []).length, now }) : null}
       onOpenSchedule={onOpenSchedule}
-      setup={setup}
       activity={activity}
       now={now}
       onOpenActivity={openActivity}

@@ -16,7 +16,7 @@ import { PlusIcon } from '@/app/navIcons';
 // view: Home.jsx works out the data, /design renders this with samples.
 //
 // Order, top to bottom (phone): hello + sync, Needs you (leaders), Can you
-// play?, Next up, your two weeks, Who can play (leaders), Get set up, Recent activity
+// play?, Next up, your two weeks, Who can play (leaders), Recent activity
 // in the library. From 1024px the asks and the leader's lists move to a right
 // column.
 
@@ -335,30 +335,7 @@ function WhoCanPlay({ rows, onOpen, onOpenSchedule }) {
   );
 }
 
-// ── Get set up / nothing planned / recent activity ─────────────────────────────
-
-function GetSetUp({ items }) {
-  if (!items?.length || items.every(i => i.done)) return null;
-  const done = items.filter(i => i.done).length;
-  return (
-    <Section title="Get set up" action={<span className="text-[13px] text-muted-foreground">{done} of {items.length}</span>}>
-      <List>
-        {items.map(it => (
-          <button key={it.id} type="button" disabled={it.done} onClick={it.onClick} className={cn(rowButton, 'disabled:cursor-default disabled:hover:bg-transparent')}>
-            <span className={cn('flex size-[22px] shrink-0 items-center justify-center rounded-full border-[1.5px]', it.done ? 'border-link bg-link text-background' : 'border-input')}>
-              {it.done && <CheckIcon size={14} />}
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="text-[15px] font-medium">{it.label}</span>
-              {it.hint && !it.done && <span className="text-[13px] text-muted-foreground">{it.hint}</span>}
-            </span>
-            {!it.done && <span className="text-input"><ChevronRightIcon /></span>}
-          </button>
-        ))}
-      </List>
-    </Section>
-  );
-}
+// ── Nothing planned / recent activity ─────────────────────────────
 
 // Sync has been failing for minutes: say what that means for the band, and
 // what to try. Edits are still safe on this device.
@@ -434,7 +411,6 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
  * @param {object} [p.next]               { setlist, part, band, days }
  * @param {object} [p.strip]              { days, offset, onOffset, selected, onSelect }
  * @param {Array} [p.whoCanPlay]          from whoCanPlay()
- * @param {Array} [p.setup]               [{ id, label, hint, done, onClick }]
  * @param {Array} [p.activity]            from recentActivity() / activityFromSongs()
  * @param {boolean} [p.showNothingPlanned]
  * @param {Function} [p.onNewSetlist]     leaders: the "New setlist" button by the hello
@@ -442,7 +418,7 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
 export default function HomeView({
   name, dateLabel, sync, syncProblem, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
-  strip, whoCanPlay, onOpenSchedule, setup, activity, now, onOpenActivity, onOpenSongs,
+  strip, whoCanPlay, onOpenSchedule, activity, now, onOpenActivity, onOpenSongs,
   showNothingPlanned = false, onNewSetlist, embedded = false, layout = 'auto',
 }) {
   // One tree, picked by width (rendering both and hiding one would mount the
@@ -470,7 +446,6 @@ export default function HomeView({
   const nextEl = <NextUp next={next} leader={leader} clockFormat={clockFormat} onOpen={onOpenSetlist} onMarkReady={onMarkReady} />;
   const stripEl = strip && <TwoWeeks {...strip} clockFormat={clockFormat} onOpen={onOpenSetlist} />;
   const whoEl = leader && <WhoCanPlay rows={whoCanPlay} onOpen={onOpenSetlist} onOpenSchedule={onOpenSchedule} />;
-  const setupEl = <GetSetUp items={setup} />;
   const emptyEl = showNothingPlanned && <NothingPlanned onBrowse={onOpenSongs} />;
   const activityEl = <Activity items={activity} now={now} onOpen={onOpenActivity} onOpenSongs={onOpenSongs} />;
 
@@ -483,11 +458,11 @@ export default function HomeView({
           // From 1024px: the service and your weeks on the left, asks and lists on the right.
           <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
             <div className="flex min-w-0 flex-col gap-4">{needsEl}{nextEl}{emptyEl}{stripEl}</div>
-            <div className="flex min-w-0 flex-col gap-4">{asksEl}{whoEl}{setupEl}{activityEl}</div>
+            <div className="flex min-w-0 flex-col gap-4">{asksEl}{whoEl}{activityEl}</div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {needsEl}{asksEl}{nextEl}{emptyEl}{stripEl}{whoEl}{setupEl}{activityEl}
+            {needsEl}{asksEl}{nextEl}{emptyEl}{stripEl}{whoEl}{activityEl}
           </div>
         )}
       </div>

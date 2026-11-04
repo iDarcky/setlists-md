@@ -207,7 +207,7 @@ export default function App() {
     const t = setTimeout(() => setHomeSpaceTimedOut(true), 4000);
     return () => clearTimeout(t);
   }, []);
-  const { schedules, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
+  const { schedules, loaded: schedulesLoaded, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
   const canEdit = canWriteLibrary;
@@ -2271,9 +2271,13 @@ export default function App() {
   const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'design', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
   const settlingHomeSpace = !publicView && waitingForHomeSpace({
     userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
+    loaded, teamId: team?.id || null, schedulesLoaded: !team?.id || schedulesLoaded,
   });
-  // Signed in, church not known yet: the app's shape in grey, never Personal.
+  // Signed in and the space not fully known yet: the app's shape in grey, never
+  // Personal, never a half-filled Home. One loading screen, not a skeleton and
+  // then a logo splash.
   if (settlingHomeSpace) return <AppSkeleton />;
+  if (!loaded && !publicView && (authLoading || user?.id)) return <AppSkeleton />;
   if (!loaded) {
     return (
       <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
@@ -2494,9 +2498,6 @@ export default function App() {
               onOpenTeam={goTeam}
               onNotFound={showNotFound}
               onRetrySync={() => triggerSyncRef.current?.({ silent: false })}
-              install={!isStandalone && (isIOS || canInstall)
-                ? { onInstall: async () => { if (isIOS) openIOSHint(); else await promptInstall(); } }
-                : null}
             />
           )}
           {view === 'library' && (
