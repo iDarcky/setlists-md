@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
-import { dayLabel as longDay } from '@/lib/newSetlist';
+import { dayLabel as longDay, parseTime } from '@/lib/newSetlist';
 
 // Our own small date and time pickers (canvas → New setlist, NS1Pick), so
 // "Other…" looks the same on every phone instead of the system wheels.
@@ -87,5 +87,23 @@ export function TimeSheet({ open, onOpenChange, title = 'Time', value, onPick })
         <Button className="h-11" onClick={() => onPick(val)}>{val}</Button>
       </div>
     </Sheet>
+  );
+}
+
+/** A time typed on the keyboard: tap, type 1030, done. Tidied on blur. */
+export function TimeInput({ value, onChange, className, ...p }) {
+  const [text, setText] = useState(value || '');
+  const [bad, setBad] = useState(false);
+  const commit = () => {
+    if (!text.trim()) { setBad(false); onChange(''); return; }
+    const v = parseTime(text);
+    if (v) { setText(v); setBad(false); onChange(v); } else setBad(true);
+  };
+  return (
+    <input type="text" inputMode="numeric" autoComplete="off" placeholder="10:00" maxLength={5} value={text} aria-invalid={bad || undefined}
+      onChange={e => { setText(e.target.value); setBad(false); }} onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+      className={cn('h-10 w-[88px] rounded-control border bg-transparent px-3 font-mono text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        bad ? 'border-danger' : 'border-input', className)} {...p} />
   );
 }

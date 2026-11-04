@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   splitPattern, joinPattern, nextNumber, autoName, nextDates, draftFromTemplate, lastPlayed,
-  templatesOf, draftFromSetlist, recentSetlists, isPlaceholder, placeholderItem,
+  templatesOf, parseTime, draftFromSetlist, recentSetlists, isPlaceholder, placeholderItem,
 } from '@/lib/newSetlist';
 import { buildOrder } from '@/lib/setlistView';
 
@@ -116,5 +116,23 @@ describe('copy a past setlist', () => {
   it('lists the newest dated setlists, never templates', () => {
     const list = recentSetlists([past, AM, { id: 'p2', date: '2026-11-08', items: [] }, { id: 'nd', items: [] }]);
     expect(list.map(s => s.id)).toEqual(['p2', 'p1']);
+  });
+});
+
+describe('typed times', () => {
+  it('reads what people type', () => {
+    expect(parseTime('1030')).toBe('10:30');
+    expect(parseTime('930')).toBe('09:30');
+    expect(parseTime('18')).toBe('18:00');
+    expect(parseTime('25:00')).toBe(null);
+    expect(parseTime('abc')).toBe(null);
+  });
+});
+
+describe('rehearsal picked each week', () => {
+  it('brings the time and place, not the day', () => {
+    const d = draftFromTemplate({ ...AM, rehearsalOn: true, rehearsalPick: true, rehearsalTime: '18:00' }, [], '2026-11-04');
+    expect(d.rehearsalDate).toBeUndefined();
+    expect(d.rehearsalTime).toBe('18:00');
   });
 });

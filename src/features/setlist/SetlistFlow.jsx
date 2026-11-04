@@ -84,7 +84,7 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
     return next;
   });
   const setRehearsal = (on) => setDraft(d => (on
-    ? { ...d, rehearsalDate: shiftDate(d.date, -(Number(template?.rehearsalOffset ?? 1) || 0)) || d.date, rehearsalTime: d.rehearsalTime || template?.rehearsalTime || '18:00', rehearsalLocation: d.rehearsalLocation || template?.rehearsalLocation || d.location || '' }
+    ? { ...d, rehearsalDate: template?.rehearsalPick ? d.rehearsalDate : (shiftDate(d.date, -(Number(template?.rehearsalOffset ?? 1) || 0)) || d.date), rehearsalTime: d.rehearsalTime || template?.rehearsalTime || '18:00', rehearsalLocation: d.rehearsalLocation || template?.rehearsalLocation || d.location || '' }
     : (({ rehearsalDate: _a, rehearsalTime: _b, rehearsalLocation: _c, ...rest }) => rest)(d)));
 
   return (

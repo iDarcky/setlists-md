@@ -4,10 +4,11 @@ import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
 import { Sheet } from '@/ui/shadcn/sheet';
+import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { ChevronRightIcon, PlusIcon } from '@/app/navIcons';
 import { partName, ADDABLE_PARTS } from '@/lib/bandParts';
-import { WEEKDAYS, splitPattern, joinPattern, nextNumber, templateTitle, blankTemplate, placeholderItem, isPlaceholder, TEMPLATE_KIND } from '@/lib/newSetlist';
-import { Chip, TimeSheet } from './WhenPickers';
+import { WEEKDAYS, splitPattern, nextNumber, templateTitle, blankTemplate, placeholderItem, isPlaceholder, TEMPLATE_KIND } from '@/lib/newSetlist';
+import { Chip, TimeInput } from './WhenPickers';
 import { useDragReorder, moveItem } from './useDragReorder';
 import { Grip } from './SetlistEdit';
 
@@ -37,12 +38,24 @@ const Switch = ({ on, onChange, label }) => (
 
 export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDelete }) {
   const [t, setT] = useState(() => ({ ...blankTemplate(), ...template, items: (template?.items || []).map(it => ({ ...it })) }));
-  const [timeFor, setTimeFor] = useState(null);   // 'time' | 'rehearsalTime'
   const [addPart, setAddPart] = useState(false);
   const set = (p) => setT(x => ({ ...x, ...p }));
-  const pat = splitPattern(t.namePattern) || { before: '', after: '' };
+  // Numbered names are "<template name> #<n>": one switch and a start number.
   const numbered = !!splitPattern(t.namePattern);
-  const next = numbered ? nextNumber(t.namePattern, setlists, '', t.startNumber) : null;
+  const baseTitle = (t.templateName || '').trim() || 'Sunday Morning';
+  const pattern = `${baseTitle} #{n}`;
+  const next = numbered ? nextNumber(pattern, setlists, '', t.startNumber) || Number(t.startNumber) || 1 : null;
+  // Band: the stored list repeats a part for two ("vocals", "vocals"); shown
+  // as one row per part with a count.
+  const partRows = [];
+  (t.parts || []).forEach(p => { const row = partRows.find(x => x.part === p); if (row) row.n += 1; else partRows.push({ part: p, n: 1 }); });
+  const setCount = (part, n) => {
+    const rows = partRows.map(x => (x.part === part ? { ...x, n } : x)).filter(x => x.n > 0);
+    set({ parts: rows.flatMap(x => Array(x.n).fill(x.part)) });
+  };
+  // Rehearsal day as a weekday counted back from the service day.
+  const serviceDay = Number.isInteger(t.weekday) ? t.weekday : 0;
+  const rehearsalDays = [0, 1, 2, 3, 4, 5, 6].map(n => [n, n === 0 ? `${WEEKDAYS[serviceDay]} (same day)` : WEEKDAYS[(serviceDay - n + 7) % 7]]);
   const items = t.items;
   const setItems = (fn) => setT(x => ({ ...x, items: fn(x.items) }));
   const { listRef, gripProps, rowStyle } = useDragReorder((from, to) => setItems(xs => moveItem(xs, from, to)));
@@ -53,7 +66,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
     const name = t.templateName.trim();
     // The template IS the service now: renaming it renames the service, and
     // App carries the new name onto the setlists that had the old one.
-    onSave({ ...t, templateName: name, name, service: name, isTemplate: true, templateKind: TEMPLATE_KIND, updatedAt: Date.now() }, { previousService: template?.service || templateTitle(template) || '' });
+    onSave({ ...t, namePattern: numbered ? `${name} #{n}` : '', templateName: name, name, service: name, isTemplate: true, templateKind: TEMPLATE_KIND, updatedAt: Date.now() }, { previousService: template?.service || templateTitle(template) || '' });
   };
 
   return createPortal(
@@ -68,49 +81,63 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           <div className="rounded-card border border-border bg-card">
             <Row label="Name"><Input value={t.templateName || ''} maxLength={60} placeholder="Sunday Morning" onChange={e => set({ templateName: e.target.value })} className="h-10" /></Row>
             <Row label="Day">{WEEKDAYS.map((d, i) => <Chip key={d} on={t.weekday === i} className="h-8 px-2.5 text-[13px]" onClick={() => set({ weekday: i })}>{d}</Chip>)}</Row>
-            <Row label="Time"><Chip on onClick={() => setTimeFor('time')}>{t.time || 'Pick'}</Chip></Row>
+            <Row label="Time"><TimeInput aria-label="Service time" value={t.time} onChange={v => set({ time: v })} /></Row>
             <Row label="Place"><Input value={t.location || ''} maxLength={80} placeholder="Main hall" onChange={e => set({ location: e.target.value })} className="h-10" /></Row>
           </div>
 
           <Caps right={<Switch label="Rehearsal" on={t.rehearsalOn !== false && !!t.rehearsalOn} onChange={v => set({ rehearsalOn: v })} />}>Rehearsal</Caps>
           {t.rehearsalOn && (
             <div className="rounded-card border border-border bg-card">
-              <Row label="When">{[[0, 'Same day'], [1, 'Day before'], [2, '2 days before']].map(([n, l]) => <Chip key={n} on={(Number(t.rehearsalOffset) || 0) === n} className="h-8 px-3 text-[13px]" onClick={() => set({ rehearsalOffset: n })}>{l}</Chip>)}</Row>
-              <Row label="Time"><Chip on onClick={() => setTimeFor('rehearsalTime')}>{t.rehearsalTime || 'Pick'}</Chip></Row>
+              <Row label="Day">
+                {rehearsalDays.map(([n, l]) => <Chip key={n} on={!t.rehearsalPick && (Number(t.rehearsalOffset) || 0) === n} className="h-8 px-3 text-[13px]" onClick={() => set({ rehearsalOffset: n, rehearsalPick: false })}>{l}</Chip>)}
+                <Chip on={!!t.rehearsalPick} dashed={!t.rehearsalPick} className="h-8 px-3 text-[13px]" onClick={() => set({ rehearsalPick: true })}>Pick each week</Chip>
+              </Row>
+              <Row label="Time"><TimeInput aria-label="Rehearsal time" value={t.rehearsalTime} onChange={v => set({ rehearsalTime: v })} /></Row>
               <Row label="Place"><Input value={t.rehearsalLocation || ''} maxLength={80} placeholder={t.location || 'Main hall'} onChange={e => set({ rehearsalLocation: e.target.value })} className="h-10" /></Row>
             </div>
           )}
 
-          <Caps right={<Switch label="Numbered names" on={numbered} onChange={v => set({ namePattern: v ? joinPattern(`${(t.templateName || 'Service').trim()} #`, '') : '' })} />}>Setlist name</Caps>
+          <Caps right={<Switch label="Number the setlists" on={numbered} onChange={v => set({ namePattern: v ? pattern : '' })} />}>Number the setlists</Caps>
           {numbered ? (
             <div className="rounded-card border border-border bg-card">
-              <Row label="Before">
-                <Input value={pat.before} maxLength={30} placeholder="BBPT #" onChange={e => set({ namePattern: joinPattern(e.target.value, pat.after) })} className="h-10 font-mono" />
-              </Row>
-              <Row label="After">
-                <Input value={pat.after} maxLength={30} placeholder=" AM" onChange={e => set({ namePattern: joinPattern(pat.before, e.target.value) })} className="h-10 font-mono" />
-              </Row>
-              <Row label="Next">
-                <Input type="number" inputMode="numeric" min={1} aria-label="Start from number" value={Math.max(next || 1, Number(t.startNumber) || 1)}
+              <Row label="Start at">
+                <Input type="number" inputMode="numeric" min={1} aria-label="Start at number" value={next}
                   onChange={e => set({ startNumber: Math.max(1, Number(e.target.value) || 1) })} className="h-10 w-[96px] font-mono" />
-                <span className="text-[12px] text-muted-foreground">counts on by itself</span>
               </Row>
               <p className="m-0 border-t border-border px-4 py-3 text-[13px] text-muted-foreground">
-                Next setlist: <b className="font-mono text-foreground">{`${pat.before}${String(next || 1).padStart(3, '0')}${pat.after}`.trim()}</b>.
-                Services whose name starts the same share the number on the same day, so the evening is #{String(next || 1).padStart(3, '0')} too.
+                Setlists are called <b className="font-mono text-foreground">{baseTitle} #{next}</b>, then #{next + 1}, and so on.
               </p>
             </div>
           ) : (
-            <p className="m-0 text-[13px] text-muted-foreground">Setlists are called “{title}”. Turn this on for numbered names like “BBPT #424 AM”.</p>
+            <p className="m-0 text-[13px] text-muted-foreground">Setlists are called “{baseTitle}”. Turn this on to add a number that goes up each time.</p>
           )}
 
-          <Caps>Band parts</Caps>
-          <div className="flex flex-wrap gap-1.5">
-            {(t.parts || []).map((p, i) => (
-              <Chip key={`${p}-${i}`} className="h-8 px-3 text-[13px]" aria-label={`Remove ${partName(p)}`}
-                onClick={() => set({ parts: t.parts.filter((_, j) => j !== i) })}>{partName(p)} ✕</Chip>
+          <Caps>Band</Caps>
+          <div className="rounded-card border border-border bg-card">
+            {partRows.map(({ part, n }) => (
+              <div key={part} className="flex min-h-[52px] items-center gap-3 border-t border-border px-4 py-1.5 first:border-t-0">
+                <span className="flex-1 text-[15px] font-medium">{partName(part)}</span>
+                <Button variant="outline" size="icon" className="size-9" aria-label={`One less ${partName(part)}`} onClick={() => setCount(part, n - 1)}>−</Button>
+                <span className="w-6 text-center font-mono text-[15px]" aria-label={`${n} ${partName(part)}`}>{n}</span>
+                <Button variant="outline" size="icon" className="size-9" aria-label={`One more ${partName(part)}`} onClick={() => setCount(part, n + 1)}>+</Button>
+              </div>
             ))}
-            <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setAddPart(true)}><PlusIcon size={14} />Part</Chip>
+            {!partRows.length && <p className="m-0 px-4 py-3 text-[14px] text-muted-foreground">Who you need each week, like 1 drums and 2 vocals.</p>}
+            <Popover open={addPart} onOpenChange={setAddPart}>
+              <PopoverTrigger asChild>
+                <button type="button" className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent px-4 text-left font-sans text-[15px] font-medium text-link outline-none focus-visible:bg-raised">
+                  <PlusIcon size={16} />Add a part<span aria-hidden="true" className="ml-auto text-muted-foreground">▾</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="z-[80] max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
+                {ADDABLE_PARTS.filter(p => !partRows.some(x => x.part === p)).map(p => (
+                  <button key={p} type="button" onClick={() => { set({ parts: [...(t.parts || []), p] }); setAddPart(false); }}
+                    className="flex min-h-11 w-full cursor-pointer items-center rounded-control border-0 bg-transparent px-3 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
+                    {partName(p)}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
           </div>
 
           <Caps>Order</Caps>
@@ -141,20 +168,6 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           {onDelete && <Button variant="outline" className="mt-6 text-danger" onClick={onDelete}>Delete template</Button>}
         </div>
       </div>
-      {timeFor && (
-        <TimeSheet key={timeFor} open onOpenChange={o => { if (!o) setTimeFor(null); }} title={timeFor === 'time' ? 'Service time' : 'Rehearsal time'}
-          value={t[timeFor]} onPick={(v) => { set({ [timeFor]: v }); setTimeFor(null); }} />
-      )}
-      <Sheet open={addPart} onOpenChange={setAddPart} title="Add a part" className="h-auto max-h-[80dvh] sm:max-w-[400px]">
-        <div className="flex flex-col">
-          {ADDABLE_PARTS.map(p => (
-            <button key={p} type="button" onClick={() => { set({ parts: [...(t.parts || []), p] }); setAddPart(false); }}
-              className="flex min-h-12 w-full cursor-pointer items-center border-0 border-t border-solid border-border bg-transparent text-left font-sans text-[15px] font-medium text-foreground outline-none first:border-t-0">
-              {partName(p)}
-            </button>
-          ))}
-        </div>
-      </Sheet>
     </div>,
     document.body,
   );

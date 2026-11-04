@@ -57,7 +57,7 @@ export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, onNew
       {!templates.length && onNewTemplate && (
         <div className="flex flex-col gap-2 rounded-card border border-link bg-selected px-4 py-3">
           <b className="text-[16px]">Set up your Sunday once</b>
-          <p className="m-0 text-[14px] text-muted-foreground">A template fills in the day, time, rehearsal, band parts and order of service every week, and numbers the name for you.</p>
+          <p className="m-0 text-[14px] text-muted-foreground">A template fills in the day, time, rehearsal, band and order of service every week.</p>
           <Button className="h-11 self-start" onClick={onNewTemplate}>New template</Button>
         </div>
       )}

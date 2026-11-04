@@ -152,7 +152,8 @@ export function draftFromTemplate(tpl, setlists = [], today = ymd(new Date())) {
   if (tpl.time) sl.time = tpl.time;
   if (tpl.location) sl.location = tpl.location;
   if (tpl.rehearsalOn !== false && (tpl.rehearsalTime || tpl.rehearsalOffset != null)) {
-    sl.rehearsalDate = addDays(sl.date, -(Number(tpl.rehearsalOffset) || 0));
+    // "Pick each week": the time and place come along, the day is chosen on the setlist.
+    if (!tpl.rehearsalPick) sl.rehearsalDate = addDays(sl.date, -(Number(tpl.rehearsalOffset) || 0));
     if (tpl.rehearsalTime) sl.rehearsalTime = tpl.rehearsalTime;
     if (tpl.rehearsalLocation || tpl.location) sl.rehearsalLocation = tpl.rehearsalLocation || tpl.location;
   }
@@ -286,4 +287,16 @@ export function playedRecently(songId, setlists = [], date = ymd(new Date()), ex
   if (days === 7 && weekday(best) === 0) return 'Played last Sunday';
   if (days <= 7) return `Played ${dayOf(best).toLocaleDateString('en-GB', { weekday: 'long' })}`;
   return `Played ${dayOf(best).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+}
+
+/** "930" → "09:30", "18" → "18:00", "7:5" → "07:05"; null when it is not a time. */
+export function parseTime(text) {
+  const s = String(text || '').trim().replace(/[.,h ]/g, ':');
+  let h; let m;
+  const c = /^(\d{1,2}):(\d{1,2})$/.exec(s);
+  if (c) { h = +c[1]; m = +c[2]; } else if (/^\d{1,4}$/.test(s)) {
+    if (s.length <= 2) { h = +s; m = 0; } else { h = +s.slice(0, s.length - 2); m = +s.slice(-2); }
+  } else return null;
+  if (h > 23 || m > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
