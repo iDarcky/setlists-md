@@ -102,6 +102,8 @@ export function TimeInput({ value, onChange, className, ...p }) {
   return (
     <input type="text" inputMode="numeric" autoComplete="off" placeholder="10:00" maxLength={5} value={text} aria-invalid={bad || undefined}
       onChange={e => { setText(typeTime(e.target.value, text)); setBad(false); }} onBlur={commit}
+      // Tapping a filled box selects it, so typing replaces the old time.
+      onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
       onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
       className={cn('h-10 w-[88px] rounded-control border bg-transparent px-3 font-mono text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
         bad ? 'border-danger' : 'border-input', className)} {...p} />
