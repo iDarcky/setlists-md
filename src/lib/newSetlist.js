@@ -162,6 +162,47 @@ export function draftFromTemplate(tpl, setlists = [], today = ymd(new Date())) {
   return sl;
 }
 
+/** The newest dated setlists (not templates), for "Copy a past setlist". */
+export const recentSetlists = (setlists = [], count = 5) => setlists
+  .filter(s => s && !s.isTemplate && s.date)
+  .sort((a, b) => b.date.localeCompare(a.date))
+  .slice(0, count);
+
+/**
+ * A fresh draft copied from a past setlist: its service, time, place,
+ * rehearsal (same days before) and order shape on the next free day of the
+ * same weekday. Songs become empty "Song" slots; moments stay. Who leads is
+ * never copied. A setlist made from a template still names it, so its parts
+ * and numbered name follow.
+ */
+export function draftFromSetlist(src, setlists = [], today = ymd(new Date())) {
+  const sl = { id: generateId(), name: '', date: '', status: 'draft', items: [] };
+  if (!src) return draftFromTemplate(null, setlists, today);
+  const tpl = src.templateId ? templatesOf(setlists).find(t => t.id === src.templateId) : null;
+  if (tpl) sl.templateId = tpl.id;
+  const svc = (src.service || '').trim();
+  if (svc) sl.service = svc;
+  const taken = new Set(setlists
+    .filter(s => s && !s.isTemplate && s.date && ((tpl && s.templateId === tpl.id) || (svc && (s.service || '').trim() === svc) || s.id === src.id))
+    .map(s => s.date));
+  sl.date = nextFreeDay(src.date ? weekday(src.date) : 0, taken, today);
+  if (src.time) sl.time = src.time;
+  if (src.endTime) sl.endTime = src.endTime;
+  if (src.location) sl.location = src.location;
+  if (src.rehearsalDate && src.date) {
+    const gap = Math.round((dayOf(src.date) - dayOf(src.rehearsalDate)) / 86400000);
+    if (gap >= 0 && gap < 14) sl.rehearsalDate = addDays(sl.date, -gap);
+  }
+  if (src.rehearsalTime) sl.rehearsalTime = src.rehearsalTime;
+  if (src.rehearsalLocation) sl.rehearsalLocation = src.rehearsalLocation;
+  sl.items = (src.items || []).filter(Boolean).map(it => {
+    if (it.type === 'break') { const { leadBy: _l, ...rest } = it; return { ...rest }; }
+    return placeholderItem(it.placeholder ? it.label || '' : '');
+  });
+  sl.name = tpl ? autoName(tpl, setlists, sl.date, sl.id) : svc;
+  return sl;
+}
+
 /** A blank template. */
 export const blankTemplate = () => ({
   id: generateId(), isTemplate: true, templateKind: TEMPLATE_KIND, templateName: '', name: '', weekday: 0, time: '10:00', location: '',

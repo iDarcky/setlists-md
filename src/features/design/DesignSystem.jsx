@@ -944,10 +944,10 @@ const NewSetlistFlowDemo = ({ step, isNew = true }) => (
     nameOf={(u) => ({ jd: 'Joe', am: 'Ana' }[u] || bdName(u))} team={{ id: 'demo' }} members={BD_MEMBERS}
     onSave={noop} onCancel={noop} />
 );
-const NewSetlistPopupDemo = () => (
+const NewSetlistPopupDemo = ({ first = false }) => (
   <div className="min-h-full bg-background p-4 font-sans text-foreground">
     <h2 className="m-0 mb-3 text-[18px] font-semibold">New setlist</h2>
-    <NewSetlistBody setlists={NF_SETLISTS} onCreate={noop} onEditTemplates={noop} />
+    <NewSetlistBody setlists={first ? NF_SETLISTS.filter(s => !s.isTemplate) : NF_SETLISTS} onCreate={noop} onEditTemplates={noop} onNewTemplate={noop} />
   </div>
 );
 
@@ -981,6 +981,7 @@ const SCREENS = [
   ['New setlist: songs', () => <NewSetlistFlowDemo step="songs" />],
   ['Edit setlist: songs', () => <NewSetlistFlowDemo step="songs" isNew={false} />],
   ['Template editor', () => <TemplateEditor template={NF_TPL} setlists={NF_SETLISTS} onSave={noop} onCancel={noop} onDelete={noop} />],
+  ['New setlist: no template yet', () => <NewSetlistPopupDemo first />],
 ];
 
 function Gallery() {
