@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { TemplatesList, TemplateEditor } from '@/features/setlist/TemplateEditor';
+import { templatesOf, blankTemplate } from '@/lib/newSetlist';
 import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { usePushSubscription } from '@/push/usePushSubscription';
@@ -11,7 +13,7 @@ import AvatarUploader from '@/ui/AvatarUploader';
 import WhatsNewPanel from './WhatsNewPanel';
 import {
   SettingsHubView, ProfileView, PasswordSheet, DeleteAccountSheet, AppearanceView,
-  NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView, SettingsShell,
+  NotificationsSettingsView, PlanView, DataView, LabsView, AboutView, SettingsShell,
 } from './SettingsViews';
 
 // Settings (owner, 2026-10-25). The pages are pure views in SettingsViews;
@@ -37,7 +39,7 @@ export default function SettingsPage({
   panel = 'hub', onChangePanel, onBack, settings, onUpdate,
   isSignedIn, displayName, displayEmail, onLogIn,
   activeLibrary, setlists = [], songs = [], trash = [],
-  onRemapService, onDownloadSongs, onDownloadBackup, onRestoreSong, onPurgeSong, onEmptyTrash,
+  onSaveTemplate, onDeleteTemplate, onDownloadSongs, onDownloadBackup, onRestoreSong, onPurgeSong, onEmptyTrash,
   onUpgrade, onShowLegal, onHelp,
 }) {
   const { profile, user, updateProfile, updatePassword, deleteAccount, signOut } = useAuth();
@@ -53,11 +55,10 @@ export default function SettingsPage({
   const leader = !!church && (isAdmin || team?.owner_id === user?.id);
   const me = { name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null };
 
-  const services = useMemo(() => {
-    const counts = new Map();
-    setlists.forEach(sl => { const s = (sl.service || '').trim(); if (s) counts.set(s, (counts.get(s) || 0) + 1); });
-    return [...counts].sort((a, b) => a[0].localeCompare(b[0])).map(([name, count]) => ({ name, count }));
-  }, [setlists]);
+  // Services are templates now (2026-11-04): each service the church runs,
+  // saved or still only a name on its setlists.
+  const templates = useMemo(() => templatesOf(setlists), [setlists]);
+  const [tplEdit, setTplEdit] = useState(null);
 
   const planKey = (church?.plan || 'free').toLowerCase();
   const status = (church?.subscription_status || 'active').toLowerCase();
@@ -200,20 +201,14 @@ export default function SettingsPage({
     case 'services':
       if (!leader) return null;
       return (
-        <ServicesView
-          services={services}
-          onRename={(from, to) => onRemapService?.(from, to)}
-          onRemove={async (name, count) => {
-            const ok = await confirm({
-              title: `Remove “${name}”?`,
-              description: `${count === 1 ? 'One setlist loses' : `${count} setlists lose`} this service. The setlists stay.`,
-              confirmLabel: 'Remove',
-              variant: 'danger',
-            });
-            if (ok) onRemapService?.(name, '');
-          }}
-          onBack={toHub}
-        />
+        <SettingsShell title="Templates" onBack={toHub} backLabel="Settings">
+          <TemplatesList templates={templates} onEdit={setTplEdit} onNew={() => setTplEdit(blankTemplate())} />
+          {tplEdit && (
+            <TemplateEditor template={tplEdit} setlists={setlists} onCancel={() => setTplEdit(null)}
+              onSave={(tpl, meta) => { onSaveTemplate?.(tpl, meta); setTplEdit(null); }}
+              onDelete={templatesOf(setlists).some(t => t.id === tplEdit.id) && onDeleteTemplate ? () => { onDeleteTemplate(tplEdit.id); setTplEdit(null); } : null} />
+          )}
+        </SettingsShell>
       );
     case 'data':
       if (church && !leader) return null;
@@ -257,7 +252,7 @@ export default function SettingsPage({
             appearance: ({ light: 'Light', dark: 'Dark', midnight: 'Dark', default: 'Auto' })[settings?.theme || 'dark'],
             notifications: !push.supported ? null : push.subscribed ? 'On' : 'Off',
             plan: PLAN_NAMES[planKey] || null,
-            services: services.length ? String(services.length) : null,
+            services: templates.length ? String(templates.length) : null,
             data: `${songs.length} songs`,
             version: `v${__APP_VERSION__}`,
           }}

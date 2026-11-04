@@ -35,8 +35,9 @@ import {
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
+import SetlistFlow from '@/features/setlist/SetlistFlow';
+import { TemplateEditor } from '@/features/setlist/TemplateEditor';
 import { NewSetlistBody } from '@/features/setlist/NewSetlistSheet';
-import { serviceStarts } from '@/lib/newSetlist';
 import RunSheet from '@/features/setlist/RunSheet';
 import { toast } from '@/ui/use-toast';
 import { showUndoToast } from '@/lib/undoToast';
@@ -658,9 +659,8 @@ const SL_PEOPLE = [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }, { id: '
 const NS_SETLISTS = [
   { id: 'n1', name: 'Sunday Morning', service: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall', items: [{ type: 'break', label: 'Welcome' }, { type: 'break', label: 'Offering' }, { type: 'break', label: 'Sermon' }] },
   { id: 'n2', name: 'Youth Night', service: 'Youth Night', date: '2026-10-30', time: '19:00', items: [{ type: 'break', label: 'Games' }] },
-  { id: 'n3', isTemplate: true, templateName: 'Christmas Eve', items: [{ songId: 'a' }, { songId: 'b' }, { type: 'break', label: 'Carols' }] },
+  { id: 'n3', isTemplate: true, templateKind: 'service', templateName: 'Christmas Eve', items: [{ songId: 'a' }, { songId: 'b' }, { type: 'break', label: 'Carols' }] },
 ];
-const NS_STARTS = serviceStarts(NS_SETLISTS, '2026-11-02');
 
 function SetlistEditGallery() {
   const edit = (picked) => <SetlistEdit embedded setlist={SL} songs={SL_SONGS} setlists={SL_PAST} people={SL_PEOPLE} nameOf={(u) => SL_NAMES[u] || ''} initialPicked={picked} onSave={noop} onCancel={noop} />;
@@ -670,7 +670,7 @@ function SetlistEditGallery() {
         <Frame key={'ns' + t.id} theme={t.id} width={390} height={620} scale={0.6} label={`New setlist · ${t.label}`}>
           <div className="min-h-full bg-background p-4 text-foreground">
             <h2 className="m-0 mb-4 font-sans text-title font-semibold">New setlist</h2>
-            <NewSetlistBody starts={NS_STARTS} onCreate={noop} onEditTemplates={noop} />
+            <NewSetlistBody setlists={NS_SETLISTS} onCreate={noop} onEditTemplates={noop} />
           </div>
         </Frame>
       ))}
@@ -904,6 +904,48 @@ function AboutYouDemo(props) {
   return <AboutYouView church={CHURCH} name={name} onNameChange={setName} parts={parts} onPartsChange={setParts} onSubmit={noop} onNotNow={noop} {...props} />;
 }
 
+
+// New setlist, step by step (canvas → New setlist).
+const NF_GRACE = {
+  id: 'ag', title: 'Amazing Grace', artist: 'John Newton', defaultArrangementId: 'ag1',
+  arrangements: [
+    { id: 'ag1', name: 'Standard', key: 'G', tempo: 74, time: '3/4', sections: [
+      { type: 'Verse 1', lines: ['[G]Amazing [G7]grace, how [C]sweet the [G]sound', 'That [G]saved a wretch like [D]me', 'I [G]once was [G7]lost, but [C]now am [G]found', 'Was [Em]blind, but [D]now I [G]see'] },
+      { type: 'Verse 2', lines: ['’Twas [G]grace that [G7]taught my [C]heart to [G]fear', 'And [G]grace my fears re[D]lieved'] },
+    ] },
+    { id: 'ag2', name: 'Acoustic', key: 'D', tempo: 70, time: '3/4', sections: [] },
+  ],
+};
+const NF_SONGS = [NF_GRACE, ...SL_SONGS];
+const NF_TPL = {
+  id: 'tpl-am', isTemplate: true, templateKind: 'service', templateName: 'Sunday Morning', service: 'Sunday Morning', weekday: 0, time: '10:00', location: 'Main hall',
+  rehearsalOn: true, rehearsalOffset: 1, rehearsalTime: '18:00', rehearsalLocation: 'Main hall',
+  namePattern: 'BBPT #{n} AM', namePad: 3, startNumber: 1, parts: ['vocals', 'vocals', 'keys', 'electric-guitar', 'bass-guitar', 'drums'],
+  items: [{ placeholder: true }, { placeholder: true }, { type: 'break', label: 'Prayer', duration: 5 }, { placeholder: true }, { type: 'break', label: 'Sermon', duration: 35 }, { placeholder: true }],
+};
+const NF_TPL_PM = { ...NF_TPL, id: 'tpl-pm', templateName: 'Sunday Evening', service: 'Sunday Evening', time: '18:00', rehearsalOn: false, namePattern: 'BBPT #{n} PM' };
+const NF_SETLISTS = [NF_TPL, NF_TPL_PM,
+  { id: 'h1', name: 'BBPT #423 AM', service: 'Sunday Morning', templateId: 'tpl-am', date: '2026-11-01', time: '10:00', items: [{ songId: 'a' }, { songId: 'ag', transpose: 0, tempo: 74, leadBy: 'am' }] },
+  { id: 'h2', name: 'BBPT #422 AM', service: 'Sunday Morning', date: '2026-10-25', items: [{ songId: 'b' }] },
+];
+const NF_DRAFT = {
+  id: 'nf', templateId: 'tpl-am', name: 'BBPT #424 AM', service: 'Sunday Morning', date: '2026-11-08', time: '10:00', location: 'Main hall',
+  rehearsalDate: '2026-11-07', rehearsalTime: '18:00', rehearsalLocation: 'Main hall', status: 'draft',
+  items: [{ songId: 'e', leadBy: 'jd' }, { songId: 'd', transpose: 1 }, { type: 'break', label: 'Prayer', duration: 5 }, { placeholder: true }, { type: 'break', label: 'Sermon', duration: 35 }, { placeholder: true }],
+};
+const nfPeople = () => [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }];
+const NewSetlistFlowDemo = ({ step, isNew = true }) => (
+  <SetlistFlow setlist={NF_DRAFT} isNew={isNew} initialStep={step} songs={NF_SONGS} setlists={NF_SETLISTS} peopleOf={nfPeople}
+    nameOf={(u) => ({ jd: 'Joe', am: 'Ana' }[u] || bdName(u))} team={{ id: 'demo' }} members={BD_MEMBERS}
+    onSave={noop} onCancel={noop} />
+);
+const NewSetlistPopupDemo = ({ first = false }) => (
+  <div className="min-h-full bg-background p-4 font-sans text-foreground">
+    <h2 className="m-0 mb-3 text-[18px] font-semibold">New setlist</h2>
+    <NewSetlistBody setlists={first ? NF_SETLISTS.filter(s => !s.isTemplate) : NF_SETLISTS} onCreate={noop} onEditTemplates={noop} onNewTemplate={noop} />
+  </div>
+);
+
 const FILLED = { name: 'Joe Doe', email: 'joe@example.com', password: 'password1', confirm: 'password1' };
 
 const SCREENS = [
@@ -929,12 +971,18 @@ const SCREENS = [
   )],
   ['Join: not approved', () => <DeclinedView embedded church={CHURCH} onOpenApp={noop} onSignOut={noop} />],
   ['Join: link doesn’t work', () => <BadLinkView embedded onOpenApp={noop} />],
+  ['New setlist: pick a template', () => <NewSetlistPopupDemo />],
+  ['New setlist: details and band', () => <NewSetlistFlowDemo step="details" />],
+  ['New setlist: songs', () => <NewSetlistFlowDemo step="songs" />],
+  ['Edit setlist: songs', () => <NewSetlistFlowDemo step="songs" isNew={false} />],
+  ['Template editor', () => <TemplateEditor template={NF_TPL} setlists={NF_SETLISTS} onSave={noop} onCancel={noop} onDelete={noop} />],
+  ['New setlist: no template yet', () => <NewSetlistPopupDemo first />],
 ];
 
 function Gallery() {
   return (
     <div className="flex flex-col gap-8">
-      {SCREENS.map(([label, render]) => (
+      {SCREENS.filter(([label]) => !/^(New setlist|Template)/.test(label)).map(([label, render]) => (
         <div key={label} className="flex flex-col gap-2">
           <h3 className="m-0 text-body font-semibold">{label}</h3>
           <div className="flex gap-6 overflow-x-auto pb-2">
