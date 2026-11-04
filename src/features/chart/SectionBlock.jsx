@@ -154,6 +154,9 @@ export default function SectionBlock({
   // the chord AS WRITTEN (letter names, transposed, capo NOT applied) plus the
   // rect to anchor a popover to. Null = chords stay inert, as they always were.
   onChordTap = null,
+  // Draw a chords-only line as bar boxes (the new look). Off keeps the loose
+  // row of chords every older caller had.
+  chordBars = false,
 }) {
   // Reader notation: prefer the explicit `notation` prop; fall back to the
   // legacy boolean `nns` (Nashville on/off) for callers not yet migrated.
@@ -406,6 +409,23 @@ export default function SectionBlock({
     const arriveShapes = songKey && (keyTranspose ?? transpose) !== transpose
       ? arriveIn(transpose)
       : null;
+    if (chordBars) {
+      // The new look: one solid gold pill, the song page's "↗ Key of A". Still
+      // solid (the whole band hits it together), but the label and the rule
+      // folded into the pill, so it is one object instead of three.
+      return (
+        <div key={key} className="mt-2 mb-1.5">
+          <span
+            className="inline-flex items-center gap-1 rounded-full font-semibold"
+            style={{ color: 'var(--chart-bg, #fff)', background: 'var(--chord)', fontSize: '0.8em', padding: '0.25em 0.8em' }}
+          >
+            <span aria-hidden="true">↗</span>
+            {arriveAt ? `Key of ${arriveAt}` : `${semitones > 0 ? '+' : ''}${semitones}`}
+            {arriveShapes && <span style={{ opacity: 0.72 }}>({arriveShapes} shapes)</span>}
+          </span>
+        </div>
+      );
+    }
     return (
       // ── Trimmed twice, 2026-08-11 ─────────────────────────────────────────
       // It was 68.1px of vertical space against a 22px section heading — 3.1×
@@ -952,6 +972,19 @@ export default function SectionBlock({
                   </span>
                 )
               )); })()
+            : chordBars ? pairs.filter(p => p.chord).map((p, i) => (
+                // The new look (owner, 2026-11-04): a line with chords and no
+                // words is drawn as bars, | G | C | G | D |, the way the song
+                // page draws it — a row of boxes reads as "play these" where a
+                // loose row of letters read as a line whose words went missing.
+                <span
+                  key={i}
+                  className="inline-flex items-center justify-center"
+                  style={{ minWidth: '2.6em', height: '2.1em', padding: '0 0.55em', marginRight: 6, marginBottom: 4, borderRadius: 8, border: '1px solid var(--chart-rule, var(--border))', background: 'color-mix(in srgb, var(--chart-text, currentColor) 4%, transparent)' }}
+                >
+                  {renderChord(p.chord, '0px', i)}
+                </span>
+              ))
             : pairs.map((p, i) => (
                 <span key={i} className="inline-flex flex-col justify-end">
                   {/* Chord-only line (an intro, an instrumental): there are no

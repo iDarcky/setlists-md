@@ -35,7 +35,10 @@ const songOf = (md) => {
 
 const chordsIn = (slot) => {
   const sec = document.querySelector(`[data-section-index="${slot}"]`);
+  // The heading's section chip is a code ("C" for Chorus) and is aria-hidden;
+  // it is not a chord.
   return [...sec.querySelectorAll('span')]
+    .filter(s => !s.closest('[aria-hidden="true"]'))
     .map(s => s.textContent)
     .filter(t => /^[A-G][b#]?m?$/.test(t));
 };
@@ -56,7 +59,7 @@ describe('a key change anchored to a slot', () => {
 
   it('announces the arrival key where it happens', () => {
     render(<Reader song={songOf(MD)} settings={{ defaultColumns: 1 }} mode="practice" />);
-    const chip = screen.getByText('key change');
+    const chip = screen.getByText(/Key of/);
     // Drawn inside the slot it belongs to, not floating between sections.
     expect(chip.closest('[data-section-index]').dataset.sectionIndex).toBe('2');
   });
@@ -130,7 +133,7 @@ structure: [Chorus, Chorus]
     );
     expect(container.querySelectorAll('[data-section-index]').length).toBe(2);
     // One chip, from the overlay — not one from each source.
-    expect(screen.getAllByText('key change').length).toBe(1);
+    expect(screen.getAllByText(/Key of/).length).toBe(1);
     expect(chordsIn(0)).toEqual(['C', 'F']);
     expect(chordsIn(1)).toEqual(['Db', 'Gb']);
   });

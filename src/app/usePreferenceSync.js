@@ -84,6 +84,9 @@ export const PORTABLE_PREF_KEYS = [
   'accountPanel',
   'pasteIntoChart',
   'readerHeading',
+  // The new-look move's flag (lib/readerLook.js): portable so a cloud copy
+  // from before the move cannot quietly undo it.
+  'readerLookV2',
   'readerSectionStyle',
   'readerSticky',
   'readerNotes',

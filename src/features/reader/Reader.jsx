@@ -168,15 +168,22 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
  * read. A triangle is not.
  */
 function LiveFold() {
+  // ⚠ The new look (2026-11-04, owner: *"Don't forget the live right margin —
+  // how can we improve this?"*): the corner triangle became a red EDGE along
+  // the whole top of the screen, with a soft glow under it. Same promise as the
+  // fold — painted outside the layout, the title loses nothing, no word in the
+  // bar — but a 22px corner is invisible from a music stand a metre away and
+  // read as a rendering glitch; a lit top edge reads as "on air" from across
+  // the room, the way a recording light does. Both keep `role="status"`.
   return (
     <>
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute top-0 right-0 z-10"
+        className="pointer-events-none absolute inset-x-0 top-0 z-10"
         style={{
-          width: 0, height: 0,
-          borderTop: '22px solid #e5484d',
-          borderLeft: '22px solid transparent',
+          height: 3,
+          background: '#e5484d',
+          boxShadow: '0 0 10px 1px rgba(229,72,77,.55)',
         }}
       />
       {/* The fold carries no text, so this is what "live" sounds like. */}
