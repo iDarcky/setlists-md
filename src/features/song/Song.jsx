@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { resolveSongView, withArrangement, addArrangement } from '@/arrangements';
 import { buildSongFlow } from '@/lib/songFlow';
 import { transposeKey, keyPrefersSharps, semitonesBetween } from '@/music';
-import { songFacts, flowCodes } from '@/lib/songPage';
+import { songFacts } from '@/lib/songPage';
+import { sectionTone } from '@/lib/sectionTone';
 import { transposeArrangement } from '@/lib/transposeArrangement';
 import FullscreenReader from '@/features/reader/FullscreenReader';
 import { exportSongPdf } from '@/pdf/exportSongPdf';
@@ -68,7 +69,7 @@ export default function Song({
   } : null;
 
   const facts = useMemo(() => songFacts(songInput, setlists, now), [songInput, setlists, now]);
-  const flow = useMemo(() => (song ? flowCodes(buildSongFlow(song).ordered || [], settings?.customSectionTypes) : []), [song, settings?.customSectionTypes]);
+  const flow = useMemo(() => (song ? (buildSongFlow(song).ordered || []).map(sec => sectionTone(sec?.type, settings?.customSectionTypes)) : []), [song, settings?.customSectionTypes]);
 
   if (!song) return null;
 

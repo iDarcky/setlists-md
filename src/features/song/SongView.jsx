@@ -217,9 +217,14 @@ function Flow({ codes }) {
     <>
       <h2 className={cn(label, 'pt-0')}>Order</h2>
       <div className="flex flex-wrap gap-1">
-        {codes.map((c, n) => (
-          <span key={n} className="flex h-7 min-w-8 items-center justify-center rounded-[7px] bg-selected px-1.5 text-[12px] font-semibold text-link">{c}</span>
-        ))}
+        {codes.map((c, n) => {
+          // `{ code, fg, bg }` from sectionTone; a bare code draws in the accent.
+          const t = typeof c === 'string' ? { code: c } : c;
+          return (
+            <span key={n} style={t.fg ? { color: t.fg, background: t.bg } : undefined}
+              className={cn('flex h-7 min-w-8 items-center justify-center rounded-[7px] px-1.5 text-[12px] font-semibold', !t.fg && 'bg-selected text-link')}>{t.code}</span>
+          );
+        })}
       </div>
     </>
   );

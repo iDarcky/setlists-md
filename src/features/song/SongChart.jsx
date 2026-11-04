@@ -4,7 +4,8 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { buildSongFlow, repeatFirstIndex, repeatRuns } from '@/lib/songFlow';
 import { resolveKeyChanges, fromBodyMarkers } from '@/lib/keyChanges';
 import { parseLine, extractInlineNotes } from '@/parser';
-import { transposeChord, transposeKey, compactLabel } from '@/music';
+import { transposeChord, transposeKey } from '@/music';
+import { sectionTone } from '@/lib/sectionTone';
 import TabBlock from '@/features/chart/TabBlock';
 
 // The chart on the song page, drawn new (owner, 2026-11-04: the old chart
@@ -21,7 +22,7 @@ import TabBlock from '@/features/chart/TabBlock';
 // and which plays are repeats all come from the same lib functions, so the two
 // never disagree about what the song IS.
 
-const chipCls = 'inline-flex h-7 min-w-8 shrink-0 items-center justify-center rounded-[7px] bg-selected px-1.5 text-[12px] font-semibold text-link';
+const chipCls = 'inline-flex h-7 min-w-8 shrink-0 items-center justify-center rounded-[7px] px-1.5 text-[12px] font-semibold';
 const pillCls = 'inline-flex h-6 shrink-0 items-center rounded-full bg-warning-fill px-2.5 text-[12px] font-medium text-warning-text';
 
 /** One line of words with its chords over the letters they start on. */
@@ -107,7 +108,8 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
     const run = runs[i];
     if (skip.has(i) || (run && !run.lead)) return; // folded into a play before it
     const type = String(sec?.type || '');
-    const code = compactLabel(type, customSectionTypes);
+    const tone = sectionTone(type, customSectionTypes);
+    const chip = <span className={chipCls} style={{ color: tone.fg, background: tone.bg }}>{tone.code}</span>;
     // How many times in a row this is played. A first play followed straight
     // away by its own repeats carries the count ("Chorus ×2"); a repeat run
     // later in the song carries its own ("Chorus again ×2").
@@ -127,7 +129,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
         slot: i,
         el: (
           <div key={i} className="flex flex-wrap items-center gap-2 py-2">
-            <span className={chipCls}>{code}</span>
+            {chip}
             <b className="text-[15px] font-semibold text-foreground">{type}</b>
             <span className="text-[13px] text-muted-foreground">again{times > 1 ? ` ×${times}` : ''}</span>
             {cue && <span className={pillCls}>{cue}</span>}
@@ -165,7 +167,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
       el: (
         <section key={i} className="break-inside-avoid pb-5">
           <div className="flex flex-wrap items-center gap-2 pb-1.5">
-            <span className={chipCls}>{code}</span>
+            {chip}
             <b className="text-[15px] font-semibold text-foreground">{type}</b>
             {times > 1 && <span className="text-[13px] font-semibold text-muted-foreground">×{times}</span>}
             {entry && <span className={pillCls}>↗ Key of {keyName(entry.offset)}</span>}
