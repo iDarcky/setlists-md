@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   splitPattern, joinPattern, nextNumber, autoName, nextDates, draftFromTemplate, lastPlayed,
-  templatesOf, parseTime, typeTime, isPlaceholder, placeholderItem,
+  templatesOf, patternFromName, formatName, parseTime, typeTime, isPlaceholder, placeholderItem,
 } from '@/lib/newSetlist';
 import { buildOrder } from '@/lib/setlistView';
 
 const AM = { id: 'am', isTemplate: true, templateKind: 'service', templateName: 'Sunday Morning', weekday: 0, time: '10:00', location: 'Main hall',
-  rehearsalOn: true, rehearsalOffset: 1, rehearsalTime: '18:00', namePattern: 'BBPT #{n} AM', startNumber: 1,
+  rehearsalOn: true, rehearsalOffset: 1, rehearsalTime: '18:00', namePattern: 'BBPT #{n} AM', namePad: 3, startNumber: 1,
   items: [placeholderItem(), { type: 'break', label: 'Prayer', duration: 5 }, placeholderItem()] };
 const PM = { ...AM, id: 'pm', templateName: 'Sunday Evening', time: '18:00', namePattern: 'BBPT #{n} PM' };
 
@@ -128,5 +128,15 @@ describe('typing a time', () => {
   it('lets a backspace through', () => {
     expect(typeTime('10', '10:')).toBe('1');
     expect(typeTime('10:', '10:3')).toBe('10:');
+  });
+});
+
+describe('the name as typed', () => {
+  it('finds the counter in an example name', () => {
+    expect(patternFromName('BBPT #424 AM')).toEqual({ pattern: 'BBPT #{n} AM', number: 424, pad: 3 });
+    expect(patternFromName('Youth night 7')).toEqual({ pattern: 'Youth night {n}', number: 7, pad: 1 });
+    expect(patternFromName('No number')).toBe(null);
+    expect(formatName('BBPT #{n} AM', 7, 3)).toBe('BBPT #007 AM');
+    expect(formatName('Sunday Morning #{n}', 12)).toBe('Sunday Morning #12');
   });
 });

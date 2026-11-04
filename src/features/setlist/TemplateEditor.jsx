@@ -7,7 +7,7 @@ import { Sheet } from '@/ui/shadcn/sheet';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { ChevronRightIcon, PlusIcon } from '@/app/navIcons';
 import { partName, ADDABLE_PARTS } from '@/lib/bandParts';
-import { WEEKDAYS, splitPattern, nextNumber, templateTitle, blankTemplate, placeholderItem, isPlaceholder, TEMPLATE_KIND } from '@/lib/newSetlist';
+import { WEEKDAYS, splitPattern, nextNumber, formatName, patternFromName, templateTitle, blankTemplate, placeholderItem, isPlaceholder, TEMPLATE_KIND } from '@/lib/newSetlist';
 import { Chip, TimeInput } from './WhenPickers';
 import { useDragReorder, moveItem } from './useDragReorder';
 import { Grip } from './SetlistEdit';
@@ -37,14 +37,29 @@ const Switch = ({ on, onChange, label }) => (
 );
 
 export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDelete }) {
-  const [t, setT] = useState(() => ({ ...blankTemplate(), ...template, items: (template?.items || []).map(it => ({ ...it })) }));
+  const [t, setT] = useState(() => {
+    const x = { ...blankTemplate(), ...template, items: (template?.items || []).map(it => ({ ...it })) };
+    // A pattern that is not "<name> #{n}" was written by hand: keep it.
+    if (x.nameCustom == null && splitPattern(x.namePattern)) x.nameCustom = x.namePattern !== `${(x.templateName || '').trim()} #{n}`;
+    return x;
+  });
   const [addPart, setAddPart] = useState(false);
   const set = (p) => setT(x => ({ ...x, ...p }));
-  // Numbered names are "<template name> #<n>": one switch and a start number.
+  // Numbered names: "<template name> #<n>" unless the leader typed their own
+  // ("BBPT #424 AM"), whose last number becomes the counter.
   const numbered = !!splitPattern(t.namePattern);
   const baseTitle = (t.templateName || '').trim() || 'Sunday Morning';
-  const pattern = `${baseTitle} #{n}`;
-  const next = numbered ? nextNumber(pattern, setlists, '', t.startNumber) || Number(t.startNumber) || 1 : null;
+  const defaultPattern = `${baseTitle} #{n}`;
+  const effPattern = numbered ? (t.nameCustom ? t.namePattern : defaultPattern) : '';
+  const width = t.nameCustom ? t.namePad : 1;
+  const next = numbered ? nextNumber(effPattern, setlists, '', t.startNumber) || Number(t.startNumber) || 1 : null;
+  const [typed, setTyped] = useState(null);
+  const typedOk = typed == null || !!patternFromName(typed);
+  const typeName = (text) => {
+    setTyped(text);
+    const p = patternFromName(text);
+    if (p) set({ nameCustom: true, namePattern: p.pattern, startNumber: p.number, namePad: p.pad });
+  };
   // Band: the stored list repeats a part for two ("vocals", "vocals"); shown
   // as one row per part with a count.
   const partRows = [];
@@ -66,7 +81,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
     const name = t.templateName.trim();
     // The template IS the service now: renaming it renames the service, and
     // App carries the new name onto the setlists that had the old one.
-    onSave({ ...t, namePattern: numbered ? `${name} #{n}` : '', templateName: name, name, service: name, isTemplate: true, templateKind: TEMPLATE_KIND, updatedAt: Date.now() }, { previousService: template?.service || templateTitle(template) || '' });
+    onSave({ ...t, namePattern: numbered ? (t.nameCustom ? t.namePattern : `${name} #{n}`) : '', templateName: name, name, service: name, isTemplate: true, templateKind: TEMPLATE_KIND, updatedAt: Date.now() }, { previousService: template?.service || templateTitle(template) || '' });
   };
 
   return createPortal(
@@ -97,15 +112,17 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
             </div>
           )}
 
-          <Caps right={<Switch label="Number the setlists" on={numbered} onChange={v => set({ namePattern: v ? pattern : '' })} />}>Number the setlists</Caps>
+          <Caps right={<Switch label="Number the setlists" on={numbered} onChange={v => { setTyped(null); set(v ? { namePattern: defaultPattern, nameCustom: false, namePad: 1, startNumber: 1 } : { namePattern: '', nameCustom: false }); }} />}>Number the setlists</Caps>
           {numbered ? (
             <div className="rounded-card border border-border bg-card">
-              <Row label="Start at">
-                <Input type="text" inputMode="numeric" pattern="[0-9]*" aria-label="Start at number" value={next} onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
-                  onChange={e => set({ startNumber: Math.max(1, Number(e.target.value.replace(/\D/g, '')) || 1) })} className="h-10 w-[96px] font-mono" />
+              <Row label="Next one">
+                <Input value={typed ?? formatName(effPattern, next, width)} maxLength={60} aria-label="Next setlist's name" aria-invalid={!typedOk || undefined}
+                  onChange={e => typeName(e.target.value)} onBlur={() => { if (typedOk) setTyped(null); }} className="h-10 font-mono" />
               </Row>
               <p className="m-0 border-t border-border px-4 py-3 text-[13px] text-muted-foreground">
-                Setlists are called <b className="font-mono text-foreground">{baseTitle} #{next}</b>, then #{next + 1}, and so on.
+                {typedOk
+                  ? <>Then <b className="font-mono text-foreground">{formatName(effPattern, next + 1, width)}</b>, and so on. You can change how it is written, as long as it has a number.</>
+                  : <span className="text-danger">Put a number in the name, like #1.</span>}
               </p>
             </div>
           ) : (

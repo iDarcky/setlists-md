@@ -77,7 +77,24 @@ export function splitPattern(pattern) {
   return { before: pattern.slice(0, i), after: pattern.slice(i + NUM_TOKEN.length) };
 }
 export const joinPattern = (before = '', after = '') => `${before}${NUM_TOKEN}${after}`;
-const pad = (n) => String(n).padStart(3, '0');
+const pad = (n, width = 1) => String(n).padStart(Math.max(1, Number(width) || 1), '0');
+/** "BBPT #{n} AM" + 424 + 3 → "BBPT #424 AM". */
+export const formatName = (pattern, n, width = 1) => {
+  const parts = splitPattern(pattern);
+  return parts ? `${parts.before}${pad(n, width)}${parts.after}`.trim() : '';
+};
+/**
+ * A typed example of the next name → its pattern: "BBPT #424 AM" →
+ * { pattern: "BBPT #{n} AM", number: 424, pad: 3 }. The last number in the
+ * text is the counter; its digit count is kept ("#007" stays three wide).
+ * Null when there is no number.
+ */
+export function patternFromName(text) {
+  const s = String(text || '');
+  const m = /(\d+)(?!.*\d)/.exec(s);
+  if (!m) return null;
+  return { pattern: `${s.slice(0, m.index)}${NUM_TOKEN}${s.slice(m.index + m[1].length)}`, number: Number(m[1]), pad: m[1].length };
+}
 
 /** The number in a setlist name made from this pattern's family, or null. */
 function numberIn(name, before) {
@@ -112,7 +129,7 @@ export function autoName(tpl, setlists = [], date = '', exceptId = null) {
   const parts = splitPattern(tpl.namePattern);
   if (!parts) return templateTitle(tpl);
   const n = nextNumber(tpl.namePattern, setlists, date, tpl.startNumber, exceptId);
-  return `${parts.before}${pad(n)}${parts.after}`.trim();
+  return formatName(tpl.namePattern, n, tpl.namePad);
 }
 
 /** The next `count` free days of `weekday` (dates already used by this service skipped). */
