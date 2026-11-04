@@ -26,7 +26,7 @@ const chipCls = 'inline-flex h-7 min-w-8 shrink-0 items-center justify-center ro
 const pillCls = 'inline-flex h-6 shrink-0 items-center rounded-full bg-warning-fill px-2.5 text-[12px] font-medium text-warning-text';
 
 /** One line of words with its chords over the letters they start on. */
-function ChordLine({ line, shift, sharps, show }) {
+function ChordLine({ line, shift, sharps, show, ink }) {
   const { clean, notes } = extractInlineNotes(line);
   const parts = parseLine(clean);
   const words = parts.map(p => p.text).join('');
@@ -41,7 +41,7 @@ function ChordLine({ line, shift, sharps, show }) {
     return (
       <div className="flex flex-wrap items-center gap-1.5 py-1">
         {parts.filter(p => p.chord).map((p, k) => (
-          <span key={k} className="inline-flex h-9 min-w-12 items-center justify-center rounded-[8px] border border-border bg-card px-2.5 font-mono text-[15px] font-semibold text-warning-text">{tr(p.chord)}</span>
+          <span key={k} className="inline-flex h-9 min-w-12 items-center justify-center rounded-[8px] border border-border bg-card px-2.5 font-mono text-[15px] font-semibold text-warning-text" style={ink}>{tr(p.chord)}</span>
         ))}
         {noteEls}
       </div>
@@ -64,7 +64,7 @@ function ChordLine({ line, shift, sharps, show }) {
         const short = chord.length + 1 > p.text.length;
         return (
           <span key={k} className="inline-flex flex-col">
-            <span className={cn('h-[22px] whitespace-pre font-mono text-[15px] font-semibold leading-[22px] text-warning-text', chord && 'pr-1.5')}>{chord}</span>
+            <span className={cn('h-[22px] whitespace-pre font-mono text-[15px] font-semibold leading-[22px] text-warning-text', chord && 'pr-1.5')} style={ink}>{chord}</span>
             <span className="flex whitespace-pre text-[17px] leading-[26px] text-foreground">
               {p.text || '\u00a0'}
               {midWord && short && <span aria-hidden="true" className="flex-1 text-center text-muted-foreground">-</span>}
@@ -84,7 +84,9 @@ function ChordLine({ line, shift, sharps, show }) {
  * @param {boolean} p.sharps
  * @param {'chords'|'lyrics'} p.show
  */
-export default function SongChart({ song, semis = 0, sharps, show = 'chords', layout = 'auto', customSectionTypes = null }) {
+export default function SongChart({ song, semis = 0, sharps, show = 'chords', layout = 'auto', customSectionTypes = null, chordColor = null }) {
+  // A chord colour picked in Aa wins; never picked, the chords are the gold.
+  const ink = chordColor ? { color: chordColor } : undefined;
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
   const { ordered } = useMemo(() => buildSongFlow(song), [song]);
@@ -158,7 +160,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
         }
         return;
       }
-      const el = <ChordLine key={li} line={String(line ?? '')} shift={shift + semis} sharps={sharps} show={show} />;
+      const el = <ChordLine key={li} line={String(line ?? '')} shift={shift + semis} sharps={sharps} show={show} ink={ink} />;
       lines.push(el);
     });
 
