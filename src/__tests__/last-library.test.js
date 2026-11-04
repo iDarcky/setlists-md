@@ -37,3 +37,21 @@ describe('lastLibrary', () => {
     expect(waitingForHomeSpace({ ...base, loaded: true })).toBe(false);
   });
 });
+
+describe('launchCache', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('keeps churches, rosters and schedules per user, and forgets them on sign-out', async () => {
+    const m = await import('@/lib/launchCache');
+    expect(m.cachedTeams('u1')).toBe(null);
+    m.cacheTeams('u1', [{ id: 't1', myRole: 'admin' }]);
+    m.cacheMembers('u1', 't1', [{ user_id: 'u1', role: 'admin' }]);
+    m.cacheSchedules('u1', 't1', [{ id: 's1' }]);
+    expect(m.cachedTeams('u1')).toEqual([{ id: 't1', myRole: 'admin' }]);
+    expect(m.cachedMembers('u1', 't1')).toHaveLength(1);
+    expect(m.cachedSchedules('u1', 't1')).toEqual([{ id: 's1' }]);
+    expect(m.cachedTeams('u2')).toBe(null);
+    m.clearLaunchCache('u1');
+    expect(m.cachedTeams('u1')).toBe(null);
+  });
+});

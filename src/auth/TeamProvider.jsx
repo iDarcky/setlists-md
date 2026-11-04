@@ -5,6 +5,7 @@ import { TeamContext } from './TeamContext';
 import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
 import { canPlanServices, canWriteLibrary as roleCanWriteLibrary, canApproveJoins } from '@/lib/teamRoles';
 import { useTeamJoinRequests } from '@/hooks/useTeamJoinRequests';
+import { cachedTeams, cacheTeams, cachedMembers, cacheMembers } from '@/lib/launchCache';
 
 /**
  * Provides team state to the component tree. Only fetches from Supabase when
@@ -69,6 +70,16 @@ export function TeamProvider({ children }) {
     if (loadedForUserRef.current === user.id) return;
     loadedForUserRef.current = user.id;
 
+    // Draw from what this device last heard while the server answers, so a
+    // refresh opens the church (and my role in it) at once. The answer below
+    // replaces it; a church I have since left drops out then.
+    const fromDevice = cachedTeams(user.id);
+    if (fromDevice?.length) {
+      setTeams(prev => (prev.length ? prev : fromDevice));
+      setActiveTeamId(prev => prev || fromDevice[0]?.id || null);
+      setTeamsLoadedFor(prev => prev || user.id);
+    }
+
     const silent = silentReloadRef.current;
     silentReloadRef.current = false;
     (async () => {
@@ -87,6 +98,7 @@ export function TeamProvider({ children }) {
           setTeams([]);
           setActiveTeamId(null);
           setTeamsLoadedFor(user.id);
+          cacheTeams(user.id, []);
           return;
         }
 
@@ -107,6 +119,7 @@ export function TeamProvider({ children }) {
           prev && ordered.some(t => t.id === prev) ? prev : (ordered[0]?.id || null)
         );
         setTeamsLoadedFor(user.id);
+        cacheTeams(user.id, ordered);
       } catch (err) {
         console.error('[team] Failed to load teams:', err);
       } finally {
@@ -123,6 +136,9 @@ export function TeamProvider({ children }) {
       return;
     }
     let ignore = false;
+    // The roster this device last saw, until the server's arrives.
+    const fromDevice = cachedMembers(user.id, activeTeamId);
+    setMembers(fromDevice || []);
 
     (async () => {
       try {
@@ -181,6 +197,7 @@ export function TeamProvider({ children }) {
 
         if (ignore) return;
         setMembers(membersWithProfiles);
+        cacheMembers(user.id, activeTeamId, membersWithProfiles);
 
         // Load pending invites for the team (only admins/owners can see these due to RLS).
         const { data: inviteRows } = await supabase

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/auth/supabase';
 import { useAuth } from '@/auth/useAuth';
+import { cachedSchedules, cacheSchedules } from '@/lib/launchCache';
 
 export function useTeamSchedules(teamId) {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ export function useTeamSchedules(teamId) {
 
       if (fetchErr) throw fetchErr;
       setSchedules(data || []);
+      cacheSchedules(user.id, teamId, data || []);
     } catch (err) {
       console.error('Error fetching schedules:', err);
       setError(err.message);
@@ -32,6 +34,18 @@ export function useTeamSchedules(teamId) {
       setLoadedFor(teamId);
     }
   }, [teamId, user]);
+
+  // A new team: start from what this device last saw of its schedules, so
+  // Home draws "who plays when" at once; the fetch below replaces it.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!teamId || !userId) return;
+    const fromDevice = cachedSchedules(userId, teamId);
+    if (fromDevice) {
+      setSchedules(fromDevice);
+      setLoadedFor(teamId);
+    }
+  }, [teamId, userId]);
 
   useEffect(() => {
     fetchSchedules();
