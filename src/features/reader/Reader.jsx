@@ -167,7 +167,7 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
  * `role="status"` line beside it, which is text a screen reader can actually
  * read. A triangle is not.
  */
-function LiveFold() {
+function LiveFold({ edge = true }) {
   // ⚠ The new look (2026-11-04, owner: *"Don't forget the live right margin —
   // how can we improve this?"*): the corner triangle became a red EDGE along
   // the whole top of the screen, with a soft glow under it. Same promise as the
@@ -177,7 +177,9 @@ function LiveFold() {
   // the room, the way a recording light does. Both keep `role="status"`.
   return (
     <>
-      <span
+      {/* In a setlist the timeline turns red instead (ReaderTopBar), so the
+          edge is drawn only where there is no timeline: a single song. */}
+      {edge && <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 z-10"
         style={{
@@ -185,7 +187,7 @@ function LiveFold() {
           background: '#e5484d',
           boxShadow: '0 0 10px 1px rgba(229,72,77,.55)',
         }}
-      />
+      />}
       {/* The fold carries no text, so this is what "live" sounds like. */}
       <span role="status" className="sr-only">Live</span>
     </>
@@ -1811,7 +1813,7 @@ export default function Reader({
           //
           // `config.mode`, not the raw `mode` prop — the hub is hard-wired to
           // its own mode and `resolveReaderConfig` is the one place that knows.
-          cornerMark={liveFold ? <LiveFold /> : null}
+          cornerMark={liveFold ? <LiveFold edge={progress == null} /> : null}
           title={song.title}
           onTitleTap={hasSongInfo ? () => setInfoOpen(v => !v) : null}
           infoOpen={infoOpen}
@@ -1843,6 +1845,7 @@ export default function Reader({
           exitLabel={editing ? 'Cancel editing' : 'Exit'}
           exitDisabled={false}
           progress={progress}
+          live={liveFold}
           // ⚠ NO `tools`, in any view, in any mode. The click and Edit both
           // float now (`ReaderActions`); notes never had a bar control. That is
           // the point of the split: the bar answers *where am I* — title, key,
