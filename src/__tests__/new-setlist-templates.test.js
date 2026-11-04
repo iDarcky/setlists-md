@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   splitPattern, joinPattern, nextNumber, autoName, nextDates, draftFromTemplate, lastPlayed,
-  templatesOf, parseTime, draftFromSetlist, recentSetlists, isPlaceholder, placeholderItem,
+  templatesOf, parseTime, typeTime, draftFromSetlist, recentSetlists, isPlaceholder, placeholderItem,
 } from '@/lib/newSetlist';
 import { buildOrder } from '@/lib/setlistView';
 
@@ -134,5 +134,20 @@ describe('rehearsal picked each week', () => {
     const d = draftFromTemplate({ ...AM, rehearsalOn: true, rehearsalPick: true, rehearsalTime: '18:00' }, [], '2026-11-04');
     expect(d.rehearsalDate).toBeUndefined();
     expect(d.rehearsalTime).toBe('18:00');
+  });
+});
+
+describe('typing a time', () => {
+  it('moves on to the minutes by itself', () => {
+    expect(typeTime('1', '')).toBe('1');
+    expect(typeTime('10', '1')).toBe('10:');
+    expect(typeTime('10:3', '10:')).toBe('10:3');
+    expect(typeTime('10:30', '10:3')).toBe('10:30');
+    expect(typeTime('9', '')).toBe('09:');
+    expect(typeTime('10:305', '10:30')).toBe('10:30');
+  });
+  it('lets a backspace through', () => {
+    expect(typeTime('10', '10:')).toBe('1');
+    expect(typeTime('10:', '10:3')).toBe('10:');
   });
 });

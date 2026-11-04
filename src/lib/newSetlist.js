@@ -300,3 +300,20 @@ export function parseTime(text) {
   if (h > 23 || m > 59) return null;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+/**
+ * As the time is typed: the colon comes by itself after the hours ("10" →
+ * "10:"), a first digit above 2 is an hour on its own ("9" → "09:"), and
+ * deleting never fights back (the colon goes with a backspace).
+ */
+export function typeTime(next, prev = '') {
+  const digits = String(next || '').replace(/\D/g, '').slice(0, 4);
+  if (String(next).length < String(prev).length) {
+    // Backspace over the auto colon also takes the digit before it.
+    if (/:$/.test(prev) && !/:/.test(next)) return digits.slice(0, -1);
+    return next.replace(/[^\d:]/g, '');
+  }
+  const d = digits.length === 1 && Number(digits) > 2 ? `0${digits}` : digits;
+  return d.length >= 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d;
+}
+
