@@ -4,11 +4,11 @@ import { buildSongFlow } from '@/lib/songFlow';
 import { transposeKey, keyPrefersSharps, semitonesBetween } from '@/music';
 import { songFacts, flowCodes } from '@/lib/songPage';
 import { transposeArrangement } from '@/lib/transposeArrangement';
-import Reader from '@/features/reader/Reader';
 import FullscreenReader from '@/features/reader/FullscreenReader';
 import { exportSongPdf } from '@/pdf/exportSongPdf';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import SongView from './SongView';
+import SongChart from './SongChart';
 
 // The song page: works out the facts from the library and setlists and hands
 // them to SongView, which puts the details on top of the Reader in one scroll
@@ -98,20 +98,13 @@ export default function Song({
         onShow={setShow}
         onFullScreen={() => setFull(true)}
         onOpenSetlist={onOpenSetlist}
-        // Unmounted while full screen is open: two Readers in the DOM share ids (see SongHub's note).
-        chart={(lead, tail) => (full ? <div className="min-h-0 flex-1 overflow-y-auto">{lead}</div> : (
-          <Reader
-            embedded
-            song={song}
-            displayMode={show}
-            settings={settings}
-            onUpdateSettings={onUpdateSettings}
-            selectedKey={shown}
-            onSelectKey={pickKey}
-            lead={lead}
-            tail={tail}
-          />
-        ))}
+        chart={(lead, tail) => (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {lead}
+            <SongChart song={song} semis={semis} sharps={sharps} show={show} layout={layout} customSectionTypes={settings?.customSectionTypes} />
+            {tail}
+          </div>
+        )}
       />
       {full && (
         <FullscreenReader

@@ -312,10 +312,6 @@ export default function Reader({
   // place below (SET / HEADER / STRUCTURE). Only the setlist can build it; the
   // reader knows one song.
   aboveBar = null,
-  // The song page puts its details ABOVE the chart and its credits BELOW it,
-  // inside this scroller, so the page is one scroll: details, then the song.
-  lead = null,
-  tail = null,
   // The rail opener, for the same reason: only the host knows there IS a set.
   // Sits beside ☰ in the bar's left cluster.
   railButton = null, progress = null,
@@ -2074,8 +2070,6 @@ export default function Reader({
         </ReaderTopBar>
       )}
 
-      {lead}
-
       <div className="flex-1 flex">
         {/* Floating and transparent (owner, 2026-08-01), not a docked column.
             Docked it cost 56px of chart width, which is why it used to collapse
@@ -2415,8 +2409,6 @@ export default function Reader({
         </div>
 
       </div>
-
-      {tail}
 
       {/* ── The bottom edge — ONE sticky block, three rows ────────────────
           structure (when it's set to 'bottom') · practice · nav.

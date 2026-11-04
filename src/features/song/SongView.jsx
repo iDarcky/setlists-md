@@ -52,7 +52,7 @@ export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryon
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" aria-label={`Key ${shown}, change`} className={cn(chip, 'bg-warning-fill text-[var(--chord)]', semis !== 0 && 'ring-1 ring-[var(--chord)]')}>
+        <button type="button" aria-label={`Key ${shown}, change`} className={cn(chip, 'bg-warning-fill text-warning-text', semis !== 0 && 'ring-1 ring-warning-text')}>
           <span className="text-[12px] font-medium opacity-80">Key</span>
           <span className="font-mono text-[15px] font-semibold">{shown}</span>
           <ChevronDownIcon size={14} />
@@ -62,7 +62,7 @@ export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryon
         <div className="flex items-center justify-between rounded-control bg-raised p-1">
           <button type="button" aria-label="Down a semitone" onClick={() => onStep?.(-1)} className={cn(iconBtn, 'text-[22px]')}>−</button>
           <span className="flex items-baseline gap-1.5">
-            <b className="font-mono text-[24px] font-semibold text-[var(--chord)]">{shown}</b>
+            <b className="font-mono text-[24px] font-semibold text-warning-text">{shown}</b>
             {semis !== 0 && <span className="text-[13px] text-muted-foreground">was {original}</span>}
           </span>
           <button type="button" aria-label="Up a semitone" onClick={() => onStep?.(1)} className={cn(iconBtn, 'text-[22px]')}>+</button>
@@ -116,7 +116,7 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew, onR
               <span className="truncate text-[15px] font-medium">{a.name}</span>
               <span className="truncate text-[12px] text-muted-foreground">{[a.tempo && `${a.tempo} BPM`, a.capo ? `capo ${a.capo}` : null, a.isDefault && 'default'].filter(Boolean).join(' · ')}</span>
             </span>
-            <span className="font-mono text-[14px] font-semibold text-[var(--chord)]">{a.key}</span>
+            <span className="font-mono text-[14px] font-semibold text-warning-text">{a.key}</span>
           </button>
         ))}
         {onNew && (
@@ -188,7 +188,7 @@ function Stats({ facts, short }) {
         [facts.usualTempo || '—', 'usual BPM'],
       ].map(([v, k, isKey]) => (
         <div key={k} className="flex flex-col gap-0.5 rounded-card border border-border bg-card px-3 py-2.5">
-          <b className={cn('text-[20px] font-semibold leading-6 tracking-[-0.3px]', isKey && 'font-mono text-[var(--chord)]')}>{v}</b>
+          <b className={cn('text-[20px] font-semibold leading-6 tracking-[-0.3px]', isKey && 'font-mono text-warning-text')}>{v}</b>
           <span className="text-[12px] text-muted-foreground">{k}</span>
         </div>
       ))}
@@ -300,8 +300,8 @@ export default function SongView({
 
   // One page, one scroll (owner, 2026-11-04): the details on top, the chart
   // right under them (the Order on top), the credits after the song. The chart is
-  // passed in (`chart(lead, tail)`): Song.jsx gives it the Reader, which draws
-  // `lead` and `tail` inside its own scroller; /design can give it a sample.
+  // passed in (`chart(lead, tail)`): Song.jsx puts SongChart between the two,
+  // in one scroller.
   const lead = (
     <div className={cn(page, 'font-sans text-foreground')}>
       <div className="-ml-2.5 -mr-1 flex h-[52px] items-center justify-between gap-1">
