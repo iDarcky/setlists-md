@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
-import { fetchSharedSetlist, endsLabel } from '@/lib/setlistShare';
+import { fetchSharedSetlist, fetchShareStamp, endsLabel } from '@/lib/setlistShare';
 import { buildOrder } from '@/lib/setlistView';
 import { formatClockTime } from '@/lib/dateFormat';
 import { cn } from '@/ui/shadcn/utils';
@@ -8,9 +8,13 @@ import GuestView from './GuestView';
 
 const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
 
-// A live link re-reads the setlist this often while the page is open, so a
-// change the leader makes reaches the guest without a reload.
-const REFRESH_MS = 60 * 1000;
+// A live link asks "has it changed?" this often while the page is on screen
+// (a 32-byte stamp, `fetchShareStamp`) and downloads the setlist only when the
+// answer is yes, so a leader's change reaches the guest within ~10 s.
+const CHECK_MS = 10 * 1000;
+// Without the stamp function (older project), the whole setlist is re-read at
+// the old pace instead: ~14 KB a time is too much to pull every 10 s.
+const FALLBACK_MS = 60 * 1000;
 
 // Public, read-only viewer for a guest link (`/?setlist=<token>`). Renders
 // without auth or the user's local library. A church link is live (the current
@@ -40,19 +44,51 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
 
   useEffect(() => {
     let alive = true;
+    let stamp;            // last stamp seen; undefined = not known yet
+    let noStamp = false;  // the project lacks get_shared_setlist_stamp
+    let lastFull = 0;
+    let busy = false;
     const load = async (quiet) => {
       try {
         const data = await fetchSharedSetlist(token);
         if (!alive) return;
+        lastFull = Date.now();
         setState(data ? { status: 'ready', data } : { status: 'gone', data: null });
       } catch {
         // A refresh that fails keeps what's on screen.
         if (alive && !quiet) setState({ status: 'error', data: null });
       }
     };
-    load(false);
-    const tick = setInterval(() => { if (document.visibilityState === 'visible') load(true); }, REFRESH_MS);
-    return () => { alive = false; clearInterval(tick); };
+    const check = async () => {
+      if (busy || document.visibilityState !== 'visible') return;
+      busy = true;
+      try {
+        if (noStamp) {
+          if (Date.now() - lastFull >= FALLBACK_MS) await load(true);
+          return;
+        }
+        const next = await fetchShareStamp(token);
+        if (!alive) return;
+        if (next === undefined) { noStamp = true; return; }
+        // First answer only records the stamp: the page was just loaded.
+        if (stamp !== undefined && next !== stamp) await load(true);
+        stamp = next;
+      } catch {
+        // Offline or a hiccup: keep what's on screen, try again next tick.
+      } finally {
+        busy = false;
+      }
+    };
+    load(false).then(check);
+    const tick = setInterval(check, CHECK_MS);
+    // Coming back to the tab (phone unlocked, app switched back) checks at once.
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      alive = false;
+      clearInterval(tick);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [token]);
 
   const order = useMemo(
