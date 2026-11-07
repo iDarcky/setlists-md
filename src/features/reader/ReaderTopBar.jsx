@@ -109,16 +109,11 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
             combination. The top, not the bottom nav: two of the four nav
             styles (pill, swipe) have no bottom bar to put it on. */}
         {progress != null && (
-          // LIVE: the set's timeline IS the live light (owner, 2026-11-04:
-          // *"The top part was supposed to be the timeline of the setlist"*).
-          // Red and a little thicker, the part already played lit with a glow,
-          // the rest a faint red track — so "we are live" and "how far through
-          // the set" are one line instead of one drawn over the other.
           <div
             className="w-full shrink-0"
             style={{
-              height: live && !editing ? 3 : 2,
-              background: live && !editing ? 'rgba(229,72,77,.22)' : 'var(--chart-rule, var(--ds-gray-300))',
+              height: 2,
+              background: 'var(--chart-rule, var(--ds-gray-300))',
             }}
           >
             <div
@@ -128,8 +123,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
               // makes.
               style={{
                 width: `${progress}%`,
-                background: editing ? EDIT_INK : live ? '#e5484d' : 'var(--color-brand)',
-                ...(live && !editing ? { boxShadow: '0 0 8px 1px rgba(229,72,77,.6)' } : null),
+                background: editing ? EDIT_INK : 'var(--color-brand)',
               }}
             />
           </div>
@@ -150,7 +144,7 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
           {onMenu && (
             <IconButton
               size="sm"
-              className={BAR_BUTTON}
+              className={`${BAR_BUTTON} relative`}
               aria-label={menuOpen ? 'Close display options' : 'Display options'}
               aria-expanded={menuOpen}
               style={menuOpen ? { color: 'var(--chord)' } : undefined}
@@ -175,6 +169,16 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
                   because on the phone dock the ☰ is a full screen away from the
                   thumb, which is why that dock keeps its own chevron. */}
               {menuOpen && menuClosesInPlace ? <CloseIcon /> : <MenuIcon />}
+              {/* LIVE (owner, 2026-11-07, after the corner and a red line):
+                  a red dot on the ☰ — the one control that takes you out of
+                  live. Outside the layout, so the title loses nothing. */}
+              {live && !editing && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute rounded-full"
+                  style={{ top: 5, right: 5, width: 8, height: 8, background: '#e5484d', boxShadow: '0 0 0 2px var(--chart-bg, var(--ds-background-100))' }}
+                />
+              )}
             </IconButton>
           )}
           {tools}

@@ -167,27 +167,13 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
  * `role="status"` line beside it, which is text a screen reader can actually
  * read. A triangle is not.
  */
-function LiveFold({ edge = true }) {
-  // ⚠ The new look (2026-11-04, owner: *"Don't forget the live right margin —
-  // how can we improve this?"*): the corner triangle became a red EDGE along
-  // the whole top of the screen, with a soft glow under it. Same promise as the
-  // fold — painted outside the layout, the title loses nothing, no word in the
-  // bar — but a 22px corner is invisible from a music stand a metre away and
-  // read as a rendering glitch; a lit top edge reads as "on air" from across
-  // the room, the way a recording light does. Both keep `role="status"`.
+function LiveFold() {
+  // ⚠ The new look (2026-11-07): the mark moved from this corner to a red dot
+  // on the ☰ (ReaderTopBar, `live`). The corner read as a glitch, and a red
+  // line across the top was rejected next ("I don't like the red line there").
+  // What stays here is the spoken half.
   return (
     <>
-      {/* In a setlist the timeline turns red instead (ReaderTopBar), so the
-          edge is drawn only where there is no timeline: a single song. */}
-      {edge && <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-10"
-        style={{
-          height: 3,
-          background: '#e5484d',
-          boxShadow: '0 0 10px 1px rgba(229,72,77,.55)',
-        }}
-      />}
       {/* The fold carries no text, so this is what "live" sounds like. */}
       <span role="status" className="sr-only">Live</span>
     </>
@@ -1813,7 +1799,7 @@ export default function Reader({
           //
           // `config.mode`, not the raw `mode` prop — the hub is hard-wired to
           // its own mode and `resolveReaderConfig` is the one place that knows.
-          cornerMark={liveFold ? <LiveFold edge={progress == null} /> : null}
+          cornerMark={liveFold ? <LiveFold /> : null}
           title={song.title}
           onTitleTap={hasSongInfo ? () => setInfoOpen(v => !v) : null}
           infoOpen={infoOpen}
