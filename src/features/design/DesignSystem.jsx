@@ -470,7 +470,7 @@ function SongEditGallery() {
 function SongGallery() {
   return (
     <div className="flex flex-wrap gap-6">
-      {[['Leader', {}], ['Member', { leader: false }], ['Open chart', { initialScreen: 'chart' }]].map(([label, props]) => THEMES.map(t => (
+      {[['Leader', {}], ['Member', { leader: false }], ['Lyrics', { initialShow: 'lyrics' }]].map(([label, props]) => THEMES.map(t => (
         <Frame key={label + t.id} theme={t.id} width={390} height={900} scale={0.6} label={`${label} · ${t.label}`}>
           <SongDemo layout="phone" {...props} />
         </Frame>
@@ -1200,7 +1200,7 @@ export default function DesignSystem({ onBack }) {
           <SongsGallery />
         </Section>
 
-        <Section title="Song" sub="Details first: Key and arrangement in small popovers, the numbers, one ink Open chart. Then how often you play it, the next service, Listen (YouTube’s own player, kept visible), how it goes, credits. Tap around: these are the real screens.">
+        <Section title="Song" sub="One scroll: the details on top (Key and arrangement in small popovers, the numbers, how often you play it, the next service, Listen), the Order, then the chart with a Chords / Lyrics switch, then the credits. Tap around: these are the real screens.">
           <SongGallery />
         </Section>
 

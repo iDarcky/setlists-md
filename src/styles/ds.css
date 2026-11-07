@@ -44,6 +44,17 @@
   --info: #446C93;
   --info-fill: #121C26;
   --info-text: #9EC1E4;
+  /* Section tones (song page: Order chips + chart section chips). Muted
+     hues that sit on warm black; each is the TEXT colour, the fill is the
+     same colour at 16% (see lib/sectionTone.js). Chorus is clay, not gold,
+     so it never reads as a chord. */
+  --tone-intro: #B9AC9E;
+  --tone-verse: #8DB8A5;
+  --tone-prechorus: #D2B36F;
+  --tone-chorus: #E3977B;
+  --tone-bridge: #AE9FDB;
+  --tone-instrumental: #8FAACB;
+  --tone-tag: #D895AA;
 }
 
 [data-theme="light"] {
@@ -75,6 +86,13 @@
   --info: #446C93;
   --info-fill: #E6EEF6;
   --info-text: #2D5277;
+  --tone-intro: #6E6152;
+  --tone-verse: #3B6B56;
+  --tone-prechorus: #7A5C1D;
+  --tone-chorus: #A14B2F;
+  --tone-bridge: #5C4D93;
+  --tone-instrumental: #3D5B80;
+  --tone-tag: #8F3F5A;
 }
 
 @theme inline {
