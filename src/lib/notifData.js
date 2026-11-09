@@ -85,6 +85,7 @@ export function buildNotifs({ feed = [], joinRequests = [], schedules = [], setl
       time: r.created_at ? new Date(r.created_at).getTime() : null,
       unread: true,
       requestId: r.id,
+      name,
       avatar: { initials: initials(name), url: r.avatar_url || null },
     });
   }
