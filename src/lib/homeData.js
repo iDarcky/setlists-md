@@ -150,12 +150,14 @@ export function whoCanPlay({ setlists = [], availability = [], schedules = [], s
  * waiting to join; services in the next `horizonDays` with nobody on the band;
  * and ones with no songs.
  */
-export function needsYou({ joinRequests = [], setlists = [], schedules = [], setlistMap = {}, now = Date.now(), horizonDays = 21 }) {
+export function needsYou({ joinRequests = [], setlists = [], schedules = [], setlistMap = {}, now = Date.now(), horizonDays = 21, noParts = [] }) {
   const items = [];
   if (joinRequests.length) {
     const names = joinRequests.map(r => r.display_name || r.email?.split('@')[0]).filter(Boolean);
     items.push({ kind: 'join', count: joinRequests.length, names });
   }
+  // People who haven't said what they play (names, the leader left out).
+  if (noParts.length) items.push({ kind: 'parts', count: noParts.length, names: noParts });
   const horizon = now + horizonDays * DAY_MS;
   for (const sl of upcomingSetlists(setlists, now)) {
     if (setlistStartMs(sl) > horizon) break;

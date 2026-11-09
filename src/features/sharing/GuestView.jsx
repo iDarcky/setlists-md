@@ -20,10 +20,15 @@ function ChurchMark({ church, size = 24 }) {
 const PlayIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" /></svg>;
 
 export default function GuestView({ setlist, order, church, when, live = false, ends, onPlay, onGetApp }) {
+  // The page is its own scroll box. html and body are locked
+  // (`overflow: hidden`, fixed height, `styles/index.css`) because the app
+  // scrolls inside its shell, so a page that only grows taller than the screen
+  // (the old `min-h-[100dvh]`) can't be scrolled at all: a long setlist was cut
+  // off on a guest's phone. Same pattern as `AuthLayout`.
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-background font-sans text-foreground">
-      <div className="mx-auto flex w-full max-w-[720px] flex-1 flex-col gap-3 px-4 pb-10 sm:px-6"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
+    <div data-slot="guest-view" className="fixed inset-0 overflow-y-auto overscroll-contain bg-background font-sans text-foreground">
+      <div className="mx-auto flex min-h-full w-full max-w-[720px] flex-col gap-3 px-4 sm:px-6"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)', paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))' }}>
         <div className="flex h-14 items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-2.5 text-[15px] font-semibold">
             {church?.name ? <><ChurchMark church={church} /><span className="truncate">{church.name}</span></> : <span className="text-muted-foreground">Shared setlist</span>}

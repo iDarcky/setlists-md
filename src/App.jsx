@@ -107,6 +107,8 @@ const SetlistBuilder = lazy(() => import('@/features/setlist-editor/SetlistBuild
 const SetlistPage = lazy(() => import('@/features/setlist/SetlistPage'));
 const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'));
 import NewSetlistSheet from '@/features/setlist/NewSetlistSheet';
+import { writeNewDraft } from '@/lib/setlistDraft';
+import { TEMPLATE_KIND } from '@/lib/newSetlist';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -208,7 +210,7 @@ export default function App() {
     const t = setTimeout(() => setHomeSpaceTimedOut(true), 4000);
     return () => clearTimeout(t);
   }, []);
-  const { schedules, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
+  const { schedules, loaded: schedulesLoaded, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
   const canEdit = canWriteLibrary;
@@ -1344,8 +1346,9 @@ export default function App() {
         if (!ok) return;
       }
     }
-    // New: pick a service first (NewSetlistSheet), then the edit page.
-    if (!sl) { setNewSetlistOpen(true); return; }
+    // New: the template pop-up first, then Details and band → Songs with
+    // the draft it worked out. Nothing is saved until the flow saves it.
+    if (!sl?.id) { setNewSetlistOpen(true); return; }
     navigate('setlist-build', { setlist: sl });
   };
   const goSetlistView = (sl) => {
@@ -1771,21 +1774,6 @@ export default function App() {
     setTrash([]);
   };
 
-  // Rename or clear a service across every setlist that uses it. Passing an
-  // empty newName "deletes" the service (it disappears once unused). Mutates
-  // via setSetlists like other setlist edits, so the auto-save effect persists.
-  const handleRemapService = useCallback((oldName, newName) => {
-    const next = (newName || '').trim();
-    setSetlists(prev => prev.map(sl =>
-      (sl.service || '') === oldName
-        ? { ...sl, service: next, updatedAt: Date.now() }
-        : sl
-    ));
-    toast(next
-      ? { title: 'Service renamed', description: `“${oldName}” → “${next}”` }
-      : { title: 'Service removed', description: `“${oldName}” cleared from its setlists` });
-  }, []);
-
   // Home's "Mark ready" on the next service: the same status the builder's
   // Draft/Ready picker writes, saved through the usual auto-save.
   const markSetlistReady = (target) => {
@@ -2118,39 +2106,57 @@ export default function App() {
     toast({ title: 'Setlist duplicated', description: copy.name });
   };
 
-  const handleSaveSetlistAsTemplate = (id) => {
-    const src = setlists.find(s => s.id === id);
-    if (!src) return;
-    const tpl = {
-      ...src,
-      id: generateId(),
-      name: `${(src.name || 'Untitled').replace(/\s*template$/i, '')} template`,
-      isTemplate: true,
-      updatedAt: Date.now(),
-      items: (src.items || []).map(it => ({ ...it })),
-    };
-    // Templates are date-less + band-less (those are per-service).
-    delete tpl.date; delete tpl.time; delete tpl.endTime; delete tpl.rehearsal;
-    setSetlists(prev => [...prev, tpl]);
-    toast({ title: 'Saved as template', description: tpl.name });
+  // Service templates (New setlist → Edit templates). A template is a setlist
+  // with isTemplate, so it syncs like one; it never touches a made setlist.
+  const handleSaveTemplate = (tpl, { previousService = '' } = {}) => {
+    if (isTeamReadOnly) { onlyLeadersRef.current(); return; }
+    const id = tpl.id || generateId();
+    const stamped = { ...tpl, id, isTemplate: true, templateKind: TEMPLATE_KIND, updatedAt: Date.now() };
+    const from = (previousService || '').trim();
+    const to = (stamped.service || '').trim();
+    setSetlists(prev => {
+      const next = prev.some(s => s.id === id) ? prev.map(s => (s.id === id ? stamped : s)) : [...prev, stamped];
+      // Renaming the template renames its service on the setlists made with it.
+      if (!from || !to || from === to) return next;
+      return next.map(s => (!s.isTemplate && (s.service || '') === from ? { ...s, service: to, updatedAt: Date.now() } : s));
+    });
+    toast({ title: 'Template saved', description: tpl.templateName || tpl.name });
   };
-
-  const handleNewFromTemplate = (id) => {
+  const handleDeleteTemplate = async (id) => {
     const tpl = setlists.find(s => s.id === id);
     if (!tpl) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const fresh = {
-      ...tpl,
-      id: generateId(),
-      name: tpl.templateName || (tpl.name || 'Setlist').replace(/\s*template$/i, '') || 'New setlist',
-      isTemplate: false,
-      date: today,
-      status: 'draft',
-      updatedAt: Date.now(),
-      items: (tpl.items || []).map(it => ({ ...it })),
-    };
-    setSetlists(prev => [...prev, fresh]);
-    goSetlistBuild(fresh);
+    const ok = await confirm({
+      title: `Delete “${tpl.templateName || tpl.name || 'template'}”?`,
+      description: 'Setlists made from it stay as they are.',
+      confirmLabel: 'Delete',
+      variant: 'danger',
+    });
+    if (!ok) return;
+    setSetlists(prev => prev.filter(s => s.id !== id));
+    setTombstones(prev => ({ ...prev, setlists: [...prev.setlists.filter(t => t.id !== id), { id, deletedAt: Date.now() }] }));
+  };
+  // A new setlist's band picks ride along as `plannedBand` until the setlist
+  // page has sent them; then they are dropped.
+  const clearPlannedBand = (id) => {
+    const was = setlists.find(s => s.id === id);
+    setSetlists(prev => prev.map(s => {
+      if (s.id !== id || (!s.plannedBand && !s.readyAfterAsks)) return s;
+      const { plannedBand: _p, readyAfterAsks: _r, ...rest } = s;
+      return rest;
+    }));
+    // "Mark ready when I save" on a new setlist with a band: ready once the
+    // asks are out, so the band's "it's final" reaches the people just asked.
+    if (was?.readyAfterAsks) {
+      const { plannedBand: _p, readyAfterAsks: _r, ...rest } = was;
+      markSetlistReady(rest);
+    }
+  };
+  // The New setlist / Edit flow's Save; `ready` = "Mark ready when I save".
+  const saveSetlistFromFlow = (sl, { ready = false } = {}) => {
+    if (!ready || sl.status === 'ready') { handleSaveSetlist(sl); return; }
+    if (sl.plannedBand?.length) { handleSaveSetlist({ ...sl, readyAfterAsks: true }); return; }
+    handleSaveSetlist(sl);
+    markSetlistReady(sl);
   };
 
   const handleTagSetlists = (ids, { add = [], remove = [] } = {}) => {
@@ -2271,9 +2277,13 @@ export default function App() {
   const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'design', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
   const settlingHomeSpace = !publicView && waitingForHomeSpace({
     userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
+    loaded, teamId: team?.id || null, schedulesLoaded: !team?.id || schedulesLoaded,
   });
-  // Signed in, church not known yet: the app's shape in grey, never Personal.
+  // Signed in and the space not fully known yet: the app's shape in grey, never
+  // Personal, never a half-filled Home. One loading screen, not a skeleton and
+  // then a logo splash.
   if (settlingHomeSpace) return <AppSkeleton />;
+  if (!loaded && !publicView && (authLoading || user?.id)) return <AppSkeleton />;
   if (!loaded) {
     return (
       <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
@@ -2494,9 +2504,6 @@ export default function App() {
               onOpenTeam={goTeam}
               onNotFound={showNotFound}
               onRetrySync={() => triggerSyncRef.current?.({ silent: false })}
-              install={!isStandalone && (isIOS || canInstall)
-                ? { onInstall: async () => { if (isIOS) openIOSHint(); else await promptInstall(); } }
-                : null}
             />
           )}
           {view === 'library' && (
@@ -2549,8 +2556,6 @@ export default function App() {
               onDeleteSetlists={isTeamReadOnly ? null : handleDeleteSetlists}
               plus={!!settings?.setlistsLibraryPlus}
               onDuplicateSetlist={isTeamReadOnly ? null : handleDuplicateSetlist}
-              onSaveAsTemplate={isTeamReadOnly ? null : handleSaveSetlistAsTemplate}
-              onNewFromTemplate={isTeamReadOnly ? null : handleNewFromTemplate}
               onTagSetlists={isTeamReadOnly ? null : handleTagSetlists}
               canEdit={canEdit}
             />
@@ -2598,6 +2603,7 @@ export default function App() {
               key={editTarget.song.id}
               song={editTarget.song}
               library={songs}
+              historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
               mode={editTarget.mode}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
@@ -2667,6 +2673,10 @@ export default function App() {
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
               onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
               ensureRow={ensureSetlistRow}
+              setlists={setlists}
+              createSchedule={isTeamReadOnly ? null : createSchedule}
+              deleteSchedule={deleteSchedule}
+              onPlanSent={() => clearPlannedBand(currentSetlist.id)}
             />
           )}
           {/* Every setlist edits on the new page. A new one arrives here as an
@@ -2681,13 +2691,18 @@ export default function App() {
               setlists={setlists}
               schedules={schedules}
               setlistMap={teamSetlistMap}
-              onSave={handleSaveSetlist}
+              space={activeLibrary}
+              onSave={saveSetlistFromFlow}
               onCancel={async () => {
                 if (!(await confirmDiscardSetlist())) return;
                 setlistDirtyRef.current = false;
+                writeNewDraft(activeLibrary, null);
                 goBack();
               }}
               onDirtyChange={markSetlistDirty}
+              createSchedule={createSchedule}
+              deleteSchedule={deleteSchedule}
+              ensureRow={ensureSetlistRow}
             />
           )}
           {view === 'setlist-build' && !currentSetlist?.id && (
@@ -2829,7 +2844,8 @@ export default function App() {
               setlists={setlists}
               songs={songs}
               trash={trash}
-              onRemapService={handleRemapService}
+              onSaveTemplate={isTeamReadOnly ? null : handleSaveTemplate}
+              onDeleteTemplate={handleDeleteTemplate}
               onDownloadSongs={() => {
                 songs.forEach(s => {
                   const md = songToMd(s);
@@ -2991,8 +3007,10 @@ export default function App() {
         open={newSetlistOpen}
         onOpenChange={setNewSetlistOpen}
         setlists={setlists}
+        space={activeLibrary}
         onCreate={(draft) => { setNewSetlistOpen(false); navigate('setlist-build', { setlist: draft }); }}
-        onEditTemplates={() => { setNewSetlistOpen(false); goToMainView('settings', { settingsPanel: 'services' }); }}
+        onSaveTemplate={isTeamReadOnly ? null : handleSaveTemplate}
+        onDeleteTemplate={handleDeleteTemplate}
       />
 
       {/* Founder note — surfaced on the dashboard once after the user has

@@ -159,6 +159,7 @@ export function useNotificationFeed({
         read: !!n.read_at,
         scheduleId: meta.schedule_id,
         setlistId: meta.setlist_id,
+        requestId: meta.request_id,
         createdAt: n.created_at,
       };
     });

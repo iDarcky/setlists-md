@@ -6,6 +6,7 @@ import { Toggle } from '@/ui/shadcn/toggle';
 import { Alert } from '@/ui/shadcn/alert';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Avatar } from '@/app/AppTopBar';
+import { PartsPicker } from '@/features/team/PartsPicker';
 import {
   BackIcon, ChevronRightIcon, UserIcon, MoonIcon, BellIcon, SparkIcon, HelpIcon,
   SignOutIcon, CalendarIcon, MusicIcon,
@@ -155,7 +156,7 @@ export function SettingsHubView({ signedIn = true, summary = {}, church, own, on
           <GroupLabel>{church.name}</GroupLabel>
           <Group>
             <NavRow icon={<CardIcon />} label="Plan and billing" detail={summary.plan} onClick={() => onOpen('plan')} />
-            <NavRow icon={<CalendarIcon />} label="Services" detail={summary.services} onClick={() => onOpen('services')} />
+            <NavRow icon={<CalendarIcon />} label="Templates" detail={summary.services} onClick={() => onOpen('services')} />
             <NavRow icon={<DataIcon />} label="Data" detail={summary.data} onClick={() => onOpen('data')} />
           </Group>
           <Note>Only leaders see this.</Note>
@@ -179,15 +180,13 @@ export function SettingsHubView({ signedIn = true, summary = {}, church, own, on
 // ── Profile ─────────────────────────────────────────────────────────────────
 
 /**
- * @param {Array<{id,label}>} instruments    any number may be picked
- * @param {Array<{id,label}>} vocalParts     "I sing" — one part, or none
- * @param {string[]} picked                  the instruments picked
- * @param {string|null} vocal                the sung part
+ * @param {string[]} parts                   what you play and sing (tokens)
+ * @param {(next: string[]) => void} onParts every tap saves the whole list
  * @param {React.ReactNode} [photo]          the uploader (needs Supabase)
  */
 export function ProfileView({
   me, photo, nameDraft, onNameDraft, onSaveName, nameBusy = false, nameSaved = false,
-  church, instruments = [], vocalParts = [], picked = [], vocal = null, onInstrument, onVocal, partsBusy = false, partsError = '',
+  church, parts = [], onParts, partsBusy = false, partsError = '',
   onChangePassword, onDeleteAccount, onBack, embedded,
 }) {
   const uid = useId();
@@ -209,24 +208,9 @@ export function ProfileView({
 
       {church && (
         <>
-          <GroupLabel>What you play at {church.name}</GroupLabel>
-          <div className="grid grid-cols-2 gap-2">
-            {instruments.map(i => (
-              <Toggle key={i.id} variant="option" disabled={partsBusy} pressed={picked.includes(i.id)} onPressedChange={() => onInstrument?.(i.id)}>
-                {i.label}
-              </Toggle>
-            ))}
-          </div>
-          <Note>Pick all you play. Charts open with the first one’s tabs.</Note>
-          <GroupLabel>Do you sing?</GroupLabel>
-          <div className="grid grid-cols-2 gap-2">
-            {vocalParts.map(p => (
-              <Toggle key={p.id} variant="option" disabled={partsBusy} pressed={vocal === p.id} onPressedChange={() => onVocal?.(vocal === p.id ? null : p.id)}>
-                {p.label}
-              </Toggle>
-            ))}
-          </div>
-          {partsError && <Alert variant="danger" className="mt-2">{partsError}</Alert>}
+          <GroupLabel>What you do at {church.name}</GroupLabel>
+          <PartsPicker tokens={parts} onChange={onParts} busy={partsBusy} error={partsError} playLabel="You play" singLabel="You sing" />
+          <Note>Pick all that apply. Charts open with the first instrument’s tabs.</Note>
         </>
       )}
 

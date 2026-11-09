@@ -25,7 +25,7 @@ function Seg({ items, value, onPick, label }) {
  * the pad (or type it on a keyboard); the cursor moves on by the note value.
  * The pad means a phone never opens its keyboard over the grid.
  */
-export default function TabTool({ initialTab, time, title, onSave, onRemove, onClose }) {
+export default function TabTool({ initialTab, time, title, onSave, onRemove, onClose, removeLabel = 'Remove tab' }) {
   const timeSig = initialTab?.time || time || '4/4';
   const startStrings = initialTab?.strings?.length ? initialTab.strings.map(s => s.note) : TAB_INSTRUMENTS.electric.strings;
   const [instr, setInstr] = useState(initialTab?.instrument || instrumentForStrings(startStrings.length));
@@ -211,7 +211,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
             <Button variant="ghost" size="sm" disabled={cell == null} onClick={clear}>Clear note</Button>
             <Button variant="ghost" size="sm" onClick={() => setCur(c => ({ s: c.s, p: c.p + step < total ? c.p + step : c.p }))}>Rest →</Button>
             <span className="flex-1" />
-            {onRemove && <Button variant="ghost" size="sm" className="text-danger-text" onClick={onRemove}>Remove tab</Button>}
+            {onRemove && <Button variant="ghost" size="sm" className="text-danger-text" onClick={onRemove}>{removeLabel}</Button>}
           </div>
         </div>
       </div>

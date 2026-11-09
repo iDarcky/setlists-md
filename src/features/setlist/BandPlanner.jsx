@@ -50,7 +50,7 @@ export function BandPlanner({ slots, person, note, onSlot, onAddPart, pending = 
       {!slots.length && <p className="m-0 py-3 text-[14px] text-muted-foreground">Nobody is on this one yet. Add the parts you need.</p>}
       <button type="button" onClick={onAddPart}
         className="flex min-h-12 cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-[14px] font-medium text-link outline-none">
-        <PlusIcon size={16} />Add a part
+        <PlusIcon size={16} />Add to band
       </button>
       {note && <p className="m-0 pt-1 text-[12px] text-muted-foreground">{note}</p>}
       {pending > 0 && (
@@ -112,7 +112,7 @@ export function PartSheet({ open, onOpenChange, title, groups, current, currentN
 
 export function AddPartSheet({ open, onOpenChange, onAdd }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Add a part" className="h-auto max-h-[80dvh] sm:max-w-[400px]">
+    <Sheet open={open} onOpenChange={onOpenChange} title="Add to band" className="h-auto max-h-[80dvh] sm:max-w-[400px]">
       <div className="flex flex-col">
         {ADDABLE_PARTS.map(p => (
           <button key={p} type="button" onClick={() => onAdd(p)}

@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
+import { TemplatesList, TemplateEditor } from '@/features/setlist/TemplateEditor';
+import { templatesOf, blankTemplate } from '@/lib/newSetlist';
 import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import { REMINDER_OPTIONS, normalizeReminders } from '@/lib/reminderOffsets';
 import { BILLING_ENABLED, startTeamCheckout, openBillingPortal, billingError } from '@/lib/billingCheckout';
-import { INSTRUMENTS, VOCAL_PARTS, normalize } from '@/data/instruments';
+import { normalize } from '@/data/instruments';
 import { clearAll } from '@/storage';
 import { useConfirm } from '@/ui/useConfirmHook';
 import AvatarUploader from '@/ui/AvatarUploader';
 import WhatsNewPanel from './WhatsNewPanel';
 import {
   SettingsHubView, ProfileView, PasswordSheet, DeleteAccountSheet, AppearanceView,
-  NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView, SettingsShell,
+  NotificationsSettingsView, PlanView, DataView, LabsView, AboutView, SettingsShell,
 } from './SettingsViews';
 
 // Settings (owner, 2026-10-25). The pages are pure views in SettingsViews;
@@ -37,7 +39,7 @@ export default function SettingsPage({
   panel = 'hub', onChangePanel, onBack, settings, onUpdate,
   isSignedIn, displayName, displayEmail, onLogIn,
   activeLibrary, setlists = [], songs = [], trash = [],
-  onRemapService, onDownloadSongs, onDownloadBackup, onRestoreSong, onPurgeSong, onEmptyTrash,
+  onSaveTemplate, onDeleteTemplate, onDownloadSongs, onDownloadBackup, onRestoreSong, onPurgeSong, onEmptyTrash,
   onUpgrade, onShowLegal, onHelp,
 }) {
   const { profile, user, updateProfile, updatePassword, deleteAccount, signOut } = useAuth();
@@ -53,11 +55,10 @@ export default function SettingsPage({
   const leader = !!church && (isAdmin || team?.owner_id === user?.id);
   const me = { name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null };
 
-  const services = useMemo(() => {
-    const counts = new Map();
-    setlists.forEach(sl => { const s = (sl.service || '').trim(); if (s) counts.set(s, (counts.get(s) || 0) + 1); });
-    return [...counts].sort((a, b) => a[0].localeCompare(b[0])).map(([name, count]) => ({ name, count }));
-  }, [setlists]);
+  // Services are templates now (2026-11-04): each service the church runs,
+  // saved or still only a name on its setlists.
+  const templates = useMemo(() => templatesOf(setlists), [setlists]);
+  const [tplEdit, setTplEdit] = useState(null);
 
   const planKey = (church?.plan || 'free').toLowerCase();
   const status = (church?.subscription_status || 'active').toLowerCase();
@@ -81,16 +82,14 @@ export default function SettingsPage({
 
   const myMember = church && user ? members.find(m => m.user_id === user.id) : null;
   const tokens = useMemo(() => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))), [myMember?.instruments]);
-  const picked = useMemo(() => tokens.filter(t => !t.startsWith('vocals')), [tokens]);
-  const vocal = tokens.find(t => t.startsWith('vocals:'))?.split(':')[1] || null;
   const [partsBusy, setPartsBusy] = useState(false);
   const [partsError, setPartsError] = useState('');
-  // Any number of instruments plus one sung part (owner, 2026-10-26).
-  const saveParts = async (nextPicked, nextVocal) => {
+  // Any number of instruments and sung parts (owner, 2026-11-04).
+  const saveParts = async (next) => {
     setPartsBusy(true);
     setPartsError('');
     try {
-      await updateMyInstruments([...nextPicked, nextVocal ? `vocals:${nextVocal}` : null].filter(Boolean));
+      await updateMyInstruments(next);
     } catch (err) {
       setPartsError(err?.message || 'Couldn’t save that. Try again.');
     } finally { setPartsBusy(false); }
@@ -153,8 +152,7 @@ export default function SettingsPage({
             ) : null}
             nameDraft={nameDraft} onNameDraft={(v) => { setNameDraft(v); setNameSaved(false); }} onSaveName={saveName} nameBusy={nameBusy} nameSaved={nameSaved}
             church={church && myMember ? { name: church.name } : null}
-            instruments={INSTRUMENTS} vocalParts={VOCAL_PARTS} picked={picked} vocal={vocal}
-            onInstrument={(id) => saveParts(picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id], vocal)} onVocal={(id) => saveParts(picked, id)}
+            parts={tokens} onParts={saveParts}
             partsBusy={partsBusy} partsError={partsError}
             onChangePassword={isSignedIn ? () => { setPwError(''); setPwOpen(true); } : undefined}
             onDeleteAccount={isSignedIn ? () => { setDelError(''); setDelOpen(true); } : undefined}
@@ -200,20 +198,14 @@ export default function SettingsPage({
     case 'services':
       if (!leader) return null;
       return (
-        <ServicesView
-          services={services}
-          onRename={(from, to) => onRemapService?.(from, to)}
-          onRemove={async (name, count) => {
-            const ok = await confirm({
-              title: `Remove “${name}”?`,
-              description: `${count === 1 ? 'One setlist loses' : `${count} setlists lose`} this service. The setlists stay.`,
-              confirmLabel: 'Remove',
-              variant: 'danger',
-            });
-            if (ok) onRemapService?.(name, '');
-          }}
-          onBack={toHub}
-        />
+        <SettingsShell title="Templates" onBack={toHub} backLabel="Settings">
+          <TemplatesList templates={templates} onEdit={setTplEdit} onNew={() => setTplEdit(blankTemplate())} />
+          {tplEdit && (
+            <TemplateEditor template={tplEdit} setlists={setlists} onCancel={() => setTplEdit(null)}
+              onSave={(tpl, meta) => { onSaveTemplate?.(tpl, meta); setTplEdit(null); }}
+              onDelete={templatesOf(setlists).some(t => t.id === tplEdit.id) && onDeleteTemplate ? () => { onDeleteTemplate(tplEdit.id); setTplEdit(null); } : null} />
+          )}
+        </SettingsShell>
       );
     case 'data':
       if (church && !leader) return null;
@@ -257,7 +249,7 @@ export default function SettingsPage({
             appearance: ({ light: 'Light', dark: 'Dark', midnight: 'Dark', default: 'Auto' })[settings?.theme || 'dark'],
             notifications: !push.supported ? null : push.subscribed ? 'On' : 'Off',
             plan: PLAN_NAMES[planKey] || null,
-            services: services.length ? String(services.length) : null,
+            services: templates.length ? String(templates.length) : null,
             data: `${songs.length} songs`,
             version: `v${__APP_VERSION__}`,
           }}

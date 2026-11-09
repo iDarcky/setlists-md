@@ -37,6 +37,9 @@ export function buildNotifs({ feed = [], joinRequests = [], schedules = [], setl
 
   const needs = [];
   const rest = [];
+  // A request still waiting shows once, up in "Needs you" with its buttons;
+  // its "Asking to join" line in the feed would only repeat it.
+  const pendingIds = new Set(joinRequests.map(r => r.id));
 
   for (const n of feed) {
     if (n.type === 'schedule_request') {
@@ -55,6 +58,7 @@ export function buildNotifs({ feed = [], joinRequests = [], schedules = [], setl
       });
       continue;
     }
+    if (n.type === 'join_request' && n.requestId && pendingIds.has(n.requestId)) continue;
     const time = n.createdAt ? new Date(n.createdAt).getTime() : (n.timestamp || null);
     if (time && now - time > KEEP_DAYS * DAY) continue;
     rest.push({

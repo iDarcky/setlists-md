@@ -115,6 +115,8 @@ export default function SetlistReader({
 
   const items = useMemo(() => (setlist?.items || []).map(it => {
     if (it.type === 'break') return { ...it, isBreak: true };
+    // A "Song" slot nobody filled yet reads as a moment, never a missing song.
+    if (it.placeholder && !it.songId) return { ...it, isBreak: true, label: it.label ? `${it.label} (to be chosen)` : 'Song (to be chosen)' };
     let raw = songs.find(s => s.id === it.songId);
     if (!raw && it.songTitle) raw = songs.find(s => s.title === it.songTitle);
     if (!raw) return { ...it, isMissing: true };
