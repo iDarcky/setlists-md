@@ -2,29 +2,30 @@ import { useCallback, useMemo, useState } from 'react';
 import { resolveSongView, withArrangement, addArrangement } from '@/arrangements';
 import { buildSongFlow } from '@/lib/songFlow';
 import { transposeKey, keyPrefersSharps, semitonesBetween } from '@/music';
-import { songFacts, flowCodes } from '@/lib/songPage';
+import { songFacts } from '@/lib/songPage';
+import { sectionTone } from '@/lib/sectionTone';
 import { transposeArrangement } from '@/lib/transposeArrangement';
-import Reader from '@/features/reader/Reader';
 import FullscreenReader from '@/features/reader/FullscreenReader';
 import { exportSongPdf } from '@/pdf/exportSongPdf';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import SongView from './SongView';
-import SongChartView from './SongChartView';
+import SongChart from './SongChart';
 
 // The song page: works out the facts from the library and setlists and hands
-// them to SongView; "Open chart" swaps in SongChartView with the Reader, and ⤢
-// opens the full-screen Reader. Replaces SongHub (canvas → "Song, edit and
+// them to SongView, which puts the details on top of the Reader in one scroll
+// (owner, 2026-11-04: "details top and then the chart"); ⤢ opens the
+// full-screen Reader. Replaces SongHub (canvas → "Song, edit and
 // chart", 2026-10-30): details first, the chart one tap away.
 
 export default function Song({
   song: songInput, setlists = [], onBack, onEdit, onPlay, onMoveSong, onCopySong, onDelete,
   onUpdateSong, onOpenSetlist, settings, onUpdateSettings, onTransposed, onUpgrade = null,
-  initialScreen = 'details', layout = 'auto', embedded = false,
+  initialShow = 'chords', layout = 'auto', embedded = false,
 }) {
   const [now] = useState(() => Date.now());
   const [arrId, setArrId] = useState(songInput?.arrangements ? songInput.defaultArrangementId : undefined);
   const [semis, setSemis] = useState(0);
-  const [screen, setScreen] = useState(initialScreen); // 'details' | 'chart'
+  const [show, setShow] = useState(initialShow); // 'chords' | 'lyrics'
   const [full, setFull] = useState(false);
   useWakeLock(settings?.keepAwake === true);
 
@@ -68,7 +69,7 @@ export default function Song({
   } : null;
 
   const facts = useMemo(() => songFacts(songInput, setlists, now), [songInput, setlists, now]);
-  const flow = useMemo(() => (song ? flowCodes(buildSongFlow(song).ordered || [], settings?.customSectionTypes) : []), [song, settings?.customSectionTypes]);
+  const flow = useMemo(() => (song ? (buildSongFlow(song).ordered || []).map(sec => sectionTone(sec?.type, settings?.customSectionTypes)) : []), [song, settings?.customSectionTypes]);
 
   if (!song) return null;
 
@@ -84,44 +85,35 @@ export default function Song({
 
   return (
     <>
-      {screen === 'chart' ? (
-        <SongChartView embedded={embedded} title={song.title} onBack={() => setScreen('details')} onFullScreen={() => setFull(true)} {...shared}>
-          {/* Unmounted while full screen is open: two Readers in the DOM share ids (see SongHub's note). */}
-          {!full && (
-            <Reader
-              embedded
-              song={song}
-              displayMode="chords"
-              settings={settings}
-              onUpdateSettings={onUpdateSettings}
-              selectedKey={shown}
-              onSelectKey={pickKey}
-            />
-          )}
-        </SongChartView>
-      ) : (
-        <SongView
-          song={song}
-          layout={layout}
-          embedded={embedded}
-          {...shared}
-          facts={facts}
-          flow={flow}
-          onBack={onBack}
-          onEdit={onEdit ? () => onEdit(arrId) : null}
-          menu={menu}
-          onOpenChart={() => setScreen('chart')}
-          onFullScreen={() => setFull(true)}
-          onOpenSetlist={onOpenSetlist}
-        />
-      )}
+      <SongView
+        song={song}
+        layout={layout}
+        embedded={embedded}
+        {...shared}
+        facts={facts}
+        flow={flow}
+        onBack={onBack}
+        onEdit={onEdit ? () => onEdit(arrId) : null}
+        menu={menu}
+        show={show}
+        onShow={setShow}
+        onFullScreen={() => setFull(true)}
+        onOpenSetlist={onOpenSetlist}
+        chart={(lead, tail) => (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {lead}
+            <SongChart song={song} semis={semis} sharps={sharps} show={show} layout={layout} customSectionTypes={settings?.customSectionTypes} chordColor={settings?.chartChordColor || null} />
+            {tail}
+          </div>
+        )}
+      />
       {full && (
         <FullscreenReader
           song={song}
           settings={settings}
           onUpdateSettings={onUpdateSettings}
           onUpgrade={onUpgrade}
-          displayMode="chords"
+          displayMode={show}
           selectedKey={shown}
           onSelectKey={pickKey}
           onClose={() => setFull(false)}
