@@ -106,14 +106,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .screen img { width: 100%; height: auto; }
 .screen.phone { border-radius: 28px; max-width: 340px; }
 .screen.crop { max-height: 620px; }
-.hero-screen { margin-top: 72px; }
+.hero-screen { margin: 72px 0 0; }
 @media (max-width: 719px) { .hero-screen .screen { border-radius: 28px; max-width: 340px; } }
 .cap { font-size: 14px; color: var(--muted); margin-top: 14px; }
 
 /* ── Sections ── */
 .block { padding: 112px 0 0; }
 @media (min-width: 720px) { .block { padding-top: 144px; } }
-.block > .wrap > h2, .block h2.big { font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; font-weight: 700; max-width: 18ch; }
+.block > .wrap > h2, .block h2.big { font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; font-weight: 700; max-width: 24ch; }
 .intro { margin-top: 18px; font-size: 18px; color: var(--muted); max-width: 56ch; }
 
 /* How it works: three moments of the week, text then screen */
@@ -134,9 +134,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .also dd { margin: 6px 0 0; color: var(--muted); max-width: 48ch; }
 
 /* Pricing: three plans side by side */
-.plans { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: var(--r-card); max-width: 960px; }
+.plans { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: var(--r-card); }
 .plan { padding: 28px 28px 32px; display: flex; flex-direction: column; }
 .plan + .plan { border-left: 1px solid var(--line); }
+.plan .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
 .plan h3 { margin: 0; font-size: 18px; font-weight: 600; }
 .plan .who { margin: 6px 0 0; color: var(--muted); font-size: 15px; min-height: 3.1em; }
 .plan .price { margin: 24px 0 0; font-size: 56px; line-height: 1; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; display: flex; align-items: flex-start; }
@@ -145,7 +146,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .plan .per { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
 .plan ul { list-style: none; margin: 24px 0 0; padding: 20px 0 0; border-top: 1px solid var(--line); display: grid; gap: 8px; font-size: 15px; }
 .plan li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--sage); margin: 0 10px 2px 0; }
-.plan .beta { margin: 20px 0 0; align-self: flex-start; padding: 4px 10px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font-size: 14px; font-weight: 500; }
+.plan .beta { margin: 0; padding: 3px 10px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font-size: 14px; font-weight: 500; }
 @media (max-width: 760px) {
   .plans { grid-template-columns: 1fr; }
   .plan + .plan { border-left: 0; border-top: 1px solid var(--line); }
