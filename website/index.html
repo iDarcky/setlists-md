@@ -11,9 +11,8 @@
 <meta property="og:title" content="Setlists.md: chord charts and setlists for worship teams">
 <meta property="og:description" content="Build the setlist, tell the band, play from one screen on Sunday. Setlists.md is free during the beta.">
 <meta property="og:image" content="https://setlists.md/img/reader.webp">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@500;600;700&display=swap">
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/site.css">
 <script src="/site.js" defer></script>
 </head>
@@ -26,6 +25,7 @@
   <symbol id="spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></g></symbol>
 </svg>
+<a class="skip-link" href="#main">Skip to content</a>
 <div id="site">
 <header class="site-head" id="head">
   <div class="wrap">
@@ -46,7 +46,7 @@
   </nav>
 </header>
 
-<main>
+<main id="main">
 <section class="hero">
   <div class="wrap">
     <h1 class="chorded" aria-label="Sunday, sorted.">
@@ -60,7 +60,7 @@
     </div>
     <p class="hero-note">Free during the beta. Free for good for teams of up to 5.</p>
     <figure class="hero-screen">
-      <div class="screen"><img src="img/reader.webp" width="1280" height="800" alt="The reader in live mode: Amazing Grace in G with gold chords over the words, section chips V1 to V4 at the top, cues like Start soft and Drums and bass, and a key change to A in verse 3."></div>
+      <div class="screen"><picture><source media="(max-width: 719px)" srcset="img/live.webp" width="390" height="844"><img src="img/reader.webp" width="1280" height="800" fetchpriority="high" alt="The reader in live mode: Amazing Grace in G with gold chords over the words, section chips V1 to V4 at the top, cues like Start soft and Drums and bass, and a key change to A in verse 3."></picture></div>
       <figcaption class="cap">Live mode on Sunday. The red line at the top means the set is live.</figcaption>
     </figure>
   </div>
@@ -73,24 +73,21 @@
     <div class="week">
       <div class="step">
         <div>
-          <p class="when">Tuesday</p>
-          <h3>Build the setlist in minutes.</h3>
+          <h3><span class="day">Tuesday</span>Build the setlist in minutes.</h3>
           <p>Pick songs from your church's library, set the key and who leads each one, and slot in the welcome and the offering. Mark it Ready and the whole band gets a notification.</p>
         </div>
-        <div class="visual"><div class="screen"><img src="img/setlist.webp" width="2560" height="1440" loading="lazy" alt="A setlist for Sunday Morning on a laptop: a Play button, four songs with who leads, tempo and key, moments for welcome, offering and response, 32 minutes in total, and the band list: three of five said yes, one asked, one maybe."></div></div>
+        <div class="visual"><div class="screen"><img src="img/setlist.webp" srcset="img/setlist-1280.webp 1280w, img/setlist.webp 2560w" sizes="(min-width: 900px) 640px, 100vw" width="2560" height="1440" loading="lazy" alt="A setlist for Sunday Morning on a laptop: a Play button, four songs with who leads, tempo and key, moments for welcome, offering and response, 32 minutes in total, and the band list: three of five said yes, one asked, one maybe."></div></div>
       </div>
       <div class="step narrow">
         <div class="visual"><div class="screen phone crop"><img src="img/home.webp" width="780" height="1688" loading="lazy" alt="Home on a phone: Hi Joe, a Can you play? list with Yes, Maybe and No for three services, the next service, Sunday Morning, with an Open setlist button, and your next two weeks."></div></div>
         <div>
-          <p class="when">Wednesday</p>
-          <h3>Everyone knows when they're playing.</h3>
+          <h3><span class="day">Wednesday</span>Everyone knows when they're playing.</h3>
           <p>Musicians answer Yes, Maybe or No right from Home, and see the next service, rehearsal time and place on one card. Leaders see who's in while they plan. No group chat to scroll back through.</p>
         </div>
       </div>
       <div class="step">
         <div>
-          <p class="when">Sunday</p>
-          <h3>Made for the stage.</h3>
+          <h3><span class="day">Sunday</span>Made for the stage.</h3>
           <p>Big, clear charts with the band's cues where you need them. Transpose for the singer on the day, see key changes where they happen, and swipe to the next song. The chart still opens when the church Wi-Fi doesn't.</p>
         </div>
         <div class="visual"><div class="screen phone"><img src="img/live.webp" width="390" height="844" loading="lazy" alt="Live mode on a phone: a red line across the top, Amazing Grace in G, section chips V1 to V4 and T, gold chords over the words, cues Start soft and Drums and bass, and a Key of A marker in verse 3."></div></div>
@@ -157,6 +154,7 @@
     <nav aria-label="Footer">
       <a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/copyright">Copyright</a>
     </nav>
+    <p class="made">© 2026 Setlists.md · Made in Romania for worship teams everywhere.</p>
   </div>
 </footer>
 </div>

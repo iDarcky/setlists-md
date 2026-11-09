@@ -1,6 +1,8 @@
 /* Setlists.md website. Quiet product page: the app's warm black and Geist,
    chord gold only where a chord or the main action sits, real screens without
    fake device chrome, no card grids. */
+@font-face { font-family: 'Geist'; src: url('/fonts/Geist-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Geist Mono'; src: url('/fonts/GeistMono-Variable.woff2') format('woff2'); font-weight: 100 900; font-style: normal; font-display: swap; }
 :root {
   color-scheme: dark;
   --bg: #11100E;
@@ -43,6 +45,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .wrap { max-width: 1160px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
 @media (min-width: 720px) { .wrap { padding-left: max(40px, env(safe-area-inset-left)); padding-right: max(40px, env(safe-area-inset-right)); } }
 .muted { color: var(--muted); }
+.skip-link { position: absolute; left: 16px; top: -60px; z-index: 50; background: var(--text); color: var(--bg); padding: 10px 14px; border-radius: var(--r-ctl); font-weight: 600; text-decoration: none; }
+.skip-link:focus { top: 12px; }
+::-webkit-scrollbar { width: 10px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: #3D3833; border-radius: 10px; border: 2px solid var(--bg); }
 .mono { font-family: var(--mono); }
 
 /* Buttons and fields, matching the app */
@@ -102,6 +107,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .screen.phone { border-radius: 28px; max-width: 340px; }
 .screen.crop { max-height: 620px; }
 .hero-screen { margin-top: 72px; }
+@media (max-width: 719px) { .hero-screen .screen { border-radius: 28px; max-width: 340px; } }
 .cap { font-size: 14px; color: var(--muted); margin-top: 14px; }
 
 /* ── Sections ── */
@@ -114,8 +120,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .week { margin-top: 64px; display: grid; gap: 96px; }
 .step { display: grid; gap: 32px; align-items: center; }
 @media (min-width: 900px) { .step { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 64px; } .step.narrow { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); } }
-.step .when { font-family: var(--mono); font-size: 14px; color: var(--gold); }
-.step h3 { margin-top: 10px; font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; font-weight: 700; }
+.step h3 .day { display: block; font-family: var(--mono); font-size: .55em; font-weight: 600; color: var(--gold); letter-spacing: 0; margin-bottom: 8px; }
+.step h3 { font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; font-weight: 700; }
 .step p { margin-top: 14px; color: var(--muted); font-size: 17px; max-width: 46ch; }
 .step .visual { display: flex; justify-content: center; }
 .step.narrow .visual { justify-content: flex-start; }
@@ -167,6 +173,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .foot nav { display: flex; flex-wrap: wrap; gap: 4px 20px; }
 .foot a { color: var(--muted); text-decoration: none; padding: 6px 0; }
 .foot a:hover { color: var(--text); }
+.foot .made { width: 100%; font-size: 13px; }
 
 /* Help and legal pages */
 .page { padding: 72px 0 96px; }
