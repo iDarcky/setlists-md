@@ -19,6 +19,7 @@ describe('buildNotifs', () => {
     expect(out.needs[0].title).toBe('Can you play Sun 8 Nov?');
     expect(out.needs[0].sub).toBe('Sunday Morning · Acoustic Guitar');
     expect(out.needs[1].avatar.initials).toBe('AP');
+    expect(out.needs[1].name).toBe('Ana Pop');
     expect(out.unread).toBe(2);
   });
 

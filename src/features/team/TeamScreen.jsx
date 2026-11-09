@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { toast } from '@/ui/use-toast';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { Button } from '@/ui/Button';
@@ -245,11 +246,11 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
 
   const approve = (r) => run(r.id, async () => {
     setWaitMsg(null);
-    try { await onApproveJoin(r.id); } catch (err) { setWaitMsg({ kind: 'error', text: err.message || 'Something went wrong.' }); }
+    try { await onApproveJoin(r.id); toast({ title: `${r.display_name || 'They'} ${r.display_name ? 'is' : 'are'} in` }); } catch (err) { setWaitMsg({ kind: 'error', text: err.message || 'Something went wrong.' }); }
   });
   const decline = async (r) => {
     const ok = await confirm({ title: `Say no to ${r.display_name || 'this request'}?`, description: 'They will see that the request was not approved. They can ask again tomorrow.', confirmLabel: 'Say no', variant: 'danger' });
-    if (ok) run(r.id, async () => { try { await onDeclineJoin(r.id); } catch (err) { setWaitMsg({ kind: 'error', text: err.message }); } });
+    if (ok) run(r.id, async () => { try { await onDeclineJoin(r.id); toast({ title: `Said no to ${r.display_name || 'the request'}` }); } catch (err) { setWaitMsg({ kind: 'error', text: err.message }); } });
   };
   const approveAll = () => run('all', async () => {
     try {
