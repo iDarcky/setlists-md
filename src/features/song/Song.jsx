@@ -102,7 +102,7 @@ export default function Song({
         chart={(lead, tail) => (
           <div className="min-h-0 flex-1 overflow-y-auto">
             {lead}
-            <SongChart song={song} semis={semis} sharps={sharps} show={show} layout={layout} customSectionTypes={settings?.customSectionTypes} chordColor={settings?.chartChordColor || null} />
+            <SongChart song={song} semis={semis} sharps={sharps} show={show} layout={layout} customSectionTypes={settings?.customSectionTypes} />
             {tail}
           </div>
         )}

@@ -1,3 +1,4 @@
+import { applyReaderLook, READER_LOOK_FLAG } from '@/lib/readerLook';
 import { Toaster } from "@/ui/Toaster";
 import { toast } from "@/ui/use-toast";
 import { showUndoToast } from "@/lib/undoToast";
@@ -802,16 +803,9 @@ export default function App() {
         // First-run default for the chart theme tracks the app theme so
         // light-mode users start on Sunday Light, dark-mode users start
         // on Stage Black, midnight users start on Midnight, and so on.
-        if (savedSettings && !savedSettings.chartTheme) {
-          const appTheme = savedSettings.theme || 'default';
-          const defaultByTheme = {
-            light: 'sunday-light',
-            dark: 'stage-black',
-            midnight: 'midnight',
-            default: 'stage-black',
-          };
-          savedSettings.chartTheme = defaultByTheme[appTheme] || 'stage-black';
-        }
+        // A first run starts on Warm, which follows the app's light/dark by
+        // itself (it used to pick a palette per app theme).
+        if (savedSettings && !savedSettings.chartTheme) savedSettings.chartTheme = 'warm';
         setSettings(savedSettings);
 
         // Determine initial view based on onboarding state. `share-view` is a
@@ -935,6 +929,12 @@ export default function App() {
     if (loaded && !isSwitchingLibraryRef.current) saveConflicts(pendingConflicts, activeLibrary);
   }, [pendingConflicts, loaded, activeLibrary]);
   useEffect(() => { if (loaded && settings) saveSettings(settings); }, [settings, loaded]);
+  // The reader's new look, once per profile (lib/readerLook.js says why it
+  // cannot be a changed default). Re-runs harmlessly after a cloud hydration
+  // brings back a copy written before the move.
+  useEffect(() => {
+    if (settings && !settings[READER_LOOK_FLAG]) setSettings(prev => applyReaderLook(prev));
+  }, [settings]);
 
   // Clean up Supabase auth tokens from the URL after magic-link / password
   // reset redirects. detectSessionInUrl consumes the fragment, but the string

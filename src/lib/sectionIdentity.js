@@ -59,7 +59,7 @@ export function headingText(identity, style = 'name') {
   return identity.name;
 }
 
-export const HEADING_STYLES = ['name', 'code', 'caps'];
+export const HEADING_STYLES = ['chip', 'name', 'code', 'caps'];
 
 
 /**

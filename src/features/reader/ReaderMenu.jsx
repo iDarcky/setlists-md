@@ -177,7 +177,7 @@ const MENU_DEFAULTS = {
   // Keep in step with `storage.js DEFAULT_SETTINGS` — a Reset that disagrees
   // with the default CHANGES a setting the user never touched.
   duplicateSections: 'full',
-  readerHeading: 'name',
+  readerHeading: 'chip',
   readerSectionStyle: 'plain',
   readerSticky: 'on',
   readerNotes: 'on',
@@ -1239,8 +1239,8 @@ export default function ReaderMenu({
           {/* ── Sections ─────────────────────────────────────────────────── */}
           <GroupTitle>Sections</GroupTitle>
           <Field label="Heading">
-            <Picks value={settings?.readerHeading || 'name'}
-              options={[['name', 'Name'], ['code', 'Short'], ['caps', 'Uppercase']]}
+            <Picks value={settings?.readerHeading || 'chip'}
+              options={[['chip', 'Chip'], ['name', 'Name'], ['code', 'Short'], ['caps', 'Uppercase']]}
               onChange={(v) => set('readerHeading', v)} />
           </Field>
           {/* Four frames, and NONE of them takes width from the lyrics — which

@@ -38,21 +38,13 @@ export default function LiveIntro({ onClose }) {
         className="w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden"
         style={{ background: 'var(--ds-background-100)', border: '1px solid var(--ds-gray-400)' }}
       >
-        {/* The mark itself, in the corner of the sheet — the same shape, in the
-            same corner, at the same size it will be on the reader. Showing it
-            beats describing it. */}
-        <span
-          aria-hidden="true"
-          className="absolute top-0 right-0"
-          style={{ width: 0, height: 0, borderTop: '30px solid #e5484d', borderLeft: '30px solid transparent' }}
-        />
-
         <h2 className="text-heading-24 text-[var(--ds-gray-1000)] m-0 mb-2 leading-tight">
           You&rsquo;re live
         </h2>
         <p className="text-copy-14 text-[var(--ds-gray-600)] m-0 mb-4 leading-relaxed">
-          The red corner means the reader is set up for a service. It stays there
-          the whole time, and it&rsquo;s the only thing on screen that changes.
+          <span aria-hidden="true" className="inline-block align-middle rounded-full mr-1.5" style={{ width: 8, height: 8, background: '#e5484d' }} />
+          The red dot on the menu button means the reader is set up for a service.
+          It stays there the whole time, and it&rsquo;s the only thing on screen that changes.
         </p>
 
         <ul className="text-copy-14 text-[var(--ds-gray-600)] m-0 mb-5 pl-5 flex flex-col gap-1.5">

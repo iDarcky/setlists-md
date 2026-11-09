@@ -290,7 +290,7 @@ export const DEFAULT_SETTINGS = {
   // 'top' (default, in the header), 'bottom', 'left', 'right', or 'off'.
   structurePosition: 'top',
   // Reader display — see lib/readerConfig.js.
-  readerHeading: 'name',
+  readerHeading: 'chip',
   // 'plain' — no frame. A chart is paper, and paper has no frames on it
   // (owner, 2026-08-04; corrected here 2026-08-06, where it had always been).
   readerSectionStyle: 'plain',

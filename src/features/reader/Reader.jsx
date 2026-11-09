@@ -168,17 +168,12 @@ function CapoChip({ capo, soundingKey, shapeKey, writtenCapo, onSelect }) {
  * read. A triangle is not.
  */
 function LiveFold() {
+  // ⚠ The new look (2026-11-07): the mark moved from this corner to a red dot
+  // on the ☰ (ReaderTopBar, `live`). The corner read as a glitch, and a red
+  // line across the top was rejected next ("I don't like the red line there").
+  // What stays here is the spoken half.
   return (
     <>
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute top-0 right-0 z-10"
-        style={{
-          width: 0, height: 0,
-          borderTop: '22px solid #e5484d',
-          borderLeft: '22px solid transparent',
-        }}
-      />
       {/* The fold carries no text, so this is what "live" sounds like. */}
       <span role="status" className="sr-only">Live</span>
     </>
@@ -1836,6 +1831,7 @@ export default function Reader({
           exitLabel={editing ? 'Cancel editing' : 'Exit'}
           exitDisabled={false}
           progress={progress}
+          live={liveFold}
           // ⚠ NO `tools`, in any view, in any mode. The click and Edit both
           // float now (`ReaderActions`); notes never had a bar control. That is
           // the point of the split: the bar answers *where am I* — title, key,

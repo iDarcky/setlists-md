@@ -370,6 +370,7 @@ export default function ReaderSection({
     : null;
 
   const HEADING_CLASS = {
+    chip: 'font-semibold',
     code: 'font-bold uppercase tracking-wider font-mono',
     // The original chart's heading: heavy, all caps, wide tracking.
     caps: 'font-black uppercase tracking-[0.15em]',
@@ -386,6 +387,7 @@ export default function ReaderSection({
   // The step from light to heavy is REAL now — 14 → 17px is 21%, where 12.16 →
   // 13.76 was 13% and read as a rendering accident.
   const HEADING_PX = {
+    chip: heavy ? 16 : 15,
     name: heavy ? 17 : 14,
     code: heavy ? 17 : 14,
     // Caps read smaller at the same size — all-uppercase has no descenders and
@@ -393,7 +395,23 @@ export default function ReaderSection({
     caps: heavy ? 18 : 15,
   };
   const labelPx = HEADING_PX[config.heading] ?? HEADING_PX.name;
-  const label = (
+  // 'chip' (the new look, 2026-11-04): the song page's Order chip in the
+  // section's tone, then the name in the chart's ink. The colour lives on the
+  // chip, so the name reads as a name rather than as a coloured word.
+  const chipEl = (
+    <span
+      aria-hidden="true"
+      className="inline-flex items-center justify-center align-middle font-semibold"
+      style={{ height: '1.75em', minWidth: '2em', padding: '0 0.4em', borderRadius: 7, fontSize: `${Math.max(11, labelPx - 3)}px`, color: colour, background: `color-mix(in srgb, ${colour} 16%, transparent)`, marginRight: '0.5em' }}
+    >
+      {id.code}
+    </span>
+  );
+  const label = config.heading === 'chip' ? (
+    <span className={HEADING_CLASS.chip} style={{ fontSize: `${labelPx}px`, color: 'var(--chart-text, var(--ds-gray-1000))' }}>
+      {chipEl}<span className="align-middle">{id.name}</span>
+    </span>
+  ) : (
     <span
       className={HEADING_CLASS[config.heading] || HEADING_CLASS.name}
       style={{ color: colour, fontSize: `${labelPx}px` }}
@@ -528,7 +546,18 @@ export default function ReaderSection({
             ? `${id.name} — same as before, ${times} times, show it here`
             : `${id.name} — same as before, show it here`}
           className="min-h-0 inline-flex items-center gap-1.5 bg-transparent cursor-pointer"
-          style={{
+          style={config.heading === 'chip' ? {
+            // The new look (owner, 2026-11-04: "keep the current but update
+            // the design"): the same pill, drawn as the section's chip — a
+            // soft tone fill, sentence case, the app's corner radius.
+            fontSize: `${Math.max(12, labelPx - 2)}px`,
+            fontWeight: 600,
+            padding: '0.3em 0.75em',
+            borderRadius: 8,
+            border: 'none',
+            color: colour,
+            background: `color-mix(in srgb, ${colour} 16%, transparent)`,
+          } : {
             fontSize: `${Math.max(11, labelPx - 2)}px`,
             fontWeight: 700,
             textTransform: 'uppercase',
@@ -696,7 +725,20 @@ export default function ReaderSection({
               title: 'Edit this cue',
               style: { cursor: 'pointer' },
             } : null)}
-            style={{
+            style={config.heading === 'chip' ? {
+              // The new look: a gold pill on the name's row, like the song
+              // page. A loud cue ("!…") is the same pill in red.
+              fontSize: `${Math.max(11, labelPx - 3)}px`,
+              display: 'inline-block',
+              verticalAlign: 'middle',
+              padding: '0.15em 0.75em',
+              borderRadius: 999,
+              fontStyle: 'normal',
+              fontWeight: loud ? 600 : 500,
+              color: loud ? 'var(--danger-text, var(--ds-red-900))' : 'var(--chord)',
+              background: loud ? 'var(--danger-fill, rgba(229,72,77,.14))' : 'color-mix(in srgb, var(--chord) 14%, transparent)',
+              ...(onEditCue ? { cursor: 'pointer' } : null),
+            } : {
               // Smaller than the name it rides on, always. It used to be 13px
               // beside a 12.16px heading — the instruction set larger than the
               // section (owner: *"heading > cue"*).
@@ -805,6 +847,7 @@ export default function ReaderSection({
         tabScale={settings?.tabSize || 1}
         tabColors={tabColors}
         myInstrument={config.myInstrument}
+        chordBars={config.heading === 'chip'}
         tabTranspose={transpose}
         onChordTap={onChordTap}
       />
