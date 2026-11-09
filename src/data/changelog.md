@@ -2,6 +2,28 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.21.0 — Setlists in minutes, songs on one page
+*November 2026*
+
+### Added
+- **A new way to make a setlist** — pick your service template, set the details and the band, then add songs right on the same screen. Leaders see who led each song and what was played recently.
+- **Service templates** — set up your Sunday once: time, place, rehearsal, the band you need and numbered names like "BBPT #424 AM".
+- **Your draft is kept** — leave a setlist halfway and pick it up again from Home with Continue your setlist.
+- **Instruments for everyone** — a card on Home asks what you play, and leaders can set it for people in the church.
+- **One song page** — the details on top and the chart right under them, with section colours, Chords/Lyrics and full screen.
+- **Song editor history** — earlier versions of a song are kept, so you can go back.
+
+### Improved
+- **Pasting a song** — typed section names like Verse, Chorus, Strofa and Refren are recognised.
+- **Your own chords** look the same as the standard ones.
+- **Guest links** pick up your changes within about 10 seconds, and ended links are cleaned up after a week.
+
+### Fixed
+- Leaders who are allowed to can now change roles and remove people.
+- Join requests show up in the bell and on the Team page without reloading the app.
+- Typing a custom moment length like 12 or 125 minutes no longer jumps to the 1, 2 or 5 minute options.
+- The guest link page scrolls again.
+
 ## 0.20.0 — A new look, built for your church
 *November 2026*
 
