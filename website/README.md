@@ -18,6 +18,20 @@ Domains are not moved yet. The plan is: website on `setlists.md`, app on
 `app.setlists.md`, with redirects so old links and home-screen icons keep
 working. That switch happens in its own step.
 
+## Pages
+
+- `index.html` (/) — what it is, how it works, pricing, FAQ.
+- `help.html` (/help) — contact, invite links, starting a church, Add to Home Screen.
+- `/privacy`, `/terms`, `/copyright` — linked in the footer, added in the legal PR.
+
+Shared styles in `site.css`, the header menu in `site.js` (no inline scripts, so
+the CSP is `script-src 'self'`). Header and footer are repeated in each page on
+purpose: no build step.
+
+Join the beta links to `https://app.setlists.md/?start=signup&from=site` and Log in
+to `https://app.setlists.md/?from=site`. The `from=site` tag is how we count
+sign-ups that came from the website.
+
 ## Preview locally
 
 ```bash

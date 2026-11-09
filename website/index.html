@@ -5,301 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Setlists.md: chord charts and setlists for worship teams</title>
 <meta name="description" content="Build the setlist, tell the band, play from one screen on Sunday. Setlists.md is free during the beta.">
+<link rel="canonical" href="https://setlists.md/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:title" content="Setlists.md: chord charts and setlists for worship teams">
+<meta property="og:description" content="Build the setlist, tell the band, play from one screen on Sunday. Setlists.md is free during the beta.">
+<meta property="og:image" content="https://setlists.md/img/reader.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@500;600;700&display=swap">
-<style>
-/* Plan: one visual world, the stage at night. Warm black like the app, chord gold as the
-   one bold colour (it is literally what musicians read), sage for links and the logo.
-   Type: Geist for words, Geist Mono for chords, numbers and the running order.
-   Layout: a setlist. Sections are numbered like songs in a set; the hero headline
-   carries chords over its words. Pages switch on the URL hash. */
-:root {
-  color-scheme: dark;
-  --bg: #11100E;
-  --card: #1A1816;
-  --raised: #23201D;
-  --line: #2E2A26;
-  --edge: #6B645B;
-  --text: #F3EFE8;
-  --muted: #A39C92;
-  --sage: #7AA89C;
-  --sage-soft: rgba(122,168,156,.16);
-  --logo: #53796F;
-  --gold: #E2A832;
-  --gold-soft: rgba(226,168,50,.14);
-  --live: #E5484D;
-  --ok: #8FD1A2; --ok-fill: #12241A;
-  --warn: #E9BE6E; --warn-fill: #2A2010;
-  --err: #F0A39B;
-  --font: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --r-ctl: 8px; --r-card: 12px; --r-sheet: 20px;
-  --head: 64px;
-}
-*, *::before, *::after { box-sizing: border-box; }
-html { scroll-padding-top: calc(var(--head) + 16px); scrollbar-color: #3D3833 var(--bg); }
-body {
-  margin: 0; background: var(--bg); color: var(--text);
-  font-family: var(--font); font-size: 16px; line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-h1, h2, h3, p { margin: 0; }
-h1, h2, h3 { text-wrap: balance; letter-spacing: -0.02em; }
-a { color: var(--sage); text-underline-offset: 3px; }
-img { max-width: 100%; display: block; }
-button, input, select, textarea { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
-::selection { background: var(--gold-soft); }
-[hidden] { display: none !important; }
-.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
-@media (min-width: 720px) { .wrap { padding-left: max(40px, env(safe-area-inset-left)); padding-right: max(40px, env(safe-area-inset-right)); } }
-.muted { color: var(--muted); }
-.mono { font-family: var(--mono); }
-
-/* Buttons and fields, matching the app */
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 22px; border-radius: var(--r-ctl); border: 1px solid transparent; font-weight: 600; font-size: 16px; cursor: pointer; white-space: nowrap; text-decoration: none; transition: background-color .15s, opacity .15s, border-color .15s, transform .15s; }
-.btn:active { transform: translateY(1px); }
-.btn-primary { background: var(--text); color: var(--bg); }
-.btn-primary:hover { opacity: .9; }
-.btn-gold { background: var(--gold); color: #1A1305; }
-.btn-gold:hover { background: #ECB646; }
-.btn-outline { background: transparent; border-color: var(--edge); color: var(--text); }
-.btn-outline:hover { background: var(--raised); }
-.btn-ghost { background: transparent; color: var(--muted); }
-.btn-ghost:hover { background: var(--raised); color: var(--text); }
-.btn-sm { height: 38px; padding: 0 14px; font-size: 14px; }
-.btn-block { width: 100%; }
-.btn[disabled] { opacity: .45; pointer-events: none; }
-
-/* ── Header ── */
-.site-head { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid transparent; padding-top: env(safe-area-inset-top, 0px); transition: border-color .2s; }
-.site-head.scrolled { border-bottom-color: var(--line); }
-.site-head .wrap { height: var(--head); display: flex; align-items: center; gap: 28px; }
-.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-.brand svg { width: 28px; height: 28px; flex: none; }
-.brand .ext { color: var(--muted); font-weight: 500; }
-.nav { display: none; gap: 4px; }
-.nav a { color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 500; padding: 8px 12px; border-radius: var(--r-ctl); }
-.nav a:hover, .nav a[aria-current="page"] { color: var(--text); background: var(--raised); }
-.head-end { margin-left: auto; display: flex; gap: 8px; align-items: center; }
-.head-end .login { display: none; }
-@media (min-width: 820px) { .nav { display: flex; } .head-end .login { display: inline-flex; } .menu-btn { display: none !important; } }
-.menu-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: transparent; border-radius: var(--r-ctl); cursor: pointer; color: var(--text); }
-.menu-btn:hover { background: var(--raised); }
-.mnav { display: flex; flex-direction: column; padding-bottom: 16px; gap: 2px; }
-.mnav a { color: var(--text); text-decoration: none; padding: 12px 4px; font-size: 17px; border-bottom: 1px solid var(--line); }
-@media (min-width: 820px) { .mnav { display: none !important; } }
-.proto { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); border: 1px dashed #3D3833; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
-@media (max-width: 560px) { .site-head .proto { display: none; } }
-
-/* ── Hero ── */
-.hero { padding: 56px 0 0; position: relative; overflow: hidden; }
-@media (min-width: 720px) { .hero { padding-top: 88px; } }
-.hero::before { content: ""; position: absolute; inset: -20% -10% auto; height: 620px; background: radial-gradient(60% 55% at 50% 0%, rgba(226,168,50,.10), transparent 70%); pointer-events: none; }
-.eyebrow { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; color: var(--muted); letter-spacing: .02em; }
-.eyebrow .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 0 4px rgba(229,72,77,.18); }
-.chorded { font-size: clamp(52px, 10.5vw, 128px); line-height: 1; font-weight: 800; letter-spacing: -0.045em; margin-top: 28px; display: flex; flex-wrap: wrap; column-gap: .22em; row-gap: .1em; }
-.chorded .w { display: inline-flex; flex-direction: column; }
-.chorded .c { font-family: var(--mono); font-weight: 700; color: var(--gold); font-size: .3em; letter-spacing: 0; line-height: 1.2; height: 1.25em; padding-left: .05em; }
-.chorded .c.empty { visibility: hidden; }
-@media (prefers-reduced-motion: no-preference) {
-  .chorded .c:not(.empty) { animation: chord .7s cubic-bezier(.2,.7,.2,1) both; }
-  .chorded .w:nth-child(2) .c { animation-delay: .35s; }
-  @keyframes chord { from { transform: translateY(10px); color: var(--text); } to { transform: none; } }
-}
-.lede { margin-top: 28px; font-size: clamp(18px, 2.2vw, 21px); line-height: 1.5; color: var(--muted); max-width: 40ch; }
-.lede b { color: var(--text); font-weight: 600; }
-.hero-cta { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-.hero-note { margin-top: 16px; font-size: 14px; color: var(--muted); }
-.hero-note b { color: var(--text); font-weight: 600; }
-
-/* Screenshot frames */
-.shot { border-radius: 14px; border: 1px solid var(--line); background: var(--card); overflow: hidden; box-shadow: 0 40px 80px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.4); }
-.shot img { width: 100%; height: auto; }
-.browser-bar { height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #161412; }
-.browser-bar i { width: 10px; height: 10px; border-radius: 50%; background: #3D3833; }
-.browser-bar span { margin-left: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.phone { border-radius: 36px; border: 1px solid #3D3833; padding: 8px; background: #0B0A09; box-shadow: 0 40px 80px -40px rgba(0,0,0,.9); }
-.phone img { border-radius: 28px; width: 100%; height: auto; }
-.hero-shot { margin-top: 64px; position: relative; }
-.hero-shot .shot { max-width: 1080px; margin: 0 auto; }
-.hero-shot .phone { position: absolute; width: min(22%, 210px); right: max(0px, calc(50% - 600px)); bottom: -40px; display: none; }
-@media (min-width: 900px) { .hero-shot .phone { display: block; } }
-.cap { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 14px; text-align: center; }
-
-/* Section heads, numbered like a set */
-section.block { padding: 120px 0 0; }
-.sec-head { display: grid; gap: 14px; max-width: 720px; }
-.num { font-family: var(--mono); font-size: 13px; color: var(--gold); display: flex; gap: 12px; align-items: center; }
-.num::after { content: ""; height: 1px; width: 48px; background: var(--line); }
-.sec-head h2 { font-size: clamp(32px, 4.6vw, 52px); line-height: 1.05; font-weight: 700; }
-.sec-head p { font-size: 18px; color: var(--muted); max-width: 56ch; }
-
-/* Week walk-through */
-.week { margin-top: 56px; display: grid; gap: 72px; }
-.day { display: grid; gap: 32px; align-items: center; }
-@media (min-width: 900px) { .day { grid-template-columns: 5fr 7fr; gap: 64px; } .day.flip .day-text { order: 2; } }
-.day-tag { font-family: var(--mono); font-size: 13px; color: var(--muted); display: inline-flex; gap: 10px; align-items: center; }
-.day-tag b { color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-weight: 600; }
-.day h3 { font-size: clamp(24px, 3vw, 32px); line-height: 1.15; margin-top: 14px; font-weight: 700; }
-.day p { margin-top: 12px; color: var(--muted); font-size: 17px; max-width: 46ch; }
-.ticks { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 10px; }
-.ticks li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; font-size: 15px; }
-.ticks svg { color: var(--sage); margin-top: 3px; }
-.day-visual { display: flex; justify-content: center; }
-.day-visual .phone { width: min(320px, 82%); }
-.phone-crop { max-height: 560px; overflow: hidden; border-radius: 28px; }
-
-/* Feature grid */
-.feats { margin-top: 48px; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; }
-@media (min-width: 640px) { .feats { grid-template-columns: 1fr 1fr; } }
-@media (min-width: 980px) { .feats { grid-template-columns: repeat(3, 1fr); } }
-.feat { background: var(--bg); padding: 28px; display: grid; gap: 8px; align-content: start; }
-.feat .k { font-family: var(--mono); font-size: 13px; color: var(--gold); }
-.feat h3 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
-.feat p { color: var(--muted); font-size: 15px; }
-
-/* Pricing */
-.beta-strip { margin-top: 40px; display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: var(--r-card); background: var(--gold-soft); border: 1px solid rgba(226,168,50,.35); }
-.beta-strip svg { color: var(--gold); flex: none; margin-top: 2px; }
-.beta-strip b { font-weight: 600; }
-.plans { margin-top: 20px; display: grid; gap: 16px; }
-@media (min-width: 900px) { .plans { grid-template-columns: repeat(3, 1fr); } }
-.plan { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--card); padding: 28px; display: flex; flex-direction: column; gap: 18px; }
-.plan.pick { border-color: var(--sage); box-shadow: 0 0 0 1px var(--sage) inset; }
-.plan-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.plan h3 { font-size: 20px; font-weight: 700; }
-.tag { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 3px 8px; border-radius: 999px; background: var(--sage-soft); color: var(--sage); }
-.price { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
-.price b { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
-.price span { color: var(--muted); font-size: 15px; }
-.price-beta { font-family: var(--mono); font-size: 13px; color: var(--gold); margin-top: -8px; }
-.plan .who { color: var(--muted); font-size: 15px; }
-.plan ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; font-size: 15px; }
-.plan li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; }
-.plan li svg { color: var(--sage); margin-top: 3px; }
-.plan .btn { margin-top: auto; }
-.fine { margin-top: 16px; font-size: 14px; color: var(--muted); }
-
-/* FAQ */
-.faq { margin-top: 40px; border-top: 1px solid var(--line); max-width: 860px; }
-.faq details { border-bottom: 1px solid var(--line); }
-.faq summary { list-style: none; cursor: pointer; padding: 22px 0; display: flex; justify-content: space-between; gap: 16px; font-size: 18px; font-weight: 600; }
-.faq summary::-webkit-details-marker { display: none; }
-.faq summary::after { content: "+"; font-family: var(--mono); color: var(--muted); font-weight: 500; font-size: 20px; line-height: 1; transition: transform .2s; }
-.faq details[open] summary::after { transform: rotate(45deg); }
-.faq .a { padding: 0 0 22px; color: var(--muted); max-width: 64ch; }
-
-/* Closing CTA */
-.closer { margin: 120px 0 0; padding: 72px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(226,168,50,.06), transparent 70%); }
-.closer .wrap { display: grid; gap: 24px; justify-items: start; }
-.closer h2 { font-size: clamp(32px, 5vw, 56px); font-weight: 700; line-height: 1.05; max-width: 18ch; }
-
-/* Footer */
-.foot { padding: 48px 0 64px; color: var(--muted); font-size: 14px; }
-.foot .wrap { display: grid; gap: 24px; }
-@media (min-width: 720px) { .foot .wrap { grid-template-columns: 1fr auto; align-items: start; } }
-.foot nav { display: flex; flex-wrap: wrap; gap: 4px 20px; }
-.foot a { color: var(--muted); text-decoration: none; }
-.foot a:hover { color: var(--text); }
-
-/* ── Plain pages (legal) ── */
-.page { padding: 64px 0 40px; }
-.prose { max-width: 680px; display: grid; gap: 16px; }
-.prose h1 { font-size: clamp(36px, 5vw, 52px); line-height: 1.05; font-weight: 700; }
-.prose h2 { font-size: 22px; margin-top: 20px; }
-.prose p, .prose li { color: var(--muted); }
-.prose ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
-.draft { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--r-card); background: var(--warn-fill); color: var(--warn); font-size: 14px; }
-
-/* ── Join flow (full-screen task page) ── */
-.task { min-height: 100dvh; display: grid; grid-template-rows: auto 1fr; }
-.task-head { border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
-.task-head .wrap { height: var(--head); display: flex; align-items: center; gap: 16px; }
-.task-body { display: grid; }
-@media (min-width: 980px) { .task-body { grid-template-columns: minmax(0, 1fr) 400px; } }
-.task-main { padding: 40px 0 64px; }
-.task-main .inner { max-width: 560px; margin: 0 auto; padding: 0 20px; display: grid; gap: 28px; }
-.steps { display: flex; gap: 6px; }
-.steps i { height: 4px; flex: 1; border-radius: 2px; background: var(--raised); transition: background-color .25s; }
-.steps i.on { background: var(--gold); }
-.step-k { font-family: var(--mono); font-size: 13px; color: var(--muted); }
-.task h1 { font-size: clamp(28px, 4vw, 36px); line-height: 1.1; font-weight: 700; margin-top: 8px; }
-.task .sub { color: var(--muted); margin-top: 8px; }
-.fields { display: grid; gap: 20px; }
-.field { display: grid; gap: 8px; }
-.field label, .field .lbl { font-size: 14px; font-weight: 500; }
-.field .hint { font-size: 13px; color: var(--muted); }
-.field .err { font-size: 13px; color: var(--err); }
-.row2 { display: grid; gap: 20px; }
-@media (min-width: 560px) { .row2 { grid-template-columns: 1fr 1fr; } }
-.input, .select, .textarea { width: 100%; min-width: 0; height: 48px; border-radius: var(--r-ctl); border: 1px solid var(--edge); background: transparent; padding: 0 14px; font-size: 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
-.textarea { height: auto; min-height: 96px; padding: 12px 14px; resize: vertical; line-height: 1.5; }
-.input::placeholder, .textarea::placeholder { color: var(--muted); }
-.input:focus-visible, .select:focus-visible, .textarea:focus-visible { border-color: var(--sage); box-shadow: 0 0 0 3px var(--sage-soft); outline: none; }
-[aria-invalid="true"] { border-color: #B4413A !important; }
-.select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 34px; }
-.select option { background: var(--card); }
-.opts { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (min-width: 560px) { .opts.four { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.opt { min-height: 48px; border: 1px solid #3D3833; border-radius: var(--r-ctl); background: transparent; cursor: pointer; padding: 10px 12px; text-align: left; font-size: 15px; display: grid; gap: 2px; transition: background-color .15s, border-color .15s; }
-.opt small { color: var(--muted); font-size: 13px; }
-.opt:hover { background: var(--raised); }
-.opt[aria-pressed="true"], .opt[aria-checked="true"] { border-color: var(--sage); background: var(--sage-soft); }
-.check { display: grid; grid-template-columns: 22px 1fr; gap: 12px; align-items: start; font-size: 15px; cursor: pointer; }
-.check input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--sage); }
-.task-actions { display: flex; gap: 12px; justify-content: space-between; align-items: center; padding-top: 8px; }
-.task-actions .btn-primary { min-width: 160px; }
-.task-side { display: none; border-left: 1px solid var(--line); background: var(--card); padding: 40px 32px; }
-@media (min-width: 980px) { .task-side { display: grid; align-content: start; gap: 24px; } }
-.side-card { border: 1px solid var(--line); border-radius: var(--r-card); padding: 20px; display: grid; gap: 14px; background: var(--bg); }
-.side-card h3 { font-size: 15px; font-weight: 600; }
-.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
-.timeline li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; position: relative; padding-bottom: 20px; }
-.timeline li:last-child { padding-bottom: 0; }
-.timeline li::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--line); }
-.timeline li:last-child::before { display: none; }
-.timeline .n { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--edge); display: grid; place-items: center; font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--bg); position: relative; }
-.timeline li.done .n { background: var(--ok-fill); border-color: var(--ok-fill); color: var(--ok); }
-.timeline li.now .n { border-color: var(--gold); color: var(--gold); }
-.timeline b { display: block; font-size: 15px; font-weight: 600; }
-.timeline span { display: block; font-size: 14px; color: var(--muted); }
-.review { border: 1px solid var(--line); border-radius: var(--r-card); }
-.review > div { display: grid; grid-template-columns: 140px 1fr auto; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); font-size: 15px; align-items: start; }
-.review > div:last-child { border-bottom: 0; }
-.review dt { color: var(--muted); }
-.review dd { margin: 0; overflow-wrap: anywhere; }
-.review .edit { font-size: 14px; background: none; border: 0; color: var(--sage); cursor: pointer; padding: 0; }
-@media (max-width: 520px) { .review > div { grid-template-columns: 1fr auto; } .review dt { grid-column: 1 / -1; } }
-.sent-badge { width: 56px; height: 56px; border-radius: 14px; background: var(--ok-fill); color: var(--ok); display: grid; place-items: center; }
-.status-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; padding: 4px 12px; border-radius: 999px; }
-.status-pill.wait { background: var(--warn-fill); color: var(--warn); }
-.status-pill.ok { background: var(--ok-fill); color: var(--ok); }
-.status-pill.no { background: #2A1513; color: var(--err); }
-.status-pill i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.ref { font-family: var(--mono); font-size: 14px; color: var(--text); background: var(--raised); padding: 2px 8px; border-radius: 6px; }
-
-/* Approvals (owner side) */
-.req-list { display: grid; gap: 12px; }
-.req { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--card); padding: 20px; display: grid; gap: 14px; }
-.req-top { display: flex; justify-content: space-between; gap: 12px; align-items: start; flex-wrap: wrap; }
-.req h3 { font-size: 18px; font-weight: 600; }
-.req .meta { font-size: 14px; color: var(--muted); }
-.req .facts { display: flex; flex-wrap: wrap; gap: 6px; }
-.req .facts span { font-size: 13px; border: 1px solid #3D3833; border-radius: 999px; padding: 3px 10px; color: var(--muted); }
-.req .msg { font-size: 15px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 12px; }
-.req-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.tabs { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--raised); gap: 2px; }
-.tabs button { border: 0; background: transparent; height: 36px; padding: 0 14px; border-radius: var(--r-ctl); font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; }
-.tabs button[aria-pressed="true"] { background: var(--card); color: var(--text); }
-
-.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 80; background: var(--text); color: var(--bg); padding: 12px 16px; border-radius: var(--r-ctl); font-size: 14px; font-weight: 500; max-width: calc(100% - 32px); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-</style>
+<link rel="stylesheet" href="/site.css">
+<script src="/site.js" defer></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -310,43 +26,39 @@ section.block { padding: 120px 0 0; }
   <symbol id="spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></g></symbol>
 </svg>
-
-<!-- ═════════ Website ═════════ -->
 <div id="site">
 <header class="site-head" id="head">
   <div class="wrap">
-    <a class="brand" href="#home" aria-label="Setlists.md home"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
+    <a class="brand" href="/" aria-label="Setlists.md home"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
     <nav class="nav" aria-label="Main">
-      <a href="#how">How it works</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#help">Help</a>
+      <a href="/#how">How it works</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/help">Help</a>
     </nav>
     <div class="head-end">
-      <span class="proto" title="This is a design prototype">Prototype</span>
-      <a class="btn btn-ghost btn-sm login" href="https://setlists.md">Log in</a>
-      <a class="btn btn-gold btn-sm" href="#join">Join the beta</a>
+      <a class="btn btn-ghost btn-sm login" href="https://app.setlists.md/?from=site">Log in</a>
+      <a class="btn btn-gold btn-sm" href="https://app.setlists.md/?start=signup&amp;from=site">Join the beta</a>
       <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="mnav" aria-label="Menu"><svg width="22" height="22" aria-hidden="true"><use href="#menu"/></svg></button>
     </div>
   </div>
   <nav class="mnav wrap" id="mnav" aria-label="Main" hidden>
-    <a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#help">Help</a><a href="https://setlists.md">Log in</a>
+    <a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/help">Help</a><a href="https://app.setlists.md/?from=site">Log in</a>
   </nav>
 </header>
 
 <main>
-<!-- Home -->
 <div data-page="home">
   <section class="hero">
     <div class="wrap">
-      <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Closed beta opens 1 January 2027</span>
+      <span class="eyebrow"><span class="dot" aria-hidden="true"></span>Now in beta · free until launch</span>
       <h1 class="chorded" aria-label="Sunday, sorted.">
         <span class="w" aria-hidden="true"><span class="c">G</span><span>Sunday,</span></span>
         <span class="w" aria-hidden="true"><span class="c">D/F♯</span><span>sorted.</span></span>
       </h1>
       <p class="lede">Chord charts, setlists and the band's schedule in one app for worship teams. <b>Plan on Tuesday, play on Sunday</b>, from the same charts on every phone, iPad and laptop.</p>
       <div class="hero-cta">
-        <a class="btn btn-gold" href="#join">Join the beta</a>
-        <a class="btn btn-outline" href="#how">See how it works</a>
+        <a class="btn btn-gold" href="https://app.setlists.md/?start=signup&amp;from=site">Join the beta</a>
+        <a class="btn btn-outline" href="/#how">See how it works</a>
       </div>
       <p class="hero-note"><b>Free during the beta.</b> Free for good for teams of up to 5.</p>
 
@@ -455,7 +167,7 @@ section.block { padding: 120px 0 0; }
             <li><svg width="16" height="16" aria-hidden="true"><use href="#tick"/></svg>Songs, setlists, charts and live mode</li>
             <li><svg width="16" height="16" aria-hidden="true"><use href="#tick"/></svg>Works offline</li>
           </ul>
-          <a class="btn btn-outline btn-block" href="#join" data-plan="free">Join the beta</a>
+          <a class="btn btn-outline btn-block" href="https://app.setlists.md/?start=signup&amp;from=site">Join the beta</a>
         </div>
         <div class="plan">
           <div class="plan-top"><h3>Band</h3></div>
@@ -467,7 +179,7 @@ section.block { padding: 120px 0 0; }
             <li><svg width="16" height="16" aria-hidden="true"><use href="#tick"/></svg>Schedule, availability and band requests</li>
             <li><svg width="16" height="16" aria-hidden="true"><use href="#tick"/></svg>Guest links for stand-ins</li>
           </ul>
-          <a class="btn btn-outline btn-block" href="#join" data-plan="band">Join the beta</a>
+          <a class="btn btn-outline btn-block" href="https://app.setlists.md/?start=signup&amp;from=site">Join the beta</a>
         </div>
         <div class="plan pick">
           <div class="plan-top"><h3>Church</h3><span class="tag">Most teams</span></div>
@@ -479,7 +191,7 @@ section.block { padding: 120px 0 0; }
             <li><svg width="16" height="16" aria-hidden="true"><use href="#tick"/></svg>Several services, each with its own band</li>
             <li><svg width="16" height="16" aria-hidden="true"><use href="#tick"/></svg>Roles: owner, admin, leader, member</li>
           </ul>
-          <a class="btn btn-primary btn-block" href="#join" data-plan="church">Join the beta</a>
+          <a class="btn btn-primary btn-block" href="https://app.setlists.md/?start=signup&amp;from=site">Join the beta</a>
         </div>
       </div>
       <p class="fine">Prices in US dollars. Local taxes may apply once paid plans start.</p>
@@ -493,9 +205,9 @@ section.block { padding: 120px 0 0; }
         <h2>Before you join.</h2>
       </div>
       <div class="faq">
-        <details><summary>What happens after I ask to join?</summary><p class="a">We read every request and reply by email, usually within two days. Once you're in, you get a link that sets up your church or band and an invite link for your team.</p></details>
-        <details><summary>Does everyone in the band need to sign up?</summary><p class="a">Each person makes a free account with the invite link. You approve who joins, so the library stays inside your team.</p></details>
-        <details><summary>Do we need to install anything?</summary><p class="a">No. It runs in Safari or Chrome. Add it to the Home Screen on an iPhone or iPad to use it full screen and offline.</p></details>
+        <details><summary>What happens when I join?</summary><p class="a">You make a free account in a minute. If your church or band isn't on Setlists.md yet, tap <b>Ask to start a church</b> and tell us its name. We set it up and reply by email, usually within two days. Then you share one invite link with your team.</p></details>
+        <details><summary>Does everyone in the band need to sign up?</summary><p class="a">Each person makes a free account from your invite link, and you approve who joins, so the library stays inside your team. Stand-ins can use a guest link with no account.</p></details>
+        <details><summary>Do we need to install anything?</summary><p class="a">No app store needed. It runs in Safari or Chrome. Add it to your Home Screen to use it full screen and offline. <a href="/help#install">Here's how</a>.</p></details>
         <details><summary>Can we bring our songs?</summary><p class="a">Yes. Paste a chord sheet and it finds the sections for you. Your library starts empty, so you only keep songs your church is allowed to use.</p></details>
         <details><summary>What does the beta cost?</summary><p class="a">Nothing. The beta is free. Before paid plans start, we tell every beta team the price and the date, and you choose whether to continue. Teams of up to 5 stay free.</p></details>
       </div>
@@ -505,337 +217,20 @@ section.block { padding: 120px 0 0; }
   <section class="closer">
     <div class="wrap">
       <h2>Get this Sunday's set to the band tonight.</h2>
-      <a class="btn btn-gold" href="#join">Join the beta</a>
+      <a class="btn btn-gold" href="https://app.setlists.md/?start=signup&amp;from=site">Join the beta</a>
     </div>
   </section>
-</div>
-
-<!-- Help -->
-<div data-page="help" hidden>
-  <div class="page"><div class="wrap"><div class="prose">
-    <span class="num">Help</span>
-    <h1>Help and contact</h1>
-    <p>Questions about the beta, your account or a song? Write to us and a person answers, usually within a day.</p>
-    <h2>Email</h2>
-    <p>Support: <a href="mailto:support@setlists.md">support@setlists.md</a> (support@setlists.md)<br>Everything else: <a href="mailto:hello@setlists.md">hello@setlists.md</a> (hello@setlists.md)</p>
-    <h2>Already asked to join?</h2>
-    <p>Check where your request is on the <a href="#status">request status</a> page.</p>
-    <h2>Common questions</h2>
-    <p>Most answers are in the <a href="#faq">questions on the home page</a>.</p>
-  </div></div></div>
-</div>
-
-<!-- Legal -->
-<div data-page="legal" hidden>
-  <div class="page"><div class="wrap"><div class="prose">
-    <span class="num">Legal</span>
-    <h1>Terms, privacy and copyright</h1>
-    <div class="draft"><svg width="18" height="18" aria-hidden="true" style="flex:none;margin-top:1px"><use href="#info"/></svg><div>Draft. The full texts are being written and will be here before the beta opens.</div></div>
-    <h2>Privacy, in short</h2>
-    <ul>
-      <li>We keep your name, email and what you play, so your team can plan with you.</li>
-      <li>Your church controls its own songs and members. We store them for you and never sell them.</li>
-      <li>You can export your songs or ask us to delete your account at any time.</li>
-    </ul>
-    <h2>Songs and copyright</h2>
-    <ul>
-      <li>Your church is responsible for having the right to use the songs it adds, such as a CCLI licence where one applies.</li>
-      <li>To report a song that shouldn't be here, email <a href="mailto:legal@setlists.md">legal@setlists.md</a> (legal@setlists.md).</li>
-    </ul>
-    <h2>Teens on the team</h2>
-    <ul><li>People under 16 are added by a leader, with a parent's OK.</li></ul>
-  </div></div></div>
 </div>
 </main>
 
 <footer class="foot">
   <div class="wrap">
-    <a class="brand" href="#home"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
+    <a class="brand" href="/"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
     <nav aria-label="Footer">
-      <a href="#how">How it works</a><a href="#pricing">Pricing</a><a href="#help">Help</a><a href="#status">Request status</a><a href="#legal">Terms and privacy</a><a href="#requests">Approvals (owner)</a>
+      <a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/copyright">Copyright</a>
     </nav>
   </div>
 </footer>
 </div>
-
-<!-- ═════════ Join the beta (task page) ═════════ -->
-<div id="joinPage" class="task" hidden>
-  <header class="task-head"><div class="wrap">
-    <a class="brand" href="#home" aria-label="Back to Setlists.md"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
-    <span class="proto" style="margin-left:auto">Prototype · nothing is sent</span>
-    <a class="btn btn-ghost btn-sm" href="#home">Close</a>
-  </div></header>
-  <div class="task-body">
-    <div class="task-main"><div class="inner" id="joinInner"></div></div>
-    <aside class="task-side" aria-label="What happens next">
-      <div class="side-card">
-        <h3>What happens next</h3>
-        <ol class="timeline" id="sideTimeline"></ol>
-      </div>
-      <p class="muted" style="font-size:14px">Joining is free. You won't be asked for a card.</p>
-    </aside>
-  </div>
-</div>
-
-<!-- ═════════ Request status ═════════ -->
-<div id="statusPage" class="task" hidden>
-  <header class="task-head"><div class="wrap">
-    <a class="brand" href="#home"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
-    <span class="proto" style="margin-left:auto">Prototype</span>
-    <a class="btn btn-ghost btn-sm" href="#home">Close</a>
-  </div></header>
-  <div class="task-main"><div class="inner" id="statusInner"></div></div>
-</div>
-
-<!-- ═════════ Approvals (owner side) ═════════ -->
-<div id="reqPage" class="task" hidden>
-  <header class="task-head"><div class="wrap">
-    <a class="brand" href="#home"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
-    <span class="proto" style="margin-left:auto">Prototype · owner view</span>
-    <a class="btn btn-ghost btn-sm" href="#home">Close</a>
-  </div></header>
-  <div class="task-main"><div class="inner" style="max-width:760px" id="reqInner"></div></div>
-</div>
-
-<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-
-<script>
-(function () {
-  const $ = (s, el = document) => el.querySelector(s);
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const store = {
-    get(k, d) { try { const v = localStorage.getItem('slmd-landing-' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem('slmd-landing-' + k, JSON.stringify(v)); } catch (e) {} }
-  };
-  let toastT;
-  function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
-
-  /* Header */
-  const head = $('#head');
-  addEventListener('scroll', () => head.classList.toggle('scrolled', scrollY > 8), { passive: true });
-  const menuBtn = $('#menuBtn'), mnav = $('#mnav');
-  menuBtn.addEventListener('click', () => { const open = mnav.hidden; mnav.hidden = !open; menuBtn.setAttribute('aria-expanded', String(open)); });
-  mnav.addEventListener('click', e => { if (e.target.closest('a')) { mnav.hidden = true; menuBtn.setAttribute('aria-expanded', 'false'); } });
-  document.querySelectorAll('[data-plan]').forEach(a => a.addEventListener('click', () => { draft.plan = a.dataset.plan; saveDraft(); }));
-
-  /* Sample requests so the owner view is never empty */
-  const SAMPLES = [
-    { ref: 'SL-4821', name: 'Maria Ionescu', email: 'maria@harvestbucharest.org', role: 'Worship leader', church: 'Harvest Church Bucharest', place: 'Bucharest, Romania', size: '16-30', plan: 'church', now: ['WhatsApp', 'PDFs'], start: 'In January', note: 'Two services on Sunday and a youth night on Friday.', at: '2026-11-04T18:20:00Z', status: 'waiting' },
-    { ref: 'SL-4817', name: 'Tom Becker', email: 'tom.becker@gmail.com', role: 'Musician', church: 'Cornerstone Youth', place: 'Leeds, United Kingdom', size: '6-15', plan: 'band', now: ['Planning Center'], start: 'Before Christmas', note: '', at: '2026-11-03T09:05:00Z', status: 'approved' }
-  ];
-  function requests() { return store.get('requests', null) || SAMPLES.slice(); }
-  function saveRequests(list) { store.set('requests', list); }
-
-  /* ── Join flow ── */
-  const ROLES = ['Worship leader', 'Musician or singer', 'Pastor', 'Something else'];
-  const SIZES = [['2-5', 'people'], ['6-15', 'people'], ['16-30', 'people'], ['30+', 'people']];
-  const NOW = ['Paper or PDFs', 'WhatsApp', 'Planning Center', 'OnStage', 'Google Drive', 'Something else'];
-  const STARTS = ['Before Christmas', 'In January', 'Not sure yet'];
-  const PLANS = { free: 'Free', band: 'Band', church: 'Church' };
-  const STEPS = ['You', 'Your team', 'Getting started', 'Check and send'];
-  let draft = store.get('draft', { step: 0, name: '', email: '', role: '', church: '', place: '', size: '', plan: '', now: [], start: '', note: '', ok: false });
-  let errors = {};
-  function saveDraft() { store.set('draft', draft); }
-  function planFor(size) { return size === '2-5' ? 'free' : size === '6-15' ? 'band' : size ? 'church' : ''; }
-
-  function timeline(active) {
-    const items = [
-      ['Send your request', 'Two minutes, no card needed.'],
-      ['We read it', 'Usually within two days.'],
-      ['You get an email', 'With a link that sets up your church or band.'],
-      ['Invite your team', 'Share one invite link with the band.']
-    ];
-    return items.map((it, i) => `<li class="${i < active ? 'done' : i === active ? 'now' : ''}"><span class="n">${i < active ? '<svg width="14" height="14"><use href="#tick"/></svg>' : i + 1}</span><div><b>${it[0]}</b><span>${it[1]}</span></div></li>`).join('');
-  }
-
-  function fieldErr(k) { return errors[k] ? `<span class="err" id="${k}-err">${esc(errors[k])}</span>` : ''; }
-  function inv(k) { return errors[k] ? ` aria-invalid="true" aria-describedby="${k}-err"` : ''; }
-
-  function renderJoin(focusFirst) {
-    const s = draft.step;
-    const bar = `<div><div class="steps" aria-hidden="true">${STEPS.map((_, i) => `<i class="${i <= s ? 'on' : ''}"></i>`).join('')}</div></div>`;
-    let body = '';
-    if (s === 0) body = `
-      <div><span class="step-k">Step 1 of 4 · ${STEPS[0]}</span><h1>Join the beta</h1><p class="sub">Tell us who you are. We'll write back to this email.</p></div>
-      <div class="fields">
-        <div class="field"><label for="f-name">Your name</label><input class="input" id="f-name" autocomplete="name" placeholder="Joe Doe" value="${esc(draft.name)}"${inv('name')}>${fieldErr('name')}</div>
-        <div class="field"><label for="f-email">Email</label><input class="input" id="f-email" type="email" autocomplete="email" inputmode="email" placeholder="joe@yourchurch.org" value="${esc(draft.email)}"${inv('email')}>${fieldErr('email')}</div>
-        <div class="field"><span class="lbl" id="role-l">What do you do on the team?</span>
-          <div class="opts" role="radiogroup" aria-labelledby="role-l">${ROLES.map(r => `<button type="button" class="opt" role="radio" aria-checked="${draft.role === r}" data-role="${esc(r)}">${esc(r)}</button>`).join('')}</div>${fieldErr('role')}</div>
-      </div>`;
-    if (s === 1) body = `
-      <div><span class="step-k">Step 2 of 4 · ${STEPS[1]}</span><h1>Your church or band</h1><p class="sub">This becomes the name your team sees in the app. You can change it later.</p></div>
-      <div class="fields">
-        <div class="field"><label for="f-church">Church or band name</label><input class="input" id="f-church" autocomplete="organization" placeholder="Grace Church" value="${esc(draft.church)}"${inv('church')}>${fieldErr('church')}</div>
-        <div class="field"><label for="f-place">City and country</label><input class="input" id="f-place" placeholder="Cluj-Napoca, Romania" value="${esc(draft.place)}"${inv('place')}>${fieldErr('place')}</div>
-        <div class="field"><span class="lbl" id="size-l">How many people are on the team?</span>
-          <div class="opts four" role="radiogroup" aria-labelledby="size-l">${SIZES.map(([v, u]) => `<button type="button" class="opt" role="radio" aria-checked="${draft.size === v}" data-size="${v}"><span class="mono">${v}</span><small>${u}</small></button>`).join('')}</div>
-          ${draft.size ? `<span class="hint">That fits the <b style="color:var(--text)">${PLANS[draft.plan || planFor(draft.size)]}</b> plan. Free during the beta either way.</span>` : `<span class="hint">Count musicians, singers and tech, everyone who'd open a setlist.</span>`}
-          ${fieldErr('size')}</div>
-      </div>`;
-    if (s === 2) body = `
-      <div><span class="step-k">Step 3 of 4 · ${STEPS[2]}</span><h1>Getting started</h1><p class="sub">This helps us set you up well. Nothing here is required except when.</p></div>
-      <div class="fields">
-        <div class="field"><span class="lbl" id="now-l">What do you use now? <span class="muted">Pick any</span></span>
-          <div class="opts" role="group" aria-labelledby="now-l">${NOW.map(n => `<button type="button" class="opt" aria-pressed="${draft.now.includes(n)}" data-now="${esc(n)}">${esc(n)}</button>`).join('')}</div></div>
-        <div class="field"><span class="lbl" id="start-l">When would you like to start?</span>
-          <div class="opts" role="radiogroup" aria-labelledby="start-l" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">${STARTS.map(n => `<button type="button" class="opt" role="radio" aria-checked="${draft.start === n}" data-start="${esc(n)}">${esc(n)}</button>`).join('')}</div>${fieldErr('start')}</div>
-        <div class="field"><label for="f-note">Anything we should know? <span class="muted">Optional</span></label><textarea class="textarea" id="f-note" maxlength="600" placeholder="Two services on Sunday, a youth night on Friday…">${esc(draft.note)}</textarea></div>
-      </div>`;
-    if (s === 3) {
-      const row = (k, v, step) => `<div><dt>${k}</dt><dd>${v ? esc(v) : '<span class="muted">Not given</span>'}</dd><button type="button" class="edit" data-goto="${step}" aria-label="Edit ${k}">Edit</button></div>`;
-      body = `
-      <div><span class="step-k">Step 4 of 4 · ${STEPS[3]}</span><h1>Check and send</h1><p class="sub">We'll reply to <b style="color:var(--text)">${esc(draft.email)}</b>.</p></div>
-      <dl class="review" style="margin:0">
-        ${row('Name', draft.name, 0)}${row('Email', draft.email, 0)}${row('Role', draft.role, 0)}
-        ${row('Church or band', draft.church, 1)}${row('Place', draft.place, 1)}${row('Team size', draft.size ? draft.size + ' people · ' + PLANS[draft.plan || planFor(draft.size)] + ' plan' : '', 1)}
-        ${row('Uses now', draft.now.join(', '), 2)}${row('Start', draft.start, 2)}${row('Note', draft.note, 2)}
-      </dl>
-      <label class="check"><input type="checkbox" id="f-ok" ${draft.ok ? 'checked' : ''}${inv('ok')}><span>I agree to the <a href="#legal" target="_blank">beta terms and privacy note</a>, and I'm OK with an email about my request.</span></label>${fieldErr('ok')}`;
-    }
-    const back = s > 0 ? `<button type="button" class="btn btn-ghost" id="backBtn"><svg width="18" height="18" aria-hidden="true"><use href="#back"/></svg>Back</button>` : `<a class="btn btn-ghost" href="#home">Cancel</a>`;
-    const next = s < 3 ? `<button type="button" class="btn btn-primary" id="nextBtn">Continue</button>` : `<button type="button" class="btn btn-gold" id="sendBtn">Send request</button>`;
-    $('#joinInner').innerHTML = bar + body + `<div class="task-actions">${back}${next}</div>`;
-    $('#sideTimeline').innerHTML = timeline(0);
-    const firstErr = $('#joinInner [aria-invalid="true"]');
-    if (firstErr) firstErr.focus();
-    else if (focusFirst) { const f = $('#joinInner input, #joinInner .opt'); if (f && matchMedia('(min-width: 720px)').matches) f.focus(); }
-  }
-
-  function readInputs() {
-    const v = id => { const el = $('#' + id); return el ? el.value.trim() : undefined; };
-    if (draft.step === 0) { draft.name = v('f-name'); draft.email = v('f-email'); }
-    if (draft.step === 1) { draft.church = v('f-church'); draft.place = v('f-place'); }
-    if (draft.step === 2) { draft.note = v('f-note'); }
-    if (draft.step === 3) { draft.ok = $('#f-ok').checked; }
-    saveDraft();
-  }
-  function validate() {
-    errors = {};
-    if (draft.step === 0) {
-      if (!draft.name) errors.name = 'Add your name so we know who to write to.';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(draft.email)) errors.email = draft.email ? 'This email looks incomplete. Check for a typo.' : 'Add the email we should reply to.';
-      if (!draft.role) errors.role = 'Pick the one closest to what you do.';
-    }
-    if (draft.step === 1) {
-      if (!draft.church) errors.church = 'Add the name of your church or band.';
-      if (!draft.place) errors.place = 'Add a city and country, for example Leeds, United Kingdom.';
-      if (!draft.size) errors.size = 'Pick a team size. A rough guess is fine.';
-    }
-    if (draft.step === 2 && !draft.start) errors.start = 'Pick when you would like to start.';
-    if (draft.step === 3 && !draft.ok) errors.ok = 'Tick the box to send your request.';
-    return !Object.keys(errors).length;
-  }
-
-  $('#joinInner').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.role) { readInputs(); draft.role = b.dataset.role; delete errors.role; saveDraft(); renderJoin(); $(`[data-role="${CSS.escape(draft.role)}"]`).focus(); return; }
-    if (b.dataset.size) { readInputs(); draft.size = b.dataset.size; draft.plan = planFor(draft.size); delete errors.size; saveDraft(); renderJoin(); $(`[data-size="${CSS.escape(draft.size)}"]`).focus(); return; }
-    if (b.dataset.now) { readInputs(); const n = b.dataset.now; draft.now = draft.now.includes(n) ? draft.now.filter(x => x !== n) : [...draft.now, n]; saveDraft(); renderJoin(); $(`[data-now="${CSS.escape(n)}"]`).focus(); return; }
-    if (b.dataset.start) { readInputs(); draft.start = b.dataset.start; delete errors.start; saveDraft(); renderJoin(); $(`[data-start="${CSS.escape(draft.start)}"]`).focus(); return; }
-    if (b.dataset.goto) { errors = {}; draft.step = +b.dataset.goto; saveDraft(); renderJoin(true); scrollTo(0, 0); return; }
-    if (b.id === 'backBtn') { readInputs(); errors = {}; draft.step--; saveDraft(); renderJoin(true); scrollTo(0, 0); return; }
-    if (b.id === 'nextBtn') { readInputs(); if (validate()) { draft.step++; saveDraft(); renderJoin(true); scrollTo(0, 0); } else renderJoin(); return; }
-    if (b.id === 'sendBtn') { readInputs(); if (!validate()) { renderJoin(); return; } send(b); }
-  });
-  $('#joinInner').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.target.matches('input.input')) { e.preventDefault(); $('#nextBtn')?.click(); }
-  });
-
-  function send(btn) {
-    btn.disabled = true; btn.innerHTML = '<span style="width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;display:inline-block;animation:spin .7s linear infinite"></span>Sending';
-    setTimeout(() => {
-      const ref = 'SL-' + Math.floor(4830 + Math.random() * 5000);
-      const req = { ref, name: draft.name, email: draft.email, role: draft.role, church: draft.church, place: draft.place, size: draft.size, plan: draft.plan || planFor(draft.size), now: draft.now, start: draft.start, note: draft.note, at: new Date().toISOString(), status: 'waiting' };
-      const list = requests(); list.unshift(req); saveRequests(list);
-      store.set('mine', ref);
-      draft = { step: 0, name: '', email: '', role: '', church: '', place: '', size: '', plan: '', now: [], start: '', note: '', ok: false };
-      saveDraft();
-      location.hash = 'status';
-    }, 700);
-  }
-
-  /* ── Status page ── */
-  function renderStatus() {
-    const ref = store.get('mine', null);
-    const req = ref && requests().find(r => r.ref === ref);
-    const el = $('#statusInner');
-    if (!req) {
-      el.innerHTML = `<div><span class="step-k">Request status</span><h1>No request on this device</h1><p class="sub">Asked to join from another phone or computer? Look for our email, or write to support@setlists.md.</p></div><div><a class="btn btn-gold" href="#join">Join the beta</a></div>`;
-      return;
-    }
-    const st = req.status;
-    const pill = st === 'approved' ? '<span class="status-pill ok"><i></i>Approved</span>' : st === 'declined' ? '<span class="status-pill no"><i></i>Not this time</span>' : '<span class="status-pill wait"><i></i>Waiting for review</span>';
-    const head = st === 'approved'
-      ? `<div class="sent-badge"><svg width="26" height="26"><use href="#tick"/></svg></div><div><h1>You're in, ${esc(req.name.split(' ')[0])}</h1><p class="sub">We sent the setup link to <b style="color:var(--text)">${esc(req.email)}</b>. It sets up ${esc(req.church)} and gives you an invite link for your team.</p></div>`
-      : st === 'declined'
-      ? `<div><h1>We can't add ${esc(req.church)} yet</h1><p class="sub">The beta has room for a small number of teams. We kept your request and will write when there's space.</p></div>`
-      : `<div class="sent-badge"><svg width="26" height="26"><use href="#tick"/></svg></div><div><h1>Request sent</h1><p class="sub">Thanks, ${esc(req.name.split(' ')[0])}. We'll reply to <b style="color:var(--text)">${esc(req.email)}</b>, usually within two days.</p></div>`;
-    const step = st === 'approved' ? 3 : 1;
-    el.innerHTML = `
-      ${head}
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">${pill}<span class="muted" style="font-size:14px">Reference <span class="ref">${esc(req.ref)}</span></span></div>
-      <div class="side-card"><h3>Where your request is</h3><ol class="timeline">${timeline(step)}</ol></div>
-      ${st === 'approved' ? `<div style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn btn-primary" href="https://setlists.md">Open Setlists.md</a></div>` : ''}
-      <p class="muted" style="font-size:14px">Prototype: nothing was sent and no email goes out. To see the owner side, open <a href="#requests">Approvals</a>.</p>`;
-  }
-
-  /* ── Owner approvals ── */
-  let reqTab = 'waiting';
-  function fmt(iso) { const d = new Date(iso); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
-  function renderReqs() {
-    const list = requests();
-    const counts = { waiting: list.filter(r => r.status === 'waiting').length, done: list.filter(r => r.status !== 'waiting').length };
-    const shown = list.filter(r => reqTab === 'waiting' ? r.status === 'waiting' : r.status !== 'waiting');
-    $('#reqInner').innerHTML = `
-      <div><span class="step-k">Owner view</span><h1>Beta requests</h1><p class="sub">Approving sends the person a setup link for their church or band. Declining sends a kind note and keeps them on the list.</p></div>
-      <div class="tabs" role="group" aria-label="Show"><button type="button" data-tab="waiting" aria-pressed="${reqTab === 'waiting'}">Waiting · ${counts.waiting}</button><button type="button" data-tab="done" aria-pressed="${reqTab === 'done'}">Answered · ${counts.done}</button></div>
-      <div class="req-list">${shown.length ? shown.map(r => `
-        <article class="req">
-          <div class="req-top"><div><h3>${esc(r.church)}</h3><p class="meta">${esc(r.name)} · ${esc(r.role)} · ${esc(r.email)}</p></div>
-            ${r.status === 'approved' ? '<span class="status-pill ok"><i></i>Approved</span>' : r.status === 'declined' ? '<span class="status-pill no"><i></i>Declined</span>' : `<span class="muted mono" style="font-size:13px">${fmt(r.at)}</span>`}</div>
-          <div class="facts"><span>${esc(r.place)}</span><span>${esc(r.size)} people</span><span>${PLANS[r.plan] || ''} plan</span><span>Start: ${esc(r.start)}</span>${(r.now || []).map(n => `<span>Uses ${esc(n)}</span>`).join('')}</div>
-          ${r.note ? `<p class="msg">${esc(r.note)}</p>` : ''}
-          ${r.status === 'waiting' ? `<div class="req-actions"><button type="button" class="btn btn-primary btn-sm" data-approve="${r.ref}">Approve and send setup link</button><button type="button" class="btn btn-outline btn-sm" data-decline="${r.ref}">Decline</button></div>` : `<div class="req-actions"><button type="button" class="btn btn-ghost btn-sm" data-undo="${r.ref}">Move back to waiting</button></div>`}
-        </article>`).join('') : `<p class="muted">Nothing here.</p>`}</div>
-      <p class="muted" style="font-size:14px">Prototype: buttons change this page only. No email is sent.</p>`;
-  }
-  $('#reqInner').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.tab) { reqTab = b.dataset.tab; renderReqs(); return; }
-    const list = requests();
-    const set = (ref, status, msg) => { const r = list.find(x => x.ref === ref); if (r) { r.status = status; saveRequests(list); renderReqs(); toast(msg.replace('%', r.church)); } };
-    if (b.dataset.approve) set(b.dataset.approve, 'approved', 'Approved %. In the real app, the setup link goes out now.');
-    if (b.dataset.decline) set(b.dataset.decline, 'declined', 'Declined %. They stay on the list.');
-    if (b.dataset.undo) set(b.dataset.undo, 'waiting', '% is back in Waiting.');
-  });
-
-  /* ── Router ── */
-  const sitePages = ['home', 'help', 'legal'];
-  const homeAnchors = ['how', 'pricing', 'faq'];
-  function route() {
-    const h = location.hash.replace('#', '') || 'home';
-    const task = { join: '#joinPage', status: '#statusPage', requests: '#reqPage' }[h];
-    $('#site').hidden = !!task;
-    ['#joinPage', '#statusPage', '#reqPage'].forEach(id => $(id).hidden = id !== task);
-    if (task) {
-      if (h === 'join') renderJoin(true);
-      if (h === 'status') renderStatus();
-      if (h === 'requests') renderReqs();
-      scrollTo(0, 0);
-      return;
-    }
-    const page = sitePages.includes(h) ? h : 'home';
-    document.querySelectorAll('[data-page]').forEach(p => p.hidden = p.dataset.page !== page);
-    document.querySelectorAll('.nav a').forEach(a => a.removeAttribute('aria-current'));
-    const cur = document.querySelector(`.nav a[href="#${h}"]`); if (cur) cur.setAttribute('aria-current', 'page');
-    if (homeAnchors.includes(h)) { requestAnimationFrame(() => document.getElementById(h)?.scrollIntoView()); }
-    else scrollTo(0, 0);
-  }
-  addEventListener('hashchange', route);
-  route();
-})();
-</script>
-<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
 </body>
 </html>
