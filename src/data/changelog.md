@@ -12,6 +12,7 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Instruments for everyone** — a card on Home asks what you play, and leaders can set it for people in the church.
 - **One song page** — the details on top and the chart right under them, with section colours, Chords/Lyrics and full screen.
 - **Song editor history** — earlier versions of a song are kept, so you can go back.
+- **A new look for Play and Practice** — warm colours, gold chords, section chips and a red dot on the menu while a service is live.
 
 ### Improved
 - **Pasting a song** — typed section names like Verse, Chorus, Strofa and Refren are recognised.
