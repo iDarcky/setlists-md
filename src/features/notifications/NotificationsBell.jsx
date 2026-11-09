@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTeam } from '@/auth/useTeam';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import { useAskForPush } from '@/push/useAskForPush';
@@ -11,7 +11,10 @@ export default function NotificationsBell({
   feed, schedules, setlists, matchesSetlistId, settings, setSettings,
   onUpdateSchedule, onMarkRead, onMarkAllRead, onOpenSetlist, onNotFound, onSettings, onClose,
 }) {
-  const { joinRequests = [], approveJoinRequest, declineJoinRequest } = useTeam();
+  const { joinRequests = [], approveJoinRequest, declineJoinRequest, refreshJoinRequests } = useTeam();
+  // Opening the bell re-reads the waiting list, so an "Asking to join" in the
+  // feed always comes with its Let in / Say no buttons.
+  useEffect(() => { refreshJoinRequests?.(); }, [refreshJoinRequests]);
   const push = usePushSubscription();
   const askForPush = useAskForPush(push);
   // Read once per opening: the panel mounts each time the bell opens.
