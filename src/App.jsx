@@ -7,7 +7,7 @@ import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
 import AppSkeleton from "@/ui/AppSkeleton";
 import { isQuotaError } from "@/lib/storageErrors";
-import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
+import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
@@ -2961,19 +2961,14 @@ export default function App() {
       )}
       {/* Workspace destination picker for move/copy from the song kebab. */}
       {moveCopyDialog && (
-        <WorkspacePickerDialog
+        <ChurchPickerSheet
           open
-          title={moveCopyDialog.action === 'move' ? 'Move song to…' : 'Copy song to…'}
-          description={(() => {
-            const t = songs.find(s => s.id === moveCopyDialog.songId)?.title || 'this song';
-            return moveCopyDialog.action === 'move'
-              ? `"${t}" will be moved out of the current workspace.`
-              : `A copy of "${t}" will be added. The original stays put.`;
-          })()}
-          confirmLabel={moveCopyDialog.action === 'move' ? 'Move' : 'Copy'}
-          workspaces={moveCopyWorkspaces}
-          onSelect={performMoveCopy}
-          onClose={() => setMoveCopyDialog(null)}
+          onOpenChange={(o) => { if (!o) setMoveCopyDialog(null); }}
+          action={moveCopyDialog.action}
+          count={1}
+          songTitle={songs.find(s => s.id === moveCopyDialog.songId)?.title || 'this song'}
+          churches={moveCopyWorkspaces}
+          onPick={performMoveCopy}
         />
       )}
 

@@ -1,31 +1,40 @@
-import { Dialog } from '@/ui/Dialog';
-import { Button } from '@/ui/Button';
+import { Sheet } from '@/ui/shadcn/sheet';
+import { Button } from '@/ui/shadcn/button';
 
-// Short human-readable summary of a song/setlist version, used to help the
-// user tell the two sides of a conflict apart at a glance.
+// Short summary of one side of a conflict, so the two read differently at a
+// glance.
 function summarize(kind, item) {
-  if (!item) return 'Unavailable';
+  if (!item) return 'Not available';
   if (kind === 'song') {
     const arr = Array.isArray(item.arrangements) ? item.arrangements : [];
     const def = arr.find(a => a.id === item.defaultArrangementId) || arr[0];
     const bits = [];
-    if (item.artist) bits.push(item.artist);
-    if (def?.key) bits.push(`key ${def.key}`);
+    if (def?.key) bits.push(`Key ${def.key}`);
+    if (def?.tempo) bits.push(`${def.tempo} BPM`);
     bits.push(`${arr.length} arrangement${arr.length === 1 ? '' : 's'}`);
     return bits.join(' · ');
   }
   const items = Array.isArray(item.items) ? item.items : [];
-  return `${items.length} song${items.length === 1 ? '' : 's'}`;
+  const songs = items.filter(i => i?.type !== 'break').length;
+  return `${songs} song${songs === 1 ? '' : 's'}`;
 }
 
+const Side = ({ label, text }) => (
+  <div className="flex flex-col gap-1 rounded-card border border-border bg-raised p-3.5">
+    <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>
+    <span className="text-[14px] leading-5 text-foreground">{text}</span>
+  </div>
+);
+
 /**
- * ConflictResolver — surfaced when a sync pulls a remote edit that collides
- * with an unsynced local edit. The remote ("cloud") copy has already been
- * adopted into local state; the user's divergent local copy is held here so
- * no work is lost. The user explicitly chooses what to keep per item.
+ * ConflictResolver — a sync pulled someone else's edit that collides with an
+ * unsynced edit made here. Their copy is already in the library; ours is held
+ * here so nothing is lost until the person picks. It cannot be dismissed
+ * without a choice.
  *
  * @param {Array} conflicts — [{ kind, id, title, local, remote }]
  * @param {(conflict, choice) => void} onResolve — choice ∈ 'cloud' | 'mine' | 'both'
+ * @param {(choice) => void} [onResolveAll] — 'cloud' | 'mine'
  */
 export default function ConflictResolver({ conflicts = [], onResolve, onResolveAll }) {
   const conflict = conflicts[0];
@@ -34,63 +43,47 @@ export default function ConflictResolver({ conflicts = [], onResolve, onResolveA
   const { kind, title, local, remote } = conflict;
   const remaining = conflicts.length - 1;
   const noun = kind === 'song' ? 'song' : 'setlist';
+  const name = title || `Untitled ${noun}`;
 
   return (
-    <Dialog open onClose={() => {}} closeOnBackdrop={false} size="md" ariaLabel="Resolve sync conflict">
-      <div className="p-6 flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-heading-18 font-semibold text-[var(--ds-gray-1000)] m-0">
-            Sync conflict
-          </h2>
-          <p className="text-copy-13 text-[var(--ds-gray-700)] m-0">
-            This {noun} — <strong>{title || `Untitled ${noun}`}</strong> — was edited both here and
-            in the cloud since the last sync. Choose which version to keep.
-          </p>
-        </div>
-
+    <Sheet
+      open
+      onOpenChange={() => { /* a choice is required */ }}
+      dismissible={false}
+      title={`Two versions of “${name}”`}
+      description={`Someone else changed this ${noun} while you were editing it.`}
+      className="h-auto sm:max-w-[480px]"
+    >
+      <div className="flex flex-col gap-4">
+        <p className="m-0 text-[15px] leading-[22px] text-muted-foreground">
+          Someone else changed this {noun} while you were editing it on this device. Pick what to keep.
+        </p>
         <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] p-3 flex flex-col gap-1">
-            <span className="text-copy-12 font-semibold uppercase tracking-wide text-[var(--ds-gray-600)]">Your version</span>
-            <span className="text-copy-13 text-[var(--ds-gray-1000)]">{summarize(kind, local)}</span>
-          </div>
-          <div className="rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] p-3 flex flex-col gap-1">
-            <span className="text-copy-12 font-semibold uppercase tracking-wide text-[var(--ds-gray-600)]">Cloud version</span>
-            <span className="text-copy-13 text-[var(--ds-gray-1000)]">{summarize(kind, remote)}</span>
+          <Side label="Yours" text={summarize(kind, local)} />
+          <Side label="Theirs" text={summarize(kind, remote)} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button onClick={() => onResolve(conflict, 'both')}>Keep both</Button>
+          <p className="m-0 text-center text-[13px] text-muted-foreground">Yours is saved as a copy next to theirs.</p>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => onResolve(conflict, 'mine')}>Keep mine</Button>
+            <Button variant="outline" onClick={() => onResolve(conflict, 'cloud')}>Keep theirs</Button>
           </div>
         </div>
-
-        <div className="flex flex-col gap-2 mt-1">
-          <Button variant="brand" onClick={() => onResolve(conflict, 'both')}>
-            Keep both (saves your copy separately)
-          </Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => onResolve(conflict, 'mine')}>
-              Keep mine
-            </Button>
-            <Button variant="secondary" onClick={() => onResolve(conflict, 'cloud')}>
-              Keep cloud
-            </Button>
-          </div>
-        </div>
-
         {remaining > 0 && (
-          <p className="text-copy-12 text-[var(--ds-gray-600)] text-center m-0">
-            {remaining} more conflict{remaining === 1 ? '' : 's'} to review
-          </p>
-        )}
-
-        {/* Bulk resolve — for the mass-conflict case, so the user isn't stuck
-            clicking through dozens of prompts one by one. */}
-        {remaining > 0 && onResolveAll && (
-          <div className="flex flex-col gap-2 border-t border-[var(--ds-gray-200)] pt-3">
-            <p className="text-copy-12 text-[var(--ds-gray-600)] text-center m-0">Or resolve all {conflicts.length} at once</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="ghost" onClick={() => onResolveAll('mine')}>Keep all mine</Button>
-              <Button variant="ghost" onClick={() => onResolveAll('cloud')}>Keep all cloud</Button>
-            </div>
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <p className="m-0 text-center text-[13px] text-muted-foreground">
+              {remaining} more like this.{onResolveAll ? ' Or decide them all at once:' : ''}
+            </p>
+            {onResolveAll && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="ghost" onClick={() => onResolveAll('mine')}>Keep all mine</Button>
+                <Button variant="ghost" onClick={() => onResolveAll('cloud')}>Keep all theirs</Button>
+              </div>
+            )}
           </div>
         )}
       </div>
-    </Dialog>
+    </Sheet>
   );
 }
