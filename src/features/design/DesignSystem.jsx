@@ -8,7 +8,7 @@ import { Toggle } from '@/ui/shadcn/toggle';
 import { Field, FieldLabel, FieldDescription, FieldError } from '@/ui/shadcn/field';
 import { cn } from '@/ui/shadcn/utils';
 import LegalSheet from '@/features/legal/LegalSheet';
-import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView } from '@/features/auth/AuthViews';
+import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView, NewPasswordView } from '@/features/auth/AuthViews';
 import {
   JoinInviteView, AboutYouView, WaitingView, YoureInView, DeclinedView, BadLinkView,
 } from '@/features/join/JoinViews';
@@ -953,6 +953,8 @@ const SCREENS = [
   ['Create account', () => <CreateAccountView embedded values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onLogIn={noop} onShowLegal={noop} />],
   ['Log in', () => <LogInView embedded values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Forgot password', () => <ForgotPasswordView embedded email="" onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['New password', () => <NewPasswordView embedded values={{ password: 'sunday2026', confirm: 'sunday20' }} onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['New password: saved', () => <NewPasswordView embedded done values={{ password: '', confirm: '' }} onChange={noop} onSubmit={noop} />],
   ['Join: invite', () => <JoinInviteView embedded church={CHURCH} alreadyIn="Daniel and 11 others are already in" onCreateAccount={noop} onLogIn={noop} onNotNow={noop} />],
   ['Join: log in', () => <LogInView embedded joining={CHURCH} values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Join: about you', () => <AboutYouDemo embedded />],

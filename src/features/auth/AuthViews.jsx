@@ -3,7 +3,7 @@ import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
 import { Alert } from '@/ui/shadcn/alert';
 import { Field, FieldGroup, FieldLabel, FieldDescription, FieldError } from '@/ui/shadcn/field';
-import { AuthLayout, AuthHeader, AuthActions, LogoMark, ChurchBadge, TextLink } from './AuthLayout';
+import { AuthLayout, AuthHeader, AuthActions, LogoMark, ChurchBadge, SuccessBadge, TextLink } from './AuthLayout';
 
 // The signed-out screens as plain views: values in, events out, no Supabase.
 // AuthScreen and WelcomeScreen hold the state; /design renders these with
@@ -205,6 +205,48 @@ export function ForgotPasswordView({ email, onChange, onSubmit, onBack, busy, me
           {sent ? 'Send it again' : 'Send reset link'}
         </Button>
         <TextLink question="Remembered it?" answer="Log in" onClick={onBack} />
+      </AuthActions>
+    </AuthLayout>
+  );
+}
+
+// ── Set a new password (after the reset link) ──────────────────────────────
+
+/** @param {{ password: string, confirm: string }} values */
+export function NewPasswordView({ values, onChange, onSubmit, onBack, busy, message, done, embedded }) {
+  const uid = useId();
+  const tooShort = values.password.length > 0 && values.password.length < 8;
+  const mismatch = values.confirm.length > 0 && values.confirm !== values.password;
+  const ready = values.password.length >= 8 && values.confirm === values.password;
+  if (done) {
+    return (
+      <AuthLayout embedded={embedded}>
+        <AuthHeader mark={<SuccessBadge />} title="Password changed" sub="You’re logged in. Taking you to your church…" />
+      </AuthLayout>
+    );
+  }
+  return (
+    <AuthLayout onBack={onBack} embedded={embedded}>
+      <AuthHeader mark={<LogoMark />} title="Pick a new password" sub="Use it next time you log in, on any device." />
+      <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (ready) onSubmit(); }} noValidate>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-password`}>New password</FieldLabel>
+            <PasswordInput id={`${uid}-password`} autoComplete="new-password" value={values.password} aria-invalid={tooShort || undefined}
+              aria-describedby={`${uid}-password-hint`} onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView} />
+            <FieldDescription id={`${uid}-password-hint`} className={tooShort ? 'text-danger-text' : undefined}>At least 8 characters.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-confirm`}>Type it again</FieldLabel>
+            <PasswordInput id={`${uid}-confirm`} autoComplete="new-password" value={values.confirm} aria-invalid={mismatch || undefined}
+              onChange={e => onChange('confirm', e.target.value)} onFocus={scrollFieldIntoView} />
+            <FieldError>{mismatch ? 'Passwords don’t match.' : null}</FieldError>
+          </Field>
+        </FieldGroup>
+      </form>
+      <Message message={message} />
+      <AuthActions>
+        <Button type="submit" form={`${uid}-form`} disabled={!ready} loading={busy}>Save new password</Button>
       </AuthActions>
     </AuthLayout>
   );

@@ -2262,7 +2262,7 @@ export default function App() {
   if (view === 'recovery') {
     return (
       <ErrorBoundary>
-        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
           <RecoveryScreen
             onBack={() => goToMainView('home')}
             onDone={() => goToMainView('home')}
