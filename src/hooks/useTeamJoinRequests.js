@@ -47,7 +47,18 @@ export function useTeamJoinRequests(teamId, { enabled = true, onMembersChanged }
         () => { refreshRef.current(); }
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    // Realtime alone is not enough: a phone that slept, or a socket that
+    // dropped, misses the INSERT and the leader sees "Asking to join" in the
+    // feed with nothing to approve (2026-11-09, Providența). Re-read whenever
+    // the app comes back to the front.
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshRef.current(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
   }, [active, teamId]);
 
   const approve = useCallback(async (id) => {

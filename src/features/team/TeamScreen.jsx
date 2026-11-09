@@ -358,7 +358,9 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
 
 export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
   const { user } = useAuth();
-  const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests } = useTeam();
+  const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests } = useTeam();
+  // Fresh "Waiting" list every time the page opens (realtime can miss one).
+  useEffect(() => { refreshJoinRequests?.(); }, [refreshJoinRequests]);
 
   // Whether the create form is showing. A user can belong to several
   // workspaces, so the form is reachable even when a team is already active
