@@ -31,7 +31,9 @@ import NotificationsPanel from '@/features/notifications/NotificationsPanel';
 import { buildNotifs } from '@/lib/notifData';
 import {
   SettingsHubView, ProfileView, AppearanceView, NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView,
+  SettingsShell,
 } from '@/features/settings/SettingsViews';
+import WhatsNewPanel from '@/features/settings/WhatsNewPanel';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
 import SetlistFlow from '@/features/setlist/SetlistFlow';
@@ -582,6 +584,8 @@ function SettingsDemo({ page, leader = true }) {
       ]} onFlag={(id, on) => setLabs(p => ({ ...p, [id]: on }))} onBack={back} />;
     case 'about':
       return <AboutView embedded version="0.20.0" onWhatsNew={noop} onHelp={noop} onLegal={noop} onBack={back} />;
+    case 'whatsnew':
+      return <SettingsShell embedded title="What’s new" onBack={back}><WhatsNewPanel /></SettingsShell>;
     default:
       return <SettingsHubView embedded church={leader ? CHURCH : null}
         summary={{ appearance: 'Dark', notifications: 'On', plan: 'Church', services: '3', data: '142 songs', version: 'v0.20.0' }}
@@ -867,7 +871,7 @@ function TeamGallery() {
 
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
-    ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
+    ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about'], ['What’s new', 'whatsnew']];
   return (
     <div className="flex flex-wrap gap-6">
       {pages.map(([label, page, props = {}]) => THEMES.map(t => (
@@ -985,6 +989,7 @@ const SCREENS = [
       upcoming={[]} onRole={noop} onRemove={noop} /></DrawerFrame>
   )],
   ['Home: desktop, what do you play?', () => <HomeDemo layout="wide" leader noParts />],
+  ['What’s new', () => <SettingsDemo page="whatsnew" />],
 ];
 
 function PartsPopupDemo() {
@@ -1001,7 +1006,7 @@ function PartsPopupDemo() {
 function Gallery() {
   return (
     <div className="flex flex-col gap-8">
-      {SCREENS.filter(([label]) => !/^(New setlist|Template)/.test(label)).map(([label, render]) => (
+      {SCREENS.filter(([label]) => !/^(New setlist|Template|What’s new)/.test(label)).map(([label, render]) => (
         <div key={label} className="flex flex-col gap-2">
           <h3 className="m-0 text-body font-semibold">{label}</h3>
           <div className="flex gap-6 overflow-x-auto pb-2">
