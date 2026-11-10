@@ -148,3 +148,14 @@ describe('printing one song', () => {
     expect(html).not.toContain('class="order"');
   });
 });
+
+describe('repeat chips', () => {
+  it('a part played again gets a chip, back-to-back repeats share one', async () => {
+    const { buildPrintDocument } = await import('@/pdf/printSetlist');
+    const s = songFromFlat({ id: 'a', title: 'X', key: 'C', structure: ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Chorus'], sections: [
+      { type: 'Verse 1', lines: ['[C]One'] }, { type: 'Chorus', lines: ['[F]Sing'] }, { type: 'Verse 2', lines: ['[C]Two'] }] });
+    const html = buildPrintDocument({ name: 'S', items: [{ songId: 'a' }] }, [s], { mode: 'full' });
+    expect(html).toContain('<span>Chorus</span><span class="n">×2</span></div>');
+    expect(html.match(/class="repchip/g)).toHaveLength(1);
+  });
+});
