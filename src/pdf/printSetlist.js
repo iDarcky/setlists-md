@@ -74,14 +74,14 @@ const STYLES = `
   .sct { break-inside: avoid; margin-bottom: calc(12px * var(--s)); }
   .sct.rep { display: none; }
   body.repeats-full .sct.rep { display: block; }
-  /* A repeat printed once: the song page's "again" row, a tone chip (V1, C)
-     then the name. Paper is light, so the light-theme tones. */
-  .repchip { display: flex; align-items: center; gap: 7px; break-inside: avoid; margin: 0 0 calc(12px * var(--s));
-             font-size: calc(10.5pt * var(--s)); }
-  .repchip .tc { display: inline-flex; align-items: center; justify-content: center; min-width: calc(22px * var(--s)); height: calc(18px * var(--s));
-                 padding: 0 5px; border-radius: 5px; font-size: calc(8.5pt * var(--s)); font-weight: 600; }
-  .repchip b { font-weight: 600; }
-  .repchip span.ag { color: #6B655C; font-size: .9em; }
+  /* A repeat printed once: one soft pill in the section's tone (the song
+     page's chip recipe: text in the colour, fill at 16%), a repeat icon, the
+     name, and the count. Paper is light, so the light-theme tones. */
+  .repchip { display: flex; align-items: center; gap: 6px; width: fit-content; break-inside: avoid;
+             margin: 0 0 calc(12px * var(--s)); padding: calc(4px * var(--s)) calc(10px * var(--s)) calc(4px * var(--s)) calc(8px * var(--s));
+             border-radius: 8px; font-size: calc(9.5pt * var(--s)); font-weight: 600; line-height: 1.2; }
+  .repchip svg { width: 1em; height: 1em; flex: none; }
+  .repchip .n { font-weight: 500; opacity: .75; }
   body.repeats-full .repchip { display: none; }
   body.no-chords .repchip.nw { display: none; }
   .sct h4 { margin: 0 0 4px; font-size: calc(8.5pt * var(--s)); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #3B5A52; }
@@ -174,11 +174,12 @@ const TONES = [
   [/^bridge/, '#5C4D93'], [/^(instrumental|interlude|solo)/, '#3D5B80'], [/^(tag|vamp)/, '#8F3F5A'],
 ];
 
+const REPEAT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>';
+
 function repeatChip(section, n) {
   const label = (section.type || '').replace(/:+$/, '');
   const fg = TONES.find(([re]) => re.test(label.toLowerCase().replace(/[^a-z]/g, '')))?.[1] || '#6B655C';
-  const chip = `<span class="tc" style="color:${fg};background:color-mix(in srgb, ${fg} 16%, transparent)">${esc(flowCode(label))}</span>`;
-  return `<div class="repchip${hasWords(section) ? '' : ' nw'}">${chip}<b>${esc(label)}</b><span class="ag">again${n > 1 ? ` ×${n}` : ''}</span></div>`;
+  return `<div class="repchip${hasWords(section) ? '' : ' nw'}" style="color:${fg};background:color-mix(in srgb, ${fg} 14%, transparent)">${REPEAT_ICON}<span>${esc(label)}</span>${n > 1 ? `<span class="n">×${n}</span>` : ''}</div>`;
 }
 
 function sectionHtml(section, shift, fires, repeat = false) {
