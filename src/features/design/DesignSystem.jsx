@@ -10,7 +10,7 @@ import { cn } from '@/ui/shadcn/utils';
 import LegalSheet from '@/features/legal/LegalSheet';
 import ConflictResolver from '@/features/sync/ConflictResolver';
 import { ChurchPickerSheet } from '@/features/songs/SongsSheets';
-import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView } from '@/features/auth/AuthViews';
+import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView, NewPasswordView } from '@/features/auth/AuthViews';
 import {
   JoinInviteView, AboutYouView, WaitingView, YoureInView, DeclinedView, BadLinkView,
 } from '@/features/join/JoinViews';
@@ -33,7 +33,9 @@ import NotificationsPanel from '@/features/notifications/NotificationsPanel';
 import { buildNotifs } from '@/lib/notifData';
 import {
   SettingsHubView, ProfileView, AppearanceView, NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView,
+  SettingsShell,
 } from '@/features/settings/SettingsViews';
+import WhatsNewPanel from '@/features/settings/WhatsNewPanel';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
 import SetlistFlow from '@/features/setlist/SetlistFlow';
@@ -584,6 +586,8 @@ function SettingsDemo({ page, leader = true }) {
       ]} onFlag={(id, on) => setLabs(p => ({ ...p, [id]: on }))} onBack={back} />;
     case 'about':
       return <AboutView embedded version="0.20.0" onWhatsNew={noop} onHelp={noop} onLegal={noop} onBack={back} />;
+    case 'whatsnew':
+      return <SettingsShell embedded title="What’s new" onBack={back}><WhatsNewPanel /></SettingsShell>;
     default:
       return <SettingsHubView embedded church={leader ? CHURCH : null}
         summary={{ appearance: 'Dark', notifications: 'On', plan: 'Church', services: '3', data: '142 songs', version: 'v0.20.0' }}
@@ -869,7 +873,7 @@ function TeamGallery() {
 
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
-    ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
+    ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about'], ['What’s new', 'whatsnew']];
   return (
     <div className="flex flex-wrap gap-6">
       {pages.map(([label, page, props = {}]) => THEMES.map(t => (
@@ -955,6 +959,8 @@ const SCREENS = [
   ['Create account', () => <CreateAccountView embedded values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onLogIn={noop} onShowLegal={noop} />],
   ['Log in', () => <LogInView embedded values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Forgot password', () => <ForgotPasswordView embedded email="" onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['New password', () => <NewPasswordView embedded values={{ password: 'sunday2026', confirm: 'sunday20' }} onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['New password: saved', () => <NewPasswordView embedded done values={{ password: '', confirm: '' }} onChange={noop} onSubmit={noop} />],
   ['Join: invite', () => <JoinInviteView embedded church={CHURCH} alreadyIn="Daniel and 11 others are already in" onCreateAccount={noop} onLogIn={noop} onNotNow={noop} />],
   ['Join: log in', () => <LogInView embedded joining={CHURCH} values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Join: about you', () => <AboutYouDemo embedded />],
@@ -987,6 +993,7 @@ const SCREENS = [
       upcoming={[]} onRole={noop} onRemove={noop} /></DrawerFrame>
   )],
   ['Home: desktop, what do you play?', () => <HomeDemo layout="wide" leader noParts />],
+  ['What’s new', () => <SettingsDemo page="whatsnew" />],
   ['Pop-up: two versions', () => <ConflictResolver onResolve={noop} onResolveAll={noop} conflicts={[1, 2, 3].map(n => ({ kind: 'song', id: `c${n}`, title: 'Way Maker',
     local: { arrangements: [{ id: 'a', key: 'E', tempo: 68 }] }, remote: { arrangements: [{ id: 'a', key: 'D', tempo: 68 }, { id: 'b', key: 'E' }] } }))} />],
   ['Pop-up: move a song', () => <ChurchPickerSheet open onOpenChange={noop} action="move" count={1} songTitle="Way Maker" churches={[{ id: 'y', name: 'Grace Youth' }, { id: 'n', name: 'North Campus' }]} onPick={noop} />],
@@ -1006,7 +1013,7 @@ function PartsPopupDemo() {
 function Gallery() {
   return (
     <div className="flex flex-col gap-8">
-      {SCREENS.filter(([label]) => !/^(New setlist|Template|Pop-up)/.test(label)).map(([label, render]) => (
+      {SCREENS.filter(([label]) => !/^(New setlist|Template|What’s new|Pop-up)/.test(label)).map(([label, render]) => (
         <div key={label} className="flex flex-col gap-2">
           <h3 className="m-0 text-body font-semibold">{label}</h3>
           <div className="flex gap-6 overflow-x-auto pb-2">
