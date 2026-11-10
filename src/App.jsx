@@ -137,7 +137,6 @@ const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
 const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
-const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
 const Schedule = lazy(() => import('@/features/schedule/Schedule'));
 const Songs = lazy(() => import('@/features/songs/Songs'));
@@ -2360,7 +2359,7 @@ export default function App() {
   // ── The new navigation (canvas "Navigation options": pill B, menu B) ──
   // Views that carry the nav pill. Everything else (a song, a service, the
   // reader, the editor) has its own "← Back".
-  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'upgrade', 'you'];
+  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'you'];
   // Schedule needs a church; on its own, Personal's Schedule is its setlists.
   const goNavItem = (id) => goToMainView(
     id === 'songs' ? 'library' : id === 'schedule' && activeLibrary === 'personal' ? 'setlists' : id,
@@ -2578,7 +2577,6 @@ export default function App() {
               {...buildChartMoveCopy(currentSong.id)}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              onUpgrade={() => navigate('upgrade')}
               // ⚠ Nine props were threaded here into a component that stopped
               // declaring them: the seven that fed `chartProps` (which fed the
               // ChartView the hub no longer mounts), plus `isFullscreen` and
@@ -2743,7 +2741,6 @@ export default function App() {
               onSaveAsArrangement={isTeamReadOnly ? null : handleSaveAsArrangement}
               trash={trash}
               onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
-              onUpgrade={() => navigate('upgrade')}
               onBack={goBack}
               onFinish={(stats) => goSetlistFinale(currentSetlist, stats)}
             />
@@ -2773,16 +2770,6 @@ export default function App() {
           }} />
         </Suspense>
       )}
-      {view === 'upgrade' && (
-            <PricingScreen
-              onBack={goBack}
-              settings={settings}
-              onSignIn={() => {
-                setAuthStartMode('signup');
-                navigate('signin');
-              }}
-            />
-          )}
           {(view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') && (
             <LegalPage
               doc={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'}
@@ -2882,7 +2869,6 @@ export default function App() {
               onRestoreSong={handleRestoreSong}
               onPurgeSong={handlePurgeSong}
               onEmptyTrash={handleEmptyTrash}
-              onUpgrade={() => navigate('upgrade')}
               onShowLegal={(doc) => navigate(`legal-${doc}`)}
               onHelp={() => navigate('help')}
             />
@@ -2895,7 +2881,6 @@ export default function App() {
               displayName={displayName}
               displayEmail={displayEmail}
               plan={plan}
-              onUpgrade={() => navigate('upgrade')}
               onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               onSignOut={handleSignOut}
@@ -2904,7 +2889,6 @@ export default function App() {
           {view === 'team' && (
             <TeamScreen
               onBack={goBack}
-              onUpgrade={() => navigate('upgrade')}
               onSwitchLibrary={switchWorkspace}
               initialCreate={teamCreateIntent}
               onCreateHandled={() => setTeamCreateIntent(false)}
@@ -2989,7 +2973,8 @@ export default function App() {
           onSignIn={() => {
             setSettings(prev => ({ ...prev, seenSaveAccountWall: true }));
             dismissTopModal();
-            navigate('upgrade');
+            setAuthStartMode('signup');
+            navigate('signin');
           }}
           onSkip={() => {
             setSettings(prev => ({ ...prev, seenSaveAccountWall: true }));
