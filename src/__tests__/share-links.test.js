@@ -116,3 +116,23 @@ describe('the printout', () => {
     expect(html).toContain('>Db</span>');
   });
 });
+
+describe('the print look', () => {
+  it('a line wraps only between words', async () => {
+    const { wordGroups } = await import('@/pdf/printSetlist');
+    const g = wordGroups([{ chord: 'D', text: 'Oh glory di' }, { chord: 'A', text: 'vine' }, { chord: 'G', text: ' now' }]);
+    expect(g.map(x => x.map(p => p.text).join('|'))).toEqual(['Oh glory ', 'di|vine', ' now']);
+  });
+  it('the flow line is short codes', async () => {
+    const { flowCode } = await import('@/pdf/printSetlist');
+    expect(['Verse 1', 'Chorus', 'Pre-Chorus 2', 'Bridge:', 'Intro'].map(flowCode)).toEqual(['V1', 'C', 'Pc2', 'B', 'I']);
+  });
+  it('prints repeats hidden, and the chosen look on the page', async () => {
+    const { buildPrintDocument } = await import('@/pdf/printSetlist');
+    const s = songFromFlat({ id: 'a', title: 'X', key: 'C', structure: ['Chorus', 'Chorus'], sections: [{ type: 'Chorus', lines: ['[C]Hi'] }] });
+    const html = buildPrintDocument({ name: 'S', items: [{ songId: 'a' }] }, [s], { mode: 'full', look: { size: 'xl', chords: false, cols: 1, repeats: false } });
+    expect(html).toContain('<div class="flow">C C</div>');
+    expect(html).toContain('class="sct rep"');
+    expect(html).toContain('data-size="xl" class="no-chords" style="--cols:1"');
+  });
+});

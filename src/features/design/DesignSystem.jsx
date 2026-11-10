@@ -51,6 +51,8 @@ import { buildOrder } from '@/lib/setlistView';
 import { ShareBody } from '@/features/sharing/ShareSheet';
 import GuestView from '@/features/sharing/GuestView';
 import { PrintBody } from '@/features/setlist/PrintSheet';
+import { PrintPreviewView } from '@/features/setlist/PrintPreview';
+import { buildPrintDocument } from '@/pdf/printSetlist';
 import TeamPage, { InviteCard, UsageEntry, Waiting } from '@/features/team/TeamPage';
 import { PersonBody, ChurchBody } from '@/features/team/TeamSheets';
 import { PartsPicker } from '@/features/team/PartsPicker';
@@ -785,7 +787,7 @@ function DrawerFrame({ title, children }) {
 }
 
 function ShareGallery() {
-  const [choice, setChoice] = useState({ mode: 'overview', notes: true, leads: true, twoColumns: true });
+  const [choice, setChoice] = useState({ mode: 'overview', notes: true, leads: true });
   const guestSl = { ...SL, items: (SL.items || []).map(({ leadBy: _l, ...it }) => it) };
   const order = buildOrder(guestSl, SL_SONGS);
   const share = { url: 'https://setlists.md/?setlist=k7qm2xpa9r4tz8wd' };
@@ -946,6 +948,24 @@ const NewSetlistPopupDemo = ({ first = false }) => (
   </div>
 );
 
+// Print preview: a public-domain hymn (Fanny Crosby, 1873) with a chorus that
+// comes back, so Repeated parts has something to show.
+const PP_SONGS = [{
+  id: 'ba', title: 'Blessed Assurance', artist: 'Fanny Crosby', defaultArrangementId: 'ba',
+  arrangements: [{ id: 'ba', key: 'D', tempo: 72, time: '9/8', structure: ['Intro', 'Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Chorus'], sections: [
+    { type: 'Intro', lines: ['[D] [G] [D] [A]'] },
+    { type: 'Verse 1', lines: ['[D]Blessed assurance, [G]Jesus is [D]mine', 'Oh what a foretaste of [E]glory di[A]vine', '[D]Heir of sal[G]vation, [D]purchase of God', '[G]Born of His [D]Spirit, [A]washed in His [D]blood'] },
+    { type: 'Chorus', lines: ['[D]This is my story, [G]this is my [D]song', 'Praising my Saviour [E]all the day [A]long', '[D]This is my [G]story, [D]this is my song', '[G]Praising my [D]Saviour [A]all the day [D]long'] },
+    { type: 'Verse 2', lines: ['[D]Perfect sub[G]mission, per[D]fect delight', 'Visions of rapture now [E]burst on my [A]sight', '[D]Angels de[G]scending [D]bring from above', '[G]Echoes of [D]mercy, [A]whispers of [D]love'] },
+  ] }],
+}];
+const PP_SETLIST = { id: 'pp', name: 'Sunday Morning', date: '2026-11-15', time: '10:00', items: [{ songId: 'ba', leadBy: 'jd', note: 'Start soft, keys only' }] };
+const ppBuild = (look) => buildPrintDocument(PP_SETLIST, PP_SONGS, { mode: 'full', nameOf: (u) => SL_NAMES[u] || '', church: { name: 'Grace Church' }, look });
+const PrintPreviewDemo = ({ look }) => (
+  <PrintPreviewView embedded title="Sunday Morning" charts build={ppBuild} onClose={noop}
+    initialLook={{ size: 'm', chords: true, cols: 2, repeats: false, ...look }} />
+);
+
 const FILLED = { name: 'Joe Doe', email: 'joe@example.com', password: 'password1', confirm: 'password1' };
 
 const SCREENS = [
@@ -985,6 +1005,9 @@ const SCREENS = [
       upcoming={[]} onRole={noop} onRemove={noop} /></DrawerFrame>
   )],
   ['Home: desktop, what do you play?', () => <HomeDemo layout="wide" leader noParts />],
+  ['Print preview: charts', () => <PrintPreviewDemo />],
+  ['Print preview: lyrics only, large, one column', () => <PrintPreviewDemo look={{ chords: false, size: 'l', cols: 1 }} />],
+  ['Print preview: extra large, repeats every time', () => <PrintPreviewDemo look={{ size: 'xl', repeats: true }} />],
 ];
 
 function PartsPopupDemo() {
