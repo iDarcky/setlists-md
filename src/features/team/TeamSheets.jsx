@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
+import { Alert } from '@/ui/shadcn/alert';
 import { Input } from '@/ui/shadcn/input';
 import { Avatar } from '@/app/AppTopBar';
 import { CheckIcon } from '@/app/navIcons';
-import { displayTokens } from '@/data/instruments';
+import { displayTokens, normalize } from '@/data/instruments';
+import { PartsPicker } from './PartsPicker';
 import { roleDef } from '@/lib/teamRoles';
 import AvatarUploader from '@/ui/AvatarUploader';
 import { memberName } from '@/lib/teamPeople';
@@ -22,14 +24,32 @@ const ANSWER = {
   pending: { label: 'Asked', cls: 'bg-warning/15 text-warning-text' },
 };
 
+const savedTokens = (m) => Array.from(new Set((m?.instruments || []).map(normalize).filter(Boolean)));
+
 const Label = ({ children }) => <h3 className="m-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</h3>;
 
 /**
  * Body of the person pop-up. `canManage`: may change their role and remove
  * them. `canMakeAdmin`: the owner, who alone hands out "can change roles".
  */
-export function PersonBody({ member, isOwnerRow = false, me = false, since = '', upcoming = [], canManage = false, canMakeAdmin = false, onRole, onRemove, onLeave, busy = false }) {
+export function PersonBody({ member, isOwnerRow = false, me = false, since = '', upcoming = [], canManage = false, canMakeAdmin = false, onRole, onRemove, onLeave, busy = false, onSaveParts, startEditingParts = false, error = '' }) {
   const parts = displayTokens(member.instruments);
+  // Owner and leaders: Edit what this person plays. Quiet — no one is told,
+  // and the person can still change it themselves (owner, 2026-11-04).
+  const [partsDraft, setPartsDraft] = useState(() => startEditingParts ? savedTokens(member) : null);
+  const [partsBusy, setPartsBusy] = useState(false);
+  const [partsError, setPartsError] = useState('');
+  const [forMember, setForMember] = useState(member.id);
+  if (forMember !== member.id) { setForMember(member.id); setPartsDraft(null); setPartsError(''); }
+  const saveParts = async () => {
+    setPartsBusy(true); setPartsError('');
+    try {
+      await onSaveParts(member.id, partsDraft);
+      setPartsDraft(null);
+    } catch (err) {
+      setPartsError(err?.message || 'Couldn’t save that. Try again.');
+    } finally { setPartsBusy(false); }
+  };
   const role = member.role || 'member';
   const pick = role === 'admin' ? 'leader' : role;
   const editable = canManage && !me && !isOwnerRow;
@@ -43,12 +63,30 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label>Plays</Label>
-        {parts.length
-          ? <div className="flex flex-wrap gap-2">{parts.map(p => <span key={p.token} className="flex h-8 items-center rounded-full border border-chip-border px-3 text-[14px]">{p.label}</span>)}</div>
-          : <p className="m-0 text-[14px] text-muted-foreground">{me ? 'Add what you play in your profile.' : 'Hasn’t said yet.'}</p>}
-      </div>
+      {partsDraft ? (
+        <div className="flex flex-col gap-3">
+          <PartsPicker tokens={partsDraft} onChange={setPartsDraft} busy={partsBusy} error={partsError} />
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" disabled={partsBusy} onClick={() => { setPartsDraft(null); setPartsError(''); }}>Cancel</Button>
+            <Button className="flex-1" loading={partsBusy} onClick={saveParts}>Save</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
+            <Label>Plays</Label>
+            {onSaveParts && (
+              <button type="button" onClick={() => setPartsDraft(savedTokens(member))}
+                className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link hover:underline">
+                {parts.length ? 'Edit' : 'Add'}
+              </button>
+            )}
+          </div>
+          {parts.length
+            ? <div className="flex flex-wrap gap-2">{parts.map(p => <span key={p.token} className="flex h-8 items-center rounded-full border border-chip-border px-3 text-[14px]">{p.label}</span>)}</div>
+            : <p className="m-0 text-[14px] text-muted-foreground">{me && !onSaveParts ? 'Add what you play in your profile.' : 'Hasn’t said yet.'}</p>}
+        </div>
+      )}
 
       {editable && (
         <div className="flex flex-col gap-2">
@@ -92,6 +130,7 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
         ) : <p className="m-0 text-[14px] text-muted-foreground">Not in any band coming up.</p>}
       </div>
 
+      {error && <Alert variant="danger">{error}</Alert>}
       {editable && onRemove && <Button variant="outline" className="text-danger" disabled={busy} onClick={onRemove}>Remove from the church</Button>}
       {me && !isOwnerRow && onLeave && <Button variant="outline" className="text-danger" disabled={busy} onClick={onLeave}>Leave this church</Button>}
     </div>

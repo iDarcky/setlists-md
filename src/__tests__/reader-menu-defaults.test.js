@@ -40,8 +40,8 @@ describe('the ☰ default table', () => {
     const cfg = resolveReaderConfig({}, { wide: true });
     expect(table.structurePosition).toBe("'top'");
     expect(cfg.ribbon).toBe('top');
-    expect(table.readerHeading).toBe("'name'");
-    expect(cfg.heading).toBe('name');
+    expect(table.readerHeading).toBe("'chip'");
+    expect(cfg.heading).toBe('chip');
     expect(table.readerSectionStyle).toBe("'plain'");
     expect(cfg.sectionStyle).toBe('plain');
     expect(table.duplicateSections).toBe("'full'");

@@ -19,6 +19,7 @@ describe('buildNotifs', () => {
     expect(out.needs[0].title).toBe('Can you play Sun 8 Nov?');
     expect(out.needs[0].sub).toBe('Sunday Morning · Acoustic Guitar');
     expect(out.needs[1].avatar.initials).toBe('AP');
+    expect(out.needs[1].name).toBe('Ana Pop');
     expect(out.unread).toBe(2);
   });
 
@@ -42,5 +43,19 @@ describe('timeLabel', () => {
     expect(timeLabel(NOW - 30000, NOW)).toBe('now');
     expect(timeLabel(NOW - 5 * 60000, NOW)).toBe('5m');
     expect(timeLabel(NOW - 3 * H, NOW)).toBe('3h');
+  });
+});
+
+describe('buildNotifs join requests', () => {
+  it('shows a waiting request once, in Needs you, not again in the feed', () => {
+    const now = Date.parse('2026-11-09T19:00:00Z');
+    const feed = [
+      { id: 'tn-1', type: 'join_request', title: 'Asking to join', message: 'anne wants to join Providenta.', requestId: 'r1', createdAt: '2026-11-09T18:51:52Z' },
+      { id: 'tn-2', type: 'join_request', title: 'Asking to join', message: 'Anda wants to join Providenta.', requestId: 'r2', createdAt: '2026-11-08T10:00:00Z' },
+    ];
+    const data = buildNotifs({ feed, joinRequests: [{ id: 'r1', display_name: 'anne', created_at: '2026-11-09T18:51:52Z' }], now });
+    expect(data.needs.map(i => i.requestId)).toEqual(['r1']);
+    const feedIds = data.groups.flatMap(g => g.items.map(i => i.id));
+    expect(feedIds).toEqual(['tn-2']);
   });
 });

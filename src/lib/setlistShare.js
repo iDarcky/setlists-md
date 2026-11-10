@@ -175,6 +175,22 @@ export async function fetchSharedSetlist(token) {
   };
 }
 
+/**
+ * The guest link's change stamp: a short hash of what `fetchSharedSetlist`
+ * would return (`20261106_share_link_stamp.sql`). `null` when the link is
+ * missing or ended; `undefined` when the project lacks the function, so the
+ * caller falls back to downloading the whole setlist.
+ */
+export async function fetchShareStamp(token) {
+  if (!supabase) throw new Error('Sharing is unavailable right now.');
+  const { data, error } = await supabase.rpc('get_shared_setlist_stamp', { p_token: token });
+  if (error) {
+    if (missing(error)) return undefined;
+    throw error;
+  }
+  return data ?? null;
+}
+
 export async function revokeSetlistShare(token) {
   if (!supabase) return;
   const { error } = await supabase.from('shared_setlists').delete().eq('token', token);

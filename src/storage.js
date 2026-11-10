@@ -290,7 +290,7 @@ export const DEFAULT_SETTINGS = {
   // 'top' (default, in the header), 'bottom', 'left', 'right', or 'off'.
   structurePosition: 'top',
   // Reader display — see lib/readerConfig.js.
-  readerHeading: 'name',
+  readerHeading: 'chip',
   // 'plain' — no frame. A chart is paper, and paper has no frames on it
   // (owner, 2026-08-04; corrected here 2026-08-06, where it had always been).
   readerSectionStyle: 'plain',
@@ -414,6 +414,22 @@ export async function pushVersion(songId, md) {
     const list = (await get(VERSIONS_KEY(songId))) || [];
     if (list.length && list[list.length - 1].md === md) return; // skip no-op saves
     list.push({ ts: Date.now(), md });
+    while (list.length > MAX_VERSIONS) list.shift();
+    await set(VERSIONS_KEY(songId), list);
+  } catch {
+    /* history is best-effort */
+  }
+}
+
+// The new editor keeps the whole song (every arrangement), not one .md.
+export async function pushSongVersion(songId, doc) {
+  if (!songId || !doc) return;
+  try {
+    const json = JSON.stringify(doc);
+    const list = (await get(VERSIONS_KEY(songId))) || [];
+    const last = list[list.length - 1];
+    if (last && last.doc && JSON.stringify(last.doc) === json) return;
+    list.push({ ts: Date.now(), doc });
     while (list.length > MAX_VERSIONS) list.shift();
     await set(VERSIONS_KEY(songId), list);
   } catch {

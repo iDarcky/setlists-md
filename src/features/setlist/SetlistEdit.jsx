@@ -20,21 +20,21 @@ import { useDragReorder, moveItem } from './useDragReorder';
 export const NOTE_MAX = 500;
 const LENGTHS = [1, 2, 5, 10];
 
-const Label = ({ children }) => <span className="text-[13px] font-semibold text-muted-foreground">{children}</span>;
-const Pill = ({ on, children, ...p }) => (
+export const Label = ({ children }) => <span className="text-[13px] font-semibold text-muted-foreground">{children}</span>;
+export const Pill = ({ on, children, ...p }) => (
   <button type="button" {...p}
     className={cn('flex h-9 min-h-0 cursor-pointer items-center rounded-full border px-3.5 font-sans text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
       on ? 'border-transparent bg-selected font-semibold text-foreground' : 'border-border bg-transparent font-medium text-muted-foreground')}>
     {children}
   </button>
 );
-const Grip = (props) => (
+export const Grip = (props) => (
   <span {...props} aria-hidden="true" className="flex h-11 w-7 shrink-0 items-center justify-center text-input">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
   </span>
 );
 
-function MoveButtons({ index, count, onMove, onRemove }) {
+export function MoveButtons({ index, count, onMove, onRemove }) {
   return (
     <div className="grid grid-cols-3 gap-2 pt-1">
       <Button variant="outline" disabled={index === 0} onClick={() => onMove(index, index - 1)}>↑ Move up</Button>
@@ -80,8 +80,23 @@ function SongFields({ item, song, people, onChange }) {
   );
 }
 
-function MomentFields({ item, onChange, onOpenNote }) {
-  const custom = item.duration && !LENGTHS.includes(item.duration);
+const MOMENT_MAX_MIN = 120;
+
+/** Typed minutes in the Other box → a whole number from 0 to MOMENT_MAX_MIN. */
+const parseMinutes = (text) => Math.max(0, Math.min(MOMENT_MAX_MIN, Number(String(text).replace(/\D/g, '')) || 0));
+
+export function MomentFields({ item, onChange, onOpenNote }) {
+  const dur = item.duration || 0;
+  // The Other box keeps what was typed, so typing 1 on the way to 12 stays in
+  // the box instead of jumping to the "1 min" chip. A chip is only lit while
+  // the box is empty.
+  const [other, setOther] = useState(() => (dur && !LENGTHS.includes(dur) ? String(dur) : ''));
+  useEffect(() => {
+    // The length changed from outside (another moment picked, undo, a chip):
+    // drop the typed text if it no longer matches.
+    if (parseMinutes(other) !== dur) setOther(dur && !LENGTHS.includes(dur) ? String(dur) : '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dur]);
   return (
     <div className="flex flex-col gap-4">
       <label className="flex flex-col gap-2">
@@ -91,9 +106,17 @@ function MomentFields({ item, onChange, onOpenNote }) {
       <div className="flex flex-col gap-2">
         <Label>Length</Label>
         <div className="flex flex-wrap items-center gap-1.5">
-          {LENGTHS.map(m => <Pill key={m} on={item.duration === m} onClick={() => onChange({ duration: item.duration === m ? 0 : m })}>{m} min</Pill>)}
-          <Input type="number" inputMode="numeric" min={0} max={120} aria-label="Other length in minutes" placeholder="Other"
-            value={custom ? item.duration : ''} onChange={e => onChange({ duration: Math.max(0, Math.min(120, Number(e.target.value) || 0)) })}
+          {LENGTHS.map(m => {
+            const on = !other && dur === m;
+            return <Pill key={m} on={on} aria-pressed={on} onClick={() => { setOther(''); onChange({ duration: on ? 0 : m }); }}>{m} min</Pill>;
+          })}
+          <Input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={3} aria-label="Other length in minutes" placeholder="Other"
+            value={other} onChange={e => {
+              const digits = e.target.value.replace(/\D/g, '').replace(/^0+/, '');
+              const n = parseMinutes(digits);
+              setOther(digits ? String(n) : '');
+              onChange({ duration: n });
+            }}
             className="h-9 w-[84px]" />
         </div>
       </div>
@@ -101,7 +124,7 @@ function MomentFields({ item, onChange, onOpenNote }) {
         <Label>Note</Label>
         <button type="button" onClick={onOpenNote}
           className="flex min-h-[88px] cursor-pointer flex-col items-start rounded-control border border-input bg-transparent px-3 py-2.5 text-left font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          {item.note ? <Markdown text={item.note} className="line-clamp-4 text-[15px] leading-5" /> : <span className="text-muted-foreground">Add a note: what happens, who speaks, what the band plays under it</span>}
+          {item.note ? <Markdown text={item.note} className="line-clamp-4 text-[15px] leading-5" /> : <span className="text-muted-foreground">Add a note</span>}
         </button>
         <span className="text-right text-[12px] text-muted-foreground">{(item.note || '').length} / {NOTE_MAX}</span>
       </div>
@@ -110,7 +133,7 @@ function MomentFields({ item, onChange, onOpenNote }) {
 }
 
 /** Full-screen note editor with a small markdown toolbar and a preview. */
-function NoteEditor({ open, title, value, onDone, onCancel }) {
+export function NoteEditor({ open, title, value, onDone, onCancel }) {
   const [text, setText] = useState(value || '');
   const [preview, setPreview] = useState(false);
   const [el, setEl] = useState(null);
@@ -131,7 +154,7 @@ function NoteEditor({ open, title, value, onDone, onCancel }) {
     setText(next);
     requestAnimationFrame(() => el.focus());
   };
-  const tools = [['H1', () => line('# ')], ['H2', () => line('## ')], ['B', () => wrap('**')], ['I', () => wrap('*')], ['• List', () => line('- ')]];
+  const tools = [['# Title', () => line('# ')], ['## Subtitle', () => line('## ')], ['B', () => wrap('**')], ['I', () => wrap('*')], ['• List', () => line('- ')]];
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={`Note · ${title}`} className="fixed inset-0 z-[70] flex flex-col bg-background font-sans text-foreground">
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
@@ -151,7 +174,7 @@ function NoteEditor({ open, title, value, onDone, onCancel }) {
         {preview
           ? <Markdown text={text} className="overflow-y-auto text-[16px] leading-6" />
           : <textarea ref={setEl} autoFocus value={text} maxLength={NOTE_MAX} onChange={e => setText(e.target.value)}
-              placeholder={'# Offering\nPastor Dan prays.\n- Keys pad in D\n- **Straight into** Living Hope'}
+              placeholder={'# Title\n## Subtitle\nWhat happens here'}
               className="min-h-0 flex-1 resize-none border-0 bg-transparent font-sans text-[16px] leading-6 text-foreground outline-none placeholder:text-muted-foreground" />}
         <span className="pt-2 text-right text-[12px] text-muted-foreground">{text.length} / {NOTE_MAX}</span>
       </div>
@@ -259,7 +282,7 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
   const pickedItem = picked != null ? items[picked] : null;
   const pickedSong = pickedItem?.songId ? resolveSongView(songs.find(s => s.id === pickedItem.songId), pickedItem.arrangementId) : null;
   const fields = pickedItem && (pickedItem.type === 'break'
-    ? <MomentFields item={pickedItem} onChange={p => patchItem(picked, p)} onOpenNote={() => { setNoteFor(picked); setSheetOpen(false); }} />
+    ? <MomentFields key={picked} item={pickedItem} onChange={p => patchItem(picked, p)} onOpenNote={() => { setNoteFor(picked); setSheetOpen(false); }} />
     : <SongFields item={pickedItem} song={pickedSong} people={people} onChange={p => patchItem(picked, p)} />);
   const head = [draft.date && new Date(`${draft.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }), draft.time, draft.location].filter(Boolean).join(' · ');
 

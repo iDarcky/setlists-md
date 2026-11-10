@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { bandFor } from '@/lib/homeData';
 import { bandSlots, candidates, lastParts, partName } from '@/lib/bandParts';
@@ -12,12 +12,17 @@ import { BandPlanner, PartSheet, AddPartSheet } from './BandPlanner';
 export default function BandSection({
   setlist, setlists = [], schedules = [], setlistMap = {}, team, members = [], nameOf,
   createSchedule, deleteSchedule, ensureRow, availability: given,
+  // New setlist: `planOnly` keeps every pick local and reports it through
+  // `onPlanChange` (nobody is asked until the setlist is saved). On the
+  // setlist page, `setlist.plannedBand` is that plan; `autoSend` sends it
+  // once and `onPlanSent` clears it from the setlist.
+  planOnly = false, needed: neededParts = null, initialExtra = [], onPlanChange, autoSend = false, onPlanSent,
 }) {
   const fetched = useTeamAvailability(given ? null : team?.id).availability;
   const availability = given || fetched;
-  const [adds, setAdds] = useState([]);           // [{ part, userId }]
+  const [adds, setAdds] = useState(() => (Array.isArray(setlist.plannedBand) ? setlist.plannedBand.filter(a => a?.userId) : []));           // [{ part, userId }]
   const [removes, setRemoves] = useState(() => new Set());
-  const [extra, setExtra] = useState([]);         // parts added by hand
+  const [extra, setExtra] = useState(initialExtra);         // parts added by hand
   const [open, setOpen] = useState(null);         // the slot whose sheet is open
   const [adding, setAdding] = useState(false);
   const [sending, setSending] = useState(false);
@@ -25,7 +30,10 @@ export default function BandSection({
 
   const rows = bandFor(setlist, schedules, setlistMap);
   const from = useMemo(() => lastParts({ setlist, setlists, schedules, setlistMap }), [setlist, setlists, schedules, setlistMap]);
-  const slots = bandSlots({ rows, adds, removes, needed: [...from, ...extra] });
+  const slots = bandSlots({ rows, adds, removes, needed: [...(neededParts || from), ...extra] });
+  const planRef = useRef(onPlanChange);
+  planRef.current = onPlanChange;
+  useEffect(() => { if (planOnly) planRef.current?.(adds, extra); }, [planOnly, adds, extra]);
   const memberOf = (uid) => members.find(m => m.user_id === uid);
   const person = (uid) => ({ name: nameOf(uid), url: memberOf(uid)?.profile?.avatar_url });
   const taken = slots.filter(s => s.userId).map(s => s.userId);
@@ -63,6 +71,7 @@ export default function BandSection({
         await createSchedule(rowId, a.userId, a.part);
         setAdds(xs => xs.filter(x => x !== a));
       }
+      if (setlist.plannedBand?.length) onPlanSent?.();
     } catch (err) {
       console.error('Send asks failed:', err);
       setError(typeof navigator !== 'undefined' && !navigator.onLine
@@ -73,7 +82,16 @@ export default function BandSection({
     }
   };
 
-  const pending = adds.length + removes.size;
+  // A setlist saved from New setlist arrives with its plan: send it once.
+  const autoSent = useRef(false);
+  useEffect(() => {
+    if (!autoSend || planOnly || autoSent.current || !adds.length || !createSchedule) return;
+    autoSent.current = true;
+    send();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSend, planOnly]);
+
+  const pending = planOnly ? 0 : adds.length + removes.size;
   const sendLabel = adds.length
     ? `Send ${adds.length} ${adds.length === 1 ? 'ask' : 'asks'}${removes.size ? ` · take ${removes.size} off` : ''}`
     : 'Save changes';
@@ -83,7 +101,7 @@ export default function BandSection({
     <>
       <BandPlanner
         slots={slots} person={person}
-        note={from.length ? `Parts from the last ${setlist.name}.` : ''}
+        note={planOnly ? '' : (from.length && !neededParts ? `Parts from the last ${setlist.name}.` : '')}
         onSlot={(s) => setOpen(s)} onAddPart={() => setAdding(true)}
         pending={pending} sendLabel={sendLabel} onSend={send} sending={sending} error={error}
       />

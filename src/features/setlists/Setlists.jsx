@@ -149,8 +149,6 @@ export default function Setlists({
   onDeleteSetlists,
   plus = false,
   onDuplicateSetlist,
-  onSaveAsTemplate,
-  onNewFromTemplate,
   onTagSetlists,
   canEdit = true,
 }) {
@@ -193,7 +191,6 @@ export default function Setlists({
   const [dateFilter, setDateFilter] = useState('all');     // 'all' | 'week' | 'month'
   const [bulkMenu, setBulkMenu] = useState(null);          // 'tags' | null
   const [bulkTagInput, setBulkTagInput] = useState('');
-  const [showTemplates, setShowTemplates] = useState(false);
   const [galleryGroup, setGalleryGroup] = usePersistentView('setlists-md:setlists-groupby'); // null=auto | month | service
   // Card fields stored per view ({ card, compact }) — see Library.
   const [cardFieldsSaved, setCardFieldsSaved] = usePersistentJSON('setlists-md:setlists-card-fields');
@@ -231,13 +228,6 @@ export default function Setlists({
   );
   const toggleTag = (tag) => setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
 
-  // Templates (setlistsLibraryPlus) live in their own section, never in the
-  // normal Upcoming/Past lists.
-  const templates = useMemo(
-    () => plus ? setlists.filter(s => s.isTemplate) : [],
-    [plus, setlists],
-  );
-
   // Captured once on mount (Date.now() is flagged impure if called in render).
   const [nowTs] = useState(() => Date.now());
 
@@ -258,7 +248,7 @@ export default function Setlists({
     // Service + tag chips are orthogonal filters; apply them first, then run
     // the shared ultra-search over the text query.
     const scoped = setlists.filter(sl => {
-      if (plus && sl.isTemplate) return false; // templates have their own section
+      if (sl.isTemplate) return false; // templates live in Settings → Templates
       if (showService && serviceFilter !== 'all' && (sl.service || '') !== serviceFilter) return false;
       if (selectedTags.length > 0 && !selectedTags.every(t => (sl.tags || []).includes(t))) return false;
       if (plus && statusFilter !== 'all') {
@@ -492,47 +482,6 @@ export default function Setlists({
     </button>
   ) : null;
 
-  // A single Templates toggle button (Status/When/Group now live in the filters
-  // popover). Only shown when templates exist.
-  const templatesToggleEl = plus && templates.length > 0 ? (
-    <button
-      onClick={() => setShowTemplates(v => !v)}
-      className={cn('h-9 px-4 rounded-lg border cursor-pointer flex items-center gap-2 text-label-14 transition-colors',
-        showTemplates ? 'border-[var(--color-brand)] text-[var(--color-brand)] bg-[var(--modes-surface)]' : 'border-[var(--modes-border)] text-[var(--modes-text)] bg-[var(--modes-surface)] hover:bg-[var(--modes-surface-strong)]')}
-    >
-      Templates ({templates.length})
-    </button>
-  ) : null;
-
-  // The Templates panel (setlistsLibraryPlus) — starting a fresh setlist from a
-  // saved template.
-  const templatesPanel = plus && showTemplates && templates.length > 0 ? (
-    <div className="modes-card p-4 mb-5">
-      <div className="flex items-baseline gap-2 mb-3">
-        <h2 className="text-heading-16 font-bold text-[var(--modes-text)] m-0">Templates</h2>
-        <span className="text-label-12 text-[var(--modes-text-dim)]">{templates.length}</span>
-      </div>
-      <div className="flex flex-col divide-y divide-[var(--modes-border)]">
-        {templates.map(tpl => (
-          <div key={tpl.id} className="flex items-center gap-3 py-2.5">
-            <div className="flex-1 min-w-0">
-              <div className="text-copy-15 font-semibold text-[var(--modes-text)] truncate">{tpl.name || 'Untitled template'}</div>
-              <div className="text-label-12 text-[var(--modes-text-dim)]">{songCount(tpl)} songs</div>
-            </div>
-            {onNewFromTemplate && !readOnly && (
-              <Button variant="brand" size="sm" onClick={() => onNewFromTemplate(tpl.id)}>Use</Button>
-            )}
-            {onDeleteSetlist && !readOnly && (
-              <button onClick={() => onDeleteSetlist(tpl.id)} aria-label="Delete template" title="Delete template" className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer border-none bg-transparent text-[var(--modes-text-dim)] hover:bg-[var(--ds-red-100)] hover:text-[var(--ds-red-700)] transition-colors">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  ) : null;
-
   // Selection
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const toggleSelect = (id, e) => { e?.stopPropagation(); setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]); };
@@ -661,13 +610,11 @@ export default function Setlists({
               )}
             </div>
           )}
-          {templatesToggleEl}
         </div>
       </div>
 
       {/* Content */}
       <div className="w-full max-w-[1320px] mx-auto px-5 sm:px-8 py-5">
-        {templatesPanel}
         {plus && !query && statusFilter === 'all' && dateFilter === 'all' && upcoming.length > 0 && (() => {
           const next = upcoming[0];
           const d = next.date ? new Date(next.date + 'T12:00:00') : null;
@@ -855,9 +802,6 @@ export default function Setlists({
           more={[
             plus && onDuplicateSetlist && selected.length === 1 && {
               label: 'Duplicate', onClick: () => { onDuplicateSetlist(selected[0]); clearSelection(); },
-            },
-            plus && onSaveAsTemplate && selected.length === 1 && {
-              label: 'Save as template', onClick: () => { onSaveAsTemplate(selected[0]); clearSelection(); },
             },
             onDeleteSetlist && { label: 'Delete', danger: true, onClick: bulkDelete },
           ]}

@@ -3,13 +3,13 @@ import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamActivity } from '@/hooks/useTeamActivity';
-import { usePushSubscription } from '@/push/usePushSubscription';
-import { useAskForPush } from '@/push/useAskForPush';
 import {
   myAsks, myServices, nextUp, syncProblem, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
 } from '@/lib/homeData';
 import HomeView from './HomeView';
-import { partLabel } from '@/data/instruments';
+import { partLabel, normalize } from '@/data/instruments';
+import { PartsSheet } from '@/features/team/PartsPicker';
+import { membersWithoutParts } from '@/lib/memberInstruments';
 import { useNow } from '@/hooks/useNow';
 
 // Home: works out what to show from the library, the schedule and the team,
@@ -30,15 +30,12 @@ export default function Home({
   schedules = [], updateSchedule, setlistMap = {},
   onOpenSetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady, onNewSetlist,
   onRetrySync, onNotFound,
-  install, // { onInstall } when this device can still put the app on the home screen
 }) {
   const { user } = useAuth();
-  const { team, members, isAdmin, canManageBand, joinRequests = [] } = useTeam();
+  const { team, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
   const { availability } = useTeamAvailability(leader ? team?.id : null);
   const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
-  const push = usePushSubscription();
-  const askForPush = useAskForPush(push);
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
   const ticking = useNow(60000, syncState?.state === 'error');
@@ -72,20 +69,25 @@ export default function Home({
   const firstBusy = days.find(d => !d.isPast && (d.play || d.asked || d.services.length || d.rehearsals.length));
   const selected = picked && days.some(d => d.date === picked) ? picked : (firstBusy || days.find(d => d.isToday) || days[0])?.date;
 
-  const needs = leader ? needsYou({ joinRequests, setlists, schedules, setlistMap, now }) : [];
+  // What you play: a card until you've said (church only, once the roster is in).
+  const church = inTeam && team.kind !== 'personal';
+  const myMember = church ? (members || []).find(m => m.user_id === userId) : null;
+  const myParts = useMemo(() => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))), [myMember?.instruments]);
+  const [partsOpen, setPartsOpen] = useState(false);
+  const showPartsCard = !!myMember && (myParts.length === 0 || partsOpen);
+  // Leaders: who else hasn't said.
+  const noParts = church && canSetParts
+    ? membersWithoutParts((members || []).filter(m => m.user_id !== userId))
+      .map(m => m.profile?.display_name || m.profile?.email?.split('@')[0] || 'Someone')
+    : [];
+
+  const needs = leader ? needsYou({ joinRequests, setlists, schedules, setlistMap, now, noParts }) : [];
   const onNeed = (it) => {
-    if (it.kind === 'join') onOpenTeam?.();
+    if (it.kind === 'join' || it.kind === 'parts') onOpenTeam?.();
     else if (it.kind === 'nosongs') (onEditSetlist || onOpenSetlist)?.(it.setlist);
     else onOpenSetlist?.(it.setlist);
   };
 
-  const setup = inTeam && !leader ? [
-    { id: 'join', label: `Join ${team.name}`, done: true },
-    ...(install ? [{ id: 'install', label: 'Put the app on your home screen', done: false, onClick: install.onInstall }] : []),
-    ...(push.supported && !push.denied
-      ? [{ id: 'push', label: 'Turn on notifications', hint: 'So you hear when you are asked to play', done: push.subscribed, onClick: askForPush }]
-      : []),
-  ] : null;
 
   const nameOf = (uid) => {
     const m = (members || []).find(x => x.user_id === uid);
@@ -109,6 +111,7 @@ export default function Home({
   const dateLabel = new Date(now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
+    <>
     <HomeView
       name={first}
       dateLabel={dateLabel}
@@ -127,13 +130,19 @@ export default function Home({
       strip={{ days, offset, onOffset: setOffset, selected, onSelect: setPicked }}
       whoCanPlay={leader ? whoCanPlay({ setlists, availability, schedules, setlistMap, memberCount: (members || []).length, now }) : null}
       onOpenSchedule={onOpenSchedule}
-      setup={setup}
       activity={activity}
       now={now}
       onOpenActivity={openActivity}
       onOpenSongs={onOpenSongs}
       showNothingPlanned={!next && asks.length === 0}
       onNewSetlist={onNewSetlist}
+      parts={showPartsCard ? { church: team?.name, onOpen: () => setPartsOpen(true) } : null}
     />
+    {myMember && (
+      <PartsSheet open={partsOpen} onOpenChange={setPartsOpen} title="What do you play?"
+        intro="Pick everything you play and sing. You can change it any time in your profile."
+        tokens={myParts} onSave={updateMyInstruments} playLabel="You play" singLabel="You sing" />
+    )}
+    </>
   );
 }

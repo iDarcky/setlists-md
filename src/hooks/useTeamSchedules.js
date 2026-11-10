@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/auth/supabase';
 import { useAuth } from '@/auth/useAuth';
+import { cachedSchedules, cacheSchedules } from '@/lib/launchCache';
 
 export function useTeamSchedules(teamId) {
   const { user } = useAuth();
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // The team whose schedules have answered at least once (or failed), so the
+  // launch can wait for "who plays when" instead of drawing an empty Home.
+  const [loadedFor, setLoadedFor] = useState(null);
 
   const fetchSchedules = useCallback(async () => {
     if (!teamId || !user) return;
@@ -21,13 +25,27 @@ export function useTeamSchedules(teamId) {
 
       if (fetchErr) throw fetchErr;
       setSchedules(data || []);
+      cacheSchedules(user.id, teamId, data || []);
     } catch (err) {
       console.error('Error fetching schedules:', err);
       setError(err.message);
     } finally {
       setLoading(false);
+      setLoadedFor(teamId);
     }
   }, [teamId, user]);
+
+  // A new team: start from what this device last saw of its schedules, so
+  // Home draws "who plays when" at once; the fetch below replaces it.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!teamId || !userId) return;
+    const fromDevice = cachedSchedules(userId, teamId);
+    if (fromDevice) {
+      setSchedules(fromDevice);
+      setLoadedFor(teamId);
+    }
+  }, [teamId, userId]);
 
   useEffect(() => {
     fetchSchedules();
@@ -119,6 +137,7 @@ export function useTeamSchedules(teamId) {
   return {
     schedules,
     loading,
+    loaded: !!teamId && loadedFor === teamId,
     error,
     updateSchedule,
     createSchedule,

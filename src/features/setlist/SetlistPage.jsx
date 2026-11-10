@@ -29,7 +29,7 @@ const dayLabel = (date, opts) => new Date(`${date}T12:00:00`).toLocaleDateString
 export default function SetlistPage({
   setlist, songs = [], setlists = [], schedules = [], updateSchedule, createSchedule, deleteSchedule, ensureRow, setlistMap = {}, settings,
   canEdit = false, onBack, onEdit, onPlay, onMarkReady, onDelete,
-  onPrint,
+  onPrint, onPlanSent,
 }) {
   const { user } = useAuth();
   const { team, members = [], isAdmin, canManageBand } = useTeam();
@@ -134,7 +134,8 @@ export default function SetlistPage({
         bandSlot={leader && team && createSchedule ? (
           <BandSection setlist={setlist} setlists={setlists} schedules={schedules} setlistMap={setlistMap}
             team={team} members={members} nameOf={nameOf}
-            createSchedule={createSchedule} deleteSchedule={deleteSchedule} ensureRow={ensureRow} />
+            createSchedule={createSchedule} deleteSchedule={deleteSchedule} ensureRow={ensureRow}
+            autoSend={!!setlist.plannedBand?.length} onPlanSent={onPlanSent} />
         ) : null}
       />
       <Sheet open={menuOpen} onOpenChange={setMenuOpen} title={setlist.name || 'Setlist'} className="h-auto max-h-[80dvh] sm:max-w-[440px]">

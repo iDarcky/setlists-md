@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { clearLaunchCache } from '@/lib/launchCache';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { AuthContext } from './AuthContext';
 
@@ -154,6 +155,8 @@ export function AuthProvider({ children }) {
       },
       signOut: async () => {
         guard();
+        // Forget this person's churches on this device (a shared iPad).
+        clearLaunchCache(session?.user?.id);
         const result = await supabase.auth.signOut();
         setProfile(null);
         return result;

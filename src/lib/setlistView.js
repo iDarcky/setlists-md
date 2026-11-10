@@ -43,6 +43,13 @@ export function buildOrder(setlist, songs = [], nameOf = () => '') {
       return;
     }
     n += 1;
+    if (item.placeholder && !item.songId) {
+      // A "Song" slot from a template that still waits for its song.
+      elapsed += GUESS_SECONDS;
+      rows.push({ kind: 'song', idx, n, startsAt, offset: elapsed - GUESS_SECONDS, seconds: GUESS_SECONDS, placeholder: true, title: item.label || 'Song', key: '', tempo: null, time: '', capo: 0, leads: '', note: item.note || '' });
+      estimated = true;
+      return;
+    }
     const song = findSong(songs, item);
     const secs = durationToSeconds(song?.duration);
     const seconds = secs > 0 ? secs : GUESS_SECONDS;
@@ -56,7 +63,7 @@ export function buildOrder(setlist, songs = [], nameOf = () => '') {
       title: song?.title || item.songTitle || 'Missing song',
       key: song ? transposeKey(song.key, item.transpose) : '',
       tempo: item.tempo ?? song?.tempo ?? null,
-      time: song?.time || '',
+      time: item.time || song?.time || '',
       capo: item.capo || 0,
       leads: item.leadBy ? nameOf(item.leadBy) : '',
       note: item.note || '',

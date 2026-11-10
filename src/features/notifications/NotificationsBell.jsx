@@ -1,9 +1,21 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTeam } from '@/auth/useTeam';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import { useAskForPush } from '@/push/useAskForPush';
 import { buildNotifs } from '@/lib/notifData';
 import NotificationsPanel from './NotificationsPanel';
+import { toast } from '@/ui/use-toast';
+
+// Let in / Not now always answer: a toast says it worked, or why it didn't.
+async function answerJoin(fn, it, done) {
+  const who = it.name || 'They';
+  try {
+    await fn(it.requestId);
+    toast(done(who));
+  } catch (err) {
+    toast({ title: 'That didn’t go through', description: err?.message || 'Check your connection and try again.', variant: 'error' });
+  }
+}
 
 // What the bell opens (AppTopBar `notifications.content`). Wires the panel to
 // the feed, the Space's join requests, schedule answers and this device's push.
@@ -11,7 +23,10 @@ export default function NotificationsBell({
   feed, schedules, setlists, matchesSetlistId, settings, setSettings,
   onUpdateSchedule, onMarkRead, onMarkAllRead, onOpenSetlist, onNotFound, onSettings, onClose,
 }) {
-  const { joinRequests = [], approveJoinRequest, declineJoinRequest } = useTeam();
+  const { joinRequests = [], approveJoinRequest, declineJoinRequest, refreshJoinRequests } = useTeam();
+  // Opening the bell re-reads the waiting list, so an "Asking to join" in the
+  // feed always comes with its Let in / Say no buttons.
+  useEffect(() => { refreshJoinRequests?.(); }, [refreshJoinRequests]);
   const push = usePushSubscription();
   const askForPush = useAskForPush(push);
   // Read once per opening: the panel mounts each time the bell opens.
@@ -31,8 +46,8 @@ export default function NotificationsBell({
       push={{ show: showPush, onEnable: askForPush, onDismiss: dismissPush }}
       onMarkAllRead={onMarkAllRead}
       onAnswer={(it, status) => onUpdateSchedule?.(it.scheduleId, { availability: status })}
-      onApprove={approveJoinRequest ? (it) => approveJoinRequest(it.requestId) : undefined}
-      onDecline={declineJoinRequest ? (it) => declineJoinRequest(it.requestId) : undefined}
+      onApprove={approveJoinRequest ? (it) => answerJoin(approveJoinRequest, it, (who) => ({ title: `${who} is in`, description: 'They can see the church’s songs and setlists now.' })) : undefined}
+      onDecline={declineJoinRequest ? (it) => answerJoin(declineJoinRequest, it, (who) => ({ title: `Said no to ${who === 'They' ? 'the request' : who}` })) : undefined}
       onOpen={(it) => {
         if (it.unread && it.sourceId) onMarkRead?.(it.sourceId);
         const sl = it.setlistId && matchesSetlistId ? setlists.find(s => matchesSetlistId(s, it.setlistId)) : null;

@@ -6,9 +6,31 @@
 // IDs of themes available on every plan (including free). These are the
 // defaults that track the user's app theme on first launch, so they should
 // always be selectable without an upgrade gate.
-export const FREE_CHART_THEME_IDS = new Set(['sunday-light', 'stage-black', 'midnight']);
+export const FREE_CHART_THEME_IDS = new Set(['warm', 'sunday-light', 'stage-black', 'midnight']);
 
 export const CHART_THEMES = [
+  // ── Warm — the app's own look (2026-11-04, the reader's new-look pass) ────
+  // Not a palette: it FOLLOWS the app, light or dark, by pointing at the design
+  // system's tokens (ds.css) instead of naming colours. Chords in the system's
+  // gold, sections in the song page's tones (`--tone-*`). Every value is a var
+  // of a LITERAL token, never of a --chart-* one (readerSurface's cycle rule).
+  {
+    id: 'warm',
+    name: 'Warm',
+    description: 'The app’s own colours. Follows light and dark.',
+    free: true,
+    follows: true,
+    bg: 'var(--background)',
+    text: 'var(--foreground)',
+    chord: 'var(--warning-text)',
+    subtle: 'var(--muted-foreground)',
+    sections: {
+      Intro: 'var(--tone-intro)', Verse: 'var(--tone-verse)', 'Pre Chorus': 'var(--tone-prechorus)',
+      Chorus: 'var(--tone-chorus)', Bridge: 'var(--tone-bridge)', Instrumental: 'var(--tone-instrumental)',
+      Ending: 'var(--tone-intro)', Tag: 'var(--tone-tag)', Interlude: 'var(--tone-instrumental)',
+      Vamp: 'var(--tone-tag)', Outro: 'var(--tone-intro)', Refrain: 'var(--tone-chorus)',
+    },
+  },
   {
     id: 'sunday-light',
     name: 'Sunday Light',
@@ -129,7 +151,7 @@ export const CHART_THEMES = [
 ];
 
 export const CHART_THEME_MAP = Object.fromEntries(CHART_THEMES.map(t => [t.id, t]));
-export const DEFAULT_CHART_THEME_ID = 'sunday-light';
+export const DEFAULT_CHART_THEME_ID = 'warm';
 
 // Curated font library. `system` and the Geist family come from the app
 // shell so they load instantly; the rest are Google Fonts and are

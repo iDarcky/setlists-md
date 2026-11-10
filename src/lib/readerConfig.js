@@ -17,7 +17,7 @@ import { tabId } from '@/data/instruments';
 
 export const READER_KNOBS = {
   ribbon: ['top', 'bottom', 'left', 'right', 'off'],  // 2
-  heading: ['name', 'code', 'caps'],       // 3
+  heading: ['chip', 'name', 'code', 'caps'],       // 3
   // 4 — the section frame. Redesigned 2026-08-06: a frame is now only about
   // WHERE THE SECTION'S COLOUR LIVES, and none of the four takes a pixel of
   // width from the lyrics.
@@ -89,7 +89,7 @@ export const READER_KNOBS = {
 
 const DEFAULTS = {
   ribbon: 'top',
-  heading: 'name',
+  heading: 'chip',
   // 'plain' — the original chart's look: the heading carries the section and
   // there is no rule beside it. Promoted from 'bar' on 2026-08-04 (owner:
   // *"maybe we can change the No line name and make it default"*): a chart is
@@ -188,8 +188,8 @@ export function normalizeRibbonStyle(value) {
 // reconnect it to the reader's.
 const HUB_VIEW = {
   ribbon: 'off',        // the hub draws the song map in its own top card
-  heading: 'name',
-  sectionStyle: 'bar',
+  heading: 'chip',      // the song page's Order chips, on every section
+  sectionStyle: 'plain',
   sticky: false,        // nothing pins: the hub is browsed, not performed from
   repeats: 'full',      // reading a song, you want to see all of it
   notes: true,

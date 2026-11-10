@@ -13,7 +13,7 @@ import { ChevronDownIcon, ChevronRightIcon, CheckIcon, PlusIcon, BackIcon, Calen
 //
 // Details first, the chart one tap away: title, then Key ▾ and arrangement ▾
 // (small popovers, not drawers), the numbers, then one ink "Open chart". Under
-// it: how often you play it, the next service, Listen, how it goes, credits.
+// it: how often you play it, the next service, Listen, credits.
 
 const Svg = ({ size = 20, children, fill = 'none' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -31,12 +31,28 @@ const fact = 'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-control bg-r
 const label = 'm-0 px-1 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
+/** Chords / Lyrics: what the chart below the details shows. */
+const SHOW = [['chords', 'Chords'], ['lyrics', 'Lyrics']];
+export function ShowSwitch({ value, onChange }) {
+  return (
+    <div role="radiogroup" aria-label="Show" className="flex gap-1 rounded-control bg-raised p-1">
+      {SHOW.map(([id, name]) => (
+        <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange?.(id)}
+          className={cn('flex h-8 min-h-0 cursor-pointer items-center justify-center rounded-[7px] border-0 px-3.5 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            value === id ? 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,.25)]' : 'bg-transparent text-muted-foreground hover:text-foreground')}>
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Key ▾: − / + by semitone. Leaders can make the new key the song's own. */
 export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryone }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" aria-label={`Key ${shown}, change`} className={cn(chip, 'bg-warning-fill text-[var(--chord)]', semis !== 0 && 'ring-1 ring-[var(--chord)]')}>
+        <button type="button" aria-label={`Key ${shown}, change`} className={cn(chip, 'bg-warning-fill text-warning-text', semis !== 0 && 'ring-1 ring-warning-text')}>
           <span className="text-[12px] font-medium opacity-80">Key</span>
           <span className="font-mono text-[15px] font-semibold">{shown}</span>
           <ChevronDownIcon size={14} />
@@ -46,7 +62,7 @@ export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryon
         <div className="flex items-center justify-between rounded-control bg-raised p-1">
           <button type="button" aria-label="Down a semitone" onClick={() => onStep?.(-1)} className={cn(iconBtn, 'text-[22px]')}>−</button>
           <span className="flex items-baseline gap-1.5">
-            <b className="font-mono text-[24px] font-semibold text-[var(--chord)]">{shown}</b>
+            <b className="font-mono text-[24px] font-semibold text-warning-text">{shown}</b>
             {semis !== 0 && <span className="text-[13px] text-muted-foreground">was {original}</span>}
           </span>
           <button type="button" aria-label="Up a semitone" onClick={() => onStep?.(1)} className={cn(iconBtn, 'text-[22px]')}>+</button>
@@ -100,7 +116,7 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew, onR
               <span className="truncate text-[15px] font-medium">{a.name}</span>
               <span className="truncate text-[12px] text-muted-foreground">{[a.tempo && `${a.tempo} BPM`, a.capo ? `capo ${a.capo}` : null, a.isDefault && 'default'].filter(Boolean).join(' · ')}</span>
             </span>
-            <span className="font-mono text-[14px] font-semibold text-[var(--chord)]">{a.key}</span>
+            <span className="font-mono text-[14px] font-semibold text-warning-text">{a.key}</span>
           </button>
         ))}
         {onNew && (
@@ -172,7 +188,7 @@ function Stats({ facts, short }) {
         [facts.usualTempo || '—', 'usual BPM'],
       ].map(([v, k, isKey]) => (
         <div key={k} className="flex flex-col gap-0.5 rounded-card border border-border bg-card px-3 py-2.5">
-          <b className={cn('text-[20px] font-semibold leading-6 tracking-[-0.3px]', isKey && 'font-mono text-[var(--chord)]')}>{v}</b>
+          <b className={cn('text-[20px] font-semibold leading-6 tracking-[-0.3px]', isKey && 'font-mono text-warning-text')}>{v}</b>
           <span className="text-[12px] text-muted-foreground">{k}</span>
         </div>
       ))}
@@ -199,11 +215,16 @@ function Flow({ codes }) {
   if (!codes?.length) return null;
   return (
     <>
-      <h2 className={label}>How it goes</h2>
+      <h2 className={cn(label, 'pt-0')}>Order</h2>
       <div className="flex flex-wrap gap-1">
-        {codes.map((c, n) => (
-          <span key={n} className="flex h-7 min-w-8 items-center justify-center rounded-[7px] bg-selected px-1.5 text-[12px] font-semibold text-link">{c}</span>
-        ))}
+        {codes.map((c, n) => {
+          // `{ code, fg, bg }` from sectionTone; a bare code draws in the accent.
+          const t = typeof c === 'string' ? { code: c } : c;
+          return (
+            <span key={n} style={t.fg ? { color: t.fg, background: t.bg } : undefined}
+              className={cn('flex h-7 min-w-8 items-center justify-center rounded-[7px] px-1.5 text-[12px] font-semibold', !t.fg && 'bg-selected text-link')}>{t.code}</span>
+          );
+        })}
       </div>
     </>
   );
@@ -267,7 +288,8 @@ export function MenuSheet({ open, onOpenChange, title, items = [] }) {
 export default function SongView({
   song, keyCtl, arrangements = [], arrangementId, onArrangement, onNewArrangement,
   facts = { plays: 0, last: null, usualKey: '', next: null }, flow = [],
-  onBack, backLabel = 'Songs', onEdit, menu = [], onOpenChart, onFullScreen, onOpenSetlist,
+  onBack, backLabel = 'Songs', onEdit, menu = [], onFullScreen, onOpenSetlist,
+  show = 'chords', onShow, chart,
   embedded = false, layout = 'auto', listenOpen: listenInit = false,
 }) {
   const desk = useMediaQuery('(min-width: 1024px)');
@@ -277,69 +299,61 @@ export default function SongView({
   if (!song) return null;
   const about = aboutRows(song);
   const by = [song.artist, song.year].filter(Boolean).join(' · ');
+  // Same box as the chart's own `wide-container` (12px a side, 1600 max), so
+  // the title, the numbers and the first chord all start on one line.
+  const page = 'wide-container flex flex-col !px-3';
 
-  const bar = (
-    <div className={cn('flex h-[52px] items-center justify-between gap-1', wide ? '-ml-2.5' : '-mx-2.5')}>
-      {onBack ? (
-        <button type="button" onClick={onBack} className="flex h-11 min-h-0 cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent pl-0.5 pr-2 font-sans text-[15px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="text-muted-foreground"><BackIcon size={20} /></span>{backLabel}
-        </button>
-      ) : <span />}
-      <span className="flex items-center gap-0.5">
-        {onEdit && <button type="button" aria-label="Edit song" onClick={onEdit} className={iconBtn}><EditIcon /></button>}
-        {menu.length > 0 && <button type="button" aria-label="More" onClick={() => setMenuOpen(true)} className={iconBtn}><MoreIcon /></button>}
-      </span>
+  // One page, one scroll (owner, 2026-11-04): the details on top, the chart
+  // right under them (the Order on top), the credits after the song. The chart is
+  // passed in (`chart(lead, tail)`): Song.jsx puts SongChart between the two,
+  // in one scroller.
+  const lead = (
+    <div className={cn(page, 'font-sans text-foreground')}>
+      <div className="-ml-2.5 -mr-1 flex h-[52px] items-center justify-between gap-1">
+        {onBack ? (
+          <button type="button" onClick={onBack} className="flex h-11 min-h-0 cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent pl-0.5 pr-2 font-sans text-[15px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <span className="text-muted-foreground"><BackIcon size={20} /></span>{backLabel}
+          </button>
+        ) : <span />}
+        <span className="flex items-center gap-0.5">
+          {onEdit && <button type="button" aria-label="Edit song" onClick={onEdit} className={iconBtn}><EditIcon /></button>}
+          {menu.length > 0 && <button type="button" aria-label="More" onClick={() => setMenuOpen(true)} className={iconBtn}><MoreIcon /></button>}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1 pb-3.5 pt-1">
+        <h1 className={cn('m-0 font-semibold tracking-[-0.6px]', wide ? 'text-[34px] leading-10' : 'text-[28px] leading-[34px]')}>{song.title || 'Untitled'}</h1>
+        {by && <span className="text-[15px] text-muted-foreground">{by}</span>}
+      </div>
+      <div className="flex flex-wrap gap-2 pb-4">
+        {keyCtl && <KeyChip {...keyCtl} />}
+        <ArrangementChip arrangements={arrangements} current={arrangementId} onPick={onArrangement} onNew={onNewArrangement} />
+        {song.tempo && <span className={fact}>{song.tempo} <small className="text-[12px] font-medium text-muted-foreground">BPM</small></span>}
+        {song.time && <span className={fact}>{song.time}</span>}
+        {Number(song.capo) > 0 && <span className={fact}>Capo {song.capo}</span>}
+      </div>
+      {flow.length > 0 && <div className="flex flex-col gap-1.5 pb-4"><Flow codes={flow} /></div>}
+      <div className={cn('grid gap-2.5 pb-4', wide && 'grid-cols-[minmax(0,1fr)_340px] items-start')}>
+        <div className="flex flex-col gap-2.5">
+          <Stats facts={facts} short={wide} />
+          <NextService next={facts.next} onOpen={onOpenSetlist} />
+        </div>
+        <Listen url={song.youtube} title={song.title} open={listen} onOpen={() => setListen(true)} onClose={() => setListen(false)} compact />
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-border pb-1 pt-3">
+        <ShowSwitch value={show} onChange={onShow} />
+        {onFullScreen && <Button variant="ghost" onClick={onFullScreen}><FullIcon />Full screen</Button>}
+      </div>
     </div>
   );
-  const hero = (
-    <div className="flex flex-col gap-1 pb-3.5 pt-1">
-      <h1 className={cn('m-0 font-semibold tracking-[-0.6px]', wide ? 'text-[34px] leading-10' : 'text-[28px] leading-[34px]')}>{song.title || 'Untitled'}</h1>
-      {by && <span className="text-[15px] text-muted-foreground">{by}</span>}
+  const tail = about.length > 0 ? (
+    <div className={cn(page, 'gap-2.5 border-t border-border pb-10 pt-4 font-sans text-foreground')}>
+      <About rows={about} />
     </div>
-  );
-  const facts1 = (
-    <div className="flex flex-wrap gap-2 pb-4">
-      {keyCtl && <KeyChip {...keyCtl} />}
-      <ArrangementChip arrangements={arrangements} current={arrangementId} onPick={onArrangement} onNew={onNewArrangement} />
-      {song.tempo && <span className={fact}>{song.tempo} <small className="text-[12px] font-medium text-muted-foreground">BPM</small></span>}
-      {song.time && <span className={fact}>{song.time}</span>}
-      {Number(song.capo) > 0 && <span className={fact}>Capo {song.capo}</span>}
-    </div>
-  );
-  const listenEl = <Listen url={song.youtube} title={song.title} open={listen} onOpen={() => setListen(true)} onClose={() => setListen(false)} compact={wide} />;
+  ) : <div className="pb-10" />;
 
   return (
-    <div data-slot="song" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      {wide ? (
-        <div className="mx-auto flex w-full max-w-[1180px] gap-8 px-6 pb-10 pt-3">
-          <div className="flex min-w-0 flex-1 flex-col">
-            {bar}{hero}{facts1}
-            <div className="flex gap-2 pb-5">
-              <Button onClick={onOpenChart} className="px-7"><ChartIcon />Open chart</Button>
-              {onFullScreen && <Button variant="outline" onClick={onFullScreen}><FullIcon />Full screen</Button>}
-            </div>
-            <div className="flex max-w-[560px] flex-col gap-2.5">{listenEl}<Flow codes={flow} /></div>
-          </div>
-          <aside className="flex w-[340px] shrink-0 flex-col gap-2.5 border-l border-border pl-6 pt-5">
-            <h2 className={cn(label, 'pt-0')}>At your church</h2>
-            <Stats facts={facts} short />
-            <NextService next={facts.next} onOpen={onOpenSetlist} />
-            <About rows={about} />
-          </aside>
-        </div>
-      ) : (
-        <div className="mx-auto flex w-full max-w-[680px] flex-col px-4 pb-10">
-          {bar}{hero}{facts1}
-          <Button onClick={onOpenChart} className="mb-4 w-full"><ChartIcon />Open chart</Button>
-          <div className="flex flex-col gap-2.5">
-            <Stats facts={facts} />
-            <NextService next={facts.next} onOpen={onOpenSetlist} />
-            {listenEl}
-            <Flow codes={flow} />
-            <About rows={about} />
-          </div>
-        </div>
-      )}
+    <div data-slot="song" className={cn('flex flex-col bg-background', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
+      {chart ? chart(lead, tail) : <div className="min-h-0 flex-1 overflow-y-auto">{lead}{tail}</div>}
       <MenuSheet open={menuOpen} onOpenChange={setMenuOpen} title={song.title} items={menu} />
     </div>
   );
