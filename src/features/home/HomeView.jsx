@@ -447,7 +447,7 @@ export default function HomeView({
   name, dateLabel, sync, syncProblem, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
   strip, whoCanPlay, onOpenSchedule, activity, now, onOpenActivity, onOpenSongs,
-  showNothingPlanned = false, onNewSetlist, parts, embedded = false, layout = 'auto',
+  showNothingPlanned = false, onNewSetlist, parts, startChurch = null, embedded = false, layout = 'auto',
 }) {
   // One tree, picked by width (rendering both and hiding one would mount the
   // asks' own state twice). `layout` pins it for /design's frames.
@@ -482,6 +482,7 @@ export default function HomeView({
       <div className={cn('mx-auto flex w-full max-w-[1040px] flex-col gap-3 pb-8', wide ? 'px-8 pt-8' : layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-4')}>
         {hello}
         {syncProblem && <SyncProblem {...syncProblem} />}
+        {startChurch}
         {parts && <PartsCard {...parts} />}
         {wide ? (
           // From 1024px: the service and your weeks on the left, asks and lists on the right.

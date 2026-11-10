@@ -19,6 +19,7 @@ import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
+import { StartChurchCard } from '@/features/home/StartChurch';
 import ScheduleView from '@/features/schedule/ScheduleView';
 import SongsView from '@/features/songs/SongsView';
 import Song from '@/features/song/Song';
@@ -230,7 +231,7 @@ const H_ACTIVITY = recentActivity([
   { id: 5, action: 'member_joined', entity_id: 'tp', actor_id: 'tp', created_at: hAgo(80) },
 ], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
 
-function HomeDemo({ leader = false, empty = false, noParts = false, layout }) {
+function HomeDemo({ leader = false, empty = false, noParts = false, noChurch = false, layout }) {
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState('2026-11-01');
   const asks = empty ? [] : myAsks({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
@@ -247,6 +248,7 @@ function HomeDemo({ leader = false, empty = false, noParts = false, layout }) {
       leader={leader}
       needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW, noParts: noParts ? ['Lia S', 'Tim P', 'Rob K', 'Mara D'] : [] }) : []}
       parts={noParts ? { church: 'Grace Church', onOpen: noop } : null}
+      startChurch={noChurch ? <StartChurchCard onStart={noop} /> : null}
       asks={ask}
       onAnswer={noop}
       next={empty ? null : { setlist: H_SETLISTS[0], part: leader ? null : 'Keys', band, days: 7 }}
@@ -273,7 +275,7 @@ function HomeGallery() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-6">
-        {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }]].map(([label, props]) => THEMES.map(t => (
+        {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }], ['No church yet', { empty: true, noChurch: true }]].map(([label, props]) => THEMES.map(t => (
           <Frame key={label + t.id} theme={t.id} width={390} height={1760} scale={0.6} label={`${label} · ${t.label}`}>
             <HomeDemo layout="phone" {...props} />
           </Frame>
