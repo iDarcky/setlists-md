@@ -14,6 +14,7 @@ import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSet
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { readySnapshot } from '@/lib/setlistView';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
+import { parseSiteEntry, stripSiteEntry, rememberSignupSource } from '@/lib/siteEntry';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
@@ -251,9 +252,13 @@ export default function App() {
       if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
       if (shareTokenFromUrl()) return 'share-view';
+      // From the website's Join / Log in buttons: straight to the account screen.
+      if (parseSiteEntry(window.location.search).start) return 'signin';
     }
     return 'loading';
   });
+  // The website link this session opened with (read once; see the effect below).
+  const [siteEntry] = useState(() => (typeof window === 'undefined' ? { start: null, from: null } : parseSiteEntry(window.location.search)));
   const [shareToken] = useState(() => shareTokenFromUrl());
   // The join-link code this session is working on: from the URL, or resumed
   // from localStorage after a sign-in redirect (see the resume effect below).
@@ -329,7 +334,7 @@ export default function App() {
     });
   }, [settings?.seenLiveIntro]);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [authStartMode, setAuthStartMode] = useState('signin');
+  const [authStartMode, setAuthStartMode] = useState(() => (siteEntry.start === 'signup' ? 'signup' : 'signin'));
   // The church a join link is joining, shown on the log-in / create screens.
   const [authJoining, setAuthJoining] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
@@ -810,9 +815,14 @@ export default function App() {
 
         // Determine initial view based on onboarding state. `share-view` is a
         // public, no-auth route — never override it with onboarding/landing.
-        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
+        const isAuthFlow = (view === 'signin' && !!siteEntry.start) || view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
         if (isAuthFlow) {
-          // Keep the current auth view
+          // Keep the current auth view. Someone sent here by the website has
+          // seen what the app is, so the welcome screen is done for them too.
+          if (view === 'signin' && !savedSettings.onboardingComplete) {
+            savedSettings.onboardingComplete = true;
+            setSettings(savedSettings);
+          }
         } else if (view === 'design' && savedSettings.onboardingComplete) {
           // /design: the design system page, opened by its address.
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
@@ -950,6 +960,23 @@ export default function App() {
     }, 150);
     return () => clearTimeout(t);
   }, []);
+
+  // Website links (`?start=signup&from=site`): remember where the person came
+  // from until they make an account, then tidy the address bar.
+  useEffect(() => {
+    if (typeof window === 'undefined' || (!siteEntry.start && !siteEntry.from)) return;
+    rememberSignupSource(siteEntry.from);
+    window.history.replaceState({}, document.title, window.location.pathname + stripSiteEntry(window.location.search) + window.location.hash);
+  }, [siteEntry]);
+  // Already signed in on this device: the website's Join / Log in buttons
+  // just open the app.
+  const siteEntrySettledRef = useRef(false);
+  useEffect(() => {
+    if (siteEntrySettledRef.current || !siteEntry.start || authLoading) return;
+    siteEntrySettledRef.current = true;
+    if (user?.id && view === 'signin') goToMainView('home');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when auth first settles
+  }, [authLoading, user?.id]);
 
   // Account-level preference sync (hydrate once per user, then debounced push).
   usePreferenceSync({ loaded, settings, setSettings, user, profile, updateProfile });

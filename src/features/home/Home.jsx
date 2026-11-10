@@ -11,6 +11,10 @@ import { partLabel, normalize } from '@/data/instruments';
 import { PartsSheet } from '@/features/team/PartsPicker';
 import { membersWithoutParts } from '@/lib/memberInstruments';
 import { useNow } from '@/hooks/useNow';
+import { supabase } from '@/auth/supabase';
+import { sendChurchRequest, sentChurchRequest, rememberChurchRequest } from '@/lib/churchRequest';
+import { signupSource } from '@/lib/siteEntry';
+import { StartChurchCard, StartChurchSheet } from './StartChurch';
 
 // Home: works out what to show from the library, the schedule and the team,
 // and hands it to HomeView. Schedules and the row-id map come from App, which
@@ -32,7 +36,7 @@ export default function Home({
   onRetrySync, onNotFound,
 }) {
   const { user } = useAuth();
-  const { team, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
+  const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
   const { availability } = useTeamAvailability(leader ? team?.id : null);
   const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
@@ -107,6 +111,22 @@ export default function Home({
     }
   };
 
+  // No church yet (loaded, and none): offer the join link or a church request.
+  const noChurch = !!userId && !!teamsLoaded && teams.length === 0;
+  const [churchAsk, setChurchAsk] = useState(false);
+  const [churchSent, setChurchSent] = useState(() => (userId ? sentChurchRequest(userId) : null));
+  const askForChurch = async (answers) => {
+    await sendChurchRequest(supabase, {
+      ...answers,
+      userId,
+      email: user?.email || null,
+      name: displayName || null,
+      from: user?.user_metadata?.signup_from || signupSource(),
+    });
+    rememberChurchRequest(userId, answers.church.trim());
+    setChurchSent({ church: answers.church.trim() });
+  };
+
   const first = (displayName || '').trim().split(/\s+/)[0] || 'there';
   const dateLabel = new Date(now).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -137,7 +157,11 @@ export default function Home({
       showNothingPlanned={!next && asks.length === 0}
       onNewSetlist={onNewSetlist}
       parts={showPartsCard ? { church: team?.name, onOpen: () => setPartsOpen(true) } : null}
+      startChurch={noChurch ? <StartChurchCard sent={churchSent} onStart={() => setChurchAsk(true)} /> : null}
     />
+    {noChurch && !churchSent && (
+      <StartChurchSheet open={churchAsk} onOpenChange={setChurchAsk} email={user?.email} onSend={askForChurch} />
+    )}
     {myMember && (
       <PartsSheet open={partsOpen} onOpenChange={setPartsOpen} title="What do you play?"
         intro="Pick everything you play and sing. You can change it any time in your profile."

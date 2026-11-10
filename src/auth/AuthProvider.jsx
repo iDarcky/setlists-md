@@ -124,14 +124,17 @@ export function AuthProvider({ children }) {
         guard();
         return supabase.auth.signInWithPassword({ email, password });
       },
-      signUpWithPassword: (email, password, displayName) => {
+      // `extra` lands in the account's metadata beside the name, e.g.
+      // { signup_from: 'site' } for someone who came from the website.
+      signUpWithPassword: (email, password, displayName, extra = null) => {
         guard();
+        const data = { ...(displayName ? { name: displayName } : {}), ...(extra || {}) };
         return supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: ROOT_REDIRECT_URL,
-            data: displayName ? { name: displayName } : undefined,
+            data: Object.keys(data).length ? data : undefined,
           },
         });
       },
