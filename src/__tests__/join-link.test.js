@@ -196,3 +196,13 @@ describe('inviteMailto', () => {
     expect(params.get('body')).toContain('https://app.test/join/abc23xyz9kmn');
   });
 });
+
+describe('autoJoinName', () => {
+  it('prefers the account name, then the sign-up name, then the email', async () => {
+    const { autoJoinName } = await import('@/lib/joinLink');
+    expect(autoJoinName({ profileName: ' Estera  Zah ', signupName: 'E', email: 'e@x.com' })).toBe('Estera Zah');
+    expect(autoJoinName({ profileName: '', signupName: 'Ana P', email: 'a@x.com' })).toBe('Ana P');
+    expect(autoJoinName({ email: 'tim.pop@x.com' })).toBe('tim.pop');
+    expect(autoJoinName({})).toBe('');
+  });
+});

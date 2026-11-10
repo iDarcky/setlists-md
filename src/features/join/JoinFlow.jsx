@@ -5,6 +5,7 @@ import { usePushSubscription } from '@/push/usePushSubscription';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import {
   alreadyInLine,
+  autoJoinName,
   churchFromPeek,
   joinStepFor,
   findJoinRequest,
@@ -173,8 +174,8 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
     else if (myRequest.status === 'declined') setStep('declined');
   }, [step, myRequest]);
 
-  const ask = async () => {
-    const cleanName = name.trim().replace(/\s+/g, ' ');
+  const ask = async (nameOverride) => {
+    const cleanName = (typeof nameOverride === 'string' ? nameOverride : name).trim().replace(/\s+/g, ' ');
     if (!cleanName) {
       setMessage({ kind: 'error', text: 'Tell the leader your name so they know who you are.' });
       return;
@@ -209,6 +210,26 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
       setBusy(false);
     }
   };
+
+  // Opening the link is the ask. Once signed in, send the request straight
+  // away with the account's name, so nobody lands on a second screen they
+  // can skip (2026-11-08: someone tapped "Not now" there and no leader ever
+  // heard of them). The name/parts form only comes back if the send fails.
+  const autoAskedRef = useRef(false);
+  const autoName = autoJoinName({
+    profileName: profile?.display_name,
+    signupName: user?.user_metadata?.name,
+    email: user?.email,
+  });
+  useEffect(() => {
+    if (step !== 'about' || autoAskedRef.current || !signedIn || !autoName) return;
+    autoAskedRef.current = true;
+    ask(autoName);
+    // ask is recreated every render; the ref makes this fire once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, signedIn, autoName]);
+  // Until the automatic send fails (an error message), "about" is a loading state.
+  const autoAsking = step === 'about' && !!autoName && !message;
 
   const leave = () => {
     // A finished or broken flow should not reopen on the next launch.
@@ -252,6 +273,8 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
       />
     );
   }
+
+  if (autoAsking) return <OpeningView />;
 
   if (step === 'about') {
     return (
