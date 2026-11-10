@@ -1,5 +1,44 @@
 {
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/join/:code",
+      "destination": "https://app.setlists.md/join/:code",
+      "permanent": false
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://app.setlists.md/auth/:path*",
+      "permanent": false
+    },
+    {
+      "source": "/design",
+      "destination": "https://app.setlists.md/design",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "setlist"
+        }
+      ],
+      "destination": "https://app.setlists.md/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "query",
+          "key": "code"
+        }
+      ],
+      "destination": "https://app.setlists.md/",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
