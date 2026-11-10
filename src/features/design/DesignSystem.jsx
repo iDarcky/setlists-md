@@ -8,6 +8,8 @@ import { Toggle } from '@/ui/shadcn/toggle';
 import { Field, FieldLabel, FieldDescription, FieldError } from '@/ui/shadcn/field';
 import { cn } from '@/ui/shadcn/utils';
 import LegalSheet from '@/features/legal/LegalSheet';
+import ConflictResolver from '@/features/sync/ConflictResolver';
+import { ChurchPickerSheet } from '@/features/songs/SongsSheets';
 import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView, NewPasswordView } from '@/features/auth/AuthViews';
 import {
   JoinInviteView, AboutYouView, WaitingView, YoureInView, DeclinedView, BadLinkView,
@@ -992,6 +994,9 @@ const SCREENS = [
   )],
   ['Home: desktop, what do you play?', () => <HomeDemo layout="wide" leader noParts />],
   ['What’s new', () => <SettingsDemo page="whatsnew" />],
+  ['Pop-up: two versions', () => <ConflictResolver onResolve={noop} onResolveAll={noop} conflicts={[1, 2, 3].map(n => ({ kind: 'song', id: `c${n}`, title: 'Way Maker',
+    local: { arrangements: [{ id: 'a', key: 'E', tempo: 68 }] }, remote: { arrangements: [{ id: 'a', key: 'D', tempo: 68 }, { id: 'b', key: 'E' }] } }))} />],
+  ['Pop-up: move a song', () => <ChurchPickerSheet open onOpenChange={noop} action="move" count={1} songTitle="Way Maker" churches={[{ id: 'y', name: 'Grace Youth' }, { id: 'n', name: 'North Campus' }]} onPick={noop} />],
 ];
 
 function PartsPopupDemo() {
@@ -1008,7 +1013,7 @@ function PartsPopupDemo() {
 function Gallery() {
   return (
     <div className="flex flex-col gap-8">
-      {SCREENS.filter(([label]) => !/^(New setlist|Template|What’s new)/.test(label)).map(([label, render]) => (
+      {SCREENS.filter(([label]) => !/^(New setlist|Template|What’s new|Pop-up)/.test(label)).map(([label, render]) => (
         <div key={label} className="flex flex-col gap-2">
           <h3 className="m-0 text-body font-semibold">{label}</h3>
           <div className="flex gap-6 overflow-x-auto pb-2">
