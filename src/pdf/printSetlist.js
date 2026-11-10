@@ -74,9 +74,14 @@ const STYLES = `
   .sct { break-inside: avoid; margin-bottom: calc(12px * var(--s)); }
   .sct.rep { display: none; }
   body.repeats-full .sct.rep { display: block; }
-  .repchip { display: block; width: fit-content; break-inside: avoid; margin: 0 0 calc(12px * var(--s)); padding: 3px 10px;
-             border: 1px solid #C9D6D1; border-radius: 999px; background: #EEF3F1; color: #3B5A52;
-             font-size: calc(8.5pt * var(--s)); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+  /* A repeat printed once: the song page's "again" row, a tone chip (V1, C)
+     then the name. Paper is light, so the light-theme tones. */
+  .repchip { display: flex; align-items: center; gap: 7px; break-inside: avoid; margin: 0 0 calc(12px * var(--s));
+             font-size: calc(10.5pt * var(--s)); }
+  .repchip .tc { display: inline-flex; align-items: center; justify-content: center; min-width: calc(22px * var(--s)); height: calc(18px * var(--s));
+                 padding: 0 5px; border-radius: 5px; font-size: calc(8.5pt * var(--s)); font-weight: 600; }
+  .repchip b { font-weight: 600; }
+  .repchip span.ag { color: #6B655C; font-size: .9em; }
   body.repeats-full .repchip { display: none; }
   body.no-chords .repchip.nw { display: none; }
   .sct h4 { margin: 0 0 4px; font-size: calc(8.5pt * var(--s)); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #3B5A52; }
@@ -163,9 +168,17 @@ function hasWords(section) {
   return (section.lines || []).some(l => typeof l === 'string' && l.replace(/\[[^\]]*\]|\{[^}]*\}/g, '').trim());
 }
 
+// The light-theme section tones (ds.css --tone-*), one per family, as on the song page.
+const TONES = [
+  [/^(intro|outro|ending)/, '#6E6152'], [/^pre/, '#7A5C1D'], [/^(chorus|refrain)/, '#A14B2F'], [/^verse/, '#3B6B56'],
+  [/^bridge/, '#5C4D93'], [/^(instrumental|interlude|solo)/, '#3D5B80'], [/^(tag|vamp)/, '#8F3F5A'],
+];
+
 function repeatChip(section, n) {
   const label = (section.type || '').replace(/:+$/, '');
-  return `<div class="repchip${hasWords(section) ? '' : ' nw'}">↻ ${esc(label)}${n > 1 ? ` ×${n}` : ''}</div>`;
+  const fg = TONES.find(([re]) => re.test(label.toLowerCase().replace(/[^a-z]/g, '')))?.[1] || '#6B655C';
+  const chip = `<span class="tc" style="color:${fg};background:color-mix(in srgb, ${fg} 16%, transparent)">${esc(flowCode(label))}</span>`;
+  return `<div class="repchip${hasWords(section) ? '' : ' nw'}">${chip}<b>${esc(label)}</b><span class="ag">again${n > 1 ? ` ×${n}` : ''}</span></div>`;
 }
 
 function sectionHtml(section, shift, fires, repeat = false) {
