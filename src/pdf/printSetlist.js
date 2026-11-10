@@ -74,6 +74,11 @@ const STYLES = `
   .sct { break-inside: avoid; margin-bottom: calc(12px * var(--s)); }
   .sct.rep { display: none; }
   body.repeats-full .sct.rep { display: block; }
+  .repchip { display: block; width: fit-content; break-inside: avoid; margin: 0 0 calc(12px * var(--s)); padding: 3px 10px;
+             border: 1px solid #C9D6D1; border-radius: 999px; background: #EEF3F1; color: #3B5A52;
+             font-size: calc(8.5pt * var(--s)); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+  body.repeats-full .repchip { display: none; }
+  body.no-chords .repchip.nw { display: none; }
   .sct h4 { margin: 0 0 4px; font-size: calc(8.5pt * var(--s)); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #3B5A52; }
   .sct .cue { font-size: calc(9pt * var(--s)); font-style: italic; color: #6B655C; margin-bottom: 3px; }
   .ln { display: flex; flex-wrap: wrap; align-items: flex-end; min-height: 1.2em; }
@@ -154,6 +159,15 @@ export function wordGroups(pairs) {
   return groups;
 }
 
+function hasWords(section) {
+  return (section.lines || []).some(l => typeof l === 'string' && l.replace(/\[[^\]]*\]|\{[^}]*\}/g, '').trim());
+}
+
+function repeatChip(section, n) {
+  const label = (section.type || '').replace(/:+$/, '');
+  return `<div class="repchip${hasWords(section) ? '' : ' nw'}">↻ ${esc(label)}${n > 1 ? ` ×${n}` : ''}</div>`;
+}
+
 function sectionHtml(section, shift, fires, repeat = false) {
   let running = shift;
   const body = (section.lines || []).map(line => {
@@ -171,8 +185,7 @@ function sectionHtml(section, shift, fires, repeat = false) {
   }).join('');
   const label = (section.type || '').replace(/:+$/, '');
   // A part with no words (an intro, a turnaround) has nothing for a singer.
-  const words = (section.lines || []).some(l => typeof l === 'string' && l.replace(/\[[^\]]*\]|\{[^}]*\}/g, '').trim());
-  const cls = ['sct', repeat && 'rep', !words && 'nw'].filter(Boolean).join(' ');
+  const cls = ['sct', repeat && 'rep', !hasWords(section) && 'nw'].filter(Boolean).join(' ');
   return `<div class="${cls}"><h4>${esc(label)}</h4>${section.note ? `<div class="cue">${esc(section.note)}</div>` : ''}${body}</div>`;
 }
 
@@ -222,7 +235,16 @@ function chartPage({ song, item, n, count, setlist, show }) {
   const notes = show.notes === false ? [] : [item.note, song.notes].filter(Boolean);
   const flow = ordered.length > 1 ? `<div class="flow">${ordered.map(s => esc(flowCode(s.type))).join(' ')}</div>` : '';
   // A repeat is printed too, hidden until the strip's Repeats says "Every time".
-  const sections = ordered.map((s, i) => sectionHtml(s, shift + offsets[i], fires[i], firsts[i] !== -1)).join('');
+  const sections = ordered.map((s, i) => {
+    if (firsts[i] === -1) return sectionHtml(s, shift + offsets[i], fires[i]);
+    // A repeat: printed in full (hidden until Repeated parts says "Every time"),
+    // and a chip that says "play it again" for when it is printed once.
+    // Back-to-back repeats of the same part share one chip: "↻ Chorus ×2".
+    const prevSame = i > 0 && firsts[i - 1] !== -1 && ordered[i - 1] === s;
+    let n = 1;
+    while (ordered[i + n] === s && firsts[i + n] !== -1) n += 1;
+    return sectionHtml(s, shift + offsets[i], fires[i], true) + (prevSame ? '' : repeatChip(s, n));
+  }).join('');
   return `<section class="sheet">
     <div class="head">
       <div>
