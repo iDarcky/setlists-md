@@ -6,7 +6,7 @@ import { songFacts } from '@/lib/songPage';
 import { sectionTone } from '@/lib/sectionTone';
 import { transposeArrangement } from '@/lib/transposeArrangement';
 import FullscreenReader from '@/features/reader/FullscreenReader';
-import { exportSongPdf } from '@/pdf/exportSongPdf';
+import { printSong } from '@/pdf/printSetlist';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import SongView from './SongView';
 import SongChart from './SongChart';
@@ -76,7 +76,7 @@ export default function Song({
   const keyCtl = { shown, original, semis, onStep: step, onReset: () => setSemis(0), onEveryone: everyone };
   const menu = [
     onPlay && { label: 'Start a campfire with this song', sub: 'One song big, then pick what to sing next', onClick: () => onPlay(arrId) },
-    { label: 'Print or save as PDF', onClick: () => exportSongPdf(song, { transpose: semis }) },
+    { label: 'Print or save as PDF', onClick: () => printSong(song, { transpose: semis }) },
     onMoveSong && { label: 'Move to another church', onClick: onMoveSong },
     onCopySong && { label: 'Copy to another church', onClick: onCopySong },
     onDelete && { label: 'Delete song', danger: true, onClick: onDelete },

@@ -8,6 +8,8 @@ import { Toggle } from '@/ui/shadcn/toggle';
 import { Field, FieldLabel, FieldDescription, FieldError } from '@/ui/shadcn/field';
 import { cn } from '@/ui/shadcn/utils';
 import LegalSheet from '@/features/legal/LegalSheet';
+import ConflictResolver from '@/features/sync/ConflictResolver';
+import { ChurchPickerSheet } from '@/features/songs/SongsSheets';
 import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView, NewPasswordView } from '@/features/auth/AuthViews';
 import {
   JoinInviteView, AboutYouView, WaitingView, YoureInView, DeclinedView, BadLinkView,
@@ -17,6 +19,7 @@ import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
+import { StartChurchCard } from '@/features/home/StartChurch';
 import ScheduleView from '@/features/schedule/ScheduleView';
 import SongsView from '@/features/songs/SongsView';
 import Song from '@/features/song/Song';
@@ -53,6 +56,9 @@ import { buildOrder } from '@/lib/setlistView';
 import { ShareBody } from '@/features/sharing/ShareSheet';
 import GuestView from '@/features/sharing/GuestView';
 import { PrintBody } from '@/features/setlist/PrintSheet';
+import { PrintPreviewView } from '@/features/setlist/PrintPreview';
+import { buildPrintDocument, buildSongPrintDocument } from '@/pdf/printSetlist';
+import { resolveSongView } from '@/arrangements';
 import TeamPage, { InviteCard, UsageEntry, Waiting } from '@/features/team/TeamPage';
 import { PersonBody, ChurchBody } from '@/features/team/TeamSheets';
 import { PartsPicker } from '@/features/team/PartsPicker';
@@ -228,7 +234,7 @@ const H_ACTIVITY = recentActivity([
   { id: 5, action: 'member_joined', entity_id: 'tp', actor_id: 'tp', created_at: hAgo(80) },
 ], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
 
-function HomeDemo({ leader = false, empty = false, noParts = false, layout }) {
+function HomeDemo({ leader = false, empty = false, noParts = false, noChurch = false, layout }) {
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState('2026-11-01');
   const asks = empty ? [] : myAsks({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
@@ -245,6 +251,7 @@ function HomeDemo({ leader = false, empty = false, noParts = false, layout }) {
       leader={leader}
       needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW, noParts: noParts ? ['Lia S', 'Tim P', 'Rob K', 'Mara D'] : [] }) : []}
       parts={noParts ? { church: 'Grace Church', onOpen: noop } : null}
+      startChurch={noChurch ? <StartChurchCard onStart={noop} /> : null}
       asks={ask}
       onAnswer={noop}
       next={empty ? null : { setlist: H_SETLISTS[0], part: leader ? null : 'Keys', band, days: 7 }}
@@ -271,7 +278,7 @@ function HomeGallery() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-6">
-        {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }]].map(([label, props]) => THEMES.map(t => (
+        {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }], ['No church yet', { empty: true, noChurch: true }]].map(([label, props]) => THEMES.map(t => (
           <Frame key={label + t.id} theme={t.id} width={390} height={1760} scale={0.6} label={`${label} · ${t.label}`}>
             <HomeDemo layout="phone" {...props} />
           </Frame>
@@ -789,7 +796,7 @@ function DrawerFrame({ title, children }) {
 }
 
 function ShareGallery() {
-  const [choice, setChoice] = useState({ mode: 'overview', notes: true, leads: true, twoColumns: true });
+  const [choice, setChoice] = useState({ mode: 'overview', notes: true, leads: true });
   const guestSl = { ...SL, items: (SL.items || []).map(({ leadBy: _l, ...it }) => it) };
   const order = buildOrder(guestSl, SL_SONGS);
   const share = { url: 'https://setlists.md/?setlist=k7qm2xpa9r4tz8wd' };
@@ -950,6 +957,24 @@ const NewSetlistPopupDemo = ({ first = false }) => (
   </div>
 );
 
+// Print preview: a public-domain hymn (Fanny Crosby, 1873) with a chorus that
+// comes back, so Repeated parts has something to show.
+const PP_SONGS = [{
+  id: 'ba', title: 'Blessed Assurance', artist: 'Fanny Crosby', defaultArrangementId: 'ba',
+  arrangements: [{ id: 'ba', key: 'D', tempo: 72, time: '9/8', structure: ['Intro', 'Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Chorus'], sections: [
+    { type: 'Intro', lines: ['[D] [G] [D] [A]'] },
+    { type: 'Verse 1', lines: ['[D]Blessed assurance, [G]Jesus is [D]mine', 'Oh what a foretaste of [E]glory di[A]vine', '[D]Heir of sal[G]vation, [D]purchase of God', '[G]Born of His [D]Spirit, [A]washed in His [D]blood'] },
+    { type: 'Chorus', lines: ['[D]This is my story, [G]this is my [D]song', 'Praising my Saviour [E]all the day [A]long', '[D]This is my [G]story, [D]this is my song', '[G]Praising my [D]Saviour [A]all the day [D]long'] },
+    { type: 'Verse 2', lines: ['[D]Perfect sub[G]mission, per[D]fect delight', 'Visions of rapture now [E]burst on my [A]sight', '[D]Angels de[G]scending [D]bring from above', '[G]Echoes of [D]mercy, [A]whispers of [D]love'] },
+  ] }],
+}];
+const PP_SETLIST = { id: 'pp', name: 'Sunday Morning', date: '2026-11-15', time: '10:00', items: [{ songId: 'ba', leadBy: 'jd', note: 'Start soft, keys only' }] };
+const ppBuild = (look) => buildPrintDocument(PP_SETLIST, PP_SONGS, { mode: 'full', nameOf: (u) => SL_NAMES[u] || '', church: { name: 'Grace Church' }, look });
+const PrintPreviewDemo = ({ look }) => (
+  <PrintPreviewView embedded title="Sunday Morning" charts build={ppBuild} onClose={noop}
+    initialLook={{ size: 'm', chords: true, cols: 2, repeats: false, ...look }} />
+);
+
 const FILLED = { name: 'Joe Doe', email: 'joe@example.com', password: 'password1', confirm: 'password1' };
 
 const SCREENS = [
@@ -992,6 +1017,16 @@ const SCREENS = [
   )],
   ['Home: desktop, what do you play?', () => <HomeDemo layout="wide" leader noParts />],
   ['What’s new', () => <SettingsDemo page="whatsnew" />],
+  ['Pop-up: two versions', () => <ConflictResolver onResolve={noop} onResolveAll={noop} conflicts={[1, 2, 3].map(n => ({ kind: 'song', id: `c${n}`, title: 'Way Maker',
+    local: { arrangements: [{ id: 'a', key: 'E', tempo: 68 }] }, remote: { arrangements: [{ id: 'a', key: 'D', tempo: 68 }, { id: 'b', key: 'E' }] } }))} />],
+  ['Pop-up: move a song', () => <ChurchPickerSheet open onOpenChange={noop} action="move" count={1} songTitle="Way Maker" churches={[{ id: 'y', name: 'Grace Youth' }, { id: 'n', name: 'North Campus' }]} onPick={noop} />],
+  ['Print preview: charts', () => <PrintPreviewDemo />],
+  ['Print preview: lyrics only, large, one column', () => <PrintPreviewDemo look={{ chords: false, size: 'l', cols: 1 }} />],
+  ['Print preview: extra large, repeats every time', () => <PrintPreviewDemo look={{ size: 'xl', repeats: true }} />],
+  ['Print preview: one song', () => (
+    <PrintPreviewView embedded title="Blessed Assurance" kind="Song" charts onClose={noop}
+      build={(look) => buildSongPrintDocument(resolveSongView(PP_SONGS[0]), { look })} initialLook={{ size: 'm', chords: true, cols: 2, repeats: false }} />
+  )],
 ];
 
 function PartsPopupDemo() {
@@ -1008,7 +1043,7 @@ function PartsPopupDemo() {
 function Gallery() {
   return (
     <div className="flex flex-col gap-8">
-      {SCREENS.filter(([label]) => !/^(New setlist|Template|What’s new)/.test(label)).map(([label, render]) => (
+      {SCREENS.filter(([label]) => !/^(New setlist|Template|What’s new|Pop-up)/.test(label)).map(([label, render]) => (
         <div key={label} className="flex flex-col gap-2">
           <h3 className="m-0 text-body font-semibold">{label}</h3>
           <div className="flex gap-6 overflow-x-auto pb-2">

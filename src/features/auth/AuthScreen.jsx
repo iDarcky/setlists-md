@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { signupSource, forgetSignupSource } from '@/lib/siteEntry';
 import { useAuth } from '@/auth/useAuth';
 import { Button } from '@/ui/shadcn/button';
 import LegalSheet from '@/features/legal/LegalSheet';
@@ -57,8 +58,10 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
 
   const signUp = () => run('submit', async () => {
     const email = values.email.trim();
-    const { data, error } = await signUpWithPassword(email, values.password, values.name.trim());
+    const from = signupSource();
+    const { data, error } = await signUpWithPassword(email, values.password, values.name.trim(), from ? { signup_from: from } : null);
     if (error) throw error;
+    forgetSignupSource();
     rememberEmail(email);
     // With "Confirm email" off the account is live straight away.
     if (data?.session) { onSignedIn?.(); return; }
