@@ -2,6 +2,12 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.22.1 — Repeats on the printout
+*November 2026*
+
+### Improved
+- **Repeated parts on the printout** — when a part is printed once, a small coloured pill such as "Chorus ×2" now shows where it comes back.
+
 ## 0.22.0 — Print the way you want
 *November 2026*
 
