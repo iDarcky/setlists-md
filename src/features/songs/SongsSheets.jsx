@@ -67,17 +67,19 @@ export function TagSheet({ open, onOpenChange, count = 0, tags = [], onAdd }) {
 }
 
 /** Move or copy to another church the user leads. */
-export function ChurchPickerSheet({ open, onOpenChange, action = 'copy', count = 0, churches = [], onPick }) {
+export function ChurchPickerSheet({ open, onOpenChange, action = 'copy', count = 0, songTitle, churches = [], onPick }) {
   const [busy, setBusy] = useState(null);
   const pick = async (id) => {
     setBusy(id);
     try { await onPick?.(id); onOpenChange?.(false); } finally { setBusy(null); }
   };
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={`${action === 'move' ? 'Move' : 'Copy'} ${count} song${count === 1 ? '' : 's'} to…`} className="h-auto sm:max-w-[440px]">
+    <Sheet open={open} onOpenChange={onOpenChange} title={`${action === 'move' ? 'Move' : 'Copy'} ${songTitle ? `“${songTitle}”` : `${count} song${count === 1 ? '' : 's'}`} to…`} className="h-auto sm:max-w-[440px]">
       <div className="flex flex-col gap-2">
         <p className="m-0 text-[14px] text-muted-foreground">
-          {action === 'move' ? 'They leave this church’s library.' : 'This church keeps its copy.'}
+          {action === 'move'
+            ? (songTitle || count === 1 ? 'It leaves this church’s library.' : 'They leave this church’s library.')
+            : 'This church keeps its copy.'}
         </p>
         <div className="flex flex-col overflow-hidden rounded-card border border-border">
           {churches.map(c => (

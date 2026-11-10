@@ -58,9 +58,11 @@ export default function UpgradeGate({ feature, onUpgrade, children }) {
           {description}
         </p>
 
-        <Button variant="brand" size="lg" onClick={onUpgrade} className="w-full mt-2">
-          View Plans
-        </Button>
+        {onUpgrade && (
+          <Button variant="brand" size="lg" onClick={onUpgrade} className="w-full mt-2">
+            View Plans
+          </Button>
+        )}
       </div>
     </div>
   );

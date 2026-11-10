@@ -7,13 +7,14 @@ import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
 import AppSkeleton from "@/ui/AppSkeleton";
 import { isQuotaError } from "@/lib/storageErrors";
-import WorkspacePickerDialog from "@/ui/WorkspacePickerDialog";
+import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { songToMd, generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { readySnapshot } from '@/lib/setlistView';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
+import { parseSiteEntry, stripSiteEntry, rememberSignupSource } from '@/lib/siteEntry';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
@@ -137,7 +138,6 @@ const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
 const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
-const PricingScreen = lazy(() => import('@/features/billing/PricingScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
 const Schedule = lazy(() => import('@/features/schedule/Schedule'));
 const Songs = lazy(() => import('@/features/songs/Songs'));
@@ -251,9 +251,13 @@ export default function App() {
       if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
       if (shareTokenFromUrl()) return 'share-view';
+      // From the website's Join / Log in buttons: straight to the account screen.
+      if (parseSiteEntry(window.location.search).start) return 'signin';
     }
     return 'loading';
   });
+  // The website link this session opened with (read once; see the effect below).
+  const [siteEntry] = useState(() => (typeof window === 'undefined' ? { start: null, from: null } : parseSiteEntry(window.location.search)));
   const [shareToken] = useState(() => shareTokenFromUrl());
   // The join-link code this session is working on: from the URL, or resumed
   // from localStorage after a sign-in redirect (see the resume effect below).
@@ -329,7 +333,7 @@ export default function App() {
     });
   }, [settings?.seenLiveIntro]);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [authStartMode, setAuthStartMode] = useState('signin');
+  const [authStartMode, setAuthStartMode] = useState(() => (siteEntry.start === 'signup' ? 'signup' : 'signin'));
   // The church a join link is joining, shown on the log-in / create screens.
   const [authJoining, setAuthJoining] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
@@ -810,9 +814,14 @@ export default function App() {
 
         // Determine initial view based on onboarding state. `share-view` is a
         // public, no-auth route — never override it with onboarding/landing.
-        const isAuthFlow = view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
+        const isAuthFlow = (view === 'signin' && !!siteEntry.start) || view === 'recovery' || view === 'auth-callback' || view === 'google-drive-callback' || view === 'share-view' || view === 'join' || view.startsWith('legal-');
         if (isAuthFlow) {
-          // Keep the current auth view
+          // Keep the current auth view. Someone sent here by the website has
+          // seen what the app is, so the welcome screen is done for them too.
+          if (view === 'signin' && !savedSettings.onboardingComplete) {
+            savedSettings.onboardingComplete = true;
+            setSettings(savedSettings);
+          }
         } else if (view === 'design' && savedSettings.onboardingComplete) {
           // /design: the design system page, opened by its address.
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
@@ -950,6 +959,23 @@ export default function App() {
     }, 150);
     return () => clearTimeout(t);
   }, []);
+
+  // Website links (`?start=signup&from=site`): remember where the person came
+  // from until they make an account, then tidy the address bar.
+  useEffect(() => {
+    if (typeof window === 'undefined' || (!siteEntry.start && !siteEntry.from)) return;
+    rememberSignupSource(siteEntry.from);
+    window.history.replaceState({}, document.title, window.location.pathname + stripSiteEntry(window.location.search) + window.location.hash);
+  }, [siteEntry]);
+  // Already signed in on this device: the website's Join / Log in buttons
+  // just open the app.
+  const siteEntrySettledRef = useRef(false);
+  useEffect(() => {
+    if (siteEntrySettledRef.current || !siteEntry.start || authLoading) return;
+    siteEntrySettledRef.current = true;
+    if (user?.id && view === 'signin') goToMainView('home');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when auth first settles
+  }, [authLoading, user?.id]);
 
   // Account-level preference sync (hydrate once per user, then debounced push).
   usePreferenceSync({ loaded, settings, setSettings, user, profile, updateProfile });
@@ -2262,7 +2288,7 @@ export default function App() {
   if (view === 'recovery') {
     return (
       <ErrorBoundary>
-        <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
           <RecoveryScreen
             onBack={() => goToMainView('home')}
             onDone={() => goToMainView('home')}
@@ -2360,7 +2386,7 @@ export default function App() {
   // ── The new navigation (canvas "Navigation options": pill B, menu B) ──
   // Views that carry the nav pill. Everything else (a song, a service, the
   // reader, the editor) has its own "← Back".
-  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'upgrade', 'you'];
+  const PILL_VIEWS = ['home', 'library', 'setlists', 'schedule', 'scheduling', 'setlist-view', 'settings', 'account', 'team', 'you'];
   // Schedule needs a church; on its own, Personal's Schedule is its setlists.
   const goNavItem = (id) => goToMainView(
     id === 'songs' ? 'library' : id === 'schedule' && activeLibrary === 'personal' ? 'setlists' : id,
@@ -2578,7 +2604,6 @@ export default function App() {
               {...buildChartMoveCopy(currentSong.id)}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
-              onUpgrade={() => navigate('upgrade')}
               // ⚠ Nine props were threaded here into a component that stopped
               // declaring them: the seven that fed `chartProps` (which fed the
               // ChartView the hub no longer mounts), plus `isFullscreen` and
@@ -2743,7 +2768,6 @@ export default function App() {
               onSaveAsArrangement={isTeamReadOnly ? null : handleSaveAsArrangement}
               trash={trash}
               onRestoreSong={isTeamReadOnly ? null : handleRestoreSong}
-              onUpgrade={() => navigate('upgrade')}
               onBack={goBack}
               onFinish={(stats) => goSetlistFinale(currentSetlist, stats)}
             />
@@ -2773,16 +2797,6 @@ export default function App() {
           }} />
         </Suspense>
       )}
-      {view === 'upgrade' && (
-            <PricingScreen
-              onBack={goBack}
-              settings={settings}
-              onSignIn={() => {
-                setAuthStartMode('signup');
-                navigate('signin');
-              }}
-            />
-          )}
           {(view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') && (
             <LegalPage
               doc={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'}
@@ -2882,7 +2896,6 @@ export default function App() {
               onRestoreSong={handleRestoreSong}
               onPurgeSong={handlePurgeSong}
               onEmptyTrash={handleEmptyTrash}
-              onUpgrade={() => navigate('upgrade')}
               onShowLegal={(doc) => navigate(`legal-${doc}`)}
               onHelp={() => navigate('help')}
             />
@@ -2895,7 +2908,6 @@ export default function App() {
               displayName={displayName}
               displayEmail={displayEmail}
               plan={plan}
-              onUpgrade={() => navigate('upgrade')}
               onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               onSignOut={handleSignOut}
@@ -2904,7 +2916,6 @@ export default function App() {
           {view === 'team' && (
             <TeamScreen
               onBack={goBack}
-              onUpgrade={() => navigate('upgrade')}
               onSwitchLibrary={switchWorkspace}
               initialCreate={teamCreateIntent}
               onCreateHandled={() => setTeamCreateIntent(false)}
@@ -2961,19 +2972,14 @@ export default function App() {
       )}
       {/* Workspace destination picker for move/copy from the song kebab. */}
       {moveCopyDialog && (
-        <WorkspacePickerDialog
+        <ChurchPickerSheet
           open
-          title={moveCopyDialog.action === 'move' ? 'Move song to…' : 'Copy song to…'}
-          description={(() => {
-            const t = songs.find(s => s.id === moveCopyDialog.songId)?.title || 'this song';
-            return moveCopyDialog.action === 'move'
-              ? `"${t}" will be moved out of the current workspace.`
-              : `A copy of "${t}" will be added. The original stays put.`;
-          })()}
-          confirmLabel={moveCopyDialog.action === 'move' ? 'Move' : 'Copy'}
-          workspaces={moveCopyWorkspaces}
-          onSelect={performMoveCopy}
-          onClose={() => setMoveCopyDialog(null)}
+          onOpenChange={(o) => { if (!o) setMoveCopyDialog(null); }}
+          action={moveCopyDialog.action}
+          count={1}
+          songTitle={songs.find(s => s.id === moveCopyDialog.songId)?.title || 'this song'}
+          churches={moveCopyWorkspaces}
+          onPick={performMoveCopy}
         />
       )}
 
@@ -2994,7 +3000,8 @@ export default function App() {
           onSignIn={() => {
             setSettings(prev => ({ ...prev, seenSaveAccountWall: true }));
             dismissTopModal();
-            navigate('upgrade');
+            setAuthStartMode('signup');
+            navigate('signin');
           }}
           onSkip={() => {
             setSettings(prev => ({ ...prev, seenSaveAccountWall: true }));

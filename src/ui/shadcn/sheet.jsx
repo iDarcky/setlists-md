@@ -13,15 +13,18 @@ const subscribe = (cb) => {
 };
 const getWide = () => window.matchMedia(QUERY).matches;
 
-function Sheet({ open, onOpenChange, title, description, children, className }) {
+// `dismissible={false}`: no ✕, no drag-down, no tap-outside — for a pop-up
+// that needs an answer (a sync conflict).
+function Sheet({ open, onOpenChange, title, description, children, className, dismissible = true }) {
   const wide = useSyncExternalStore(subscribe, getWide, () => true);
   // Radix warns about a dialog with no description unless told there is none.
   const noDescription = description ? {} : { 'aria-describedby': undefined };
   if (wide) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={className} {...noDescription}>
-          <DialogHeader><DialogTitle>{title}</DialogTitle></DialogHeader>
+        <DialogContent className={className} {...noDescription}
+          {...(dismissible ? {} : { onEscapeKeyDown: (e) => e.preventDefault(), onPointerDownOutside: (e) => e.preventDefault() })}>
+          <DialogHeader hideClose={!dismissible}><DialogTitle>{title}</DialogTitle></DialogHeader>
           {description && <DialogDescription className="sr-only">{description}</DialogDescription>}
           <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-2">{children}</div>
         </DialogContent>
@@ -29,9 +32,9 @@ function Sheet({ open, onOpenChange, title, description, children, className }) 
     );
   }
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
+    <Drawer open={open} onOpenChange={onOpenChange} dismissible={dismissible}>
       <DrawerContent className={cn('h-[calc(100dvh-64px)]', className)} {...noDescription}>
-        <DrawerHeader><DrawerTitle>{title}</DrawerTitle></DrawerHeader>
+        <DrawerHeader hideClose={!dismissible}><DrawerTitle>{title}</DrawerTitle></DrawerHeader>
         {description && <DrawerDescription className="sr-only">{description}</DrawerDescription>}
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-2" data-vaul-no-drag>{children}</div>
       </DrawerContent>

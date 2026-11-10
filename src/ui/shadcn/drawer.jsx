@@ -30,13 +30,13 @@ function DrawerContent({ className, children, ...props }) {
   );
 }
 
-function DrawerHeader({ className, children, ...props }) {
+function DrawerHeader({ className, children, hideClose = false, ...props }) {
   return (
-    <div data-slot="drawer-header" className={cn('flex shrink-0 items-center justify-between gap-2 py-2 pl-6 pr-3', className)} {...props}>
+    <div data-slot="drawer-header" className={cn('flex shrink-0 items-center justify-between gap-2 py-2 pl-6 pr-3', hideClose && 'pb-1 pr-6 pt-5', className)} {...props}>
       {children}
-      <DrawerPrimitive.Close className="flex size-11 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring" aria-label="Close">
+      {!hideClose && <DrawerPrimitive.Close className="flex size-11 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring" aria-label="Close">
         <CloseIcon />
-      </DrawerPrimitive.Close>
+      </DrawerPrimitive.Close>}
     </div>
   );
 }

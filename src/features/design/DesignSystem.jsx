@@ -8,7 +8,9 @@ import { Toggle } from '@/ui/shadcn/toggle';
 import { Field, FieldLabel, FieldDescription, FieldError } from '@/ui/shadcn/field';
 import { cn } from '@/ui/shadcn/utils';
 import LegalSheet from '@/features/legal/LegalSheet';
-import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView } from '@/features/auth/AuthViews';
+import ConflictResolver from '@/features/sync/ConflictResolver';
+import { ChurchPickerSheet } from '@/features/songs/SongsSheets';
+import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView, NewPasswordView } from '@/features/auth/AuthViews';
 import {
   JoinInviteView, AboutYouView, WaitingView, YoureInView, DeclinedView, BadLinkView,
 } from '@/features/join/JoinViews';
@@ -17,6 +19,7 @@ import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
 import YouPage from '@/features/you/YouPage';
 import HomeView from '@/features/home/HomeView';
+import { StartChurchCard } from '@/features/home/StartChurch';
 import ScheduleView from '@/features/schedule/ScheduleView';
 import SongsView from '@/features/songs/SongsView';
 import Song from '@/features/song/Song';
@@ -31,7 +34,9 @@ import NotificationsPanel from '@/features/notifications/NotificationsPanel';
 import { buildNotifs } from '@/lib/notifData';
 import {
   SettingsHubView, ProfileView, AppearanceView, NotificationsSettingsView, PlanView, ServicesView, DataView, LabsView, AboutView,
+  SettingsShell,
 } from '@/features/settings/SettingsViews';
+import WhatsNewPanel from '@/features/settings/WhatsNewPanel';
 import SetlistView from '@/features/setlist/SetlistView';
 import SetlistEdit from '@/features/setlist/SetlistEdit';
 import SetlistFlow from '@/features/setlist/SetlistFlow';
@@ -229,7 +234,7 @@ const H_ACTIVITY = recentActivity([
   { id: 5, action: 'member_joined', entity_id: 'tp', actor_id: 'tp', created_at: hAgo(80) },
 ], { nameFor: id => ({ am: 'Ana M', rk: 'Rob K', tp: 'Tim P' })[id], userId: 'joe' });
 
-function HomeDemo({ leader = false, empty = false, noParts = false, layout }) {
+function HomeDemo({ leader = false, empty = false, noParts = false, noChurch = false, layout }) {
   const [offset, setOffset] = useState(0);
   const [picked, setPicked] = useState('2026-11-01');
   const asks = empty ? [] : myAsks({ schedules: H_SCHEDULES, userId: 'joe', setlists: H_SETLISTS, now: H_NOW });
@@ -246,6 +251,7 @@ function HomeDemo({ leader = false, empty = false, noParts = false, layout }) {
       leader={leader}
       needs={leader ? needsYou({ joinRequests: [{ display_name: 'Ana M.' }, { display_name: 'Tim P.' }], setlists: H_SETLISTS, schedules: H_SCHEDULES.filter(r => r.setlist_id !== 's3'), now: H_NOW, noParts: noParts ? ['Lia S', 'Tim P', 'Rob K', 'Mara D'] : [] }) : []}
       parts={noParts ? { church: 'Grace Church', onOpen: noop } : null}
+      startChurch={noChurch ? <StartChurchCard onStart={noop} /> : null}
       asks={ask}
       onAnswer={noop}
       next={empty ? null : { setlist: H_SETLISTS[0], part: leader ? null : 'Keys', band, days: 7 }}
@@ -272,7 +278,7 @@ function HomeGallery() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap gap-6">
-        {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }]].map(([label, props]) => THEMES.map(t => (
+        {[['Member', {}], ['Leader', { leader: true }], ['New member', { empty: true }], ['No church yet', { empty: true, noChurch: true }]].map(([label, props]) => THEMES.map(t => (
           <Frame key={label + t.id} theme={t.id} width={390} height={1760} scale={0.6} label={`${label} · ${t.label}`}>
             <HomeDemo layout="phone" {...props} />
           </Frame>
@@ -585,6 +591,8 @@ function SettingsDemo({ page, leader = true }) {
       ]} onFlag={(id, on) => setLabs(p => ({ ...p, [id]: on }))} onBack={back} />;
     case 'about':
       return <AboutView embedded version="0.20.0" onWhatsNew={noop} onHelp={noop} onLegal={noop} onBack={back} />;
+    case 'whatsnew':
+      return <SettingsShell embedded title="What’s new" onBack={back}><WhatsNewPanel /></SettingsShell>;
     default:
       return <SettingsHubView embedded church={leader ? CHURCH : null}
         summary={{ appearance: 'Dark', notifications: 'On', plan: 'Church', services: '3', data: '142 songs', version: 'v0.20.0' }}
@@ -870,7 +878,7 @@ function TeamGallery() {
 
 function SettingsGallery() {
   const pages = [['Settings · leader', 'hub', {}], ['Settings · member', 'hub', { leader: false }], ['Profile', 'profile'], ['Appearance', 'appearance'],
-    ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about']];
+    ['Notifications', 'notifications'], ['Plan and billing', 'plan'], ['Services', 'services'], ['Data', 'data'], ['Labs', 'labs'], ['About', 'about'], ['What’s new', 'whatsnew']];
   return (
     <div className="flex flex-wrap gap-6">
       {pages.map(([label, page, props = {}]) => THEMES.map(t => (
@@ -974,6 +982,8 @@ const SCREENS = [
   ['Create account', () => <CreateAccountView embedded values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onLogIn={noop} onShowLegal={noop} />],
   ['Log in', () => <LogInView embedded values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Forgot password', () => <ForgotPasswordView embedded email="" onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['New password', () => <NewPasswordView embedded values={{ password: 'sunday2026', confirm: 'sunday20' }} onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['New password: saved', () => <NewPasswordView embedded done values={{ password: '', confirm: '' }} onChange={noop} onSubmit={noop} />],
   ['Join: invite', () => <JoinInviteView embedded church={CHURCH} alreadyIn="Daniel and 11 others are already in" onCreateAccount={noop} onLogIn={noop} onNotNow={noop} />],
   ['Join: log in', () => <LogInView embedded joining={CHURCH} values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Join: about you', () => <AboutYouDemo embedded />],
@@ -1006,6 +1016,10 @@ const SCREENS = [
       upcoming={[]} onRole={noop} onRemove={noop} /></DrawerFrame>
   )],
   ['Home: desktop, what do you play?', () => <HomeDemo layout="wide" leader noParts />],
+  ['What’s new', () => <SettingsDemo page="whatsnew" />],
+  ['Pop-up: two versions', () => <ConflictResolver onResolve={noop} onResolveAll={noop} conflicts={[1, 2, 3].map(n => ({ kind: 'song', id: `c${n}`, title: 'Way Maker',
+    local: { arrangements: [{ id: 'a', key: 'E', tempo: 68 }] }, remote: { arrangements: [{ id: 'a', key: 'D', tempo: 68 }, { id: 'b', key: 'E' }] } }))} />],
+  ['Pop-up: move a song', () => <ChurchPickerSheet open onOpenChange={noop} action="move" count={1} songTitle="Way Maker" churches={[{ id: 'y', name: 'Grace Youth' }, { id: 'n', name: 'North Campus' }]} onPick={noop} />],
   ['Print preview: charts', () => <PrintPreviewDemo />],
   ['Print preview: lyrics only, large, one column', () => <PrintPreviewDemo look={{ chords: false, size: 'l', cols: 1 }} />],
   ['Print preview: extra large, repeats every time', () => <PrintPreviewDemo look={{ size: 'xl', repeats: true }} />],
@@ -1029,7 +1043,7 @@ function PartsPopupDemo() {
 function Gallery() {
   return (
     <div className="flex flex-col gap-8">
-      {SCREENS.filter(([label]) => !/^(New setlist|Template)/.test(label)).map(([label, render]) => (
+      {SCREENS.filter(([label]) => !/^(New setlist|Template|What’s new|Pop-up)/.test(label)).map(([label, render]) => (
         <div key={label} className="flex flex-col gap-2">
           <h3 className="m-0 text-body font-semibold">{label}</h3>
           <div className="flex gap-6 overflow-x-auto pb-2">

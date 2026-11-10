@@ -223,7 +223,6 @@ src/
 │   ├── scheduling/       # Schedule, SchedulingGrid, ScheduleCalendarView/ListView,
 │   │                     #   DateStatusModal, RecurringPicker
 │   ├── notifications/    # NotificationTray, NotificationsPage, NotificationItems
-│   ├── billing/          # PricingScreen
 │   ├── legal/            # LegalPage, HelpPage, FeedbackButton
 │   ├── onboarding/       # OnboardingFlow + screens/, ProgressChecklist, ChordLine,
 │   │                     #   FounderNote, IOSInstallHint
@@ -579,7 +578,7 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   paid subscription". The client is **status-aware but not yet status-gated in
   practice** — everything defaults to `active` until the Stripe webhook writes
   real statuses. The Stripe integration is **scaffolded but dormant** (see
-  "Billing" below); `PricingScreen` still only captures email intent.
+  "Billing" below). There is no in-app pricing screen (removed 2026-11-09): pricing lives on the website.
 - `20260613_team_notes.sql` — adds the `team_notes` table: per-user **private**
   notes ("My note") for team workspaces, at song / setlist-item / section
   scope. Shared/team notes still live on the song & setlist objects; this is
