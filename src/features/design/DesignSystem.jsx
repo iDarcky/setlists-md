@@ -52,7 +52,8 @@ import { ShareBody } from '@/features/sharing/ShareSheet';
 import GuestView from '@/features/sharing/GuestView';
 import { PrintBody } from '@/features/setlist/PrintSheet';
 import { PrintPreviewView } from '@/features/setlist/PrintPreview';
-import { buildPrintDocument } from '@/pdf/printSetlist';
+import { buildPrintDocument, buildSongPrintDocument } from '@/pdf/printSetlist';
+import { resolveSongView } from '@/arrangements';
 import TeamPage, { InviteCard, UsageEntry, Waiting } from '@/features/team/TeamPage';
 import { PersonBody, ChurchBody } from '@/features/team/TeamSheets';
 import { PartsPicker } from '@/features/team/PartsPicker';
@@ -1008,6 +1009,10 @@ const SCREENS = [
   ['Print preview: charts', () => <PrintPreviewDemo />],
   ['Print preview: lyrics only, large, one column', () => <PrintPreviewDemo look={{ chords: false, size: 'l', cols: 1 }} />],
   ['Print preview: extra large, repeats every time', () => <PrintPreviewDemo look={{ size: 'xl', repeats: true }} />],
+  ['Print preview: one song', () => (
+    <PrintPreviewView embedded title="Blessed Assurance" kind="Song" charts onClose={noop}
+      build={(look) => buildSongPrintDocument(resolveSongView(PP_SONGS[0]), { look })} initialLook={{ size: 'm', chords: true, cols: 2, repeats: false }} />
+  )],
 ];
 
 function PartsPopupDemo() {

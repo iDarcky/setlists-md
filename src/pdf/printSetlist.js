@@ -226,7 +226,7 @@ function chartPage({ song, item, n, count, setlist, show }) {
   return `<section class="sheet">
     <div class="head">
       <div>
-        <div class="eyebrow" style="text-transform:none;letter-spacing:0;font-weight:500">${n} of ${count} · ${esc(setlist.name || 'Setlist')}</div>
+        ${setlist ? `<div class="eyebrow" style="text-transform:none;letter-spacing:0;font-weight:500">${n} of ${count} · ${esc(setlist.name || 'Setlist')}</div>` : ''}
         <h1>${esc(song.title || 'Untitled')}</h1>
         ${sub ? `<div class="sub">${esc(sub)}</div>` : ''}
       </div>
@@ -306,6 +306,39 @@ ${charts}
 }
 
 /**
+ * One song on its own (Song ⋯ → Print): the same chart page and look as a
+ * setlist's Charts, without the order sheet. `transpose` is the key the song
+ * page shows.
+ */
+export function buildSongPrintDocument(song, { transpose = 0, look, church } = {}) {
+  const page = chartPage({ song, item: { transpose }, show: { church, notes: true } });
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${esc(song.title || 'Song')}</title>
+<style>${STYLES}</style>
+</head>
+<body${bodyAttrs(look)}>
+${page}
+</body>
+</html>`;
+}
+
+/** Open the print preview for one song. */
+export async function printSong(song, opts = {}) {
+  if (!song) return;
+  const { openPrintPreview } = await import('@/features/setlist/openPrintPreview');
+  openPrintPreview({
+    title: song.title || 'Song',
+    kind: 'Song',
+    charts: true,
+    build: (look) => buildSongPrintDocument(song, { ...opts, look }),
+  });
+}
+
+/**
  * Open the print preview for the band's printout. Charts get the look strip
  * (text size, chords, columns, repeats) above the preview; the order sheet
  * gets the plain preview.
@@ -315,6 +348,7 @@ export async function printSetlist(setlist, songs, show = {}) {
   const { openPrintPreview } = await import('@/features/setlist/openPrintPreview');
   openPrintPreview({
     title: setlist.name || 'Setlist',
+    kind: show.mode === 'full' ? 'Charts' : 'Order sheet',
     charts: show.mode === 'full',
     build: (look) => buildPrintDocument(setlist, songs || [], { ...show, look }),
   });

@@ -84,7 +84,7 @@ const PrintIcon = () => (
  * later look changes are painted onto it. `embedded` sizes it to its parent
  * (the /design page) instead of the window.
  */
-export function PrintPreviewView({ title, charts, build, onClose, embedded = false, initialLook }) {
+export function PrintPreviewView({ title, kind, charts, build, onClose, embedded = false, initialLook }) {
   const [look, setLook] = useState(() => initialLook || readLook());
   const frameRef = useRef(null);
   // Built once with the look it opened with; later changes are painted, not rebuilt.
@@ -121,7 +121,7 @@ export function PrintPreviewView({ title, charts, build, onClose, embedded = fal
           <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}><XIcon /></Button>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[16px] font-semibold">{title}</span>
-            <span className="text-caption text-muted-foreground">{charts ? 'Charts' : 'Order sheet'} · print or save as PDF</span>
+            <span className="text-caption text-muted-foreground">{kind || (charts ? 'Charts' : 'Order sheet')} · print or save as PDF</span>
           </div>
           <Button onClick={print}><PrintIcon />Print</Button>
         </div>

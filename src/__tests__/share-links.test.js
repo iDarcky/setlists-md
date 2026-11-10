@@ -136,3 +136,15 @@ describe('the print look', () => {
     expect(html).toContain('data-size="xl" class="no-chords" style="--cols:1"');
   });
 });
+
+describe('printing one song', () => {
+  it('is the chart page alone, in the key on screen', async () => {
+    const { buildSongPrintDocument } = await import('@/pdf/printSetlist');
+    const { resolveSongView } = await import('@/arrangements');
+    const s = resolveSongView(songFromFlat({ id: 'a', title: 'Way Maker', key: 'E', sections: [{ type: 'Verse 1', lines: ['[E]Way [B]maker'] }] }));
+    const html = buildSongPrintDocument(s, { transpose: 2 });
+    expect(html).toContain('<div class="kk">Gb');
+    expect(html).not.toContain(' of 1 ·');
+    expect(html).not.toContain('class="order"');
+  });
+});
