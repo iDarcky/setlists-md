@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
 
-// ⋯ → Print for the band. Order sheet or Charts, three switches, then the
-// phone's own print / save as PDF. The last choices are remembered per device.
+// ⋯ → Print for the band. Order sheet or Charts and two switches, then the
+// preview (where Charts get text size, chords, columns and repeats). The last choices are remembered per device.
 
 const KEY = 'setlists-md:print-choice';
-const DEFAULTS = { mode: 'overview', notes: true, leads: true, twoColumns: true };
+const DEFAULTS = { mode: 'overview', notes: true, leads: true };
 
 function readChoice() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return DEFAULTS; }
@@ -53,11 +53,10 @@ export function PrintBody({ choice, setChoice, onPrint, hasLeads = true }) {
       <div className="flex flex-col">
         <Switch label="Notes for the band" on={choice.notes} onChange={v => set('notes', v)} />
         {hasLeads && <Switch label="Who leads each song" on={choice.leads} onChange={v => set('leads', v)} />}
-        {choice.mode === 'full' && <Switch label="Two columns for charts" on={choice.twoColumns} onChange={v => set('twoColumns', v)} />}
       </div>
       <Button onClick={onPrint}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z" /></svg>
-        Print or save PDF
+        Preview and print
       </Button>
     </div>
   );

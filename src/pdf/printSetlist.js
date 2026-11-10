@@ -10,13 +10,12 @@
 // The choices (Order sheet / Charts, notes, who leads, two columns) are made in
 // the app's Print drawer, so the document carries no toolbar of its own.
 
-import { transposeChord, transposeKey } from '@/music';
+import { transposeChord, transposeKey, sectionStyle } from '@/music';
 import { parseLine } from '@/parser';
 import { buildOrder, totalLabel } from '@/lib/setlistView';
 import { orderSections, sectionModPlan, repeatFirstIndex } from '@/lib/songFlow';
 import { resolveSongView } from '@/arrangements';
 import { escapeHtml as esc, renderTab } from './exportSongPdf';
-import { openPrintWindow } from './pdfDocument';
 
 const STYLES = `
   @page { size: A4; margin: 14mm 15mm 14mm; }
@@ -32,11 +31,10 @@ const STYLES = `
     background: #fff; box-shadow: 0 6px 24px rgba(0,0,0,.14);
     display: flex; flex-direction: column; gap: 12px;
   }
-  @media screen and (max-width: 820px) {
-    .sheet { width: auto; min-height: 0; margin: 10px; padding: 22px 18px; }
-  }
+  /* A narrow screen shows the real A4 page made smaller (fitPrintPreview sets
+     the zoom), never a reflowed one: what you see is what prints. */
   @media print {
-    body { background: #fff; }
+    body { background: #fff; zoom: 1 !important; }
     /* Fills the page so the footer sits at the bottom (A4 less the margins, less a hair). */
     .sheet { width: auto; min-height: 267mm; margin: 0; padding: 0; box-shadow: none; break-after: page; }
     .sheet:last-child { break-after: auto; }
@@ -63,22 +61,38 @@ const STYLES = `
 
   .note { font-size: 10pt; line-height: 1.45; background: #F6F4EF; border-radius: 6px; padding: 7px 10px; white-space: pre-line; break-inside: avoid; }
   .note b { font-weight: 600; }
-  .flow { font-size: 9.5pt; color: #6B655C; }
+  .flow { font-size: 9.5pt; font-weight: 600; word-spacing: .4em; color: #6B655C; }
 
+  /* The chart's look is set from the preview's strip on <body>, live:
+     data-size (s m l xl) scales the chart text, .no-chords makes a singers'
+     copy, .repeats-full prints a repeated section every time, --cols. */
+  body { --s: 1; }
+  body[data-size="s"] { --s: .85; }
+  body[data-size="l"] { --s: 1.2; }
+  body[data-size="xl"] { --s: 1.45; }
   .chart { columns: var(--cols, 1); column-gap: 26px; }
-  .sct { break-inside: avoid; margin-bottom: 12px; }
-  .sct h4 { margin: 0 0 4px; font-size: 8.5pt; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #3B5A52; }
-  .sct .cue { font-size: 9pt; font-style: italic; color: #6B655C; margin-bottom: 3px; }
+  .sct { break-inside: avoid; margin-bottom: calc(12px * var(--s)); }
+  .sct.rep { display: none; }
+  body.repeats-full .sct.rep { display: block; }
+  .sct h4 { margin: 0 0 4px; font-size: calc(8.5pt * var(--s)); font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #3B5A52; }
+  .sct .cue { font-size: calc(9pt * var(--s)); font-style: italic; color: #6B655C; margin-bottom: 3px; }
   .ln { display: flex; flex-wrap: wrap; align-items: flex-end; min-height: 1.2em; }
-  .pr { display: inline-flex; flex-direction: column; white-space: pre; }
-  .pr .c { font: 600 9pt ui-monospace, "SF Mono", Menlo, monospace; color: #9A6412; height: 12pt; padding-right: 5px; }
-  .pr .w { font-size: 10.5pt; line-height: 1.3; }
+  .pr { display: inline-flex; flex-direction: column; white-space: pre-wrap; max-width: 100%; }
+  .pr .c { font: 600 calc(9pt * var(--s)) ui-monospace, "SF Mono", Menlo, monospace; color: #9A6412; height: calc(12pt * var(--s)); padding-right: 5px; }
+  .pr .w { font-size: calc(10.5pt * var(--s)); line-height: 1.3; }
   .chords-only .pr .w { display: none; }
-  .ln.plain { font-size: 10.5pt; line-height: 1.3; white-space: pre-wrap; }
-  .ln .inline { font-size: 9pt; font-style: italic; color: #6B655C; padding-left: 6px; }
-  .mod { font-size: 8.5pt; font-weight: 600; color: #9A6412; margin: 3px 0; }
-  .tab-block { font: 9pt/1.25 ui-monospace, "SF Mono", Menlo, monospace; margin: 4px 0; white-space: pre; }
+  .wg { display: inline-flex; align-items: flex-end; white-space: nowrap; }
+  .ln.plain { font-size: calc(10.5pt * var(--s)); line-height: 1.3; white-space: pre-wrap; }
+  .ln .inline { font-size: calc(9pt * var(--s)); font-style: italic; color: #6B655C; padding-left: 6px; }
+  .mod { font-size: calc(8.5pt * var(--s)); font-weight: 600; color: #9A6412; margin: 3px 0; }
+  .tab-block { font: calc(9pt * var(--s))/1.25 ui-monospace, "SF Mono", Menlo, monospace; margin: 4px 0; white-space: pre; }
   .tab-time { display: block; font-size: 8pt; color: #6B655C; }
+  /* Lyrics only: no chord row, no chord-only lines, no tabs, no key-change marks. */
+  body.no-chords .pr .c, body.no-chords .ln.chords-only, body.no-chords .tab-block, body.no-chords .mod { display: none; }
+  body.no-chords .pr { white-space: pre-wrap; display: inline; }
+  body.no-chords .ln { display: block; }
+  body.no-chords .wg { display: inline; }
+  body.no-chords .sct.nw { display: none; }
 
   .foot { margin-top: auto; padding-top: 8px; border-top: 1px solid #E2DDD3; display: flex; justify-content: space-between; gap: 12px;
           font-size: 8.5pt; color: #8F887D; }
@@ -105,12 +119,42 @@ function chordLine(line, shift) {
   }
   const pairs = parseLine(clean);
   const words = pairs.some(p => p.text.trim());
-  return `<div class="ln${words ? '' : ' chords-only'}">${pairs.map(p => (
-    `<span class="pr"><span class="c">${p.chord ? esc(transposeChord(p.chord, shift)) : ''}</span><span class="w">${esc(p.text || ' ')}</span></span>`
+  const pr = p => `<span class="pr"><span class="c">${p.chord ? esc(transposeChord(p.chord, shift)) : ''}</span><span class="w">${esc(p.text || ' ')}</span></span>`;
+  return `<div class="ln${words ? '' : ' chords-only'}">${wordGroups(pairs).map(g => (
+    g.length === 1 ? pr(g[0]) : `<span class="wg">${g.map(pr).join('')}</span>`
   )).join('')}${tail}</div>`;
 }
 
-function sectionHtml(section, shift, fires) {
+/**
+ * Pairs grouped so a line only wraps between words: "glory di" + "[A]vine"
+ * becomes "glory " and a group "di"+"vine" that never splits. Without it a
+ * big text size broke "di / vine" across two lines.
+ */
+export function wordGroups(pairs) {
+  const groups = [];
+  let open = null;
+  pairs.forEach((p, i) => {
+    const text = p.text || '';
+    const next = pairs[i + 1];
+    const joins = next && text && !/\s$/.test(text) && /^\S/.test(next.text || '');
+    if (!joins) {
+      if (open) { open.push(p); groups.push(open); open = null; } else groups.push([p]);
+      return;
+    }
+    const cut = text.lastIndexOf(' ');
+    if (cut >= 0) {
+      if (open) { open.push({ chord: p.chord, text: text.slice(0, cut + 1) }); groups.push(open); }
+      else groups.push([{ chord: p.chord, text: text.slice(0, cut + 1) }]);
+      open = [{ chord: '', text: text.slice(cut + 1) }];
+    } else {
+      (open || (open = [])).push(p);
+    }
+  });
+  if (open) groups.push(open);
+  return groups;
+}
+
+function sectionHtml(section, shift, fires, repeat = false) {
   let running = shift;
   const body = (section.lines || []).map(line => {
     if (line && typeof line === 'object') {
@@ -126,7 +170,44 @@ function sectionHtml(section, shift, fires) {
     return chordLine(line, running);
   }).join('');
   const label = (section.type || '').replace(/:+$/, '');
-  return `<div class="sct"><h4>${esc(label)}</h4>${section.note ? `<div class="cue">${esc(section.note)}</div>` : ''}${body}</div>`;
+  // A part with no words (an intro, a turnaround) has nothing for a singer.
+  const words = (section.lines || []).some(l => typeof l === 'string' && l.replace(/\[[^\]]*\]|\{[^}]*\}/g, '').trim());
+  const cls = ['sct', repeat && 'rep', !words && 'nw'].filter(Boolean).join(' ');
+  return `<div class="${cls}"><h4>${esc(label)}</h4>${section.note ? `<div class="cue">${esc(section.note)}</div>` : ''}${body}</div>`;
+}
+
+/** "Verse 1" → "V1", "Chorus" → "C", "Pre-Chorus 2" → "Pc2": the flow line, short. */
+export function flowCode(type) {
+  const t = String(type || '').replace(/:+$/, '').trim();
+  if (!t) return '';
+  const n = (t.match(/\s*(\d+)$/) || [])[1] || '';
+  return `${sectionStyle(t).l}${n}`;
+}
+
+/** The strip's choices, as the print document's <body> attributes. */
+export const PRINT_LOOK = { size: 'm', chords: true, cols: 2, repeats: false };
+
+export function applyPrintLook(doc, look = PRINT_LOOK) {
+  const b = doc?.body;
+  if (!b) return;
+  b.dataset.size = look.size || 'm';
+  b.classList.toggle('no-chords', look.chords === false);
+  b.classList.toggle('repeats-full', !!look.repeats);
+  b.style.setProperty('--cols', String(look.cols === 1 ? 1 : 2));
+}
+
+function bodyAttrs(look = PRINT_LOOK) {
+  const cls = [look.chords === false && 'no-chords', look.repeats && 'repeats-full'].filter(Boolean).join(' ');
+  return ` data-size="${esc(look.size || 'm')}"${cls ? ` class="${cls}"` : ''} style="--cols:${look.cols === 1 ? 1 : 2}"`;
+}
+
+/** On a screen narrower than the page, shrink the A4 sheets to fit. */
+export function fitPrintPreview(doc) {
+  const b = doc?.body;
+  const w = doc?.documentElement?.clientWidth;
+  if (!b || !w) return;
+  const page = 794 + 32; // 210mm at 96dpi, plus the sheet's margins
+  b.style.zoom = w < page ? String(Math.max(0.3, (w - 4) / page)) : '';
 }
 
 function chartPage({ song, item, n, count, setlist, show }) {
@@ -139,12 +220,13 @@ function chartPage({ song, item, n, count, setlist, show }) {
   const sub = [song.artist && song.artist !== 'Unknown' && song.artist, lead && `${lead} leads`, song.time, tempo && `${tempo} bpm`].filter(Boolean).join(' · ');
   const capo = item.capo || 0;
   const notes = show.notes === false ? [] : [item.note, song.notes].filter(Boolean);
-  const flow = ordered.length > 1 ? `<div class="flow">${ordered.map(s => esc((s.type || '').replace(/:+$/, ''))).join(' → ')}</div>` : '';
-  const sections = ordered.map((s, i) => (firsts[i] === -1 ? sectionHtml(s, shift + offsets[i], fires[i]) : '')).join('');
+  const flow = ordered.length > 1 ? `<div class="flow">${ordered.map(s => esc(flowCode(s.type))).join(' ')}</div>` : '';
+  // A repeat is printed too, hidden until the strip's Repeats says "Every time".
+  const sections = ordered.map((s, i) => sectionHtml(s, shift + offsets[i], fires[i], firsts[i] !== -1)).join('');
   return `<section class="sheet">
     <div class="head">
       <div>
-        <div class="eyebrow" style="text-transform:none;letter-spacing:0;font-weight:500">${n} of ${count} · ${esc(setlist.name || 'Setlist')}</div>
+        ${setlist ? `<div class="eyebrow" style="text-transform:none;letter-spacing:0;font-weight:500">${n} of ${count} · ${esc(setlist.name || 'Setlist')}</div>` : ''}
         <h1>${esc(song.title || 'Untitled')}</h1>
         ${sub ? `<div class="sub">${esc(sub)}</div>` : ''}
       </div>
@@ -216,15 +298,58 @@ export function buildPrintDocument(setlist, songs = [], show = {}) {
 <title>${esc(setlist.name || 'Setlist')}</title>
 <style>${STYLES}</style>
 </head>
-<body style="--cols:${show.twoColumns === false ? 1 : 2}">
+<body${bodyAttrs(show.look)}>
 ${orderSheet}
 ${charts}
 </body>
 </html>`;
 }
 
-/** Open the print preview for the band's printout. */
-export function printSetlist(setlist, songs, show = {}) {
+/**
+ * One song on its own (Song ⋯ → Print): the same chart page and look as a
+ * setlist's Charts, without the order sheet. `transpose` is the key the song
+ * page shows.
+ */
+export function buildSongPrintDocument(song, { transpose = 0, look, church } = {}) {
+  const page = chartPage({ song, item: { transpose }, show: { church, notes: true } });
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${esc(song.title || 'Song')}</title>
+<style>${STYLES}</style>
+</head>
+<body${bodyAttrs(look)}>
+${page}
+</body>
+</html>`;
+}
+
+/** Open the print preview for one song. */
+export async function printSong(song, opts = {}) {
+  if (!song) return;
+  const { openPrintPreview } = await import('@/features/setlist/openPrintPreview');
+  openPrintPreview({
+    title: song.title || 'Song',
+    kind: 'Song',
+    charts: true,
+    build: (look) => buildSongPrintDocument(song, { ...opts, look }),
+  });
+}
+
+/**
+ * Open the print preview for the band's printout. Charts get the look strip
+ * (text size, chords, columns, repeats) above the preview; the order sheet
+ * gets the plain preview.
+ */
+export async function printSetlist(setlist, songs, show = {}) {
   if (!setlist) return;
-  openPrintWindow(buildPrintDocument(setlist, songs || [], show));
+  const { openPrintPreview } = await import('@/features/setlist/openPrintPreview');
+  openPrintPreview({
+    title: setlist.name || 'Setlist',
+    kind: show.mode === 'full' ? 'Charts' : 'Order sheet',
+    charts: show.mode === 'full',
+    build: (look) => buildPrintDocument(setlist, songs || [], { ...show, look }),
+  });
 }
