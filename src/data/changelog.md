@@ -2,6 +2,20 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.22.0 — Print the way you want
+*November 2026*
+
+### Added
+- **Print controls are back** — in the print preview, make the text bigger or smaller, print lyrics only, pick one or two columns and choose whether repeated parts print every time. Your choices are remembered on this device.
+- **Ask to start a church** — if you're not in a church yet, Home lets you open your worship leader's join link or ask us to set your church up.
+- **Join from the website** — the new setlists.md website's Join button opens straight on Create account.
+
+### Improved
+- **Sync conflicts and Move or copy a song** use the new design: a drawer on phones and a dialog on iPad and laptop.
+
+### Removed
+- The in-app pricing screen. Plans and prices now live on the website.
+
 ## 0.21.0 — Setlists in minutes, songs on one page
 *November 2026*
 
