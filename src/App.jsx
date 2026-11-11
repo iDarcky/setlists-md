@@ -463,10 +463,10 @@ export default function App() {
   // they can move their songs into a church or band (Copy to…).
   useEffect(() => {
     if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || !loaded || activeLibrary !== 'personal') return;
-    if (hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)) return;
+    if (personalCloudAllowed || hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)) return;
     const id = churchDefaultSpaceId({ current: null, teams });
     if (id) setActiveLibrary(id);
-  }, [teamLoading, loaded, teams, activeLibrary, songs, setlists]);
+  }, [teamLoading, loaded, teams, activeLibrary, songs, setlists, personalCloudAllowed]);
 
   // Does the personal library hold anything of the user's own? While it is
   // the open library the answer is in state; otherwise read it from IndexedDB
