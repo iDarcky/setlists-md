@@ -169,16 +169,6 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
                   because on the phone dock the ☰ is a full screen away from the
                   thumb, which is why that dock keeps its own chevron. */}
               {menuOpen && menuClosesInPlace ? <CloseIcon /> : <MenuIcon />}
-              {/* LIVE (owner, 2026-11-07, after the corner and a red line):
-                  a red dot on the ☰ — the one control that takes you out of
-                  live. Outside the layout, so the title loses nothing. */}
-              {live && !editing && (
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute rounded-full"
-                  style={{ top: 5, right: 5, width: 8, height: 8, background: '#e5484d', boxShadow: '0 0 0 2px var(--chart-bg, var(--ds-background-100))' }}
-                />
-              )}
             </IconButton>
           )}
           {tools}
@@ -279,6 +269,21 @@ const ReaderTopBar = forwardRef(function ReaderTopBar(
         </span>
 
         <span className="flex-1" />
+
+        {/* LIVE, as a word (QA 11 Nov, row 160). The red dot on the ☰ read as
+            an unread notification; before it the corner read as a glitch and a
+            red top line was rejected. A small soft-red "Live" label on the
+            right, where the phone has no ✕ in live anyway. */}
+        {live && !editing && (
+          <span
+            role="status"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 h-7 text-[12px] font-semibold"
+            style={{ color: 'var(--danger-text, #e5484d)', background: 'color-mix(in srgb, var(--danger-text, #e5484d) 14%, transparent)' }}
+          >
+            <span aria-hidden="true" className="rounded-full" style={{ width: 6, height: 6, background: 'currentColor' }} />
+            Live
+          </span>
+        )}
 
         {/* The setlist rail. On the RIGHT (owner, 2026-08-03) — which does bend
             element 1's "nothing goes near the ✕", so it is separated from it by

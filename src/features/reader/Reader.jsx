@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import { semitonesBetween, keysInQualityOf, notateChord } from '@/music';
-import { capoFor, withCapo, shapeKeyFor, suggestCapo, MAX_CAPO } from '@/lib/capo';
+import { capoFor, withCapo, shapeKeyFor, suggestCapo, MAX_CAPO, usesCapo } from '@/lib/capo';
 import { resolveSongView } from '@/arrangements';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/ui/Select';
 import { IconButton } from '@/ui/IconButton';
@@ -14,9 +14,8 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useActiveSection } from '@/hooks/useActiveSection';
 import { StructureRibbon } from '@/features/chart/StructureRibbon';
 import ReaderSection from './ReaderSection';
-import SongInfoView from './SongInfoView';
-import { songInfoFacts } from './songInfo';
 import { resolveKeyChanges, fromBodyMarkers } from '@/lib/keyChanges';
+import { useSwipe } from './useSwipe';
 import ReaderTopBar from './ReaderTopBar';
 import { BAR_BUTTON, EDIT_ACCENT, SAFE_BOTTOM_TOPUP } from './readerChrome';
 import { chartSurface, hubSurface } from './readerSurface';
@@ -171,13 +170,9 @@ function LiveFold() {
   // ⚠ The new look (2026-11-07): the mark moved from this corner to a red dot
   // on the ☰ (ReaderTopBar, `live`). The corner read as a glitch, and a red
   // line across the top was rejected next ("I don't like the red line there").
-  // What stays here is the spoken half.
-  return (
-    <>
-      {/* The fold carries no text, so this is what "live" sounds like. */}
-      <span role="status" className="sr-only">Live</span>
-    </>
-  );
+  // QA 11 Nov (row 160): it is now a visible "Live" label in the bar, which
+  // also speaks for itself, so nothing is left to draw here.
+  return null;
 }
 
 /**
@@ -274,6 +269,58 @@ function BarField({ value, onCommit, width, label, prefix = '', inputMode }) {
   );
 }
 
+/**
+ * The tempo as a READ-OUT that turns into a field when tapped (QA 11 Nov,
+ * owner: *"it should be clickable and then you can change it"*). An always-open
+ * input box in the bar read as a form; this reads as "90 BPM" until you mean to
+ * change it. Enter or leaving the field saves; Escape puts it back.
+ */
+function TapTempo({ value, onCommit, label, pill = false }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const start = () => { setDraft(String(value ?? '')); setEditing(true); };
+  const commit = () => {
+    setEditing(false);
+    const n = parseInt(draft, 10);
+    const next = Number.isFinite(n) ? clampTempo(n) : null;
+    if (next !== (value ?? null)) onCommit(next);
+  };
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        aria-label={label}
+        inputMode="numeric"
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+          if (e.key === 'Escape') { setDraft(String(value ?? '')); setEditing(false); }
+        }}
+        className="min-h-0 h-8 w-[52px] px-1.5 rounded-lg border bg-transparent text-label-13 tabular-nums text-center outline-none shrink-0"
+        style={{ borderColor: 'var(--color-brand)', color: 'var(--chart-text, var(--ds-gray-1000))' }}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={start}
+      aria-label={`${label}: ${value ? `${value} BPM` : 'not set'}. Tap to change`}
+      className={pill
+        ? 'min-h-0 font-mono font-bold text-[15px] rounded-lg px-2.5 h-8 inline-flex items-center gap-0.5 shrink-0 tabular-nums border-0 cursor-pointer'
+        : 'min-h-0 h-8 px-1.5 -mx-1.5 rounded-lg inline-flex items-center tabular-nums bg-transparent border-0 cursor-pointer hover:bg-[var(--ds-gray-100)]'}
+      style={pill ? { background: 'var(--chord)', color: '#0a0a0a' } : { color: 'inherit' }}
+    >
+      {value
+        ? (pill ? <>{value}<span className="ml-1 text-[11px] font-semibold opacity-70">BPM</span></> : `${value} BPM`)
+        : 'Set BPM'}
+    </button>
+  );
+}
+
 export default function Reader({
   song: songProp,
   arrangementId,
@@ -292,6 +339,9 @@ export default function Reader({
   displayMode = null,
   selectedKey,
   onSelectKey,
+  // The setlist's tempo for this slot, set from the bar by a leader (QA 11
+  // Nov, row 171). Null = the tempo is a read-out.
+  onSelectTempo = null,
   footer,
   // Element 10, 'swipe': a horizontal-dominant swipe on the chart advances.
   // Vertical scroll is untouched — the gesture only fires past a threshold
@@ -339,22 +389,7 @@ export default function Reader({
   onUpgrade = null,
 }) {
   const scrollRef = useRef(null);
-  const touchRef = useRef(null);
-  const onTouchStart = useCallback((e) => {
-    const t0 = e.touches?.[0];
-    touchRef.current = t0 ? { x: t0.clientX, y: t0.clientY } : null;
-  }, []);
-  const onTouchEnd = useCallback((e) => {
-    const start = touchRef.current;
-    touchRef.current = null;
-    if (!start) return;
-    const t1 = e.changedTouches?.[0];
-    if (!t1) return;
-    const dx = t1.clientX - start.x;
-    const dy = t1.clientY - start.y;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
-    if (dx < 0) onSwipeLeft?.(); else onSwipeRight?.();
-  }, [onSwipeLeft, onSwipeRight]);
+  const swipeProps = useSwipe(onSwipeLeft, onSwipeRight);
   // The chrome is sticky at the top of the scroller, so anything else that
   // pins — the section headings — must pin BELOW it, and any scroll-to must
   // stop below it too. Measured rather than hard-coded: the bar's height
@@ -460,7 +495,6 @@ export default function Reader({
   // no way to walk into the next song with a click you forgot was running.
   // The song's own panel — element 1's newest surface, opened by the title.
   // See `SongInfoSheet` for what is in it and what deliberately is not.
-  const [infoOpen, setInfoOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
   const metronome = useMetronome();
 
@@ -1145,6 +1179,23 @@ export default function Reader({
     cancelEdit();
   }, [confirm, cancelEdit, editBase, song]);
 
+  // QA 11 Nov (owner): *"users can't exit a setlist now"*. Hiding the ✕ on a
+  // phone in live left the pull-down as the only way out, and nobody finds a
+  // gesture they were never shown. The ✕ is back everywhere; on a phone in
+  // live it ASKS first, which keeps the mis-tap guard the hiding was for.
+  const requestExit = useCallback(async () => {
+    if (liveHidesExit) {
+      const ok = await confirm({
+        title: 'Leave the setlist?',
+        description: 'You are live. The setlist stays as it is; you can open it again any time.',
+        confirmLabel: 'Leave',
+        cancelLabel: 'Stay',
+      });
+      if (!ok) return;
+    }
+    onExit?.();
+  }, [confirm, liveHidesExit, onExit]);
+
   const editStructure = useCallback((op) => {
     // Materialise first: a song played in document order has no `structure` to
     // edit, and without writing the implied order down the first tap lands on
@@ -1569,7 +1620,12 @@ export default function Reader({
   // It is set in PRACTICE and only rendered in LIVE (owner, 2026-08-10: *"The
   // capo is set in practice view, in live it's only rendered"*), which is the
   // same rule `saveKey` already follows: live is the reading view.
-  const capo = capoFor(settings, song?.id);
+  // QA 11 Nov: a capo is for guitars only (row 164) — anyone else, or a
+  // reader who never said what they play, reads the sounding key — and it
+  // keeps the fingered shapes when the key moves (row 163).
+  const playerInstrument = resolveDisplayInstrument({ myInstrument, displayRole: settings?.displayRole });
+  const capoApplies = usesCapo(playerInstrument);
+  const capo = capoApplies ? capoFor(settings, song?.id, displayKey) : 0;
   const chartTranspose = transpose - capo;
   const capoShapeKey = capo ? shapeKeyFor(displayKey, capo) : null;
   // Element 19's slot, for a player with no pitch: the pill says the tempo and
@@ -1581,9 +1637,7 @@ export default function Reader({
   // only the roster would give this to a rostered team drummer and never to the
   // solo drummer who walked into the menu and picked Drums — who is the more
   // likely person to have wanted it.
-  const barShowsTempo = !isPitched(
-    resolveDisplayInstrument({ myInstrument, displayRole: settings?.displayRole })
-  );
+  const barShowsTempo = !isPitched(playerInstrument);
 
   // ⚠ AFTER `capo`, not before it. This block reads `capo` and
   // `capoShapeKey`, and `const` in the temporal dead zone throws at RUNTIME
@@ -1591,25 +1645,10 @@ export default function Reader({
   // title button simply was not there. Same trap the file already documents
   // for `chordTranspose`; the fix is the same one: declare, then use.
   // ── The song's own facts, and whether there are any ──────────────────────
-  // Built once and used at BOTH ends: the strip renders them, and the title
-  // becomes a control only when there is something to unfold. A title styled
-  // as a button that opens an empty row is READER.md's trap 23 with extra
-  // steps — and on a wide screen with a bare song there genuinely is nothing,
-  // because the bar is already showing all four facts it has.
-  const infoProps = {
-    song,
-    displayKey,
-    capo,
-    capoShapeKey,
-    showTempoTime: barShowsMeta,
-    // Only worth naming when there is more than one. "Main Arrangement" on a
-    // song that has exactly one arrangement answers a question nobody asked.
-    arrangementName: song._arrangementCount > 1 ? song._arrangementName : null,
-    notes: song.notes,
-  };
-  const hasSongInfo = songInfoFacts(infoProps).length > 0;
-  const setCapo = onUpdateSettings && config.can.saveKey
-    ? (n) => onUpdateSettings('songCapos', withCapo(settings, song.id, n))
+  // The song info panel under the title is gone (QA 11 Nov, row 170): the
+  // bar carries key, capo, tempo and time, and the song page has the rest.
+  const setCapo = onUpdateSettings && config.can.saveKey && capoApplies
+    ? (n) => onUpdateSettings('songCapos', withCapo(settings, song.id, n, displayKey))
     : null;
   // Element 1 is fixed — no customization, by decision. An earlier cut gave it
   // three density states nobody asked for, and a stored 'min' was silently
@@ -1633,7 +1672,10 @@ export default function Reader({
   const ribbonNode = ribbonPlace !== 'off' && ordered.length > 0 ? (
     <StructureRibbon
       structure={ordered.map(s => s.type)}
-      activeIndex={activeSection}
+      // iPad and desktop show the whole song (two columns), so lighting the
+      // chip you scrolled to only adds motion (QA 11 Nov, row 166). The
+      // phone, where the song scrolls past, keeps it.
+      activeIndex={wide ? null : activeSection}
       // No jumping while editing (owner, 2026-08-04). A chip is a drag handle
       // now, and a gesture that both moves the section AND throws the page
       // somewhere else is a gesture nobody can aim.
@@ -1774,8 +1816,7 @@ export default function Reader({
     <div
       className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden no-scrollbar"
       ref={scrollRef}
-      onTouchStart={onSwipeLeft || onSwipeRight ? onTouchStart : undefined}
-      onTouchEnd={onSwipeLeft || onSwipeRight ? onTouchEnd : undefined}
+      {...swipeProps}
       // Both surfaces live in `readerSurface.js` so the break and missing-song
       // screens paint from the SAME object — see the note there. They used to
       // have no remap at all, which left their ☰ and ✕ in app colours on a
@@ -1801,8 +1842,6 @@ export default function Reader({
           // its own mode and `resolveReaderConfig` is the one place that knows.
           cornerMark={liveFold ? <LiveFold /> : null}
           title={song.title}
-          onTitleTap={hasSongInfo ? () => setInfoOpen(v => !v) : null}
-          infoOpen={infoOpen}
           // ⚠ GONE while editing, not disabled and not live. The category
           // argument settles it (owner, 2026-08-09): *"you're changing the
           // song, not the screen."* The ☰ is how the page is PAINTED — the same
@@ -1826,7 +1865,7 @@ export default function Reader({
           // mid-edit strands the change". The guard was right and the answer
           // was wrong: ✕ already means "get out without keeping", which is
           // precisely Cancel. `requestCancelEdit` is what makes a mis-tap safe.
-          onExit={editing ? requestCancelEdit : (liveHidesExit ? null : onExit)}
+          onExit={editing ? requestCancelEdit : (onExit ? requestExit : null)}
           editing={editing}
           exitLabel={editing ? 'Cancel editing' : 'Exit'}
           exitDisabled={false}
@@ -1865,13 +1904,15 @@ export default function Reader({
                   The capo goes with it: a capo is a fret, and a drum kit has
                   none. */}
               {barShowsTempo ? (
-                !editing && song.tempo ? (
+                !editing && onSelectTempo ? (
+                  <TapTempo pill value={song.tempo} label="Tempo for this setlist" onCommit={onSelectTempo} />
+                ) : !editing && song.tempo ? (
                   <span
                     className="font-mono font-bold text-[15px] rounded-lg px-2.5 h-8 inline-flex items-center gap-0.5 shrink-0 tabular-nums"
                     style={{ background: 'var(--chord)', color: '#0a0a0a' }}
                     aria-label={`Tempo ${song.tempo} beats per minute`}
                   >
-                    <span aria-hidden="true">♩</span>{song.tempo}
+                    {song.tempo}<span className="ml-1 text-[11px] font-semibold opacity-70">BPM</span>
                   </span>
                 ) : null
               ) : onSelectKey && config.can.transpose ? (
@@ -1956,7 +1997,6 @@ export default function Reader({
                 <>
                   <BarField
                     value={song.tempo ?? ''}
-                    prefix="♩"
                     width={46}
                     label="Tempo"
                     inputMode="numeric"
@@ -1993,7 +2033,9 @@ export default function Reader({
                   {/* ⚠ Not when the PILL is already saying it — see
                       `barShowsTempo`. The time signature stays either way; for
                       a drummer it is the other half of the count. */}
-                  {barShowsMeta && !barShowsTempo && song.tempo && <span className="tabular-nums">♩{song.tempo}</span>}
+                  {barShowsMeta && !barShowsTempo && onSelectTempo ? (
+                    <TapTempo value={song.tempo} label="Tempo for this setlist" onCommit={onSelectTempo} />
+                  ) : barShowsMeta && !barShowsTempo && song.tempo && <span className="tabular-nums">{song.tempo} BPM</span>}
                   {barShowsMeta && song.time && <span className="tabular-nums">{song.time}</span>}
                 </>
               )}
@@ -2442,10 +2484,6 @@ export default function Reader({
                 song={song}
                 bpm={bpm}
                 onBpm={changeBpm}
-                onSaveTempo={onUpdateSong ? (v) => onUpdateSong({ ...song, tempo: v }) : null}
-                // The same stamp `bpm` is derived from: a tempo belongs to a
-                // song, so arriving at the next one is not "still chosen".
-                tempoChosen={tempoSet?.id === songId}
                 clickRunning={metronome.running}
                 onToggleClick={() => (metronome.running ? metronome.stop() : metronome.start(bpm, song.time))}
               />
@@ -2568,14 +2606,12 @@ export default function Reader({
           Absolute over the READER, which is why the box above it is `relative`.
           Rendered inside that box rather than beside it, so on a phone the row
           still has exactly one child. */}
-      {!wide && <SongInfoView open={infoOpen} onClose={() => setInfoOpen(false)} wide={false} {...infoProps} />}
     </div>
 
     {/* ── The wide column ────────────────────────────────────────────────────
         A sibling of the chart, so opening it NARROWS the chart instead of
         covering it. It keeps its own scroll, because the story and the notes
         can be longer than the song. */}
-    {wide && <SongInfoView open={infoOpen} onClose={() => setInfoOpen(false)} wide {...infoProps} />}
     </div>
   );
 }

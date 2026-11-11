@@ -1,4 +1,6 @@
+import { Button } from '@/ui/shadcn/button';
 import ReaderTopBar from './ReaderTopBar';
+import { useSwipe } from './useSwipe';
 import { chartSurface } from './readerSurface';
 import { SAFE_BOTTOM_TOPUP } from './readerChrome';
 
@@ -25,13 +27,15 @@ export default function MissingSongScreen({
   title, onExit, onMenu, aboveBar = null, leading = null, progress = null, onRestore, onSkip, footer, hasNext = false,
   // Element 28's ☰, docked — see BreakScreen.
   menuDock = null, menuOpen = false,
+  onSwipeLeft, onSwipeRight,
 }) {
+  const swipeProps = useSwipe(onSwipeLeft, onSwipeRight);
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
   const text = 'var(--chart-text, var(--ds-gray-1000))';
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
+    <div className="h-full flex flex-col overflow-hidden" style={chartSurface} {...swipeProps}>
       {/* The same bar as a song and a break — ☰, title, ✕, and the set above it
           (owner, 2026-08-03). Losing your place in the service is the ONE thing
           the reader must not do, and that is most true on the screen that is
@@ -43,46 +47,30 @@ export default function MissingSongScreen({
       <ReaderTopBar title={title || 'Missing song'} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} menuOpen={menuOpen} />
 
       <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex items-center justify-center px-6">
+        {/* The new look (QA 11 Nov, row 174): the app's red as a soft
+            disc, the title in the app's type scale, the app's buttons. */}
         <div className="w-full max-w-sm text-center">
           <div
-            className="mx-auto w-11 h-11 grid place-items-center rounded-full border"
-            style={{ ...rule, color: muted }}
+            className="mx-auto size-12 grid place-items-center rounded-full"
+            style={{ color: 'var(--danger-text, #e5484d)', background: 'color-mix(in srgb, var(--danger-text, #e5484d) 14%, transparent)' }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="9" /><path d="M12 8v5" /><path d="M12 16.5h.01" />
             </svg>
           </div>
 
-          <h2 className="m-0 mt-4 text-heading-20 font-semibold" style={{ color: text }}>
+          <h2 className="m-0 mt-4 text-title" style={{ color: text }}>
             {title || 'This song'} isn&rsquo;t here
           </h2>
-          <p className="mt-2 mb-0 text-copy-14" style={{ color: muted }}>
+          <p className="mt-2 mb-0 text-body" style={{ color: muted }}>
             {onRestore
               ? 'It was deleted, and it’s still in the trash. You can put it back now.'
               : 'It isn’t in your library on this device.'}
           </p>
 
           <div className="mt-6 flex flex-col gap-2">
-            {onRestore && (
-              <button
-                type="button"
-                onClick={onRestore}
-                className="h-11 px-4 rounded-xl border-none cursor-pointer text-label-14 font-semibold"
-                style={{ background: 'var(--color-brand)', color: '#fff' }}
-              >
-                Restore this song
-              </button>
-            )}
-            {hasNext && (
-              <button
-                type="button"
-                onClick={onSkip}
-                className="h-11 px-4 rounded-xl border cursor-pointer text-label-14 font-medium bg-transparent"
-                style={{ ...rule, color: text }}
-              >
-                Skip to the next one
-              </button>
-            )}
+            {onRestore && <Button onClick={onRestore}>Restore this song</Button>}
+            {hasNext && <Button variant="outline" onClick={onSkip}>Skip to the next one</Button>}
           </div>
         </div>
       </div>

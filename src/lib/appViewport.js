@@ -91,8 +91,18 @@ export function installAppViewport() {
   const events = ['resize', 'orientationchange', 'pageshow'];
   for (const e of events) window.addEventListener(e, sync);
   document.addEventListener('visibilitychange', sync);
+  // ⚠ iPadOS (installed app) can report a SHORT innerHeight on launch and then
+  // settle on the right one without firing `resize` — the empty band at the
+  // bottom that only a rotation cleared (QA 11 Nov, row 167). The visual
+  // viewport does report that settle, and a few re-reads after launch catch
+  // the case where nothing fires at all. Each is a no-op when already right.
+  const vv = window.visualViewport;
+  vv?.addEventListener('resize', sync);
+  const settles = [250, 750, 1500, 3000].map(ms => setTimeout(sync, ms));
 
   return () => {
+    settles.forEach(clearTimeout);
+    vv?.removeEventListener('resize', sync);
     if (frame) cancelAnimationFrame(frame);
     for (const e of events) window.removeEventListener(e, sync);
     document.removeEventListener('visibilitychange', sync);

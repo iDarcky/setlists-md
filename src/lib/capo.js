@@ -21,6 +21,7 @@
 // says how you get there. Both facts on screen at once; neither one lies.
 
 import { transposeKey, semitonesBetween } from '@/music';
+import { parseToken } from '@/data/instruments';
 
 // The frets a capo can sensibly go on. Above 7 you are past the guitar's
 // comfortable range and the shapes stop being the easy ones you wanted.
@@ -76,11 +77,44 @@ export function suggestCapo(soundingKey, writtenCapo = 0) {
   return null;
 }
 
-/** This user's capo for this song. Never reads the song or the setlist. */
-export function capoFor(settings, songId) {
+/**
+ * Who a capo is for (QA 11 Nov, row 164): acoustic and electric guitar only.
+ * Keys and piano read the chords in the sounding key (plain transpose), bass
+ * and drums and vocals have no use for one, and a reader who has not said
+ * what they play sees no capo at all.
+ */
+export const CAPO_INSTRUMENTS = new Set(['acoustic-guitar', 'electric-guitar']);
+export function usesCapo(instrumentToken) {
+  const id = parseToken(instrumentToken).instrument?.id;
+  return !!id && CAPO_INSTRUMENTS.has(id);
+}
+
+// A stored capo is a number (older builds, or no key known) or
+// `{ c: capo, k: soundingKeyWhenSet }`. Keeping the key lets the SHAPES stay
+// put when the leader moves the song (QA 11 Nov, row 163): capo 1 with F
+// shapes in Gb becomes capo 2 with F shapes in G, not capo 1 with F# shapes.
+function readStored(v) {
+  if (Number.isFinite(v)) return { c: v, k: null };
+  if (v && typeof v === 'object' && Number.isFinite(v.c)) return { c: v.c, k: v.k || null };
+  return { c: 0, k: null };
+}
+
+/**
+ * This user's capo for this song, in `soundingKey`. Never reads the song or
+ * the setlist. When the capo was set in another key, it moves by the same
+ * interval so the fingered shapes are unchanged; if that would leave the
+ * guitar's range (0..MAX_CAPO), the capo stays as it was set.
+ */
+export function capoFor(settings, songId, soundingKey = null) {
   if (!songId) return 0;
-  const n = settings?.songCapos?.[songId];
-  return Number.isFinite(n) && n > 0 && n <= MAX_CAPO ? n : 0;
+  const { c, k } = readStored(settings?.songCapos?.[songId]);
+  if (!(c > 0 && c <= MAX_CAPO)) return 0;
+  if (!k || !soundingKey) return c;
+  const d = semitonesBetween(k, soundingKey);
+  if (!Number.isFinite(d) || d === 0) return c;
+  const up = (c + d) % 12;
+  const moved = up > MAX_CAPO ? up - 12 : up;
+  return moved >= 0 && moved <= MAX_CAPO ? moved : c;
 }
 
 /**
@@ -90,9 +124,12 @@ export function capoFor(settings, songId) {
  * preference synced to the account, and a library of 108 songs each carrying an
  * explicit `0` is 108 entries saying nothing.
  */
-export function withCapo(settings, songId, capo) {
+export function withCapo(settings, songId, capo, soundingKey = null) {
   const next = { ...(settings?.songCapos || {}) };
   if (!capo) delete next[songId];
-  else next[songId] = Math.max(1, Math.min(MAX_CAPO, Math.round(capo)));
+  else {
+    const c = Math.max(1, Math.min(MAX_CAPO, Math.round(capo)));
+    next[songId] = soundingKey ? { c, k: soundingKey } : c;
+  }
   return next;
 }

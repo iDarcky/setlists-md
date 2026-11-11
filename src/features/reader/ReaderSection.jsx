@@ -314,7 +314,11 @@ export default function ReaderSection({
   const hasInlineNote = (section.lines || []).some(
     l => typeof l === 'string' && /\{!.*?\}/.test(l)
   );
-  const notePlacement = config.notePlacement === 'gutter'
+  // ⚠ While a note is being TYPED the gutter is used whatever the setting:
+  // the field only exists there, so with "Note position: own line" (or notes
+  // hidden) the + armed a draft that had nowhere to render — tap, the + went
+  // away, nothing appeared (QA 11 Nov, row 169).
+  const notePlacement = noteDraft ? 'gutter' : config.notePlacement === 'gutter'
     // ⚠ `|| noteDraft` — the strip is reserved only by sections that already
     // carry a note, so the FIRST note in a section would otherwise have no
     // gutter to be typed into. Drafting reserves it for the duration.
@@ -394,7 +398,12 @@ export default function ReaderSection({
     // no x-height contrast — so this one runs a point above the others.
     caps: heavy ? 18 : 15,
   };
-  const labelPx = HEADING_PX[config.heading] ?? HEADING_PX.name;
+  // 'chip' = the chip and the name (shown as "Name", the default) and
+  // 'chipOnly' = the chip alone (shown as "Chip"; QA 11 Nov, row 165: "Chip"
+  // still printed the name). Both are the new look for cues, repeats and
+  // chord-only lines; 'code' and 'caps' keep the older drawing.
+  const newLook = config.heading === 'chip' || config.heading === 'chipOnly';
+  const labelPx = HEADING_PX[newLook ? 'chip' : config.heading] ?? HEADING_PX.name;
   // 'chip' (the new look, 2026-11-04): the song page's Order chip in the
   // section's tone, then the name in the chart's ink. The colour lives on the
   // chip, so the name reads as a name rather than as a coloured word.
@@ -407,9 +416,10 @@ export default function ReaderSection({
       {id.code}
     </span>
   );
-  const label = config.heading === 'chip' ? (
-    <span className={HEADING_CLASS.chip} style={{ fontSize: `${labelPx}px`, color: 'var(--chart-text, var(--ds-gray-1000))' }}>
-      {chipEl}<span className="align-middle">{id.name}</span>
+  const label = newLook ? (
+    <span className={HEADING_CLASS.chip} style={{ fontSize: `${labelPx}px`, color: 'var(--chart-text, var(--ds-gray-1000))' }}
+      {...(config.heading === 'chipOnly' ? { 'aria-label': id.name } : null)}>
+      {chipEl}{config.heading === 'chip' && <span className="align-middle">{id.name}</span>}
     </span>
   ) : (
     <span
@@ -546,7 +556,7 @@ export default function ReaderSection({
             ? `${id.name} — same as before, ${times} times, show it here`
             : `${id.name} — same as before, show it here`}
           className="min-h-0 inline-flex items-center gap-1.5 bg-transparent cursor-pointer"
-          style={config.heading === 'chip' ? {
+          style={newLook ? {
             // The new look (owner, 2026-11-04: "keep the current but update
             // the design"): the same pill, drawn as the section's chip — a
             // soft tone fill, sentence case, the app's corner radius.
@@ -725,7 +735,7 @@ export default function ReaderSection({
               title: 'Edit this cue',
               style: { cursor: 'pointer' },
             } : null)}
-            style={config.heading === 'chip' ? {
+            style={newLook ? {
               // The new look: a gold pill on the name's row, like the song
               // page. A loud cue ("!…") is the same pill in red.
               fontSize: `${Math.max(11, labelPx - 3)}px`,
@@ -847,7 +857,7 @@ export default function ReaderSection({
         tabScale={settings?.tabSize || 1}
         tabColors={tabColors}
         myInstrument={config.myInstrument}
-        chordBars={config.heading === 'chip'}
+        chordBars={newLook}
         tabTranspose={transpose}
         onChordTap={onChordTap}
       />

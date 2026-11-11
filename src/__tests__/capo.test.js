@@ -132,3 +132,29 @@ describe('a capo is never the band\'s', () => {
     expect(src).not.toContain('onUpdateSetlist');
   });
 });
+
+describe('QA 11 Nov: capo keeps shapes and is for guitars only', () => {
+  it('moves the capo with the key so the shapes stay', async () => {
+    const { capoFor, withCapo } = await import('@/lib/capo');
+    const songCapos = withCapo({}, 's', 1, 'Gb');
+    expect(songCapos).toEqual({ s: { c: 1, k: 'Gb' } });
+    expect(capoFor({ songCapos }, 's', 'Gb')).toBe(1);
+    expect(capoFor({ songCapos }, 's', 'G')).toBe(2);
+    expect(capoFor({ songCapos }, 's', 'F')).toBe(0); // F shapes need no capo in F
+    expect(capoFor({ songCapos }, 's', 'D')).toBe(1); // capo 9 is past the range → keep as set
+    expect(capoFor({ songCapos }, 's')).toBe(1);
+  });
+  it('still reads a plain number from older builds', async () => {
+    const { capoFor } = await import('@/lib/capo');
+    expect(capoFor({ songCapos: { s: 3 } }, 's', 'A')).toBe(3);
+  });
+  it('is only for acoustic and electric guitar', async () => {
+    const { usesCapo } = await import('@/lib/capo');
+    expect(usesCapo('acoustic-guitar')).toBe(true);
+    expect(usesCapo('electric-guitar')).toBe(true);
+    expect(usesCapo('keys')).toBe(false);
+    expect(usesCapo('piano')).toBe(false);
+    expect(usesCapo('drums')).toBe(false);
+    expect(usesCapo(null)).toBe(false);
+  });
+});

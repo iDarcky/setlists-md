@@ -1,16 +1,12 @@
 import { useEffect } from 'react';
 import {
-  CHART_FONT_MAP,
   chartTheme,
   chartFontStack,
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
 } from '@/data/chartThemes';
-
-// Google Fonts links are reused across mounts via this set, so picking
-// the same font twice doesn't double-inject a <link>.
-const loadedFonts = new Set();
+import { ensureChartFont } from '@/lib/chartFonts';
 
 // Rough perceived-lightness of a #rrggbb (or #rgb) colour, 0–1. Used to pick a
 // light-on-dark vs dark-on-light hairline for the themed chart header.
@@ -24,18 +20,6 @@ function isLightColor(hex) {
   const b = parseInt(h.slice(4, 6), 16);
   // Perceptual luminance (sRGB weights).
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55;
-}
-
-function ensureGoogleFont(fontId) {
-  if (!fontId || loadedFonts.has(fontId)) return;
-  const font = CHART_FONT_MAP[fontId];
-  if (!font?.googleFont) return;
-  loadedFonts.add(fontId);
-  const link = document.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = `https://fonts.googleapis.com/css2?family=${font.googleFont}&display=swap`;
-  link.dataset.chartFont = fontId;
-  document.head.appendChild(link);
 }
 
 // Apply the user's selected theme + per-swatch overrides to the document
@@ -68,8 +52,8 @@ export function useChartTheme(settings) {
 
     const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
     const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
-    ensureGoogleFont(chordFontId);
-    ensureGoogleFont(lyricFontId);
+    ensureChartFont(chordFontId);
+    ensureChartFont(lyricFontId);
 
     const root = document.documentElement;
     root.style.setProperty('--chart-bg', bg);

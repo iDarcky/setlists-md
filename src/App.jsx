@@ -1396,6 +1396,14 @@ export default function App() {
   // `mode` omitted → the CLOCK decides: near the service it opens live, near
   // the rehearsal (or any other day) it opens in practice. See
   // `lib/openingMode.js` for the rule and why a fixed default could not work.
+  // QA 11 Nov (row 162): `currentSetlist` is the object captured when the
+  // page was opened. Anything that changed the setlist afterwards — a sync
+  // from another device, a key picked in the editor — lives in `setlists`, so
+  // the page showed the new key (it already read the fresh copy) while Play
+  // handed the reader the stale one and it opened in the old key. Every
+  // surface that READS the setlist goes through this.
+  const freshSetlist = (sl) => (sl?.id ? (setlists.find(s => s.id === sl.id) || sl) : sl);
+
   const goSetlistRead = (sl, { mode, startIndex = 0 } = {}) => {
     const opening = mode || resolveOpeningMode(sl);
     if (!settings?.firstStageMode) {
@@ -2612,7 +2620,17 @@ export default function App() {
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
-              onDelete={!isTeamReadOnly ? () => handleDeleteSong(currentSong.id) : null}
+              onDelete={!isTeamReadOnly ? async () => {
+                // QA 11 Nov (row 178): one tap in the ⋯ deleted a song from the
+                // whole church's library. Ask first, every time, by name.
+                const ok = await confirm({
+                  title: `Delete “${currentSong.title || 'this song'}”?`,
+                  description: 'It is removed from the library on every device, and setlists that use it will show it as missing. You can restore it from the trash for 30 days.',
+                  confirmLabel: 'Delete song',
+                  variant: 'danger',
+                });
+                if (ok) handleDeleteSong(currentSong.id);
+              } : null}
               onUpdateSong={isTeamReadOnly ? null : (updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? updated : s));
                 setCurrentSong(prev => (prev?.id === updated.id ? updated : prev));
@@ -2710,7 +2728,7 @@ export default function App() {
               canEdit={canEdit && !isTeamReadOnly}
               onBack={goBack}
               onEdit={() => goSetlistBuild(currentSetlist)}
-              onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
+              onPlay={(startIndex) => goSetlistRead(freshSetlist(currentSetlist), { startIndex })}
               onMarkReady={() => markSetlistReady(currentSetlist)}
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
               onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
@@ -2771,7 +2789,7 @@ export default function App() {
               which is why nothing here forks any more. */}
           {currentSetlist && view === 'setlist-read' && (
             <SetlistReader
-              setlist={currentSetlist}
+              setlist={freshSetlist(currentSetlist)}
               songs={songs}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}

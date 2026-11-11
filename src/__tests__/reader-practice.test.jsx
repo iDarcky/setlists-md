@@ -339,44 +339,18 @@ describe('element 12 — when the service starts', () => {
 });
 
 // ── Save writes a number somebody CHOSE ─────────────────────────────────────
-describe('element 12 — saving a tempo', () => {
-  it('offers nothing to save on an untimed song until a tempo is chosen', () => {
-    // ⚠ The test used to be "different from the song's tempo", and
-    // `Number(undefined)` is NaN, which differs from everything. So opening
-    // the row on a song with no tempo offered to save **100** — the fallback
-    // constant, not a decision anybody made — before the user had done a thing.
-    render(<Reader song={makeSong({ tempo: '' })} settings={{}} mode="practice"
-      onExit={() => {}} onUpdateSong={() => {}} />);
-    openTools();
-    expect(screen.getByText('100')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
-
-    // …and it appears the moment one is.
-    fireEvent.pointerDown(screen.getByLabelText('Click tempo up'));
-    expect(screen.getByRole('button', { name: /^Save/ })).toBeTruthy();
-  });
-
-  it('offers nothing to save on a timed song nobody has touched', () => {
-    render(<Reader song={makeSong()} settings={{}} mode="practice"
-      onExit={() => {}} onUpdateSong={() => {}} />);
-    openTools();
-    expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
-  });
-
-  it('writes the chosen tempo onto the song', () => {
+describe('element 12 — the practice tempo stays in the session', () => {
+  // QA 11 Nov (owner): TAP and "Save as the song's tempo" are gone. The tempo
+  // a band plays belongs to the setlist, set from the bar's tempo field; the
+  // practice click never writes the song.
+  it('offers no Save and no TAP, even after the tempo is changed', () => {
     const onUpdateSong = vi.fn();
     render(<Reader song={makeSong()} settings={{}} mode="practice"
       onExit={() => {}} onUpdateSong={onUpdateSong} />);
     openTools();
     fireEvent.pointerDown(screen.getByLabelText('Click tempo down'));
-    fireEvent.click(screen.getByRole('button', { name: /^Save/ }));
-    expect(onUpdateSong).toHaveBeenCalledWith(expect.objectContaining({ tempo: 89 }));
-  });
-
-  it('has no Save at all in a library you cannot write to', () => {
-    render(<Reader song={makeSong()} settings={{}} mode="practice" onExit={() => {}} />);
-    openTools();
-    fireEvent.pointerDown(screen.getByLabelText('Click tempo down'));
     expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Tap tempo/ })).toBeNull();
+    expect(onUpdateSong).not.toHaveBeenCalled();
   });
 });
