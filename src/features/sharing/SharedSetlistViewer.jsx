@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react
 import { fetchSharedSetlist, fetchShareStamp, endsLabel } from '@/lib/setlistShare';
 import { buildOrder } from '@/lib/setlistView';
 import { formatClockTime } from '@/lib/dateFormat';
+import { resolveChartDisplay } from '@/lib/chartDisplay';
 import { cn } from '@/ui/shadcn/utils';
 import StatusScreen from '@/ui/StatusScreen';
 import GuestView from './GuestView';
@@ -141,25 +142,42 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
     setlist.time && formatClockTime(setlist.time, fmt),
   ].filter(Boolean).join(' · ');
   const shows = viewSettings.displayMode === 'lyrics' ? 'lyrics' : 'chords';
+  // A− / A+ move lyrics and chords together, so the guest never has to know
+  // there are two sizes. The ☰ is gone on this surface (QA 2026-11-11).
+  const { lyricFontSize: lyricSize, chordFontSize: chordSize } = resolveChartDisplay(viewSettings);
+  const resize = (step) => {
+    const next = Math.min(36, Math.max(12, lyricSize + step));
+    updateViewSetting('defaultFontSize', next);
+    updateViewSetting('chordFontSize', Math.max(10, chordSize + (next - lyricSize)));
+  };
 
-  // The full reader, with the ☰ working (session-only settings, above). It is
+  // The full reader, without its ☰ (session-only settings, above). It is
   // always Live and has NO mode chip (`onModeChange` absent, owner 2026-08-11:
   // *"yes, always locked, but we don't use the locked chip there"*): a chip
   // would offer Practice to someone with nothing on the other side of it.
   //
-  // Chords / Lyrics sits on top for singers and whoever runs the slides
-  // (owner, 2026-10-30: guests "have access to the whole chart view"). It is
-  // the ☰'s own Show setting, so the two never disagree.
+  // Chords / Lyrics and A− / A+ sit on top instead, for singers and whoever
+  // runs the slides (owner, 2026-10-30; the ☰ dropped in the 2026-11-11 QA).
   if (playing != null) {
     return (
       <div className="flex h-[100dvh] flex-col bg-background font-sans">
-        <div className="flex shrink-0 justify-center border-b border-border px-4 py-2" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
           <div role="radiogroup" aria-label="What the chart shows" className="flex rounded-control bg-raised p-1">
             {[['chords', 'Chords'], ['lyrics', 'Lyrics']].map(([v, label]) => (
               <button key={v} type="button" role="radio" aria-checked={shows === v}
                 onClick={() => updateViewSetting('displayMode', v)}
-                className={cn('h-8 min-h-0 min-w-[96px] cursor-pointer rounded-[8px] border-0 px-4 font-sans text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                className={cn('h-8 min-h-0 min-w-[84px] cursor-pointer rounded-[8px] border-0 px-3 font-sans text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   shows === v ? 'bg-background text-foreground shadow-sm' : 'bg-transparent text-muted-foreground')}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div role="group" aria-label="Text size" className="flex rounded-control bg-raised p-1">
+            {[[-2, 'A−', 'Smaller text', lyricSize <= 12], [2, 'A+', 'Larger text', lyricSize >= 36]].map(([step, label, aria, off]) => (
+              <button key={label} type="button" aria-label={aria} disabled={off}
+                onClick={() => resize(step)}
+                className={cn('h-8 min-h-0 w-11 cursor-pointer rounded-[8px] border-0 bg-transparent font-sans font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40',
+                  step < 0 ? 'text-[13px]' : 'text-[17px]')}>
                 {label}
               </button>
             ))}
@@ -173,6 +191,7 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
               settings={viewSettings}
               onUpdateSettings={updateViewSetting}
               mode="live"
+              showMenu={false}
               startIndex={playing}
               onBack={() => setPlaying(null)}
               onFinish={() => setPlaying(null)}

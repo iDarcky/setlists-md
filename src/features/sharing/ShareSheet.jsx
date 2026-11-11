@@ -6,28 +6,19 @@ import {
   createSetlistShare, endsLabel, findSetlistShare, moveShareEnd, revokeSetlistShare, shareEndsAt,
 } from '@/lib/setlistShare';
 
-// "Share a guest link": a drawer on a phone, a dialog from 640px. First what a
-// guest sees and when the link ends, then Copy / Send… / Stop sharing. No
-// expiry picker: the link ends 3 hours after the service.
+// "Share guest link": a drawer on a phone, a dialog from 640px. When the link
+// ends, then Copy / Send… / Stop sharing. The what-a-guest-sees explainer was
+// dropped in the 2026-11-11 QA. No expiry picker: the link ends 3 hours after
+// the service.
 
 const Icon = ({ d }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     {d.map(p => <path key={p} d={p} />)}
   </svg>
 );
-const EYE = ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'];
-const LOCK = ['M6 11h12v10H6z', 'M8 11V7a4 4 0 0 1 8 0v4'];
-const CLOCK = ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z', 'M12 6v6l4 2'];
 const LINK = ['M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7', 'M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7'];
 const COPY = ['M9 9h11v11H9z', 'M5 15H4V4h11v1'];
 const SEND = ['M22 2 11 13', 'M22 2l-7 20-4-9-9-4z'];
-
-const Fact = ({ d, children }) => (
-  <div className="flex items-start gap-3 text-[15px] leading-6 text-muted-foreground">
-    <span className="mt-1 text-foreground"><Icon d={d} /></span>
-    <span>{children}</span>
-  </div>
-);
 
 export function ShareBody({ state, ends, onCreate, onCopy, onSend, onStop, canSend, busy }) {
   if (state === 'loading') {
@@ -37,13 +28,8 @@ export function ShareBody({ state, ends, onCreate, onCopy, onSend, onStop, canSe
     return (
       <div className="flex flex-col gap-5 font-sans">
         <p className="m-0 text-[15px] leading-6 text-muted-foreground">
-          For someone who isn’t in the church on Setlists.md: a guest musician, the sound desk, whoever runs the slides.
+          Works until <b className="font-semibold text-foreground">{ends}</b>.
         </p>
-        <div className="flex flex-col gap-3">
-          <Fact d={EYE}>They see the order and every chart, and can switch between chords and lyrics. Always the latest version.</Fact>
-          <Fact d={LOCK}>They don’t see who’s playing, notes about people, or anything else in the church.</Fact>
-          <Fact d={CLOCK}>The link stops working <b className="font-semibold text-foreground">3 hours after the service</b> ({ends}).</Fact>
-        </div>
         <Button onClick={onCreate} loading={busy}><Icon d={LINK} />Create link</Button>
       </div>
     );
@@ -59,7 +45,7 @@ export function ShareBody({ state, ends, onCreate, onCopy, onSend, onStop, canSe
         {canSend && <Button className="flex-1" variant="outline" onClick={onSend}><Icon d={SEND} />Send…</Button>}
       </div>
       <p className="m-0 text-[15px] leading-6 text-muted-foreground">
-        Works until <b className="font-semibold text-foreground">{ends}</b>. Changes you make to the setlist show up for guests right away.
+        Works until <b className="font-semibold text-foreground">{ends}</b>.
       </p>
       <Button variant="ghost" className="text-danger-text hover:text-danger-text" onClick={onStop} loading={busy}>Stop sharing</Button>
     </div>
@@ -130,7 +116,7 @@ export default function ShareSheet({ open, onClose, setlist, songs, ownerId, tea
     }
   };
 
-  const title = state === 'new' || state === 'loading' ? 'Share a guest link' : 'Guest link';
+  const title = state === 'new' || state === 'loading' ? 'Share guest link' : 'Guest link';
   return (
     <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }} title={title} className="h-auto max-h-[90dvh] sm:max-w-[480px]">
       <ShareBody state={state} ends={ends} canSend={canSend} busy={busy}

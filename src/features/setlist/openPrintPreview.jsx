@@ -4,7 +4,7 @@ import { PrintPreviewView } from './PrintPreview';
 let host = null;
 
 /** Mount the preview over the app. One at a time. */
-export function openPrintPreview({ title, kind, charts, build }) {
+export function openPrintPreview({ title, kind, charts, build, content = false, hasLeads = true }) {
   host?.unmount();
   document.getElementById('print-preview-root')?.remove();
   const el = document.createElement('div');
@@ -13,5 +13,5 @@ export function openPrintPreview({ title, kind, charts, build }) {
   const root = createRoot(el);
   const close = () => { root.unmount(); el.remove(); if (host === root) host = null; };
   host = root;
-  root.render(<PrintPreviewView title={title} kind={kind} charts={charts} build={build} onClose={close} />);
+  root.render(<PrintPreviewView title={title} kind={kind} charts={charts} build={build} onClose={close} content={content} hasLeads={hasLeads} />);
 }

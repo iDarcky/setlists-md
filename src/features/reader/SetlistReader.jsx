@@ -54,6 +54,9 @@ export default function SetlistReader({
   startIndex = 0,
   // Element 28 — where a locked control in the ☰ sends you.
   onUpgrade = null,
+  // The public guest link draws its own Chords/Lyrics + size strip, so it has
+  // no ☰ (owner, 2026-11-11 QA).
+  showMenu = true,
 }) {
   const [idx, setIdx] = useState(() => {
     const n = (setlist?.items || []).length;
@@ -425,7 +428,7 @@ export default function SetlistReader({
     <MissingSongScreen
       title={cur.songTitle || recoverable?.song?.title}
       onExit={onBack}
-      onMenu={openMenu}
+      onMenu={showMenu ? openMenu : null}
       menuDock={menuDock}
       menuOpen={!!menuAnchor}
       aboveBar={aboveBar}
@@ -442,7 +445,7 @@ export default function SetlistReader({
       duration={cur.duration}
       note={cur.note}
       onExit={onBack}
-      onMenu={openMenu}
+      onMenu={showMenu ? openMenu : null}
       menuDock={menuDock}
       menuOpen={!!menuAnchor}
       aboveBar={aboveBar}
@@ -462,6 +465,7 @@ export default function SetlistReader({
       onUpdateSong={onUpdateSong}
       onSaveAsArrangement={onSaveAsArrangement}
       onUpgrade={onUpgrade}
+      showMenu={showMenu}
       onExit={onBack}
       selectedKey={keys[idx] || slotKey(cur)}
       onSelectKey={pickKey}

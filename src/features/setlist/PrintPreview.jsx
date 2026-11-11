@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/ui/shadcn/button';
 import { cn } from '@/ui/shadcn/utils';
 import { PRINT_LOOK, applyPrintLook, fitPrintPreview } from '@/pdf/printSetlist';
@@ -56,10 +56,28 @@ const Cols = ({ n }) => (
   </svg>
 );
 
-export function LookStrip({ look, onChange }) {
+// What goes ON the printout — band notes, who leads each song. These were two
+// switches in the Print sheet before the preview; the owner wanted them beside
+// the page they change (QA 11 Nov): "options inside the print menu".
+export function ContentStrip({ look, onChange, hasLeads = true }) {
+  const set = (k) => (v) => onChange({ ...look, [k]: v });
+  return (
+    <>
+      <Segmented label="Band notes" value={look.notes !== false} onChange={set('notes')}
+        options={[{ value: true, label: 'Show' }, { value: false, label: 'Hide' }]} />
+      {hasLeads && (
+        <Segmented label="Who leads" value={look.leads !== false} onChange={set('leads')}
+          options={[{ value: true, label: 'Show' }, { value: false, label: 'Hide' }]} />
+      )}
+    </>
+  );
+}
+
+export function LookStrip({ look, onChange, content = false, hasLeads = true }) {
   const set = (k) => (v) => onChange({ ...look, [k]: v });
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:flex sm:flex-wrap sm:items-end sm:justify-center sm:gap-5">
+      {content && <ContentStrip look={look} onChange={onChange} hasLeads={hasLeads} />}
       <Segmented label="Text size" value={look.size} onChange={set('size')}
         options={SIZES.map(([value, aria, px]) => ({ value, aria, label: <span style={{ fontSize: px, lineHeight: 1 }} className="font-semibold">A</span> }))} />
       <Segmented label="Chart" value={look.chords !== false} onChange={set('chords')}
@@ -84,11 +102,15 @@ const PrintIcon = () => (
  * later look changes are painted onto it. `embedded` sizes it to its parent
  * (the /design page) instead of the window.
  */
-export function PrintPreviewView({ title, kind, charts, build, onClose, embedded = false, initialLook }) {
+export function PrintPreviewView({ title, kind, charts, build, onClose, embedded = false, initialLook, content = false, hasLeads = true }) {
   const [look, setLook] = useState(() => initialLook || readLook());
   const frameRef = useRef(null);
-  // Built once with the look it opened with; later changes are painted, not rebuilt.
-  const [html] = useState(() => build(look));
+  // Built with the look it opened with; later LOOK changes are painted, not
+  // rebuilt. Notes and who-leads change what is ON the page, so those two
+  // rebuild it.
+  const contentKey = `${look.notes !== false}|${look.leads !== false}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const html = useMemo(() => build(look), [contentKey]);
 
   useEffect(() => { applyPrintLook(frameRef.current?.contentDocument, look); }, [look]);
 
@@ -125,7 +147,13 @@ export function PrintPreviewView({ title, kind, charts, build, onClose, embedded
           </div>
           <Button onClick={print}><PrintIcon />Print</Button>
         </div>
-        {charts && <LookStrip look={look} onChange={change} />}
+        {charts
+          ? <LookStrip look={look} onChange={change} content={content} hasLeads={hasLeads} />
+          : content && (
+            <div className="grid grid-cols-2 gap-x-3 sm:flex sm:justify-center sm:gap-5">
+              <ContentStrip look={look} onChange={change} hasLeads={hasLeads} />
+            </div>
+          )}
       </div>
       <iframe ref={frameRef} title="Print preview" srcDoc={html}
         onLoad={() => { const d = frameRef.current?.contentDocument; applyPrintLook(d, look); fitPrintPreview(d); }}

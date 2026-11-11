@@ -3,11 +3,14 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/ui/shadcn/utils';
 import { CloseIcon } from '@/app/navIcons';
 import { formatClockTime } from '@/lib/dateFormat';
+import { compactLabel, sectionStyle } from '@/music';
 import { totalLabel, nowInOrder, minutesLabel } from '@/lib/setlistView';
 import { useNow } from '@/hooks/useNow';
 
 // The run sheet: the whole order, large, for the sound desk and the slides
-// laptop. Clock time per row, no chords, moment notes in full. Always dark, so
+// laptop. Clock time per row, no chords, each song's structure as chips.
+// Moments show only their name and length: what is said in the prayer or the
+// sermon stays off the big screen (QA 2026-11-11). Always dark, so
 // it never glares in a dim room. During the service it follows the clock: the
 // row the plan says is on now is marked, with a bar for how far through it is,
 // and the sheet scrolls to keep it in view.
@@ -69,8 +72,21 @@ export default function RunSheet({ open, onClose, title, order, setlist, clockFo
                   {r.leads && <span>{r.leads} leads</span>}
                 </span>
               )}
+              {r.kind === 'song' && r.structure?.length > 0 && (
+                <span aria-label={`Structure: ${r.structure.join(', ')}`} className="flex flex-wrap gap-1.5 pt-1">
+                  {r.structure.map((name, i) => {
+                    const st = sectionStyle(name);
+                    return (
+                      <span key={i} aria-hidden="true" className="rounded-[6px] px-2 py-0.5 font-mono text-[14px] font-semibold"
+                        style={{ color: st.b, background: st.bg }}>
+                        {compactLabel(name)}
+                      </span>
+                    );
+                  })}
+                </span>
+              )}
               {r.kind === 'moment' && r.minutes > 0 && <span className="text-[17px] text-[#A39C92]">{r.minutes} min</span>}
-              {r.note && <span className="whitespace-pre-wrap text-[18px] leading-7">{r.note.replace(/\*\*/g, '').replace(/^#+\s*/gm, '')}</span>}
+              {r.kind === 'song' && r.note && <span className="whitespace-pre-wrap text-[18px] leading-7">{r.note.replace(/\*\*/g, '').replace(/^#+\s*/gm, '')}</span>}
             </span>
           </li>
           );

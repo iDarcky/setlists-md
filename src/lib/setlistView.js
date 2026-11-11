@@ -14,6 +14,14 @@ function findSong(songs, item) {
   return s ? resolveSongView(s, item.arrangementId) : null;
 }
 
+/** The order the song is played in: its structure, else its sections as written. */
+function structureOf(song) {
+  if (!song) return [];
+  const st = (song.structure || []).map(x => (typeof x === 'string' ? x : x?.type)).filter(Boolean);
+  if (st.length) return st;
+  return (song.sections || []).map(s => s?.type).filter(Boolean);
+}
+
 /** "10:00" + 125 s → "10:02" (wraps past midnight). */
 export function addClock(hhmm, seconds) {
   if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return null;
@@ -27,7 +35,7 @@ export function addClock(hhmm, seconds) {
  * @param {Array} songs
  * @param {(userId) => string} [nameOf]  for "who leads"
  * @returns {{ rows, songCount, totalSeconds, estimated }}
- *   rows: { kind: 'song'|'moment', idx, n?, title, key?, tempo?, time?, leads?, note?, minutes?, startsAt?, missing? }
+ *   rows: { kind: 'song'|'moment', idx, n?, title, key?, tempo?, time?, leads?, note?, minutes?, startsAt?, missing?, structure? }
  */
 export function buildOrder(setlist, songs = [], nameOf = () => '') {
   const rows = [];
@@ -67,6 +75,7 @@ export function buildOrder(setlist, songs = [], nameOf = () => '') {
       capo: item.capo || 0,
       leads: item.leadBy ? nameOf(item.leadBy) : '',
       note: item.note || '',
+      structure: structureOf(song),
     });
   });
   return { rows, songCount: n, totalSeconds: elapsed, estimated };
