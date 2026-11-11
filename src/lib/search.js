@@ -6,7 +6,9 @@
 //      the RO/HU audience). See normalizeText().
 //   2. Multi-field — searches title, original title, artist, writers, album,
 //      tags, themes, scripture, key, arrangement names, … not just title/artist.
-//   3. Hybrid matching — a precise diacritic-folded substring pass first, with
+//   3. Songs rank by WHERE they matched (rankSong): title, then artist, then
+//      other details, then lyrics; ties go to the most played song.
+//   4. Hybrid matching — a precise diacritic-folded substring pass first, with
 //      fuse.js fuzzy matching as a *ranked fallback* only when the exact pass
 //      finds little and the query is long enough. This gives typo tolerance
 //      ("amazin grce" → "Amazing Grace") without everyday fuzzy noise.
@@ -53,6 +55,57 @@ export function normalizeText(str) {
 // (all lowercase keys — see EXTRA_META_FIELDS in parser.js).
 const extra = (song, key) => song[key] ?? '';
 
+// Every lyric line of every arrangement, chords stripped. Lines can be tab or
+// modulate objects; only strings are words.
+function lyricsOf(song) {
+  const arrs = Array.isArray(song.arrangements) ? song.arrangements : [song];
+  const out = [];
+  for (const a of arrs) {
+    for (const sec of a?.sections || []) {
+      for (const line of sec?.lines || []) {
+        if (typeof line === 'string') out.push(line.replace(/\[[^\]]*\]/g, '').replace(/\{[^}]*\}/g, ''));
+      }
+    }
+  }
+  return out.join('\n');
+}
+
+// How often a song has been played: the key history counts every past service.
+function playsOf(song) {
+  let n = 0;
+  for (const c of Object.values(song.keyHistory || {})) n += Number(c) || 0;
+  return n;
+}
+
+// The song ranking (QA 11 Nov, the owner's order). Lower is better:
+//   0 the title IS the query      3 a word of the title starts with it
+//   1 the title starts with it    4 the title contains it
+//   5 artist (or original title)  6 any other detail (tags, album, theme, …)
+//   7 the lyrics                  fuzzy (typo) matches come after all of them
+// Several words: each word is placed by where it hit, and the song takes its
+// WORST word, so "god artistname" sits with the artist hits, not the titles.
+// Ties go to the song played most, then A to Z.
+function rankSong(rec, q, tokens) {
+  const t = rec.titleN;
+  if (t) {
+    if (t === q) return 0;
+    if (t.startsWith(q)) return 1;
+    if ((' ' + t).includes(' ' + q)) return 3;
+  }
+  let worst = -1;
+  for (const tok of tokens) {
+    let tier;
+    if (t && (' ' + t).includes(' ' + tok)) tier = 3;
+    else if (t && t.includes(tok)) tier = 4;
+    else if (rec.artistN.some(v => v.includes(tok))) tier = 5;
+    else if (rec.norm.some(([, v]) => v.includes(tok))) tier = 6;
+    else if (rec.lyrics.includes(tok)) tier = 7;
+    else return null;
+    if (tier > worst) worst = tier;
+  }
+  return worst;
+}
+
 // Build the per-song search record once: a weighted list of normalized field
 // values for the exact pass + ranking, plus grouped strings for the Fuse index.
 function songRecord(song) {
@@ -98,6 +151,11 @@ function songRecord(song) {
   return {
     ref: song,
     norm,
+    // For the song ranking (rankSong): which CLASS of field a token hit.
+    titleN: normalizeText(song.title),
+    artistN: [normalizeText(song.artist), normalizeText(extra(song, 'originaltitle'))].filter(Boolean),
+    lyrics: normalizeText(lyricsOf(song)),
+    plays: playsOf(song),
     // Grouped, pre-normalized strings keyed for Fuse field weighting.
     title: normalizeText(song.title),
     originaltitle: normalizeText(extra(song, 'originaltitle')),
@@ -188,7 +246,7 @@ function getFuse(items, records, keys) {
 }
 
 // Shared hybrid engine. Returns matched `items` ranked by relevance.
-function runSearch(items, query, build, fuseKeys, limit) {
+function runSearch(items, query, build, fuseKeys, limit, rank = null) {
   if (!Array.isArray(items) || items.length === 0) return [];
   const q = normalizeText(query);
   if (!q) return limit ? items.slice(0, limit) : items;
@@ -199,14 +257,25 @@ function runSearch(items, query, build, fuseKeys, limit) {
   // 1. Exact (diacritic-folded substring) pass.
   const exact = [];
   const seen = new Set();
-  for (const rec of records) {
-    const score = exactScore(rec, tokens);
-    if (score != null) {
-      exact.push({ ref: rec.ref, score });
-      seen.add(rec.ref);
+  if (rank) {
+    for (const rec of records) {
+      const tier = rank(rec, q, tokens);
+      if (tier != null) {
+        exact.push({ ref: rec.ref, tier, plays: rec.plays || 0, title: rec.titleN || '' });
+        seen.add(rec.ref);
+      }
     }
+    exact.sort((a, b) => a.tier - b.tier || b.plays - a.plays || a.title.localeCompare(b.title));
+  } else {
+    for (const rec of records) {
+      const score = exactScore(rec, tokens);
+      if (score != null) {
+        exact.push({ ref: rec.ref, score });
+        seen.add(rec.ref);
+      }
+    }
+    exact.sort((a, b) => b.score - a.score);
   }
-  exact.sort((a, b) => b.score - a.score);
   const out = exact.map(e => e.ref);
 
   // 2. Fuzzy fallback — only for longer queries when exact found little.
@@ -224,7 +293,7 @@ function runSearch(items, query, build, fuseKeys, limit) {
 }
 
 export function searchSongs(songs, query, { limit } = {}) {
-  return runSearch(songs, query, songRecord, SONG_FUSE_KEYS, limit);
+  return runSearch(songs, query, songRecord, SONG_FUSE_KEYS, limit, rankSong);
 }
 
 export function searchSetlists(setlists, query, { limit } = {}) {
