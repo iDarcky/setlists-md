@@ -17,7 +17,7 @@ import { tabId } from '@/data/instruments';
 
 export const READER_KNOBS = {
   ribbon: ['top', 'bottom', 'left', 'right', 'off'],  // 2
-  heading: ['chip', 'chipOnly', 'name', 'code', 'caps'],       // 3
+  heading: ['chip', 'chipOnly', 'both', 'name', 'code', 'caps'],       // 3
   // 4 — the section frame. Redesigned 2026-08-06: a frame is now only about
   // WHERE THE SECTION'S COLOUR LIVES, and none of the four takes a pixel of
   // width from the lyrics.

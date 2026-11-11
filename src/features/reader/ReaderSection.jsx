@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { sectionIdentity, headingText, resolveSectionColors } from '@/lib/sectionIdentity';
+import { sectionIdentity, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
 import { serializeTabBlock, lineToPlacement, placementToLine, CUE_MAX_CHARS } from '@/parser';
 
@@ -373,6 +373,7 @@ export default function ReaderSection({
     ? { borderBottom: `1px solid color-mix(in srgb, ${colour} 45%, transparent)`, paddingBottom: '0.25rem' }
     : null;
 
+  const HEADING_ALIAS = { code: 'chipOnly', caps: 'chip', name: 'chip' };
   const HEADING_CLASS = {
     chip: 'font-semibold',
     code: 'font-bold uppercase tracking-wider font-mono',
@@ -398,35 +399,29 @@ export default function ReaderSection({
     // no x-height contrast — so this one runs a point above the others.
     caps: heavy ? 18 : 15,
   };
-  // 'chip' = the chip and the name (shown as "Name", the default) and
-  // 'chipOnly' = the chip alone (shown as "Chip"; QA 11 Nov, row 165: "Chip"
-  // still printed the name). Both are the new look for cues, repeats and
-  // chord-only lines; 'code' and 'caps' keep the older drawing.
-  const newLook = config.heading === 'chip' || config.heading === 'chipOnly';
-  const labelPx = HEADING_PX[newLook ? 'chip' : config.heading] ?? HEADING_PX.name;
-  // 'chip' (the new look, 2026-11-04): the song page's Order chip in the
-  // section's tone, then the name in the chart's ink. The colour lives on the
-  // chip, so the name reads as a name rather than as a coloured word.
+  // Three headings (QA 11 Nov, "Name also has the chip. Do we need all of
+  // them?"): 'chip' = the NAME alone, in the section's colour (shown as "Name",
+  // the default); 'chipOnly' = the chip alone ("Chip"); 'both' = chip + name
+  // ("Both"). Short ('code') and Uppercase ('caps') left the menu; a profile
+  // that still has one reads as Chip / Name. All three are the new look for
+  // cues, repeats and chord-only lines.
+  const look = HEADING_ALIAS[config.heading] || config.heading || 'chip';
+  const newLook = true;
+  const labelPx = HEADING_PX.chip;
   const chipEl = (
     <span
       aria-hidden="true"
       className="inline-flex items-center justify-center align-middle font-semibold"
-      style={{ height: '1.75em', minWidth: '2em', padding: '0 0.4em', borderRadius: 7, fontSize: `${Math.max(11, labelPx - 3)}px`, color: colour, background: `color-mix(in srgb, ${colour} 16%, transparent)`, marginRight: '0.5em' }}
+      style={{ height: '1.75em', minWidth: '2em', padding: '0 0.4em', borderRadius: 7, fontSize: `${Math.max(11, labelPx - 3)}px`, color: colour, background: `color-mix(in srgb, ${colour} 16%, transparent)`, marginRight: look === 'both' ? '0.5em' : 0 }}
     >
       {id.code}
     </span>
   );
-  const label = newLook ? (
-    <span className={HEADING_CLASS.chip} style={{ fontSize: `${labelPx}px`, color: 'var(--chart-text, var(--ds-gray-1000))' }}
-      {...(config.heading === 'chipOnly' ? { 'aria-label': id.name } : null)}>
-      {chipEl}{config.heading === 'chip' && <span className="align-middle">{id.name}</span>}
-    </span>
-  ) : (
-    <span
-      className={HEADING_CLASS[config.heading] || HEADING_CLASS.name}
-      style={{ color: colour, fontSize: `${labelPx}px` }}
-    >
-      {headingText(id, config.heading)}
+  const label = (
+    <span className={HEADING_CLASS.chip}
+      style={{ fontSize: `${labelPx}px`, color: look === 'chip' ? colour : 'var(--chart-text, var(--ds-gray-1000))' }}
+      {...(look === 'chipOnly' ? { 'aria-label': id.name } : null)}>
+      {look !== 'chip' && chipEl}{look !== 'chipOnly' && <span className="align-middle">{id.name}</span>}
     </span>
   );
 

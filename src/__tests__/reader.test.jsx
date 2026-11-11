@@ -149,19 +149,29 @@ describe('element 3 — section heading', () => {
     expect(document.querySelector('[data-section-index] > div').style.position).toBe('');
   });
 
-  it('offers the original all-caps heading alongside name and code', () => {
-    render(<Reader song={makeSong()} settings={{ readerHeading: 'caps' }} onExit={() => {}} />);
-    // The old chart wrote "VERSE 1:" — same text as `name`, different weight.
-    expect(screen.getAllByText('Verse 1:').length).toBeGreaterThan(0);
-  });
-
-  it('switches between the name and the ribbon code', () => {
-    const r = render(<Reader song={makeSong()} settings={{ readerHeading: 'name' }} onExit={() => {}} />);
+  // QA 11 Nov: "Name also has the chip. Do we need all of them?" Three now.
+  it('Name shows the name only, Chip the chip only, Both the two', () => {
+    let r = render(<Reader song={makeSong()} settings={{ readerHeading: 'chip' }} onExit={() => {}} />);
     expect(screen.getAllByText('Verse 1').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBe(0);
     r.unmount();
 
-    render(<Reader song={makeSong()} settings={{ readerHeading: 'code' }} onExit={() => {}} />);
-    expect(screen.getAllByText('V1').length).toBeGreaterThan(0);
+    r = render(<Reader song={makeSong()} settings={{ readerHeading: 'chipOnly' }} onExit={() => {}} />);
+    expect(screen.getAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Verse 1').filter(el => el.closest('[data-section-index]')).length).toBe(0);
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ readerHeading: 'both' }} onExit={() => {}} />);
+    expect(screen.getAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Verse 1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+  });
+
+  it('reads the retired Short and Uppercase as Chip and Name', () => {
+    const r = render(<Reader song={makeSong()} settings={{ readerHeading: 'code' }} onExit={() => {}} />);
+    expect(screen.getAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+    r.unmount();
+    render(<Reader song={makeSong()} settings={{ readerHeading: 'caps' }} onExit={() => {}} />);
+    expect(screen.getAllByText('Verse 1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
   });
 
   it('changes the frame with the section style — and none of them takes width', () => {
@@ -330,7 +340,7 @@ describe('the ☰ menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     // 4+ options are dropdowns now; 2–3 stay as pills.
     expect(screen.getByLabelText('Structure style')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Uppercase' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Both' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Style' }));
     expect(screen.getAllByText('Theme').length).toBeGreaterThan(0);
   });
@@ -418,7 +428,7 @@ describe('the ☰ menu', () => {
     // 2026-08-04: "everything is way too small").
     const stylePill = screen.getByRole('button', { name: 'S' });
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
-    const layoutPill = screen.getByRole('button', { name: 'Uppercase' });
+    const layoutPill = screen.getByRole('button', { name: 'Both' });
     expect(stylePill.className).toContain('h-11');
     expect(layoutPill.className).toContain('h-11');
     // The steppers take the same size.
