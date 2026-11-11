@@ -1509,6 +1509,7 @@ export default function App() {
     }
     // Saving a song from the editor is a leader having looked at it.
     input = clearCheck(input);
+    const wasNew = !songs.some(s => s.id === input?.id);
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;
     let isNew = false;
@@ -1597,11 +1598,17 @@ export default function App() {
       return;
     }
 
-    navigate('song-hub', { song, replace: true });
+    // A song just added from the editor stays in the editor (QA 11 Nov): the
+    // next thing is usually fixing chords, not reading it. The editor
+    // reopens on the saved copy, so it is no longer "new" and nothing is
+    // unsaved. Editing an existing song still lands on its page.
+    const stay = wasNew && view === 'editor';
+    if (stay) toast({ title: 'Song added' });
+    navigate(stay ? 'editor' : 'song-hub', { song, replace: true });
     if (isNew && !user && !settings?.seenSaveAccountWall) {
       openAccountWall(
         { kind: 'song', title: song.title || 'Untitled song' },
-        { ...snapshot(), view: 'song-hub', song },
+        { ...snapshot(), view: stay ? 'editor' : 'song-hub', song },
       );
     }
   };
@@ -2715,7 +2722,7 @@ export default function App() {
               has the paste and import tools. "Open the old editor" switches. */}
           {view === 'editor' && editTarget && !importQueue && oldEditorFor !== editTarget.song.id && (
             <SongEdit
-              key={editTarget.song.id}
+              key={`${editTarget.song.id}:${editTarget.mode}`}
               song={editTarget.song}
               library={songs}
               historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
