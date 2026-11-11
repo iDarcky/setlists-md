@@ -949,7 +949,7 @@ const nfPeople = () => [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }];
 const NewSetlistFlowDemo = ({ step, isNew = true }) => (
   <SetlistFlow setlist={NF_DRAFT} isNew={isNew} initialStep={step} songs={NF_SONGS} setlists={NF_SETLISTS} peopleOf={nfPeople}
     nameOf={(u) => ({ jd: 'Joe', am: 'Ana' }[u] || bdName(u))} team={{ id: 'demo' }} members={BD_MEMBERS}
-    onSave={noop} onCancel={noop} />
+    onSave={noop} onCancel={noop} onCreateSongs={(list) => list} />
 );
 const NewSetlistPopupDemo = ({ first = false }) => (
   <div className="min-h-full bg-background p-4 font-sans text-foreground">

@@ -159,3 +159,17 @@ export async function parseImportFiles(fileList) {
   const notes = [failed.length ? `Skipped: ${failed.join(', ')}.` : '', ...new Set(warnings)].filter(Boolean);
   return { songs, setlistFile: null, failed, error: notes.join(' ') };
 }
+
+/**
+ * A song typed or pasted in one box (New song from a setlist): the sections
+ * are found the same way a pasted import finds them, and `title` wins over
+ * whatever the text's first line suggested. Null when there is nothing to add.
+ */
+export function songFromPaste(title, text) {
+  const body = String(text || '');
+  const name = String(title || '').trim();
+  if (!body.trim() && !name) return null;
+  const md = smartImport(body, null, name ? { title: name } : null).md;
+  const flat = parseSongMd(md);
+  return songFromFlat({ ...flat, title: name || flat.title || 'Untitled', id: generateId(), updatedAt: Date.now() });
+}
