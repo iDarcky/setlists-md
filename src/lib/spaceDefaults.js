@@ -54,10 +54,11 @@ export function hasOwnPersonalContent(songs, setlists, demoIds = []) {
 
 /**
  * TEMPORARY (2026-10-25, owner's call): anyone in a church or band does not
- * get Personal at all, whatever it holds, while we decide what Personal is
- * for. Nothing is deleted: its songs stay on this device (and on the server
- * with cloud sync) and come back when this is switched off. People in no
- * shared Space still have it, because it is the only library they have.
+ * get an EMPTY Personal, while we decide what Personal is for. Nothing is
+ * deleted: its songs stay on this device (and on the server with cloud sync).
+ * Since 2026-11-11 a church member whose Personal still holds songs or
+ * setlists of their own sees it again, so they can move them into a church
+ * or band (they were stuck before). People in no shared Space always have it.
  */
 export const PERSONAL_BLOCKED_IN_CHURCH = true;
 
@@ -82,7 +83,8 @@ export function shouldHidePersonal({
   defaultIsPersonal = false,
 }) {
   if (!inChurch) return false;
-  if (blocked) return true;
+  // Blocked: hidden unless it is known to hold something of the user's own.
+  if (blocked) return hasPersonalContent !== true;
   if (showPersonalPref === true) return false;
   if (hasPersonalContent !== false) return false;
   if (personalCloud) return false;
