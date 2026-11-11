@@ -25,7 +25,7 @@ export default function Song({
   const [now] = useState(() => Date.now());
   const [arrId, setArrId] = useState(songInput?.arrangements ? songInput.defaultArrangementId : undefined);
   const [semis, setSemis] = useState(0);
-  const [show, setShow] = useState(initialShow); // 'chords' | 'lyrics'
+  const [show, setShow] = useState(initialShow); // 'chords' | 'lyrics' | 'details'
   const [full, setFull] = useState(false);
   useWakeLock(settings?.keepAwake === true);
 
@@ -92,6 +92,7 @@ export default function Song({
         {...shared}
         facts={facts}
         flow={flow}
+        leader={!!onEdit}
         onBack={onBack}
         onEdit={onEdit ? () => onEdit(arrId) : null}
         menu={menu}
@@ -113,7 +114,7 @@ export default function Song({
           settings={settings}
           onUpdateSettings={onUpdateSettings}
           onUpgrade={onUpgrade}
-          displayMode={show}
+          displayMode={show === 'lyrics' ? 'lyrics' : 'chords'}
           selectedKey={shown}
           onSelectKey={pickKey}
           onClose={() => setFull(false)}

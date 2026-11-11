@@ -23,7 +23,9 @@ import SectionBlock from '@/features/chart/SectionBlock';
 // Reader, so the two never disagree about what the song IS.
 
 const chipCls = 'inline-flex h-7 min-w-8 shrink-0 items-center justify-center rounded-[7px] px-1.5 text-[12px] font-semibold';
-const pillCls = 'inline-flex h-6 shrink-0 items-center rounded-full bg-warning-fill px-2.5 text-[12px] font-medium text-warning-text';
+// A section's band cue: quiet grey text at the right of its name, the way
+// MultiTracks prints it (QA 11 Nov: the gold pills shouted).
+const pillCls = 'ml-auto text-right text-[13px] italic text-muted-foreground';
 
 /**
  * @param {object} p
