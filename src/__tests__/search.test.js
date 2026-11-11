@@ -197,3 +197,31 @@ describe('searchSetlists', () => {
     expect(ids(searchSetlists(setlists, 'live'))).toEqual(['s1']);
   });
 });
+
+// ─── ranking (QA 11 Nov) ─────────────────────────────────────────────────────
+
+describe('searchSongs — ranking by where it matched', () => {
+  const withLyrics = (s, lines, keyHistory) => ({ ...s, keyHistory, arrangements: [{ ...s.arrangements[0], sections: [{ type: 'Verse', lines }] }] });
+  const lib = [
+    withLyrics(song('lyr', { title: 'Mare e Domnul' }), ['[G]Dumnezeu e bun și [C]sfânt']),
+    song('art', { title: 'Alt cântec', artist: 'Dumnezeu Band' }),
+    song('word', { title: 'Slavă lui Dumnezeu' }),
+    song('pre', { title: 'Dumnezeu e mare' }),
+    song('exact', { title: 'Dumnezeu' }),
+    song('mid', { title: 'Nedumnezeu' }),
+    song('tag', { title: 'Tag only', tags: ['dumnezeu'] }),
+  ];
+  it('exact title, title start, title word, inside title, artist, details, lyrics', () => {
+    expect(ids(searchSongs(lib, 'dumnezeu'))).toEqual(['exact', 'pre', 'word', 'mid', 'art', 'tag', 'lyr']);
+  });
+  it('finds a song by its lyrics, ignoring the chords', () => {
+    expect(ids(searchSongs(lib, 'bun si sfant'))).toEqual(['lyr']);
+  });
+  it('breaks a tie with the song played most', () => {
+    const tie = [
+      song('a', { title: 'God of Wonders' }),
+      { ...song('b', { title: 'God Is Able' }), keyHistory: { C: 3, D: 2 } },
+    ];
+    expect(ids(searchSongs(tie, 'god'))).toEqual(['b', 'a']);
+  });
+});
