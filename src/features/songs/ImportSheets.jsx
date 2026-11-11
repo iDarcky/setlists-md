@@ -130,7 +130,7 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
             </Button>
             {n === 1 && onEditFirst && <Button variant="outline" className="flex-1" onClick={() => { onOpenChange?.(false); onEditFirst(items[0].song); }}>Edit first</Button>}
           </div>
-          <span className="text-center text-[12px] text-muted-foreground">You can edit any of them later.</span>
+          <span className="text-center text-[12px] text-muted-foreground">They’re tagged “To check”, so you can go through them one by one.</span>
         </div>
       </div>
     </Sheet>

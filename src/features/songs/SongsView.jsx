@@ -171,7 +171,7 @@ export function FilterSheet({ open, onOpenChange, sort, onSort, filters, onFilte
 export default function SongsView({
   leader = false, total = 0, rows = [], nextLabel = '', query = '', onQuery,
   sort = 'az', onSort, filters, onFilters, options = { keys: [], themes: [] },
-  onOpen, onEdit, onAdd, onTag, onDelete, onMove, onCopy, embedded = false, layout = 'auto',
+  onOpen, onEdit, onAdd, onTag, onDelete, onMove, onCopy, toCheck = 0, onCheckNext, embedded = false, layout = 'auto',
 }) {
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -207,6 +207,16 @@ export default function SongsView({
             <Button size="sm" onClick={onAdd}><PlusIcon size={16} />Add</Button>
           ) : null}
         </header>
+
+        {toCheck > 0 && !selecting && onCheckNext && (
+          <div role="status" className="flex items-center gap-3 rounded-card border border-border bg-card px-4 py-3">
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <b className="text-[15px] font-semibold">{toCheck === 1 ? '1 imported song to check' : `${toCheck} imported songs to check`}</b>
+              <span className="text-[13px] text-muted-foreground">Open each one, fix what came out wrong, and keep it.</span>
+            </span>
+            <Button size="sm" onClick={onCheckNext}>Check next</Button>
+          </div>
+        )}
 
         {total === 0 ? (
           <div className="mt-6 flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">

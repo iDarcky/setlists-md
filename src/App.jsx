@@ -110,6 +110,7 @@ const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'))
 import NewSetlistSheet from '@/features/setlist/NewSetlistSheet';
 import { writeNewDraft } from '@/lib/setlistDraft';
 import { TEMPLATE_KIND } from '@/lib/newSetlist';
+import { needsCheck, clearCheck } from '@/lib/importCheck';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -337,6 +338,8 @@ export default function App() {
   // The church a join link is joining, shown on the log-in / create screens.
   const [authJoining, setAuthJoining] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
+  // Walking a leader through the batch-imported songs still tagged "To check".
+  const [checkRun, setCheckRun] = useState(false);
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -1469,6 +1472,8 @@ export default function App() {
         if (!ok) return false;
       }
     }
+    // Saving a song from the editor is a leader having looked at it.
+    input = clearCheck(input);
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;
     let isNew = false;
@@ -1527,6 +1532,16 @@ export default function App() {
     const top = historyRef.current[historyRef.current.length - 1];
     if (top?.view === 'song-hub' && top?.song?.id === song.id) {
       historyRef.current.pop();
+    }
+
+    // Checking batch-imported songs: straight on to the next one.
+    if (checkRun) {
+      const next = songs.find(s => s.id !== song.id && needsCheck(s));
+      if (next) { navigate('editor', { song: next, replace: true }); return; }
+      setCheckRun(false);
+      toast({ title: 'All imported songs checked' });
+      goToMainView('library');
+      return;
     }
 
     // Multi-file import queue: advance to the next song in the editor
@@ -2542,6 +2557,7 @@ export default function App() {
               onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
+              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { setCheckRun(true); goEditor(first); } }}
               onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
@@ -2630,11 +2646,12 @@ export default function App() {
               library={songs}
               historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
               mode={editTarget.mode}
+              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? { left: songs.filter(needsCheck).length } : null}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               initialArrangementId={editArrangementId}
               onSave={handleSaveSong}
-              onBack={goBack}
+              onBack={checkRun ? () => { setCheckRun(false); goBack(); } : goBack}
               onDirtyChange={markEditorDirty}
               onOldEditor={() => setOldEditorFor(editTarget.song.id)}
             />

@@ -35,3 +35,13 @@ describe('SongEdit — copy verse 1 chords', () => {
     expect(screen.queryByRole('button', { name: /Copy verse 1 chords/ })).toBeNull();
   });
 });
+
+describe('SongEdit — checking an imported song', () => {
+  it('lets an unchanged song be kept with "Looks good" and says how many are left', async () => {
+    const onSave = vi.fn();
+    render(<SongEdit song={melodia()} mode="edit" checking={{ left: 3 }} onSave={onSave} onBack={() => {}} layout="phone" />);
+    expect(screen.getByText('Checking · 3 left')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Looks good' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+  });
+});
