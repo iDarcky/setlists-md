@@ -972,19 +972,21 @@ export default function SectionBlock({
                   </span>
                 )
               )); })()
-            : chordBars ? pairs.filter(p => p.chord).map((p, i) => (
-                // The new look (owner, 2026-11-04): a line with chords and no
-                // words is drawn as bars, | G | C | G | D |, the way the song
-                // page draws it — a row of boxes reads as "play these" where a
-                // loose row of letters read as a line whose words went missing.
-                <span
-                  key={i}
-                  className="inline-flex items-center justify-center"
-                  style={{ minWidth: '2.6em', height: '2.1em', padding: '0 0.55em', marginRight: 6, marginBottom: 4, borderRadius: 8, border: '1px solid var(--chart-rule, var(--border))', background: 'color-mix(in srgb, var(--chart-text, currentColor) 4%, transparent)' }}
-                >
-                  {renderChord(p.chord, '0px', i)}
+            : chordBars ? (
+                // Chord-only line as BAR LINES, | G | C | G | D | (owner, QA
+                // 11 Nov, row 176: the boxes from 4 Nov "should look normal").
+                // Thin rules in the chart's subtle ink, the chords as every
+                // other chord on the page.
+                <span className="inline-flex flex-wrap items-baseline">
+                  {pairs.filter(p => p.chord).map((p, i) => (
+                    <span key={i} className="inline-flex items-baseline">
+                      <span aria-hidden="true" style={{ color: 'var(--chart-subtle, var(--ds-gray-600))', opacity: 0.7, padding: '0 0.55em', fontWeight: 400 }}>|</span>
+                      {renderChord(p.chord, '0px', i)}
+                    </span>
+                  ))}
+                  <span aria-hidden="true" style={{ color: 'var(--chart-subtle, var(--ds-gray-600))', opacity: 0.7, padding: '0 0.55em', fontWeight: 400 }}>|</span>
                 </span>
-              ))
+              )
             : pairs.map((p, i) => (
                 <span key={i} className="inline-flex flex-col justify-end">
                   {/* Chord-only line (an intro, an instrumental): there are no

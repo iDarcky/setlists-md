@@ -5,7 +5,7 @@
 // title? Also, for drummers I think we can change, instead of key, we can show
 // tempo."*
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import Reader from '@/features/reader/Reader';
 import { songFromFlat } from '@/arrangements';
 import { isPitched, tabId } from '@/data/instruments';
@@ -41,55 +41,14 @@ const open = (props = {}) => render(
 // exactly when the caret assertion runs.
 const titleButton = () => screen.queryByRole('button', { name: `${song.title} — song info` });
 
-describe('saying the title is a control', () => {
-  // ⚠ THE BUG. It was a `<button>` that looked exactly like the `<span>` in the
-  // branch beside it — same weight, same colour, same everything. The only hint
-  // was a `title` attribute, and a tablet has no pointer to hover with.
-  it('carries a caret, so it does not look like a label', () => {
+describe('the title is a plain label (QA 11 Nov, row 170)', () => {
+  // The song info panel under the title is gone: the bar carries the key,
+  // capo, tempo and time, and the song page has the rest. So the title opens
+  // nothing, and must not look like it does.
+  it('is not a button, even for a song with a story', () => {
     open();
-    expect(titleButton().querySelector('svg')).toBeTruthy();
-  });
-
-  // ⚠ It rotates on `aria-expanded`, which the button was already setting. That
-  // is what makes it self-explaining rather than decorative: closed it points
-  // down at the panel that will appear, open it points back at the title that
-  // closes it.
-  it('and the caret turns over when the panel is open', () => {
-    open();
-    const caret = () => titleButton().querySelector('svg');
-    expect(caret().getAttribute('style')).not.toContain('rotate');
-    expect(titleButton().getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(titleButton());
-    expect(titleButton().getAttribute('aria-expanded')).toBe('true');
-    expect(caret().getAttribute('style')).toContain('rotate(180deg)');
-  });
-
-  // ⚠ OUTSIDE the truncating span, and `shrink-0`. Inside it, the caret is the
-  // first thing an ellipsis eats — so on the phone, where the hint is needed
-  // most, it would be the width that disappears. (Measured cost to a title that
-  // IS truncating: 17px, at 390px and 1024px alike.)
-  it('and it is not what gets truncated away', () => {
-    open();
-    const btn = titleButton();
-    const svg = btn.querySelector('svg');
-    expect(svg.getAttribute('class')).toContain('shrink-0');
-    expect(svg.closest('.truncate')).toBeNull();
-    expect(btn.querySelector('.truncate').textContent).toBe(song.title);
-  });
-
-  // ⚠ READER.md trap 23, and the reason the caret cannot simply be added to the
-  // title unconditionally: a song with nothing to say renders a plain label, so
-  // there is no caret promising a panel that would open empty.
-  it('stays a plain label — no caret — where there is nowhere to go', () => {
-    const bare = songFromFlat({
-      id: 'b', title: 'Bare', artist: 'X', key: 'C',
-      sections: [{ type: 'Verse 1', lines: ['[C]w'] }], structure: ['Verse 1'],
-    });
-    const { container } = render(
-      <Reader song={bare} settings={{}} mode="practice" onSelectKey={() => {}} />
-    );
-    expect(container.querySelector('button[aria-label="Bare — song info"]')).toBeNull();
-    expect(container.textContent).toContain('Bare');
+    expect(titleButton()).toBeNull();
+    expect(screen.getByText(song.title)).toBeTruthy();
   });
 });
 

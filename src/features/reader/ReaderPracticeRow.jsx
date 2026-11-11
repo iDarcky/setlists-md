@@ -137,7 +137,7 @@ export default function ReaderPracticeRow({
             style={{ color: muted }}
             aria-label={`Back to the written tempo, ${song.tempo}`}
           >
-            ♩{song.tempo}
+            {song.tempo}
           </button>
         )}
 

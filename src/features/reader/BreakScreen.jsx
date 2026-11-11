@@ -1,4 +1,5 @@
 import NoteContent from '@/ui/NoteContent';
+import { useSwipe } from './useSwipe';
 import ReaderTopBar from './ReaderTopBar';
 import { chartSurface } from './readerSurface';
 import { SAFE_BOTTOM_TOPUP } from './readerChrome';
@@ -26,7 +27,9 @@ export default function BreakScreen({
   // level above these screens), so it hands the node down to sit in the same
   // 70/30 split the reader has.
   menuDock = null, menuOpen = false,
+  onSwipeLeft, onSwipeRight,
 }) {
+  const swipeProps = useSwipe(onSwipeLeft, onSwipeRight);
   const rule = { borderColor: 'var(--chart-rule, var(--ds-gray-300))' };
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
   // `duration && …` renders a literal 0 — a break saved with no length showed
@@ -35,7 +38,7 @@ export default function BreakScreen({
   const title = label || 'Break';
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={chartSurface}>
+    <div className="h-full flex flex-col overflow-hidden" style={chartSurface} {...swipeProps}>
       <ReaderTopBar title={title} onExit={onExit} onMenu={onMenu} aboveBar={aboveBar} leading={leading} progress={progress} menuOpen={menuOpen} />
 
       {/* Centred when the break is just a length — a lone "5 min" belongs in
@@ -46,22 +49,27 @@ export default function BreakScreen({
       <div className={`flex-1 min-h-0 overflow-y-auto no-scrollbar flex justify-center px-6 ${
         note ? 'items-start pt-10 pb-8' : 'items-center'
       }`}>
+        {/* The new look (QA 11 Nov, row 173): the song page's language — a
+            tone chip naming what this is, the length as the big number in
+            Geist Mono gold, and the note on a card, not under a hairline. */}
         <div className="w-full max-w-md text-center">
-          {mins ? (
-            <div className="font-mono font-bold text-[44px] leading-none" style={{ color: 'var(--chord)' }}>
+          <span
+            className="inline-flex items-center rounded-full px-3 py-1 text-small font-semibold"
+            style={{ color: muted, background: 'color-mix(in srgb, var(--chart-text, currentColor) 7%, transparent)' }}
+          >
+            Moment
+          </span>
+          {mins && (
+            <div className="mt-4 font-mono font-semibold leading-none" style={{ color: 'var(--chord)', fontSize: 56 }}>
               {mins}
-              <span className="ml-2 text-[15px] font-medium" style={{ color: muted }}>min</span>
-            </div>
-          ) : (
-            <div className="text-label-11 font-mono uppercase tracking-[0.18em]" style={{ color: muted }}>
-              Break
+              <span className="ml-2 font-sans text-body font-medium" style={{ color: muted }}>min</span>
             </div>
           )}
 
           {note && (
             <div
-              className="mt-7 pt-6 border-t text-copy-14 text-left"
-              style={{ ...rule, color: 'var(--chart-text, var(--ds-gray-1000))' }}
+              className="mt-6 rounded-card border p-4 text-body text-left"
+              style={{ ...rule, color: 'var(--chart-text, var(--ds-gray-1000))', background: 'color-mix(in srgb, var(--chart-text, currentColor) 4%, transparent)' }}
             >
               <NoteContent text={note} />
             </div>

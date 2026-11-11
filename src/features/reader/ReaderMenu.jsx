@@ -1240,7 +1240,7 @@ export default function ReaderMenu({
           <GroupTitle>Sections</GroupTitle>
           <Field label="Heading">
             <Picks value={settings?.readerHeading || 'chip'}
-              options={[['chip', 'Chip'], ['name', 'Name'], ['code', 'Short'], ['caps', 'Uppercase']]}
+              options={[['chip', 'Name'], ['chipOnly', 'Chip'], ['code', 'Short'], ['caps', 'Uppercase']]}
               onChange={(v) => set('readerHeading', v)} />
           </Field>
           {/* Four frames, and NONE of them takes width from the lyrics — which

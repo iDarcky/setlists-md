@@ -43,7 +43,7 @@ export default function LiveIntro({ onClose }) {
         </h2>
         <p className="text-copy-14 text-[var(--ds-gray-600)] m-0 mb-4 leading-relaxed">
           <span aria-hidden="true" className="inline-block align-middle rounded-full mr-1.5" style={{ width: 8, height: 8, background: '#e5484d' }} />
-          The red dot on the menu button means the reader is set up for a service.
+          The red “Live” label at the top means the reader is set up for a service.
           It stays there the whole time, and it&rsquo;s the only thing on screen that changes.
         </p>
 

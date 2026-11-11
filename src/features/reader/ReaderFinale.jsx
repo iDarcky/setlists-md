@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 import { useTeam } from '@/auth/useTeam';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { formatElapsed } from '@/lib/duration';
-import { headerFrostStyle } from '@/lib/headerFrost';
 
 /**
  * Element 13 — the finale. ONE screen for both live and practice.
@@ -36,13 +35,13 @@ import { headerFrostStyle } from '@/lib/headerFrost';
 const FLAVOUR = {
   live: {
     badge: 'Live',
-    badgeStyle: { background: 'var(--ds-gray-1000)', color: 'var(--ds-background-100)' },
+    badgeClass: 'bg-danger-fill text-danger-text',
     phrases: ['Service done.', 'And that\'s a wrap.', 'Lights down.', 'Big sound today.', 'Set delivered.'],
     showBand: true,
   },
   practice: {
     badge: 'Practice',
-    badgeStyle: { background: 'var(--color-brand)', color: 'white' },
+    badgeClass: 'bg-raised text-muted-foreground',
     phrases: ['Practice wrapped.', 'Nice rep.', 'Nailed it.', 'Tight run.', 'Rehearsal logged.'],
     showBand: false,
   },
@@ -103,41 +102,32 @@ export default function ReaderFinale({
   }
   if (setlist?.location) meta.push(setlist.location);
 
+  // The new look (QA 11 Nov, row 175): app tokens and type scale, the
+  // app's buttons, the badge as a soft chip. Same one screenful, same two
+  // pinned ways out (see the note on the component).
   return (
     <div
-      className="h-full flex flex-col overflow-hidden bg-[var(--ds-background-100)]"
+      className="h-full flex flex-col overflow-hidden bg-background text-foreground"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="shrink-0 material-header" style={{ zIndex: 50, ...headerFrostStyle }}>
-        <div className="wide-container flex items-center gap-2 py-3">
-          <h1 className="text-heading-16 text-[var(--ds-gray-1000)] m-0 flex-1 min-w-0 truncate">
-            {setlist.name}
-          </h1>
-          <span
-            className="inline-flex shrink-0 items-center px-2 py-0.5 rounded-md text-label-10 font-black uppercase tracking-widest"
-            style={flavour.badgeStyle}
-          >
+      <div className="shrink-0 border-b border-border">
+        <div className="wide-container flex items-center gap-3 py-3">
+          <h1 className="m-0 flex-1 min-w-0 truncate text-body font-semibold">{setlist.name}</h1>
+          <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-caption font-semibold ${flavour.badgeClass}`}>
             {flavour.badge}
           </span>
         </div>
       </div>
 
-      {/* The ONLY scroller on the screen, and only when it has to be. The page
-          itself never scrolls, so the buttons below can never be scrolled off. */}
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        <div className="wide-container pt-6 pb-6 max-w-2xl mx-auto flex flex-col gap-6">
+        <div className="wide-container pt-10 pb-6 max-w-2xl mx-auto flex flex-col gap-8">
           <div>
-            <h2 className="text-heading-32 sm:text-heading-40 font-serif text-[var(--ds-gray-1000)] m-0 tracking-tight">
-              {phrase}
-            </h2>
-
-            {/* Time sits on a meta line, not in a card of its own. A single stat
-                tile spanning the page reads as three tiles that failed to load. */}
+            <h2 className="m-0 text-display">{phrase}</h2>
             {meta.length > 0 && (
-              <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-label-12 text-[var(--ds-gray-600)] m-0">
+              <p className="m-0 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-small text-muted-foreground">
                 {meta.map((bit, i) => (
                   <span key={bit} className="flex items-center gap-2">
-                    {i > 0 && <span aria-hidden="true" className="opacity-50">·</span>}
+                    {i > 0 && <span aria-hidden="true">·</span>}
                     <span className={bit.match(/^\d/) ? 'tabular-nums' : undefined}>{bit}</span>
                   </span>
                 ))}
@@ -147,17 +137,12 @@ export default function ReaderFinale({
 
           {band.length > 0 && (
             <section>
-              <h3 className="text-label-12 uppercase tracking-[0.15em] text-[var(--ds-gray-600)] font-bold mb-3">
-                You served with
-              </h3>
-              <ul className="flex flex-wrap gap-2 m-0 p-0 list-none">
+              <h3 className="m-0 mb-3 text-small font-semibold text-muted-foreground">You served with</h3>
+              <ul className="m-0 p-0 list-none flex flex-wrap gap-2">
                 {band.map(p => (
-                  <li
-                    key={p.key}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[var(--ds-gray-300)] bg-[var(--ds-background-200)]"
-                  >
-                    <span className="text-copy-13 font-semibold text-[var(--ds-gray-1000)]">{p.name}</span>
-                    {p.role && <span className="text-label-11 text-[var(--ds-gray-600)]">· {p.role}</span>}
+                  <li key={p.key} className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-small">
+                    <span className="font-semibold">{p.name}</span>
+                    {p.role && <span className="text-muted-foreground">· {p.role}</span>}
                   </li>
                 ))}
               </ul>
@@ -166,21 +151,10 @@ export default function ReaderFinale({
         </div>
       </div>
 
-      {/* TWO buttons, pinned. They sit OUTSIDE the scroller by decision — the
-          way off this screen must never be something you have to scroll to
-          find. "Run it again" is gone: finishing a set and immediately
-          restarting it is not a thing that happens. */}
-      <div
-        className="shrink-0 border-t border-[var(--ds-gray-300)] bg-[var(--ds-background-100)]"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      >
+      <div className="shrink-0 border-t border-border bg-background" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="wide-container max-w-2xl mx-auto flex gap-2 py-3">
-          <Button variant="brand" size="lg" onClick={onGoOverview} className="flex-1">
-            View setlist
-          </Button>
-          <Button variant="secondary" size="lg" onClick={onGoHome} className="flex-1">
-            Home
-          </Button>
+          <Button onClick={onGoOverview} className="flex-1">View setlist</Button>
+          <Button variant="outline" onClick={onGoHome} className="flex-1">Home</Button>
         </div>
       </div>
     </div>

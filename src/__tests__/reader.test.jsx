@@ -73,7 +73,7 @@ describe('element 1 — top bar', () => {
     expect(screen.getByText('Amazing Grace')).toBeTruthy();
     // 'G' is also a chord in the chart, so assert the two facts that are
     // unique to the bar. The key control itself is covered by the transpose test.
-    expect(screen.getByText('♩90')).toBeTruthy();
+    expect(screen.getByText('90 BPM')).toBeTruthy();
     expect(screen.getByText('3/4')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
   });
