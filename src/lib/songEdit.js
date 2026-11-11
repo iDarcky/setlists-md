@@ -5,6 +5,7 @@ import { parseSectionLines, serializeTabBlock, serializeModulate, parseSongMd, s
 import { withArrangement, getArrangement } from '@/arrangements';
 import { importChartText } from '@/lib/importChords';
 import { getDiatonicChords } from '@/music';
+import { isChordToken, isChordLine, mergeChordAndLyric, chordLineOnly } from '@/importer';
 
 /** One line of a section as the writer types it. */
 export function lineToText(l) {
@@ -313,4 +314,28 @@ export function setLineNotes(line, notes) {
   if (!keep.length) return clean;
   const tail = keep.map(n => `{!${n}}`).join(' ');
   return !clean ? tail : /\s$/.test(clean) ? clean + tail : `${clean} ${tail}`;
+}
+
+// A paste into a section's lyrics box (QA 11 Nov). People paste words from
+// somewhere else, and sometimes those words carry chords, in either form:
+// [G] inline, or a chord line above the lyric line. Both become inline
+// chords. Returns null when the paste has no chords at all, so the box takes
+// it as plain words (the browser's own paste, undo and all).
+export function pastedLines(text) {
+  const rows = String(text ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, '    ').split('\n');
+  const inline = rows.some(r => /\[([^\]\s]+)\]/.test(r) && [...r.matchAll(/\[([^\]\s]+)\]/g)].some(m => isChordToken(m[1])));
+  const over = rows.some(r => isChordLine(r));
+  if (!inline && !over) return null;
+  const out = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (isChordLine(r)) {
+      const next = rows[i + 1];
+      if (next != null && next.trim() && !isChordLine(next)) { out.push(mergeChordAndLyric(r, next).trimEnd()); i++; }
+      else out.push(chordLineOnly(r).trim());
+    } else out.push(r.trimEnd());
+  }
+  while (out.length && !out[0].trim()) out.shift();
+  while (out.length && !out[out.length - 1].trim()) out.pop();
+  return out;
 }
