@@ -458,12 +458,15 @@ export default function App() {
   }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
 
   // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
-  // whoever is in it once their memberships load is moved to their church.
+  // whoever is in it once their memberships load is moved to their church,
+  // unless it holds songs or setlists of their own. Those people keep it, so
+  // they can move their songs into a church or band (Copy to…).
   useEffect(() => {
-    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || activeLibrary !== 'personal') return;
+    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || !loaded || activeLibrary !== 'personal') return;
+    if (hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)) return;
     const id = churchDefaultSpaceId({ current: null, teams });
     if (id) setActiveLibrary(id);
-  }, [teamLoading, teams, activeLibrary]);
+  }, [teamLoading, loaded, teams, activeLibrary, songs, setlists]);
 
   // Does the personal library hold anything of the user's own? While it is
   // the open library the answer is in state; otherwise read it from IndexedDB
