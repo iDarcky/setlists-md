@@ -985,6 +985,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
     return () => clearTimeout(t);
   }, [working, dirty, draftKey, draftFound]);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const arr = getArrangement(working, arrId) || working.arrangements[0];
   const onArr = (next) => setWorking(w => withArrangement(w, arr.id, () => next));

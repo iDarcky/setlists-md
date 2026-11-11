@@ -1149,6 +1149,27 @@ export default function App() {
     }
     return true;
   };
+  // Wrap a way out that skips goToMainView (the top bar's You, a notification,
+  // the church switcher) so it asks too. QA 11 Nov: those left an editor
+  // mid-edit without a word.
+  const leaveEditing = (fn) => async (...args) => {
+    if (!(await confirmDiscardSetlist())) return;
+    setlistDirtyRef.current = false;
+    editorDirtyRef.current = false;
+    fn(...args);
+  };
+  // Closing the tab or reloading mid-edit: the browser's own "Leave site?".
+  useEffect(() => {
+    if (view !== 'editor' && view !== 'setlist-build') return undefined;
+    const handler = (e) => {
+      const dirty = view === 'editor' ? editorDirtyRef.current : setlistDirtyRef.current;
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [view]);
 
   useEffect(() => {
     const handler = () => {
@@ -2465,8 +2486,8 @@ export default function App() {
             onUpdateSchedule={updateSchedule}
             onMarkRead={handleMarkNotificationRead}
             onMarkAllRead={handleMarkAllNotificationsRead}
-            onOpenSetlist={goSetlistView}
-            onNotFound={showNotFound}
+            onOpenSetlist={leaveEditing(goSetlistView)}
+            onNotFound={leaveEditing(showNotFound)}
             onSettings={() => goToMainView('settings', { settingsPanel: 'notifications' })}
             onClose={() => setBellOpen(false)}
           />
@@ -2474,7 +2495,7 @@ export default function App() {
       }}
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
-      onOpenYou={() => navigate('you')}
+      onOpenYou={leaveEditing(() => navigate('you'))}
       pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
     />
   );
@@ -3033,8 +3054,8 @@ export default function App() {
           onOpenChange={setChurchSheetOpen}
           workspaces={workspaces}
           activeId={activeLibrary}
-          onPick={switchWorkspace}
-          onNew={canCreateWorkspace ? goNewWorkspace : undefined}
+          onPick={leaveEditing(switchWorkspace)}
+          onNew={canCreateWorkspace ? leaveEditing(goNewWorkspace) : undefined}
         />
       )}
       {/* Workspace destination picker for move/copy from the song kebab. */}
