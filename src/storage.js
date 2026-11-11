@@ -267,7 +267,10 @@ export async function saveSetlists(setlists, libraryId = 'personal') {
 }
 
 export const DEFAULT_SETTINGS = {
-  theme: 'midnight',
+  // 'dark', not 'midnight' (QA 11 Nov). Midnight is the retired navy theme;
+  // as the DEFAULT it painted every first launch and sign-in navy ("a blue
+  // loading screen") until the account's own theme arrived from the cloud.
+  theme: 'dark',
   lastChangelogVersion: null,
   userName: '',
   defaultColumns: 'auto',

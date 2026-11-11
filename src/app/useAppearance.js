@@ -11,7 +11,10 @@ export function useAppearance(settings) {
   // bars (status bar + navigation pill) tint to match the current theme.
   useEffect(() => {
     if (!settings) return;
-    const theme = settings.theme;
+    // Midnight is retired (to-do row 75): a stored 'midnight' paints as Dark.
+    // Its navy surfaces otherwise survive on every screen still on the old
+    // tokens — the boot screen first of all.
+    const theme = settings.theme === 'midnight' ? 'dark' : settings.theme;
 
     const setThemeColor = (mode) => {
       // Must track --ds-background-100 per theme, or the phone's status bar is
