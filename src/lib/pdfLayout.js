@@ -46,17 +46,51 @@ export function sectionNameFrom(text) {
 }
 
 export function orderTokenToSection(token) {
-  const t = String(token || '').trim();
+  const t = String(token || '').trim().replace(/\s*[x×]\d+$/i, '');
   if (/^S(\d*)$/i.test(t)) return `Verse ${t.slice(1) || 1}`;
-  return ORDER_SHORTHAND[t.toUpperCase()] || null;
+  // "R1", "R2" number the chorus's appearances, not different choruses.
+  const m = t.match(/^([A-Z])\d*$/i);
+  return (m && ORDER_SHORTHAND[m[1].toUpperCase()]) || null;
+}
+
+// The play-order strip as a list of section names, or null if these tokens are
+// not one. Repeats come either glued ("R2x2") or as their own token ("R3",
+// "x2"); both play the section that many times. A tempo ("♩ = 80") can share
+// the row and is returned separately.
+export function parsePlayOrder(tokens) {
+  const order = [];
+  let tempo = null;
+  const rest = [];
+  const joined = tokens.join(' ');
+  const t = joined.match(/♩\s*=\s*(\d{2,3})/);
+  if (t) tempo = t[1];
+  for (const tok of tokens) {
+    if (/^(♩|=|\d{2,3})$/.test(tok)) continue;
+    rest.push(tok);
+  }
+  if (rest.length < 2 && !(rest.length === 1 && tempo)) return rest.length ? null : (tempo ? { order, tempo } : null);
+  for (const tok of rest) {
+    const rep = tok.match(/^[x×](\d+)$/i);
+    if (rep) {
+      if (!order.length) return null;
+      for (let n = 1; n < Number(rep[1]); n++) order.push(order[order.length - 1]);
+      continue;
+    }
+    const name = orderTokenToSection(tok);
+    if (!name) return null;
+    const times = Number(tok.match(/[x×](\d+)$/i)?.[1] || 1);
+    for (let n = 0; n < times; n++) order.push(name);
+  }
+  return { order, tempo };
 }
 
 // The chord font is the one whose runs almost all look like chords. Far more
 // reliable than testing each token: in a lyric, "A" and "Am" are words too.
 // Play-order shorthand is set in the chord font but is not chord-shaped, so it
 // would drag the ratio down on a chart with few chords. Only the tokens that
-// can't be notes are excluded — a bare "B" really might be a chord.
-const NON_NOTE_SHORTHAND = /^(S\d*|R|P|F|I)$/i;
+// can't be notes are excluded — a bare "B" really might be a chord. The
+// tempo ("♩ = 80") and repeat counts ("R2x2", "x2") share that row.
+const NON_NOTE_SHORTHAND = /^(?:(?:S|R|P|F|I)\d*(?:[x×]\d+)?|[x×]\d+|♩|=|\d{1,3})$/i;
 
 export function findChordFont(items) {
   const byFont = new Map();
@@ -76,18 +110,48 @@ export function findChordFont(items) {
   return chordFont;
 }
 
-// Split into columns at the widest horizontal gap. The boundary is the gap's
-// MIDPOINT, not its right edge — a column starting at 311.9 must not fall on
-// the wrong side of a split at 312.
+// Split into columns along a vertical channel no text crosses.
+//
+// Looking only at left edges (the first version) breaks on a two-column chart
+// whose left column runs long: a lyric that ends at x=275 leaves a 50pt gap to
+// the right column's 304, under any "big gap" threshold, and both columns came
+// back interleaved line by line. So build the union of every run's [x, x+w]
+// span and split in the widest empty channel instead.
+//
+// Two kinds of run legitimately cross the channel and are left out of the
+// union: anything wider than most of the page (the title, a publisher footer),
+// and the header band above the first section heading, where composer credits
+// and the play-order strip span both columns. The boundary is the channel's
+// MIDPOINT — a column starting at 311.9 must not fall on the wrong side of a
+// split at 312.
+const MIN_CHANNEL = 12;
+
 export function splitColumns(items) {
-  const xs = [...new Set(items.filter(i => i.str.trim()).map(i => Math.round(i.x)))].sort((a, b) => a - b);
-  for (let i = 1; i < xs.length; i++) {
-    if (xs[i] - xs[i - 1] > GAP_COL && xs[i] > 150) {
-      const split = (xs[i] + xs[i - 1]) / 2;
-      return [items.filter(i2 => i2.x < split), items.filter(i2 => i2.x >= split)];
+  const real = items.filter(i => i.str.trim());
+  if (real.length === 0) return [items];
+  const left = Math.min(...real.map(i => i.x));
+  const right = Math.max(...real.map(i => i.x + (i.w || 0)));
+  const span = right - left || 1;
+
+  const headings = real.filter(i => sectionNameFrom(i.str));
+  const top = headings.length ? Math.max(...headings.map(i => i.y)) + Y_TOL : Infinity;
+  const body = real.filter(i => i.y <= top && (i.w || 0) < span * 0.6);
+
+  const spans = body.map(i => [i.x, i.x + (i.w || 0)]).sort((a, b) => a[0] - b[0]);
+  let best = null;
+  let reach = spans.length ? spans[0][1] : left;
+  for (let k = 1; k < spans.length; k++) {
+    const [x0, x1] = spans[k];
+    const gap = x0 - reach;
+    // A channel only counts in the middle of the page — never the margin
+    // between a lyric and a short chord hanging off its end.
+    if (gap >= MIN_CHANNEL && x0 > left + 150 && (!best || gap > best.gap)) {
+      best = { gap, at: (x0 + reach) / 2 };
     }
+    reach = Math.max(reach, x1);
   }
-  return [items];
+  if (!best) return [items];
+  return [items.filter(i => i.x < best.at), items.filter(i => i.x >= best.at)];
 }
 
 // Group a column's items into lines, top-down.
@@ -143,10 +207,18 @@ export function mergeChordRow(chordLine, lyricLine) {
 
   // Rebuild the line, recording where each fragment starts in the finished
   // string so a chord's x can be turned into a character offset.
+  // A chord wider than the syllable under it pushes the rest of the lyric
+  // right, so "mer[Cm]e[Bb]u" is set as "mer e  u". That gap is padding, not
+  // a word space: the fragment starts where an earlier chord ENDS, and that
+  // chord overhangs the text before it.
+  const pushed = (prev, next) => chords.some(c => {
+    const end = c.x + (c.w || 0);
+    return c.x < next.x - X_TOL && end >= prev.x + (prev.w || 0) - 0.5 && next.x - end >= -0.5 && next.x - end <= X_TOL;
+  });
   let text = '';
   const spans = [];
   for (let f = 0; f < frags.length; f++) {
-    text += gapSpace(frags[f - 1], frags[f]);
+    text += pushed(frags[f - 1] || frags[f], frags[f]) && f > 0 ? '' : gapSpace(frags[f - 1], frags[f]);
     spans.push({ item: frags[f], start: text.length });
     text += frags[f].str;
   }
@@ -203,6 +275,7 @@ export function buildChartFromItems(rawItems) {
 
   const meta = {};
   const body = [];
+  const lyricSize = medianLyricSize(items, chordFont);
 
   for (const col of splitColumns(items)) {
     const lines = toLines(col, chordFont);
@@ -217,9 +290,19 @@ export function buildChartFromItems(rawItems) {
       if (line.kind === 'chords') {
         const tokens = line.items.filter(x => x.str.trim()).map(x => x.str.trim());
         // Section shorthand above the first header is the play order, not chords.
-        if (!seenSection && tokens.length > 1 && tokens.every(orderTokenToSection)) {
-          meta.structure = tokens.map(orderTokenToSection);
+        if (!seenSection) {
+          const parsed = parsePlayOrder(tokens);
+          if (parsed) {
+            if (parsed.order.length > 1) meta.structure = parsed.order;
+            if (parsed.tempo) meta.tempo = parsed.tempo;
+          }
+          continue;
         }
+        // A chord row with no lyric under it is an instrumental row (intro,
+        // turnaround). Keep it as a chords-only line instead of dropping it.
+        const below = lines[i + 1];
+        const feedsLyric = below && below.kind === 'text' && below.text && Math.abs(line.y - below.y) < CHORD_GAP && !sectionNameFrom(below.text);
+        if (!feedsLyric) body.push({ line: tokens.map(c => `[${c}]`).join(' ') });
         continue; // otherwise consumed by the lyric line beneath
       }
 
@@ -228,6 +311,14 @@ export function buildChartFromItems(rawItems) {
       if (!line.text) continue;
 
       if (!seenSection) {
+        // Without a chord font (a lyrics-only chart) the play-order strip is a
+        // plain text row.
+        const order = parsePlayOrder(line.items.filter(x => x.str.trim()).map(x => x.str.trim()));
+        if (order && order.order.length > 1) {
+          meta.structure = order.order;
+          if (order.tempo) meta.tempo = order.tempo;
+          continue;
+        }
         if (!meta.title && line.size >= 20) {
           const runs = line.items.filter(x => x.str.trim()).sort((a, b) => (b.w || 0) - (a.w || 0));
           meta.title = runs[0].str.trim();
@@ -247,8 +338,11 @@ export function buildChartFromItems(rawItems) {
           const lyricist = credits[2].trim();
           meta.writers = composer === lyricist ? composer : `${composer}, ${lyricist}`;
         } else {
-          const music = line.text.match(/^(?:Muzica|Muzică)\s+(?:și|si)\s+versuri\s+de\s*(.+)$/i);
+          const music = line.text.match(/^(?:Muzica|Muzică)\s+(?:și|si)\s+versuri\s+de\s*(.+)$/i)
+            || line.text.match(/^(?:Compozitor|Compozitori|Autor|Autori)\s*:\s*(.+)$/i);
           if (music) meta.writers = music[1].trim();
+          const tempo = line.text.match(/♩\s*=\s*(\d{2,3})/);
+          if (tempo && !meta.tempo) meta.tempo = tempo[1];
         }
         continue; // remaining header chrome (repeated title, logos, …)
       }
@@ -257,9 +351,22 @@ export function buildChartFromItems(rawItems) {
       if (year) { meta.year = year[1]; continue; }
       if (!meta.key && /^[A-G](#|b)?m?$/.test(line.text) && line.size >= 14) { meta.key = line.text; continue; }
 
+      // Page furniture in small type (publisher credits under the footer rule)
+      // is not lyrics.
+      if (lyricSize && line.size && line.size < lyricSize * 0.7) continue;
+
       const above = lines[i - 1];
       const hasChords = above && above.kind === 'chords' && Math.abs(above.y - line.y) < CHORD_GAP;
-      body.push({ line: hasChords ? mergeChordRow(above, line) : line.text });
+      const text = hasChords ? mergeChordRow(above, line) : line.text;
+      // A narrow column wraps a long line, and the generator sets the rest on
+      // the next row (with its own chord row). Song lines start with a capital,
+      // so one that starts lowercase is the tail of the line before it.
+      const prev = body[body.length - 1];
+      if (prev && prev.line !== undefined && !isChordOnly(prev.line) && /^[a-zăâîșşțţ]/.test(line.text)) {
+        prev.line = `${prev.line} ${text}`;
+        continue;
+      }
+      body.push({ line: text });
     }
   }
 
@@ -268,11 +375,27 @@ export function buildChartFromItems(rawItems) {
   return { md: toMarkdown(meta, body), meta, warnings };
 }
 
+const isChordOnly = (line) => /^(\[[^\]]+\]\s*)+$/.test(line.trim());
+
+// The body text size: the median size weighted by characters, so the lyrics
+// (most of the letters on the page) win over headings and header chrome.
+function medianLyricSize(items, chordFont) {
+  const runs = items.filter(i => i.str.trim() && i.font !== chordFont && i.h).sort((a, b) => a.h - b.h);
+  const total = runs.reduce((n, i) => n + i.str.length, 0);
+  let seen = 0;
+  for (const i of runs) {
+    seen += i.str.length;
+    if (seen * 2 >= total) return i.h;
+  }
+  return 0;
+}
+
 function toMarkdown(meta, body) {
   let md = '---\n';
   md += `title: ${meta.title || ''}\n`;
   if (meta.artist) md += `artist: ${meta.artist}\n`;
   md += `key: ${meta.key || ''}\n`;
+  if (meta.tempo) md += `tempo: ${meta.tempo}\n`;
   if (meta.structure?.length) md += `structure: [${meta.structure.join(', ')}]\n`;
   if (meta.language) md += `language: ${meta.language}\n`;
   if (meta.writers) md += `writers: ${meta.writers}\n`;

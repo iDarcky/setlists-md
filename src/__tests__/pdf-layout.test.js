@@ -6,6 +6,7 @@ import {
   mergeChordRow,
   sectionNameFrom,
   orderTokenToSection,
+  parsePlayOrder,
 } from '@/lib/pdfLayout';
 import { parseSongMd } from '@/parser';
 
@@ -261,5 +262,118 @@ describe('credits', () => {
     const { meta } = buildChartFromItems(chart);
     expect(meta.writers).toBe('Oni Rodilă, Alina M. Paneșiu');
     expect(meta.artist).toBeUndefined();
+  });
+});
+
+// ─── Melodia.ro layout (Nov 2026 import test) ──────────────────────
+// Coordinates lifted from real Melodia exports ("Când moartea-i înfrânt-o",
+// "Apa vie", "El e Fântâna"); each case below broke before.
+const SP = (x, w = 5.2) => item(' ', x, 0, w, 0, LYR);
+const on = (y, ...its) => its.map(i => ({ ...i, y }));
+
+describe('splitColumns — a long left column', () => {
+  it('splits in the empty channel even when the left-edge gap is small', () => {
+    // Left lyrics run to x=275; the right column starts at 304. Left edges alone
+    // gave a 50pt gap, under the old threshold, and the verses interleaved.
+    const items = [
+      item('STROFA 1', 39, 702, 50, 9, HDR),
+      item('Când', 39, 569, 33.5, 14, LYR), item('moartea-i înfrânt-o vi', 76.3, 569, 129, 14, LYR),
+      item('ața-nce', 205.5, 569, 46.7, 14, LYR), item('put.', 252.1, 569, 23.3, 14, LYR),
+      item('G', 254.5, 619, 6.6, 10.9, CH),
+      item('STROFA 3', 303.9, 702, 50, 9, HDR),
+      item('Eliberat,', 303.9, 569, 50, 14, LYR),
+      // the credits line in the header band crosses the channel and must not block it
+      item('Brandon Coker, Adam Kersh', 90, 764, 232.5, 9, HDR),
+      // so does a full-width publisher footer
+      item('Compusă în 2015 · 2015 Adam Kersh Music…', 39, 65, 460, 8, LYR),
+    ];
+    const [left, right] = splitColumns(items);
+    expect(left.map(i => i.str)).toContain('put.');
+    expect(right.map(i => i.str)).toEqual(['STROFA 3', 'Eliberat,']);
+  });
+});
+
+describe('play order', () => {
+  it('numbers on R and repeat counts', () => {
+    expect(parsePlayOrder(['S1', 'R1', 'S2', 'R2x2']).order).toEqual(['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Chorus']);
+    expect(parsePlayOrder(['S1', 'R', 'B', 'R3', 'x2']).order).toEqual(['Verse 1', 'Chorus', 'Bridge', 'Chorus', 'Chorus']);
+  });
+
+  it('reads the tempo that shares the row', () => {
+    const p = parsePlayOrder(['♩', '=', '80', 'S1', 'R1', 'S2']);
+    expect(p.tempo).toBe('80');
+    expect(p.order).toEqual(['Verse 1', 'Chorus', 'Verse 2']);
+  });
+
+  it('is not fooled by a chord row', () => {
+    expect(parsePlayOrder(['Ab', 'Eb', 'Bb', 'Cm'])).toBeNull();
+  });
+});
+
+describe('buildChartFromItems — Melodia charts', () => {
+  const head = [
+    item('Apa vie', 39, 783, 250, 26, HDR),
+    item('Compozitor:', 39, 764, 48.5, 9, LYR), SP(87.5, 3.3),
+    item('Shane Barnard & Bryan Fowler', 90, 764, 140, 9, HDR),
+    ...on(745, item('♩', 319, 0, 6, 10, CH), item('=', 331, 0, 6, 10, CH), item('150', 343, 0, 18, 10, CH),
+      item('S1', 373, 0, 13.2, 11, CH), item('R1', 400, 0, 13.2, 11, CH), item('R2x2', 427, 0, 26, 11, CH)),
+  ];
+
+  it('reads composer and tempo from the header', () => {
+    const { meta, md } = buildChartFromItems([...head, item('STROFA 1', 39, 702, 50, 9, HDR), item('Suflet uscat', 39, 660, 80, 14, LYR)]);
+    expect(meta.writers).toBe('Shane Barnard & Bryan Fowler');
+    expect(meta.tempo).toBe('150');
+    expect(meta.structure).toEqual(['Verse 1', 'Chorus', 'Chorus', 'Chorus']);
+    expect(parseSongMd(md).tempo).toBe(150);
+  });
+
+  it('keeps chord-only rows (intro, turnaround)', () => {
+    const { md } = buildChartFromItems([
+      ...head,
+      item('STROFA 1', 39, 702, 50, 9, HDR),
+      ...on(686, item('Ab', 39, 0, 13.1, 10.9, CH), item('Eb', 58, 0, 13.1, 10.9, CH), item('Bb', 77, 0, 13.1, 10.9, CH)),
+      ...on(653, item('Ab', 39, 0, 13.1, 10.9, CH)),
+      ...on(636, item('Suflet', 39, 0, 40, 14, LYR)),
+    ]);
+    expect(md).toContain('## Verse 1\n[Ab] [Eb] [Bb]\n[Ab]Suflet\n');
+  });
+
+  it('joins a line the narrow column wrapped', () => {
+    const { md } = buildChartFromItems([
+      ...head,
+      item('REFREN', 39, 702, 50, 9, HDR),
+      ...on(686, item('Ab', 48.5, 0, 13.1, 10.9, CH)),
+      ...on(669, item('Apă Vie, stinge setea', 48.5, 0, 220, 14, LYR)),
+      ...on(653, item('Cm', 48.5, 0, 13.1, 10.9, CH), item('Bb', 67.9, 0, 13.1, 10.9, CH)),
+      ...on(636, item('me', 48.5, 0, 19.4, 14, LYR), item('a', 67.9, 0, 7.8, 14, LYR)),
+      ...on(603, item('Ca un râu', 48.5, 0, 60, 14, LYR)),
+    ]);
+    expect(md).toContain('[Ab]Apă Vie, stinge setea [Cm]me[Bb]a\nCa un râu\n');
+  });
+
+  it('does not read a chord-pushed syllable as a word space', () => {
+    // "mer[Cm]e[Bb]u": the Cm is wider than "e", so "u" is set further right.
+    const chords = { items: [item('G/B', 48.5, 327, 19.7, 10.9, CH), item('Cm', 72.6, 327, 13.1, 10.9, CH), item('Bb', 87.7, 327, 13.1, 10.9, CH)] };
+    const lyric = { items: [item('mer', 48.5, 309, 24.1, 14, LYR), item('e', 72.6, 309, 7.8, 14, LYR), item('u', 87.7, 309, 7.8, 14, LYR)] };
+    expect(mergeChordRow(chords, lyric)).toBe('[G/B]mer[Cm]e[Bb]u');
+  });
+
+  it('still keeps a real word space before a chord', () => {
+    // "Prin [G]dragostea": no chord overhangs "Prin", so the gap is a space.
+    const chords = { items: [item('G', 67.8, 619, 6.6, 10.9, CH)] };
+    const lyric = { items: [item('Prin', 39, 602, 24.9, 14, LYR), item('dragostea', 67.8, 602, 62.2, 14, LYR)] };
+    expect(mergeChordRow(chords, lyric)).toBe('Prin [G]dragostea');
+  });
+
+  it('drops small-print publisher lines under the footer', () => {
+    const { md } = buildChartFromItems([
+      ...head,
+      item('STROFA 1', 39, 702, 50, 9, HDR),
+      item('Suflet uscat, pământ secat', 39, 660, 160, 14, LYR),
+      item('Dorești izvor, căci ești însetat', 39, 640, 190, 14, LYR),
+      item('În Duhul Învierii am fost scăldat!', 39, 620, 200, 14, LYR),
+      item('Like Music', 39, 55, 37.8, 8, LYR),
+    ]);
+    expect(md).not.toContain('Like Music');
   });
 });
