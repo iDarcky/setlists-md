@@ -298,7 +298,7 @@ export default function SongView({
 
   const lead = (
     <div className="font-sans text-foreground">
-      <div className="bg-[radial-gradient(120%_90%_at_15%_0%,rgba(201,163,106,.18)_0%,transparent_70%)]">
+      <div className="bg-[radial-gradient(120%_90%_at_15%_0%,rgba(122,168,156,.18)_0%,transparent_70%)]">
         <div className={page}>
           <div className="-mx-1 flex items-center pt-2">
             {onBack && <button type="button" onClick={onBack} aria-label={backLabel} title={backLabel} className={iconBtn}><BackIcon size={20} /></button>}

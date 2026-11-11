@@ -5,9 +5,7 @@ import { useCoverArt } from '@/lib/useCoverArt';
 // MultiTracks-style rebuild): the cover, the one-line numbers, the leader's
 // play sentence and the song map.
 
-const initials = (title) => String(title || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-
-/** Spotify art, else the YouTube still, else a warm gradient with the initials. Never an empty box. */
+/** Spotify art, else the YouTube still, else a plain green tile (the brand green, no letters). Never an empty box. */
 export function Cover({ song, size = 104, className }) {
   const { artUrl, markFailed } = useCoverArt(song);
   const box = { width: size, height: size };
@@ -15,10 +13,8 @@ export function Cover({ song, size = 104, className }) {
     return <img src={artUrl} alt="" onError={() => markFailed(artUrl)} style={box} className={cn('shrink-0 rounded-[10px] object-cover shadow-[0_8px_24px_rgba(0,0,0,.45)]', className)} />;
   }
   return (
-    <span aria-hidden="true" style={{ ...box, background: 'linear-gradient(135deg,#C9A36A 0%,#6E4B2E 60%,#2a1d14 100%)' }}
-      className={cn('flex shrink-0 items-end rounded-[10px] p-2 text-[13px] font-bold text-white/60 shadow-[0_8px_24px_rgba(0,0,0,.45)]', className)}>
-      {initials(song?.title)}
-    </span>
+    <span aria-hidden="true" style={{ ...box, background: 'linear-gradient(135deg,#7AA89C 0%,#53796F 55%,#2B403A 100%)' }}
+      className={cn('block shrink-0 rounded-[10px] shadow-[0_8px_24px_rgba(0,0,0,.45)]', className)} />
   );
 }
 
