@@ -1127,6 +1127,23 @@ export default function Reader({
     cancelEdit();
   }, [confirm, cancelEdit, editBase, song]);
 
+  // QA 11 Nov (owner): *"users can't exit a setlist now"*. Hiding the ✕ on a
+  // phone in live left the pull-down as the only way out, and nobody finds a
+  // gesture they were never shown. The ✕ is back everywhere; on a phone in
+  // live it ASKS first, which keeps the mis-tap guard the hiding was for.
+  const requestExit = useCallback(async () => {
+    if (liveHidesExit) {
+      const ok = await confirm({
+        title: 'Leave the setlist?',
+        description: 'You are live. The setlist stays as it is; you can open it again any time.',
+        confirmLabel: 'Leave',
+        cancelLabel: 'Stay',
+      });
+      if (!ok) return;
+    }
+    onExit?.();
+  }, [confirm, liveHidesExit, onExit]);
+
   const editStructure = useCallback((op) => {
     // Materialise first: a song played in document order has no `structure` to
     // edit, and without writing the implied order down the first tap lands on
@@ -1796,7 +1813,7 @@ export default function Reader({
           // mid-edit strands the change". The guard was right and the answer
           // was wrong: ✕ already means "get out without keeping", which is
           // precisely Cancel. `requestCancelEdit` is what makes a mis-tap safe.
-          onExit={editing ? requestCancelEdit : (liveHidesExit ? null : onExit)}
+          onExit={editing ? requestCancelEdit : (onExit ? requestExit : null)}
           editing={editing}
           exitLabel={editing ? 'Cancel editing' : 'Exit'}
           exitDisabled={false}
@@ -2423,10 +2440,6 @@ export default function Reader({
                 song={song}
                 bpm={bpm}
                 onBpm={changeBpm}
-                onSaveTempo={onUpdateSong ? (v) => onUpdateSong({ ...song, tempo: v }) : null}
-                // The same stamp `bpm` is derived from: a tempo belongs to a
-                // song, so arriving at the next one is not "still chosen".
-                tempoChosen={tempoSet?.id === songId}
                 clickRunning={metronome.running}
                 onToggleClick={() => (metronome.running ? metronome.stop() : metronome.start(bpm, song.time))}
               />

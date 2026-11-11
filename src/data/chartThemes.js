@@ -154,8 +154,9 @@ export const CHART_THEME_MAP = Object.fromEntries(CHART_THEMES.map(t => [t.id, t
 export const DEFAULT_CHART_THEME_ID = 'warm';
 
 // Curated font library. `system` and the Geist family come from the app
-// shell so they load instantly; the rest are Google Fonts and are
-// fetched on demand the first time the user picks one. `category` is
+// shell so they load instantly; the rest are self-hosted `@fontsource`
+// packages loaded on demand by `lib/chartFonts.js` (no Google request —
+// `googleFont` is kept only as the family's name on Google Fonts). `category` is
 // purely for organising the picker.
 
 export const CHART_FONTS = [

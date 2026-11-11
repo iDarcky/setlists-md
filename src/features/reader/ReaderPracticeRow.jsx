@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { youtubeId } from '@/lib/coverArt';
-import { MAX_BPM, MIN_BPM, TAP_MIN, clampTempo, pruneTaps, tempoFromTaps } from '@/lib/metronome';
+import { MAX_BPM, MIN_BPM, clampTempo } from '@/lib/metronome';
 import { useYouTubeTrack, hiddenHostStyle } from '@/hooks/useYouTubeTrack';
 
 /**
@@ -25,13 +25,9 @@ export default function ReaderPracticeRow({
   song,
   bpm,
   onBpm,
-  // Writes the tempo back onto the song. Absent (a read-only library, or a
-  // host that doesn't own the song) → the tempo stays session-only.
-  onSaveTempo = null,
-  // Has a tempo been CHOSEN for this song in this session — tapped, typed or
-  // stepped? See the Save button below for why "different from the song's" is
-  // not the same question.
-  tempoChosen = false,
+  // Tap tempo and "Save as the song's tempo" were dropped in the QA pass
+  // (owner, 11 Nov). The tempo a band plays is the SETLIST's now — the leader
+  // sets it from the bar's tempo field — and nobody used TAP.
   clickRunning,
   onToggleClick,
   canClick = true,
@@ -39,24 +35,6 @@ export default function ReaderPracticeRow({
   const ytId = youtubeId(song?.youtube);
   const text = 'var(--chart-text, var(--ds-gray-1000))';
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
-
-  // ── Tap tempo ────────────────────────────────────────────────────────────
-  // Four taps, then it commits and keeps tracking (owner, 2026-08-01). Taps
-  // live in a ref, not state: they change on every tap and nothing about the
-  // row's appearance depends on the list itself, only on how many there are.
-  const tapsRef = useRef([]);
-  const [tapCount, setTapCount] = useState(0);
-  const tapIdle = useRef(null);
-  const tap = () => {
-    const next = pruneTaps(tapsRef.current, Date.now());
-    tapsRef.current = next;
-    setTapCount(next.length);
-    const found = tempoFromTaps(next);
-    if (found) onBpm(found);
-    clearTimeout(tapIdle.current);
-    tapIdle.current = setTimeout(() => setTapCount(0), 2000);
-  };
-  useEffect(() => () => clearTimeout(tapIdle.current), []);
 
   // Typing an exact tempo. Held as a string while editing so a half-typed "1"
   // isn't clamped to 40 under the user's fingers.
@@ -111,22 +89,6 @@ export default function ReaderPracticeRow({
           onCommitEdit={commitTyped}
         />
 
-        {/* TAP. The only way to get a tempo out of a recording — YouTube
-            exposes no BPM and its audio can't be analysed from a cross-origin
-            embed. Four taps and it commits, then keeps tracking. */}
-        <button
-          type="button"
-          onClick={tap}
-          className="min-h-0 shrink-0 w-9 h-7 rounded-lg grid place-items-center cursor-pointer border text-label-11 font-mono font-bold tracking-wider"
-          style={{
-            borderColor: tapCount ? 'var(--chord)' : 'var(--chart-rule, var(--ds-gray-400))',
-            color: tapCount ? 'var(--chord)' : text,
-          }}
-          aria-label={`Tap tempo — ${TAP_MIN} taps`}
-        >
-          {tapCount > 0 && tapCount < TAP_MIN ? `${tapCount}/${TAP_MIN}` : 'TAP'}
-        </button>
-
         {/* The song's written tempo, and a way back to it. Slowing down is only
             useful if returning to the real tempo is one tap. */}
         {song?.tempo && Number(song.tempo) !== bpm && (
@@ -141,30 +103,6 @@ export default function ReaderPracticeRow({
           </button>
         )}
 
-        {/* Save to the song (owner, 2026-08-01). Only shows when there is
-            something to save — a tempo that already matches the song is not an
-            action, and element 12's rule is still that nothing persists by
-            itself.
-            ⚠ "Different from the song's tempo" was the wrong test for a song
-            that HAS no tempo. `Number(undefined)` is NaN, which differs from
-            everything, so opening the row on an untimed song offered to save
-            **100** — the fallback constant, not a decision anybody made. One
-            tap and a number nobody chose is the song's tempo forever, and the
-            button was there before the user had done a thing. `tempoChosen`
-            is the real question: has a tempo been tapped, typed or stepped
-            for THIS song. Both conditions stay, because stepping away and
-            back leaves nothing to save either. */}
-        {onSaveTempo && tempoChosen && Number(song?.tempo) !== bpm && (
-          <button
-            type="button"
-            onClick={() => onSaveTempo(bpm)}
-            className="min-h-0 shrink-0 px-2 py-0.5 rounded-lg text-label-11 font-semibold cursor-pointer border-0"
-            style={{ background: 'var(--color-brand)', color: '#fff' }}
-            aria-label={`Save ${bpm} as this song's tempo`}
-          >
-            Save
-          </button>
-        )}
       </div>
 
       {/* ── The backing track ──────────────────────────────────────────── */}

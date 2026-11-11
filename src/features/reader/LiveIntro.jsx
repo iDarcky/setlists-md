@@ -51,7 +51,7 @@ export default function LiveIntro({ onClose }) {
           <li>The click, editing and note-writing are put away.</li>
           <li>The screen stays awake on its own.</li>
           <li>You can still change key &mdash; it just won&rsquo;t be saved to the setlist.</li>
-          <li>There&rsquo;s no <span aria-hidden="true">&#10005;</span> to press by accident. Leave from the menu.</li>
+          <li>The <span aria-hidden="true">&#10005;</span> asks before it leaves, so a stray tap can&rsquo;t end the service.</li>
         </ul>
 
         <Button variant="brand" size="lg" onClick={onClose} className="w-full">

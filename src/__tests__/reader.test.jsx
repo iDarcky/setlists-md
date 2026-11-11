@@ -1636,10 +1636,9 @@ describe('the live badge', () => {
     );
     // The state is announced as text; the triangle itself is decoration.
     expect(screen.getByRole('status')).toHaveTextContent('Live');
-    // Owner: "normally you don't want to exit a live stuff." The corner the ✕
-    // used to occupy is the fold's, so element 1's oldest hazard — a mis-tap on
-    // the right-hand edge leaving the service — stops being possible.
-    expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
+    // QA 11 Nov: hiding the ✕ left people unable to leave a setlist. It stays,
+    // and asks first (covered in "who keeps the ✕ in live").
+    expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
   });
 
   it('costs the title NOTHING — the fold is outside the layout', () => {
@@ -1692,11 +1691,21 @@ describe('who keeps the ✕ in live', () => {
     <Reader song={makeSong()} settings={{}} mode="live" onModeChange={() => {}} onExit={() => {}} {...props} />
   );
 
-  it('a phone drops it — the pull is there instead', () => {
+  // QA 11 Nov (owner): "users can't exit a setlist now". The pull alone was
+  // undiscoverable, so the phone keeps the ✕ and it ASKS before leaving.
+  it('a phone keeps it, and it asks before leaving', async () => {
     mockWidth(390);
-    live();
-    expect(screen.queryByRole('button', { name: 'Exit' })).toBeNull();
+    const onExit = vi.fn();
+    const ask = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    live({ onExit });
     expect(screen.getByRole('status')).toHaveTextContent('Live');
+    fireEvent.click(screen.getByRole('button', { name: 'Exit' }));
+    await Promise.resolve();
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(onExit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Exit' }));
+    await vi.waitFor(() => expect(onExit).toHaveBeenCalledTimes(1));
+    ask.mockRestore();
   });
 
   it('a tablet and a desktop keep it', () => {
