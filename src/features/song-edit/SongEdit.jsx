@@ -32,6 +32,7 @@ import { MoreIcon } from '@/features/song/SongView';
 // The preview is the real Reader, so it draws exactly what the band will see.
 const Reader = lazy(() => import('@/features/reader/Reader'));
 import { PlusIcon } from '@/app/navIcons';
+import { canFillVerseChords, fillVerseChords } from '@/lib/verseChords';
 
 // The song editor, built from zero (canvas → "Song, edit and chart", Edit
 // row). Two tabs instead of four: **Chart** is the chart itself, editable in
@@ -1173,6 +1174,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
           { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
           { label: 'Paste a song', sub: mode === 'new' ? null : 'Replace this arrangement, or add it as a new one', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
           arr.sections.length > 1 && { label: arr.sections.every((_, i) => folded.has(`${arr.id}:${i}`)) ? 'Open all sections' : 'Fold all sections', onClick: () => { closeAll(); setFolded(f => { const keys = arr.sections.map((_, i) => `${arr.id}:${i}`); const all = keys.every(k => f.has(k)); const n = new Set(f); keys.forEach(k => (all ? n.delete(k) : n.add(k))); return n; }); } },
+          canFillVerseChords(arr.sections) && { label: 'Copy verse 1 chords to the other verses', sub: 'Placed by syllable. Undo if one is off.', onClick: () => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); } },
           mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />

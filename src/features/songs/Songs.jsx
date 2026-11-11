@@ -48,6 +48,9 @@ export default function Songs({
       if (setlistFile) { setPickOpen(false); onImportSetlistFile?.(setlistFile); return; }
       if (!parsed.length) { setImportError(error || 'No songs found in those files.'); if (!wide) setPickOpen(true); return; }
       setPickOpen(false);
+      // One song: no list to tick, so open it in the editor to check before it
+      // is added (nothing is saved until Add).
+      if (parsed.length === 1 && !failed.length && onEditImported) { onEditImported(parsed[0]); return; }
       setReview({
         items: parsed.map(song => ({ song, existing: matchSongByTitle(songs, song.title) || null })),
         failed,
