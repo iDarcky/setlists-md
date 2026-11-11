@@ -1904,6 +1904,31 @@ export default function App() {
     toast({ title: list.length === 1 ? `Added "${list[0].title || 'Untitled'}"` : `Added ${list.length} songs` });
   };
 
+  // New song from a setlist's Add songs list. Unlike an import on Songs, a
+  // title the library already has is NOT overwritten: the setlist gets the
+  // existing song and the library is left alone. Returns the songs to add.
+  const handleCreateSongsForSetlist = (list) => {
+    if (!list || list.length === 0) return [];
+    if (guardTeamReadOnly()) return [];
+    const now = Date.now();
+    const out = [];
+    const fresh = [];
+    for (const s of list) {
+      const existing = matchSongByTitle(songs, s.title) || matchSongByTitle(fresh, s.title);
+      if (existing) { out.push(existing); continue; }
+      const song = { ...s, updatedAt: now };
+      fresh.push(song);
+      out.push(song);
+    }
+    if (fresh.length) setSongs(prev => [...prev, ...fresh]);
+    const kept = list.length - fresh.length;
+    toast({
+      title: fresh.length === 1 ? `Added "${fresh[0].title || 'Untitled'}"` : fresh.length ? `Added ${fresh.length} songs` : 'Already in Songs',
+      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.` : 'Tagged “To check” in Songs.',
+    });
+    return out;
+  };
+
   // One imported song, opened in the editor before it is saved ("Edit first").
   const handleEditImportedSong = (s) => {
     if (guardTeamReadOnly()) return;
@@ -2756,6 +2781,7 @@ export default function App() {
               setlistMap={teamSetlistMap}
               space={activeLibrary}
               onSave={saveSetlistFromFlow}
+              onCreateSongs={isTeamReadOnly ? null : handleCreateSongsForSetlist}
               onCancel={async () => {
                 if (!(await confirmDiscardSetlist())) return;
                 setlistDirtyRef.current = false;
