@@ -457,23 +457,13 @@ export default function App() {
     setSettings(prev => (prev && !prev.defaultSpaceId ? { ...prev, defaultSpaceId: id } : prev));
   }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
 
-  // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
-  // whoever is in it once their memberships load is moved to their church,
-  // unless it holds songs or setlists of their own. Those people keep it, so
-  // they can move their songs into a church or band (Copy to…).
-  useEffect(() => {
-    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || !loaded || activeLibrary !== 'personal') return;
-    if (personalCloudAllowed || hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)) return;
-    const id = churchDefaultSpaceId({ current: null, teams });
-    if (id) setActiveLibrary(id);
-  }, [teamLoading, loaded, teams, activeLibrary, songs, setlists, personalCloudAllowed]);
-
-  // Does the personal library hold anything of the user's own? While it is
-  // the open library the answer is in state; otherwise read it from IndexedDB
-  // (null until known — unknown never hides anything).
+  // Does the personal library hold anything of the user's own? Read from
+  // IndexedDB on every Space change, Personal included (null until known —
+  // unknown never hides anything). Not from `songs` state: that is emptied
+  // while a switch loads, which read as "Personal is empty" and bounced
+  // people straight back out of it.
   const [storedPersonalHasContent, setStoredPersonalHasContent] = useState(null);
   useEffect(() => {
-    if (activeLibrary === 'personal') return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -485,6 +475,18 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [activeLibrary, user?.id]);
+
+  // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
+  // whoever is in it once their memberships load is moved to their church,
+  // unless it holds songs or setlists of their own (they keep it to move them
+  // into a church or band) or the account syncs Personal. Only a Personal
+  // KNOWN to be empty moves them.
+  useEffect(() => {
+    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || activeLibrary !== 'personal') return;
+    if (personalCloudAllowed || storedPersonalHasContent !== false) return;
+    const id = churchDefaultSpaceId({ current: null, teams });
+    if (id) setActiveLibrary(id);
+  }, [teamLoading, teams, activeLibrary, personalCloudAllowed, storedPersonalHasContent]);
 
   // ── Join link: resume after sign-in ───────────────────────────────────────
   // OAuth comes back through /auth/callback and a magic link opens `/` in a
@@ -1293,8 +1295,9 @@ export default function App() {
     setJoinCode(null);
   };
 
-  const personalHasContent = activeLibrary === 'personal'
-    ? (loaded ? hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS) : null)
+  // While Personal is open, something the user just added counts too.
+  const personalHasContent = activeLibrary === 'personal' && loaded && hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)
+    ? true
     : storedPersonalHasContent;
   const hidePersonalSpace = shouldHidePersonal({
     blocked: PERSONAL_BLOCKED_IN_CHURCH,
