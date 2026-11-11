@@ -269,6 +269,58 @@ function BarField({ value, onCommit, width, label, prefix = '', inputMode }) {
   );
 }
 
+/**
+ * The tempo as a READ-OUT that turns into a field when tapped (QA 11 Nov,
+ * owner: *"it should be clickable and then you can change it"*). An always-open
+ * input box in the bar read as a form; this reads as "90 BPM" until you mean to
+ * change it. Enter or leaving the field saves; Escape puts it back.
+ */
+function TapTempo({ value, onCommit, label, pill = false }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const start = () => { setDraft(String(value ?? '')); setEditing(true); };
+  const commit = () => {
+    setEditing(false);
+    const n = parseInt(draft, 10);
+    const next = Number.isFinite(n) ? clampTempo(n) : null;
+    if (next !== (value ?? null)) onCommit(next);
+  };
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        aria-label={label}
+        inputMode="numeric"
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+        onFocus={(e) => e.currentTarget.select()}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+          if (e.key === 'Escape') { setDraft(String(value ?? '')); setEditing(false); }
+        }}
+        className="min-h-0 h-8 w-[52px] px-1.5 rounded-lg border bg-transparent text-label-13 tabular-nums text-center outline-none shrink-0"
+        style={{ borderColor: 'var(--color-brand)', color: 'var(--chart-text, var(--ds-gray-1000))' }}
+      />
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={start}
+      aria-label={`${label}: ${value ? `${value} BPM` : 'not set'}. Tap to change`}
+      className={pill
+        ? 'min-h-0 font-mono font-bold text-[15px] rounded-lg px-2.5 h-8 inline-flex items-center gap-0.5 shrink-0 tabular-nums border-0 cursor-pointer'
+        : 'min-h-0 h-8 px-1.5 -mx-1.5 rounded-lg inline-flex items-center tabular-nums bg-transparent border-0 cursor-pointer hover:bg-[var(--ds-gray-100)]'}
+      style={pill ? { background: 'var(--chord)', color: '#0a0a0a' } : { color: 'inherit' }}
+    >
+      {value
+        ? (pill ? <>{value}<span className="ml-1 text-[11px] font-semibold opacity-70">BPM</span></> : `${value} BPM`)
+        : 'Set BPM'}
+    </button>
+  );
+}
+
 export default function Reader({
   song: songProp,
   arrangementId,
@@ -1852,7 +1904,9 @@ export default function Reader({
                   The capo goes with it: a capo is a fret, and a drum kit has
                   none. */}
               {barShowsTempo ? (
-                !editing && song.tempo ? (
+                !editing && onSelectTempo ? (
+                  <TapTempo pill value={song.tempo} label="Tempo for this setlist" onCommit={onSelectTempo} />
+                ) : !editing && song.tempo ? (
                   <span
                     className="font-mono font-bold text-[15px] rounded-lg px-2.5 h-8 inline-flex items-center gap-0.5 shrink-0 tabular-nums"
                     style={{ background: 'var(--chord)', color: '#0a0a0a' }}
@@ -1980,17 +2034,7 @@ export default function Reader({
                       `barShowsTempo`. The time signature stays either way; for
                       a drummer it is the other half of the count. */}
                   {barShowsMeta && !barShowsTempo && onSelectTempo ? (
-                    <BarField
-                      value={song.tempo ?? ''}
-                      width={46}
-                      label="Tempo for this setlist"
-                      inputMode="numeric"
-                      onCommit={(v) => {
-                        const n = parseInt(v, 10);
-                        const next = Number.isFinite(n) ? clampTempo(n) : null;
-                        if (next !== (song.tempo ?? null)) onSelectTempo(next);
-                      }}
-                    />
+                    <TapTempo value={song.tempo} label="Tempo for this setlist" onCommit={onSelectTempo} />
                   ) : barShowsMeta && !barShowsTempo && song.tempo && <span className="tabular-nums">{song.tempo} BPM</span>}
                   {barShowsMeta && song.time && <span className="tabular-nums">{song.time}</span>}
                 </>

@@ -225,10 +225,28 @@ export default function SectionBlock({
       &gt;
     </span>
   );
-  const noteAbove = (text) => (
+  // A note can be any length and may hold no spaces at all ("asdasd…"), so it
+  // breaks ANYWHERE rather than running out of its column over the chart
+  // (QA 11 Nov, owner's screenshot).
+  const noteWrap = { overflowWrap: 'anywhere', wordBreak: 'break-word', minWidth: 0 };
+  // Tapping an existing note while editing reopens it — in EVERY placement.
+  // Only the gutter note listened before, so with notes above or below the
+  // line a note could be written and never changed (QA 11 Nov: "how can I edit
+  // an existing note?").
+  const noteEditProps = (text, lineIdx) => (onNoteOpen && lineIdx != null ? {
+    role: 'button', tabIndex: 0, title: 'Edit this note',
+    onClick: (e) => { e.stopPropagation(); onNoteOpen(lineIdx, text); },
+    onKeyDown: (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onNoteOpen(lineIdx, text); }
+    },
+  } : null);
+  const noteAbove = (text, lineIdx = null) => (
     <div
+      {...noteEditProps(text, lineIdx)}
       className="italic text-[0.8em] leading-snug"
-      style={{ color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
+      style={{ ...noteWrap,
+               cursor: onNoteOpen && lineIdx != null ? 'pointer' : undefined,
+               color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
                fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
                fontWeight: text.trim().startsWith('!') ? 600 : 400 }}
     >
@@ -345,17 +363,11 @@ export default function SectionBlock({
   // nothing. Say it does something or say nothing.
   const noteGutter = (text, hasChordRow = false, lineIdx = null) => (
     <span
-      {...(onNoteOpen && lineIdx != null ? {
-        role: 'button', tabIndex: 0, title: 'Edit this note',
-        style: { cursor: 'pointer' },
-        onClick: (e) => { e.stopPropagation(); onNoteOpen(lineIdx, text); },
-        onKeyDown: (e) => {
-          if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); onNoteOpen(lineIdx, text); }
-        },
-      } : null)}
+      {...noteEditProps(text, lineIdx)}
       className="text-[0.72em] leading-snug self-start whitespace-pre-wrap"
       data-note-gutter=""
-      style={{ ...(gutterRule || {}),
+      style={{ ...(gutterRule || {}), ...noteWrap,
+               cursor: onNoteOpen && lineIdx != null ? 'pointer' : undefined,
                color: text.trim().startsWith('!') ? 'var(--ds-red-900)' : 'var(--chart-subtle, var(--text-2))',
                fontStyle: text.trim().startsWith('!') ? 'normal' : 'italic',
                fontWeight: text.trim().startsWith('!') ? 600 : 400,
@@ -571,7 +583,7 @@ export default function SectionBlock({
             marginBottom: showChords ? 8 : 0,
           }}
         >
-          {showNote && notePlacement === 'above' && noteAbove(inlineNote)}
+          {showNote && notePlacement === 'above' && noteAbove(inlineNote, idx)}
           <div
             className={notePlacement === 'leader' ? 'min-h-[1.3em] flex items-baseline opacity-90' : 'min-h-[1.3em] whitespace-pre-wrap opacity-90'}
             style={{
@@ -597,7 +609,7 @@ export default function SectionBlock({
             )}
             {showNote && notePlacement === 'leader' && noteLeader(inlineNote)}
           </div>
-          {showNote && notePlacement === 'below' && noteAbove(inlineNote)}
+          {showNote && notePlacement === 'below' && noteAbove(inlineNote, idx)}
           {notePlacement === 'gutter' && (
             noteDraft?.lineIdx === idx ? noteGutterEditor()
               : showNote ? noteGutter(inlineNote, false, idx)
@@ -757,7 +769,7 @@ export default function SectionBlock({
           lineHeight: 1,
         }}
       >
-        {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote)}
+        {inlineNotes && inlineNote && notePlacement === 'above' && noteAbove(inlineNote, idx)}
         <div style={{ ...(gutterGrid || {}), breakInside: 'avoid' }}>
         {/* ⚠ The lyric is NOT a note target. It was, while notes had their own
             arming mode: "tap the line your note belongs to" made the whole line
@@ -1010,7 +1022,7 @@ export default function SectionBlock({
           {inlineNotes && inlineNote && notePlacement === 'leader' && noteLeader(inlineNote)}
           {noteHint && onNoteOpen && !(inlineNotes && inlineNote) && noteDraft?.lineIdx !== idx && noteInlineHint(idx)}
         </div>
-        {inlineNotes && inlineNote && notePlacement === 'below' && noteAbove(inlineNote)}
+        {inlineNotes && inlineNote && notePlacement === 'below' && noteAbove(inlineNote, idx)}
         {notePlacement === 'gutter' && (
           noteDraft?.lineIdx === idx ? noteGutterEditor(true)
             : (inlineNotes && inlineNote) ? noteGutter(inlineNote, true, idx)

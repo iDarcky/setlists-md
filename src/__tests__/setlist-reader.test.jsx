@@ -133,6 +133,23 @@ describe('the break screen', () => {
     expect(screen.getByText('140 BPM')).toBeTruthy();
   });
 
+  // QA 11 Nov: the leader's tempo is a read-out you TAP to change, not an
+  // always-open input box.
+  it('lets a leader tap the tempo to change it for the setlist', () => {
+    const sl = { ...setlist, items: [{ songId: 's1', tempo: 140 }] };
+    const onUpdateSetlist = vi.fn();
+    render(<SetlistReader setlist={sl} songs={songs} settings={{}} mode="practice"
+      onBack={() => {}} onFinish={() => {}} onUpdateSetlist={onUpdateSetlist} />);
+    const btn = screen.queryByRole('button', { name: /Tempo for this setlist/ });
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn);
+    const input = screen.getByRole('textbox', { name: 'Tempo for this setlist' });
+    fireEvent.change(input, { target: { value: '128' } });
+    fireEvent.blur(input);
+    expect(onUpdateSetlist).toHaveBeenCalled();
+    expect(JSON.stringify(onUpdateSetlist.mock.calls.at(-1))).toContain('128');
+  });
+
   it('never renders a stray 0 for a break with no length', () => {
     // `duration && <…>` renders the literal 0 when duration is 0.
     atBreak({}, { label: 'Benedicție', duration: 0 });
