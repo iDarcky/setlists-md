@@ -2,6 +2,24 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.23.0 — Import your songbook
+*November 2026*
+
+### Added
+- **Import Melodia PDFs** — drop in PDFs (or a .zip of them) and they become charts. Two-column pages, wrapped lines, intros and tempo are read correctly.
+- **Check imported songs one by one** — imported songs get a "To check" tag, and Check next walks you through them in the editor.
+- **Copy verse 1 chords** to the other verses from the editor's ⋯ menu.
+
+### Improved
+- **One imported song opens straight in the editor**, so you can check it before adding.
+- **Joining a church** — opening a join link sends the request automatically once you're signed in.
+- **Play and Practice** — swipe works everywhere, capo keeps guitar shapes when the key changes, tap the tempo or a note to change it, and Live on a phone has its ✕ back.
+- **Setlist page** — a tidier layout with Order and Band tabs, a Service order sheet and a simpler guest page.
+- **Personal songs** — if you're in a church but still have your own songs in Personal, Personal shows again so you can move them.
+
+### Fixed
+- The blue loading screen on first launch is gone.
+
 ## 0.22.1 — Repeats on the printout
 *November 2026*
 

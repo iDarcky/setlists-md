@@ -309,20 +309,17 @@ export default function SongView({
   // in one scroller.
   const lead = (
     <div className={cn(page, 'font-sans text-foreground')}>
-      <div className="-ml-2.5 -mr-1 flex h-[52px] items-center justify-between gap-1">
-        {onBack ? (
-          <button type="button" onClick={onBack} className="flex h-11 min-h-0 cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent pl-0.5 pr-2 font-sans text-[15px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span className="text-muted-foreground"><BackIcon size={20} /></span>{backLabel}
-          </button>
-        ) : <span />}
-        <span className="flex items-center gap-0.5">
+      {/* ← on the title row (QA 2026-11-11), Edit and ⋯ on the right. */}
+      <div className="-mr-1 flex items-start gap-1 pb-3.5 pt-3">
+        {onBack && <button type="button" onClick={onBack} aria-label={backLabel} title={backLabel} className={cn(iconBtn, '-ml-2.5 shrink-0', wide && 'mt-0.5')}><BackIcon size={20} /></button>}
+        <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
+          <h1 className={cn('m-0 font-semibold tracking-[-0.6px]', wide ? 'text-[34px] leading-10' : 'text-[28px] leading-[34px]')}>{song.title || 'Untitled'}</h1>
+          {by && <span className="text-[15px] text-muted-foreground">{by}</span>}
+        </div>
+        <span className="flex shrink-0 items-center gap-0.5">
           {onEdit && <button type="button" aria-label="Edit song" onClick={onEdit} className={iconBtn}><EditIcon /></button>}
           {menu.length > 0 && <button type="button" aria-label="More" onClick={() => setMenuOpen(true)} className={iconBtn}><MoreIcon /></button>}
         </span>
-      </div>
-      <div className="flex flex-col gap-1 pb-3.5 pt-1">
-        <h1 className={cn('m-0 font-semibold tracking-[-0.6px]', wide ? 'text-[34px] leading-10' : 'text-[28px] leading-[34px]')}>{song.title || 'Untitled'}</h1>
-        {by && <span className="text-[15px] text-muted-foreground">{by}</span>}
       </div>
       <div className="flex flex-wrap gap-2 pb-4">
         {keyCtl && <KeyChip {...keyCtl} />}

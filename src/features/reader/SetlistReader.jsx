@@ -54,6 +54,9 @@ export default function SetlistReader({
   startIndex = 0,
   // Element 28 — where a locked control in the ☰ sends you.
   onUpgrade = null,
+  // The public guest link draws its own Chords/Lyrics + size strip, so it has
+  // no ☰ (owner, 2026-11-11 QA).
+  showMenu = true,
 }) {
   const [idx, setIdx] = useState(() => {
     const n = (setlist?.items || []).length;
@@ -120,7 +123,11 @@ export default function SetlistReader({
     let raw = songs.find(s => s.id === it.songId);
     if (!raw && it.songTitle) raw = songs.find(s => s.title === it.songTitle);
     if (!raw) return { ...it, isMissing: true };
-    const song = resolveSongView(raw, it.arrangementId);
+    const view = resolveSongView(raw, it.arrangementId);
+    // The setlist's own tempo for this slot wins over the song's (CLAUDE.md:
+    // performance tempo = item.tempo ?? arrangement.tempo). It was never read
+    // here, so a tempo set for the service showed the song's (QA 11 Nov, 171).
+    const song = view && Number(it.tempo) > 0 ? { ...view, tempo: Number(it.tempo) } : view;
     return song ? { ...it, song } : { ...it, isMissing: true };
   }), [setlist, songs]);
 
@@ -193,6 +200,22 @@ export default function SetlistReader({
     // same bug pointing the other way.
     const semis = semitonesBetween(it.song.key, k);
     const nextItems = (setlist.items || []).map((raw, i) => (i === idx ? { ...raw, transpose: semis } : raw));
+    onUpdateSetlist({ ...setlist, items: nextItems });
+  }, [items, idx, cfg.can.saveKey, onUpdateSetlist, setlist]);
+
+  // The leader sets this slot's tempo from the bar (QA 11 Nov, row 171) —
+  // written to the SETLIST item, never the song, under the same rule as the
+  // key: only where the key would be saved too.
+  const pickTempo = useCallback((bpm) => {
+    if (!cfg.can.saveKey || !onUpdateSetlist || !setlist) return;
+    const it = items[idx];
+    if (!it?.song) return;
+    const n = Number(bpm) > 0 ? Math.round(Number(bpm)) : null;
+    const nextItems = (setlist.items || []).map((raw, i) => {
+      if (i !== idx) return raw;
+      const { tempo: _old, ...rest } = raw;
+      return n ? { ...rest, tempo: n } : rest;
+    });
     onUpdateSetlist({ ...setlist, items: nextItems });
   }, [items, idx, cfg.can.saveKey, onUpdateSetlist, setlist]);
 
@@ -379,7 +402,10 @@ export default function SetlistReader({
 
   // The second invisible nav, locked for the same reason as the keyboard: a
   // horizontal drag mid-edit is even easier to do by accident than a → is.
-  const swipe = cfg.nav === 'swipe' && !locked
+  // QA 11 Nov (row 173): swipe works in EVERY nav style, and on breaks and
+  // missing songs too — it was 'swipe'-mode only and songs only, so a swipe
+  // that turned the page on a song stopped dead on the next break.
+  const swipe = !locked
     ? { onSwipeLeft: goNext, onSwipeRight: goPrev }
     : {};
 
@@ -425,7 +451,7 @@ export default function SetlistReader({
     <MissingSongScreen
       title={cur.songTitle || recoverable?.song?.title}
       onExit={onBack}
-      onMenu={openMenu}
+      onMenu={showMenu ? openMenu : null}
       menuDock={menuDock}
       menuOpen={!!menuAnchor}
       aboveBar={aboveBar}
@@ -435,6 +461,7 @@ export default function SetlistReader({
       onSkip={goNext}
       hasNext={idx < total - 1}
       footer={footer}
+      {...swipe}
     />
   ) : cur?.isBreak ? (
     <BreakScreen
@@ -442,13 +469,14 @@ export default function SetlistReader({
       duration={cur.duration}
       note={cur.note}
       onExit={onBack}
-      onMenu={openMenu}
+      onMenu={showMenu ? openMenu : null}
       menuDock={menuDock}
       menuOpen={!!menuAnchor}
       aboveBar={aboveBar}
       leading={railButton}
       progress={progress}
       footer={footer}
+      {...swipe}
     />
   ) : (
     <Reader
@@ -462,9 +490,11 @@ export default function SetlistReader({
       onUpdateSong={onUpdateSong}
       onSaveAsArrangement={onSaveAsArrangement}
       onUpgrade={onUpgrade}
+      showMenu={showMenu}
       onExit={onBack}
       selectedKey={keys[idx] || slotKey(cur)}
       onSelectKey={pickKey}
+      onSelectTempo={cfg.can.saveKey && onUpdateSetlist ? pickTempo : null}
       footer={footer}
       aboveBar={aboveBar}
       railButton={railButton}

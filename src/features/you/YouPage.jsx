@@ -91,14 +91,7 @@ export default function YouPage({
             always on screen, and a Back floating in the middle of a wide
             page reads as a stray. */}
         <div className="flex h-14 items-center sm:hidden" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
-          <button
-            type="button"
-            onClick={onBack}
-            className="-ml-2 flex h-11 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <BackIcon />
-            Back
-          </button>
+<button type="button" onClick={onBack} aria-label="Back" title="Back" className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>
         </div>
 
         <div className="flex flex-col items-center gap-1.5 pb-3 pt-1 text-center sm:flex-row sm:items-center sm:gap-4 sm:pt-4 sm:text-left">

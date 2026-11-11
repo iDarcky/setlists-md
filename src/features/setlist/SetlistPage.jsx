@@ -63,6 +63,9 @@ export default function SetlistPage({
     date: setlist.date ? [dayLabel(setlist.date, { weekday: 'short', day: 'numeric', month: 'short' }), daysLabel(days)].filter(Boolean).join(' · ') : '',
     time: setlist.time ? formatClockTime(setlist.time, fmt) + (setlist.endTime ? `–${formatClockTime(setlist.endTime, fmt)}` : '') : '',
     place: setlist.location || '',
+    // The service it belongs to (QA 11 Nov: tags dropped, the service kept).
+    // Only when it says something the name does not.
+    service: setlist.service && setlist.service !== setlist.name ? setlist.service : '',
     rehearsal: setlist.rehearsalDate
       ? [dayLabel(setlist.rehearsalDate, { weekday: 'short', day: 'numeric', month: 'short' }), setlist.rehearsalTime && formatClockTime(setlist.rehearsalTime, fmt)].filter(Boolean).join(' ')
       : '',
@@ -111,9 +114,8 @@ export default function SetlistPage({
 
   const canShare = leader && SHARE_ENABLED && !!user?.id;
   const items = [
-    leader && onEdit && ['Edit name, date and time', () => onEdit()],
-    canShare && ['Share a guest link', () => setShareOpen(true)],
-    onPrint && ['Print for the band', () => setPrintOpen(true)],
+    canShare && ['Share guest link', () => setShareOpen(true)],
+    onPrint && ['Print', () => setPrintOpen(true)],
     order.rows.length > 0 && ['Copy the order', copyOrder],
   ].filter(Boolean);
 
@@ -126,6 +128,7 @@ export default function SetlistPage({
         onEdit={leader ? onEdit : null}
         onMarkReady={leader ? onMarkReady : null}
         onAnswer={answer}
+        myId={user?.id || null}
         onRunSheet={order.rows.length ? () => setRunOpen(true) : null}
         onMenu={() => setMenuOpen(true)}
         onBand={leader ? onEdit : null}
@@ -160,8 +163,7 @@ export default function SetlistPage({
           ownerId={user?.id} teamId={team?.id} ensureRow={ensureRow} setlistMap={setlistMap} clockFormat={fmt} />
       )}
       {onPrint && (
-        <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} onPrint={print}
-          hasLeads={(setlist.items || []).some(it => it.leadBy)} />
+        <PrintSheet open={printOpen} onClose={() => setPrintOpen(false)} onPrint={print} />
       )}
     </>
   );

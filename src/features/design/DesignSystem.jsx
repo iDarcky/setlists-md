@@ -600,11 +600,12 @@ function SettingsDemo({ page, leader = true }) {
   }
 }
 
+const SL_FLOW = ['Intro', 'Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Bridge', 'Chorus'];
 const SL_SONGS = [
   ['a', 'Way Maker', 'E', 68, '4/4', '5:10'], ['b', 'Goodness of God', 'A', 63, '6/8', '5:00'],
   ['c', 'Build My Life', 'G', 68, '4/4', '4:50'], ['d', 'Living Hope', 'D', 72, '4/4', '5:20'],
   ['e', 'King of Kings', 'D', 66, '4/4', '5:30'], ['f', 'Cornerstone', 'C', 72, '4/4', '4:40'], ['g', 'Great Are You Lord', 'G', 74, '4/4', '4:20'],
-].map(([id, title, key, tempo, time, duration]) => ({ id, title, defaultArrangementId: id, arrangements: [{ id, key, tempo, time, duration, sections: [] }] }));
+].map(([id, title, key, tempo, time, duration]) => ({ id, title, defaultArrangementId: id, arrangements: [{ id, key, tempo, time, duration, sections: [], structure: SL_FLOW }] }));
 const SL = {
   id: 'sl', name: 'Sunday Morning', date: '2026-11-01', time: '10:00', location: 'Main hall', status: 'draft',
   items: [
@@ -637,7 +638,7 @@ function RunSheetDemo() {
   const order = buildOrder(SL, SL_SONGS, (u) => SL_NAMES[u] || '');
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>Open the run sheet (live at 10:09)</Button>
+      <Button variant="outline" onClick={() => setOpen(true)}>Open the service order (live at 10:09)</Button>
       <RunSheet open={open} onClose={() => setOpen(false)} title={SL.name} order={order} setlist={SL} now={new Date(`${SL.date}T10:09:00`).getTime()} />
     </>
   );
@@ -801,10 +802,10 @@ function ShareGallery() {
   const order = buildOrder(guestSl, SL_SONGS);
   const share = { url: 'https://setlists.md/?setlist=k7qm2xpa9r4tz8wd' };
   const frames = [
-    ['Share: first time', 900, <DrawerFrame key="n" title="Share a guest link"><ShareBody state="new" ends="Sun 1 Nov, 14:30" onCreate={noop} /></DrawerFrame>],
+    ['Share: first time', 900, <DrawerFrame key="n" title="Share guest link"><ShareBody state="new" ends="Sun 1 Nov, 14:30" onCreate={noop} /></DrawerFrame>],
     ['Share: link made', 900, <DrawerFrame key="o" title="Guest link"><ShareBody state={share} ends="Sun 1 Nov, 14:30" canSend onCopy={noop} onSend={noop} onStop={noop} /></DrawerFrame>],
-    ['Guest page', 1200, <GuestView key="g" setlist={guestSl} order={order} church={{ name: 'Grace Church' }} when="Sun 1 Nov · 10:00" live ends="Sun 1 Nov, 14:30" onPlay={noop} onGetApp={noop} />],
-    ['Print for the band', 900, <DrawerFrame key="p" title="Print for the band"><PrintBody choice={choice} setChoice={setChoice} onPrint={noop} /></DrawerFrame>],
+    ['Guest page', 1200, <GuestView key="g" setlist={guestSl} order={order} church={{ name: 'Grace Church' }} when="Sun 1 Nov · 10:00" onPlay={noop} onGetApp={noop} />],
+    ['Print', 900, <DrawerFrame key="p" title="Print"><PrintBody choice={choice} setChoice={setChoice} onPrint={noop} /></DrawerFrame>],
   ];
   return (
     <div className="flex flex-wrap items-start gap-6">
@@ -1002,6 +1003,8 @@ const SCREENS = [
   )],
   ['Join: not approved', () => <DeclinedView embedded church={CHURCH} onOpenApp={noop} onSignOut={noop} />],
   ['Join: link doesn’t work', () => <BadLinkView embedded onOpenApp={noop} />],
+  ['Setlist: member', () => <SetlistDemo />],
+  ['Setlist: leader', () => <SetlistDemo leader />],
   ['New setlist: pick a template', () => <NewSetlistPopupDemo />],
   ['New setlist: details and band', () => <NewSetlistFlowDemo step="details" />],
   ['New setlist: songs', () => <NewSetlistFlowDemo step="songs" />],
@@ -1250,7 +1253,7 @@ export default function DesignSystem({ onBack }) {
           <SongEditGallery />
         </Section>
 
-        <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the run sheet.">
+        <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the service order.">
           <SetlistGallery />
         </Section>
 

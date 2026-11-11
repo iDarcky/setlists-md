@@ -11,18 +11,19 @@ vi.mock('@/hooks/useEntitlement', () => ({
 if (!window.matchMedia) window.matchMedia = (q) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
 
 const song = () => songFromFlat({ ...parseSongMd('---\ntitle: T\nkey: C\n---\n## Verse 1\n[C]Hello\n'), id: 's1' });
-const dot = () => screen.getByRole('button', { name: 'Display options' }).querySelector('span.rounded-full');
+const label = () => screen.queryByRole('status');
 const fill = (c) => [...c.querySelectorAll('div')].find(d => d.style.width === '40%');
 
-describe('live: a red dot on the ☰', () => {
-  it('marks live on the menu button and leaves the setlist timeline alone', () => {
+describe('live: a small "Live" label (QA 11 Nov, row 160)', () => {
+  it('says Live in the bar and leaves the setlist timeline alone', () => {
     const { container } = render(<Reader song={song()} settings={{}} mode="live" progress={40} onExit={() => {}} />);
-    expect(dot()).not.toBeNull();
+    expect(label()?.textContent).toBe('Live');
+    expect(screen.getByRole('button', { name: 'Display options' }).querySelector('span.rounded-full')).toBeNull();
     expect(fill(container).style.background).not.toContain('229, 72, 77');
   });
 
-  it('has no dot off-live', () => {
+  it('has no label off-live', () => {
     render(<Reader song={song()} settings={{}} mode="practice" progress={40} onExit={() => {}} />);
-    expect(dot()).toBeNull();
+    expect(label()).toBeNull();
   });
 });

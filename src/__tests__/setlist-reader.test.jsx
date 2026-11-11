@@ -114,11 +114,47 @@ describe('the break screen', () => {
     expect(screen.getByRole('button', { name: 'Exit' })).toBeTruthy();
   });
 
+  // QA 11 Nov (row 173): a swipe turned the page on a song and stopped dead on
+  // the break after it — breaks had no swipe at all, and songs only had it in
+  // the 'Swipe only' nav style.
+  it('swipes on to the next song from a break, in the default nav', () => {
+    atBreak({}, { label: 'Offering', duration: 5 });
+    const root = screen.getByText('Moment').closest('.h-full');
+    fireEvent.touchStart(root, { touches: [{ clientX: 300, clientY: 200 }] });
+    fireEvent.touchEnd(root, { changedTouches: [{ clientX: 100, clientY: 205 }] });
+    expect(screen.queryByText('Moment')).toBeNull();
+  });
+
+  // QA 11 Nov (row 171): the setlist's own tempo for a slot wins over the
+  // song's — it was never read by the reader.
+  it('reads the setlist item tempo over the song', () => {
+    const sl = { ...setlist, items: [{ songId: 's1', tempo: 140 }] };
+    render(<SetlistReader setlist={sl} songs={songs} settings={{}} onBack={() => {}} onFinish={() => {}} />);
+    expect(screen.getByText('140 BPM')).toBeTruthy();
+  });
+
+  // QA 11 Nov: the leader's tempo is a read-out you TAP to change, not an
+  // always-open input box.
+  it('lets a leader tap the tempo to change it for the setlist', () => {
+    const sl = { ...setlist, items: [{ songId: 's1', tempo: 140 }] };
+    const onUpdateSetlist = vi.fn();
+    render(<SetlistReader setlist={sl} songs={songs} settings={{}} mode="practice"
+      onBack={() => {}} onFinish={() => {}} onUpdateSetlist={onUpdateSetlist} />);
+    const btn = screen.queryByRole('button', { name: /Tempo for this setlist/ });
+    expect(btn).toBeTruthy();
+    fireEvent.click(btn);
+    const input = screen.getByRole('textbox', { name: 'Tempo for this setlist' });
+    fireEvent.change(input, { target: { value: '128' } });
+    fireEvent.blur(input);
+    expect(onUpdateSetlist).toHaveBeenCalled();
+    expect(JSON.stringify(onUpdateSetlist.mock.calls.at(-1))).toContain('128');
+  });
+
   it('never renders a stray 0 for a break with no length', () => {
     // `duration && <…>` renders the literal 0 when duration is 0.
     atBreak({}, { label: 'Benedicție', duration: 0 });
     expect(screen.queryByText('0')).toBeNull();
-    expect(screen.getByText('Break')).toBeTruthy();
+    expect(screen.getByText('Moment')).toBeTruthy();
   });
 
   // The bar has now drifted away from the song's TWICE — first as a hand-rolled

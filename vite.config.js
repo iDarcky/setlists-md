@@ -110,7 +110,14 @@ export default defineConfig({
         // the precache, so in the installed PWA those buttons did nothing while
         // the app-side Done/Print still worked. The lazy pdf.js library chunk
         // that this ignore is actually for is emitted as `assets/pdf-<hash>.js`.
-        globIgnores: ['**/assets/pdf-*.js', '**/pdf.worker*', '**/svguitar*'],
+        // The optional chart fonts (`lib/chartFonts.js`) are ~3 MB across every
+        // weight and script. Precaching them would charge each install for
+        // fonts most people never pick; the `fonts` runtime cache below keeps
+        // the ones a device actually shows, so a picked font works offline.
+        globIgnores: [
+          '**/assets/pdf-*.js', '**/pdf.worker*', '**/svguitar*',
+          '**/assets/{inter,ibm-plex-sans,ibm-plex-mono,lora,eb-garamond,crimson-pro,fira-code,roboto-mono}-*.woff2',
+        ],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         // Web Push handlers (push + notificationclick) live in a plain script
@@ -124,7 +131,7 @@ export default defineConfig({
             handler: 'CacheFirst',
             options: {
               cacheName: 'fonts',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 365 },
             },
           },
           {

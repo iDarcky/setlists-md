@@ -153,12 +153,10 @@ export default function SongUsage({ setlists = [], songs = [], nameOf = () => ''
   return (
     <div data-slot="song-usage" className="@container min-h-full bg-background font-sans text-foreground">
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-4 px-4 pb-32 @min-[640px]:px-6 @min-[1024px]:pb-12">
-        <div className="flex h-14 items-center @min-[640px]:mt-4" style={{ marginTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
-          <button type="button" onClick={onBack} className="-ml-2 flex h-11 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-            <BackIcon />Team
-          </button>
+        <div className="flex min-h-14 items-center gap-1 pt-3 @min-[640px]:mt-4" style={{ marginTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
+          <button type="button" onClick={onBack} aria-label="Back to Team" title="Back to Team" className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>
+          <h1 className="m-0 min-w-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] @min-[640px]:text-[32px] @min-[640px]:leading-10 @min-[640px]:tracking-[-1px]">Song usage</h1>
         </div>
-        <h1 className="m-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] @min-[640px]:text-[32px] @min-[640px]:leading-10 @min-[640px]:tracking-[-1px]">Song usage</h1>
 
         <div role="tablist" className="-mx-4 flex gap-5 border-b border-border px-4 @min-[640px]:-mx-6 @min-[640px]:px-6">
           {[['songs', 'Songs'], ['services', 'Services']].map(([id, label]) => (

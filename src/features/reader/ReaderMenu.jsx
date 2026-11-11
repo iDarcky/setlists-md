@@ -4,6 +4,7 @@ import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { chartOverlaySurface } from './readerSurface';
 import { normalizeRibbonStyle } from '@/lib/readerConfig';
+import { ensureChartFont, SELF_HOSTED_CHART_FONTS } from '@/lib/chartFonts';
 // The Aa menu's own controls (owner, 2026-08-04: *"can we use the one from the
 // Aa for the buttons and +/- and stuff? i think that those look nice"*). The
 // note in `PanelControls` used to say the reader deliberately did NOT use
@@ -229,7 +230,7 @@ function Field({ label, children, onReset, info, inline = false }) {
   return (
     <div className="px-4 pt-3.5 pb-0.5">
       <div className={`flex items-center gap-2 ${inline ? 'mb-0' : 'items-baseline mb-2'}`}>
-        <div className="text-[13.5px] font-semibold text-[var(--text-2)]">{label}</div>
+        <div className="text-[13px] font-medium text-[var(--text-2)]">{label}</div>
         {!inline && <span className="flex-1" />}
         {/* The explanation, behind an (i) — it used to sit under the control as
             a loose paragraph (owner, 2026-08-04: *"the explanations should be
@@ -249,7 +250,7 @@ function Field({ label, children, onReset, info, inline = false }) {
         {onReset && (
           <button type="button" onClick={onReset} aria-label={`Reset ${label}`}
             className="min-h-0 text-[13px] font-medium cursor-pointer bg-transparent border-none px-1.5 py-1.5 -my-1.5 -mx-1.5"
-            style={{ color: 'var(--ds-red-900)' }}>
+            style={{ color: 'var(--text-2)' }}>
             Reset
           </button>
         )}
@@ -293,9 +294,11 @@ function ProNote({ children }) {
  */
 function GroupTitle({ children }) {
   return (
-    <div className="px-4 pt-4 pb-0.5 first:pt-1">
-      <div className="text-[15px] font-semibold text-[var(--text-1)]">{children}</div>
-      <div className="mt-2 h-px" style={{ backgroundColor: 'var(--border-1)' }} />
+    // QA 11 Nov: the design system's section caption — small, uppercase,
+    // muted, with a hairline ABOVE it closing the group before (none on the
+    // first one). Was a 15px bold heading underlined in the panel's rule.
+    <div className="mx-4 mt-4 pt-4 pb-0.5 border-t border-[var(--border-1)] first:mt-0 first:pt-2 first:border-t-0">
+      <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--text-2)]">{children}</div>
     </div>
   );
 }
@@ -406,11 +409,11 @@ function Switch({ on, onChange, label }) {
       // the row on its own, so it can be the size of a switch rather than the
       // size of a button (owner, 2026-08-04: "make the switches smaller").
       className="min-h-0 w-[42px] h-6 rounded-full cursor-pointer border-none p-0 relative transition-colors"
-      style={{ backgroundColor: on ? 'var(--color-brand)' : 'var(--ds-gray-300)' }}
+      style={{ backgroundColor: on ? 'var(--text-1)' : 'var(--ds-gray-300)' }}
     >
       <span
         className="absolute top-[3px] w-[18px] h-[18px] rounded-full transition-[left] duration-150"
-        style={{ left: on ? 21 : 3, backgroundColor: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
+        style={{ left: on ? 21 : 3, backgroundColor: on ? 'var(--bg-1)' : '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
       />
     </button>
   );
@@ -750,6 +753,13 @@ export default function ReaderMenu({
 
   const set = (key, value) => onUpdateSettings?.(key, value);
 
+  // The font dropdowns draw each name in its own font. Declaring the faces is
+  // only CSS — a woff2 is fetched when text actually uses it — so register
+  // them all while the Style tab is open, or every preview is the fallback.
+  useEffect(() => {
+    if (tab === 'style' && styleAllowed) SELF_HOSTED_CHART_FONTS.forEach(ensureChartFont);
+  }, [tab, styleAllowed]);
+
   // Escape closes. With tabs there is no level to back out of first.
   useEffect(() => {
     const onKey = (e) => {
@@ -999,12 +1009,13 @@ export default function ReaderMenu({
     // the fix is the setlist's time, not a switch here.
     <div className={`shrink-0 flex items-center justify-between gap-3 px-3 h-11 ${
       dock === 'bottom' ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
-      <span className="flex items-center gap-2 min-w-0 text-[13.5px] font-semibold text-[var(--text-1)]">
-        <span
-          aria-hidden="true"
-          className="w-2 h-2 rounded-full shrink-0"
-          style={{ backgroundColor: config?.mode === 'live' ? '#e5484d' : 'var(--ds-gray-500)' }}
-        />
+      {/* Same soft-red "Live" label the top bar shows while live (QA 11 Nov). */}
+      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 h-7 text-[13px] font-semibold"
+        style={config?.mode === 'live'
+          ? { color: 'var(--danger-text, #e5484d)', backgroundColor: 'color-mix(in srgb, var(--danger-text, #e5484d) 14%, transparent)' }
+          : { color: 'var(--text-1)', backgroundColor: 'var(--ds-gray-100)' }}>
+        <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ backgroundColor: config?.mode === 'live' ? 'currentColor' : 'var(--ds-gray-500)' }} />
         Live
       </span>
       <Switch label="Live"
@@ -1014,25 +1025,30 @@ export default function ReaderMenu({
   ) : null;
 
   const head = (
-    <div className={`shrink-0 flex items-center gap-1 p-1.5 ${
+    <div className={`shrink-0 flex items-center gap-1 p-2 ${
       dock === 'bottom' ? 'border-t' : 'border-b'} border-[var(--border-1)]`}>
+      {/* QA 11 Nov: the design system's segmented control — a faint track with
+          the picked tab raised on it in the panel's own paper. It was a solid
+          brand-green block with white text, the old look. */}
+      <div className="flex-1 flex items-center gap-1 p-1 rounded-[10px]" style={{ backgroundColor: 'var(--ds-gray-100)' }}>
       {TABS.map(([id, label]) => (
         <button
           key={id} type="button" onClick={() => setTab(id)}
           aria-pressed={tab === id}
-          className={`flex-1 min-h-0 h-11 rounded-lg text-[15px] font-semibold cursor-pointer transition-colors border ${
+          className={`flex-1 min-h-0 h-10 rounded-lg text-[14px] font-semibold cursor-pointer transition-colors border ${
             tab === id
-              ? 'text-white border-transparent'
-              : 'text-[var(--text-2)] border-transparent bg-transparent hover:text-[var(--text-1)] hover:bg-[var(--bg-2)]'}`}
+              ? 'text-[var(--text-1)] border-[var(--border-1)]'
+              : 'text-[var(--text-2)] border-transparent bg-transparent hover:text-[var(--text-1)]'}`}
           // `backgroundColor`, not the `background` shorthand: jsdom's parser
           // throws on a `var()` inside the shorthand when Testing Library
           // clones the node for a role query, which takes out every test that
           // looks for a button anywhere on the page.
-          style={tab === id ? { backgroundColor: 'var(--color-brand)' } : undefined}
+          style={tab === id ? { backgroundColor: 'var(--bg-1)', boxShadow: '0 1px 2px rgba(0,0,0,0.18)' } : undefined}
         >
           {label}
         </button>
       ))}
+      </div>
       {/* ⚠ The BOTTOM dock only. The side panel's close moved onto the ☰,
           which turns into an ✕ while the panel is open (owner, 2026-08-21:
           *"we should remove the x next to the tabs"*) — two controls doing one
@@ -1240,7 +1256,7 @@ export default function ReaderMenu({
           <GroupTitle>Sections</GroupTitle>
           <Field label="Heading">
             <Picks value={settings?.readerHeading || 'chip'}
-              options={[['chip', 'Chip'], ['name', 'Name'], ['code', 'Short'], ['caps', 'Uppercase']]}
+              options={[['chip', 'Name'], ['chipOnly', 'Chip'], ['code', 'Short'], ['caps', 'Uppercase']]}
               onChange={(v) => set('readerHeading', v)} />
           </Field>
           {/* Four frames, and NONE of them takes width from the lyrics — which
@@ -1545,8 +1561,8 @@ export default function ReaderMenu({
         className={
           'fixed z-[120] overflow-hidden flex flex-col '
           + (phone
-            ? 'left-0 right-0 bottom-0 rounded-t-[18px] border-t border-[var(--border-2)]'
-            : 'rounded-[14px] border border-[var(--border-2)]')
+            ? 'left-0 right-0 bottom-0 rounded-t-[20px] border-t border-[var(--border-2)]'
+            : 'rounded-[12px] border border-[var(--border-2)]')
         }
         // The READER's theme, not the app's (owner, 2026-08-04). The panel is
         // portaled to `document.body`, so it inherits nothing from the reader's

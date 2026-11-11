@@ -76,7 +76,7 @@ export default function SetlistRail({ open, onClose, wide, title, items, idx, on
           never move because it is the one reached without looking. */}
       <div className="shrink-0 flex items-center gap-1 py-1.5 px-2">
         <span
-          className="flex-1 min-w-0 truncate text-label-11 font-mono uppercase tracking-[0.14em]"
+          className="flex-1 min-w-0 truncate text-[12px] font-semibold uppercase tracking-[0.06em] px-1"
           style={{ color: 'var(--chart-subtle, var(--ds-gray-700))' }}
         >
           {title || 'Setlist'}

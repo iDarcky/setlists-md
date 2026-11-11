@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
 
-// ⋯ → Print for the band. Order sheet or Charts and two switches, then the
-// preview (where Charts get text size, chords, columns and repeats). The last choices are remembered per device.
+// ⋯ → Print. Order sheet or Charts, then the preview — which carries band notes
+// and who leads (QA 11 Nov: moved there from here), and for Charts also text
+// size, chords, columns and repeats. The last choices are remembered per device.
 
 const KEY = 'setlists-md:print-choice';
 const DEFAULTS = { mode: 'overview', notes: true, leads: true };
@@ -17,19 +18,8 @@ const LAYOUTS = [
   ['full', 'Charts', 'The order sheet first, then every song with chords, in the key it’s played in.'],
 ];
 
-function Switch({ on, label, onChange }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} onClick={() => onChange(!on)}
-      className="flex h-[52px] min-h-0 w-full cursor-pointer items-center justify-between border-0 border-b border-border bg-transparent px-0 text-left font-sans text-[16px] text-foreground outline-none last:border-b-0 focus-visible:bg-raised">
-      {label}
-      <span className={`relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors ${on ? 'bg-primary' : 'bg-input'}`}>
-        <span className={`absolute top-[3px] size-5 rounded-full bg-background shadow transition-[left] ${on ? 'left-[21px]' : 'left-[3px]'}`} />
-      </span>
-    </button>
-  );
-}
 
-export function PrintBody({ choice, setChoice, onPrint, hasLeads = true }) {
+export function PrintBody({ choice, setChoice, onPrint }) {
   const set = (k, v) => setChoice({ ...choice, [k]: v });
   return (
     <div className="flex flex-col gap-4 font-sans">
@@ -50,10 +40,6 @@ export function PrintBody({ choice, setChoice, onPrint, hasLeads = true }) {
           );
         })}
       </div>
-      <div className="flex flex-col">
-        <Switch label="Notes for the band" on={choice.notes} onChange={v => set('notes', v)} />
-        {hasLeads && <Switch label="Who leads each song" on={choice.leads} onChange={v => set('leads', v)} />}
-      </div>
       <Button onClick={onPrint}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z" /></svg>
         Preview and print
@@ -62,7 +48,7 @@ export function PrintBody({ choice, setChoice, onPrint, hasLeads = true }) {
   );
 }
 
-export default function PrintSheet({ open, onClose, onPrint, hasLeads }) {
+export default function PrintSheet({ open, onClose, onPrint }) {
   const [choice, setChoice] = useState(readChoice);
   const print = () => {
     try { localStorage.setItem(KEY, JSON.stringify(choice)); } catch { /* private mode */ }
@@ -70,8 +56,8 @@ export default function PrintSheet({ open, onClose, onPrint, hasLeads }) {
     onPrint(choice);
   };
   return (
-    <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }} title="Print for the band" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
-      <PrintBody choice={choice} setChoice={setChoice} onPrint={print} hasLeads={hasLeads} />
+    <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }} title="Print" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
+      <PrintBody choice={choice} setChoice={setChoice} onPrint={print} />
     </Sheet>
   );
 }

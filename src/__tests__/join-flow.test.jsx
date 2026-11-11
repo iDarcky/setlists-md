@@ -48,19 +48,34 @@ describe('JoinFlow', () => {
     expect(await screen.findByText('This invite link doesn’t work')).toBeInTheDocument();
   });
 
-  it('signed in: asks to join with name and parts, then waits', async () => {
-    auth.user = { id: 'u1', email: 'kid@x.com' };
-    auth.profile = { id: 'u1', display_name: 'kid' };
+  it('signed in: sends the request on its own, no second tap, then waits', async () => {
+    auth.user = { id: 'u1', email: 'kid@x.com', user_metadata: { name: 'Maria Pop' } };
+    auth.profile = { id: 'u1', display_name: 'Maria Pop' };
     api.peekJoinLink.mockResolvedValue({ ...PEEK, is_member: false, my_status: null, team_id: 't1' });
     api.requestToJoin.mockResolvedValue({ status: 'pending', request_id: 'r1', team_id: 't1' });
     render(<JoinFlow code={CODE} />);
-    const nameInput = await screen.findByPlaceholderText('First and last name');
-    expect(nameInput).toHaveValue('kid');
+    expect(await screen.findByText('Waiting for a leader')).toBeInTheDocument();
+    expect(api.requestToJoin).toHaveBeenCalledTimes(1);
+    expect(api.requestToJoin).toHaveBeenCalledWith(CODE, 'Maria Pop', []);
+    // Never a skippable "Ask to join" / "Not now" screen on the way.
+    expect(screen.queryByRole('button', { name: 'Not now' })).toBeNull();
+    expect(JSON.parse(localStorage.getItem('setlists-md:pending-join'))).toMatchObject({ code: CODE, stage: 'requested', requestId: 'r1' });
+  });
+
+  it('a failed automatic send falls back to the form, which can retry', async () => {
+    auth.user = { id: 'u1', email: 'kid@x.com' };
+    auth.profile = { id: 'u1', display_name: 'kid' };
+    api.peekJoinLink.mockResolvedValue({ ...PEEK, is_member: false, my_status: null, team_id: 't1' });
+    api.requestToJoin
+      .mockRejectedValueOnce(new Error('Network down'))
+      .mockResolvedValueOnce({ status: 'pending', request_id: 'r1', team_id: 't1' });
+    render(<JoinFlow code={CODE} />);
+    expect(await screen.findByText('Network down')).toBeInTheDocument();
+    const nameInput = screen.getByPlaceholderText('First and last name');
     fireEvent.change(nameInput, { target: { value: 'Maria  Pop' } });
     fireEvent.click(screen.getByRole('button', { name: 'Drums' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Vocals' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));
-    await waitFor(() => expect(api.requestToJoin).toHaveBeenCalledWith(CODE, 'Maria Pop', ['vocals', 'drums']));
+    await waitFor(() => expect(api.requestToJoin).toHaveBeenLastCalledWith(CODE, 'Maria Pop', ['drums']));
     expect(await screen.findByText('Waiting for a leader')).toBeInTheDocument();
     // The email-prefix default name follows what they told the church.
     expect(auth.updateProfile).toHaveBeenCalledWith({ display_name: 'Maria Pop' });

@@ -188,6 +188,17 @@ export function joinStepFor({ peek, signedIn }) {
   return 'about';
 }
 
+/**
+ * The name a join request goes out with when nobody is asked to type it:
+ * the account's name, else the name given at sign-up, else the email's
+ * local part. Opening the link IS asking to join, so the flow sends the
+ * request on its own instead of stopping on a second "Ask to join" screen.
+ */
+export function autoJoinName({ profileName, signupName, email } = {}) {
+  const clean = (v) => String(v ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
+  return clean(profileName) || clean(signupName) || clean(String(email ?? '').split('@')[0]) || '';
+}
+
 /** The request this flow is about, from `list_my_join_requests` rows. */
 export function findJoinRequest(rows, { teamId, requestId } = {}) {
   const list = Array.isArray(rows) ? rows : [];

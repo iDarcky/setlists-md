@@ -110,6 +110,7 @@ const SetlistEditPage = lazy(() => import('@/features/setlist/SetlistEditPage'))
 import NewSetlistSheet from '@/features/setlist/NewSetlistSheet';
 import { writeNewDraft } from '@/lib/setlistDraft';
 import { TEMPLATE_KIND } from '@/lib/newSetlist';
+import { needsCheck, clearCheck } from '@/lib/importCheck';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -337,6 +338,8 @@ export default function App() {
   // The church a join link is joining, shown on the log-in / create screens.
   const [authJoining, setAuthJoining] = useState(null);
   const [importQueue, setImportQueue] = useState(null);
+  // Walking a leader through the batch-imported songs still tagged "To check".
+  const [checkRun, setCheckRun] = useState(false);
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -455,12 +458,15 @@ export default function App() {
   }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
 
   // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
-  // whoever is in it once their memberships load is moved to their church.
+  // whoever is in it once their memberships load is moved to their church,
+  // unless it holds songs or setlists of their own. Those people keep it, so
+  // they can move their songs into a church or band (Copy to…).
   useEffect(() => {
-    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || activeLibrary !== 'personal') return;
+    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || !loaded || activeLibrary !== 'personal') return;
+    if (hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)) return;
     const id = churchDefaultSpaceId({ current: null, teams });
     if (id) setActiveLibrary(id);
-  }, [teamLoading, teams, activeLibrary]);
+  }, [teamLoading, loaded, teams, activeLibrary, songs, setlists]);
 
   // Does the personal library hold anything of the user's own? While it is
   // the open library the answer is in state; otherwise read it from IndexedDB
@@ -1393,6 +1399,14 @@ export default function App() {
   // `mode` omitted → the CLOCK decides: near the service it opens live, near
   // the rehearsal (or any other day) it opens in practice. See
   // `lib/openingMode.js` for the rule and why a fixed default could not work.
+  // QA 11 Nov (row 162): `currentSetlist` is the object captured when the
+  // page was opened. Anything that changed the setlist afterwards — a sync
+  // from another device, a key picked in the editor — lives in `setlists`, so
+  // the page showed the new key (it already read the fresh copy) while Play
+  // handed the reader the stale one and it opened in the old key. Every
+  // surface that READS the setlist goes through this.
+  const freshSetlist = (sl) => (sl?.id ? (setlists.find(s => s.id === sl.id) || sl) : sl);
+
   const goSetlistRead = (sl, { mode, startIndex = 0 } = {}) => {
     const opening = mode || resolveOpeningMode(sl);
     if (!settings?.firstStageMode) {
@@ -1469,6 +1483,8 @@ export default function App() {
         if (!ok) return false;
       }
     }
+    // Saving a song from the editor is a leader having looked at it.
+    input = clearCheck(input);
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;
     let isNew = false;
@@ -1527,6 +1543,16 @@ export default function App() {
     const top = historyRef.current[historyRef.current.length - 1];
     if (top?.view === 'song-hub' && top?.song?.id === song.id) {
       historyRef.current.pop();
+    }
+
+    // Checking batch-imported songs: straight on to the next one.
+    if (checkRun) {
+      const next = songs.find(s => s.id !== song.id && needsCheck(s));
+      if (next) { navigate('editor', { song: next, replace: true }); return; }
+      setCheckRun(false);
+      toast({ title: 'All imported songs checked' });
+      goToMainView('library');
+      return;
     }
 
     // Multi-file import queue: advance to the next song in the editor
@@ -2542,6 +2568,7 @@ export default function App() {
               onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
+              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { setCheckRun(true); goEditor(first); } }}
               onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
@@ -2596,7 +2623,17 @@ export default function App() {
               onBack={goBack}
               onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
-              onDelete={!isTeamReadOnly ? () => handleDeleteSong(currentSong.id) : null}
+              onDelete={!isTeamReadOnly ? async () => {
+                // QA 11 Nov (row 178): one tap in the ⋯ deleted a song from the
+                // whole church's library. Ask first, every time, by name.
+                const ok = await confirm({
+                  title: `Delete “${currentSong.title || 'this song'}”?`,
+                  description: 'It is removed from the library on every device, and setlists that use it will show it as missing. You can restore it from the trash for 30 days.',
+                  confirmLabel: 'Delete song',
+                  variant: 'danger',
+                });
+                if (ok) handleDeleteSong(currentSong.id);
+              } : null}
               onUpdateSong={isTeamReadOnly ? null : (updated) => {
                 setSongs(prev => prev.map(s => s.id === updated.id ? updated : s));
                 setCurrentSong(prev => (prev?.id === updated.id ? updated : prev));
@@ -2630,11 +2667,12 @@ export default function App() {
               library={songs}
               historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
               mode={editTarget.mode}
+              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? { left: songs.filter(needsCheck).length } : null}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               initialArrangementId={editArrangementId}
               onSave={handleSaveSong}
-              onBack={goBack}
+              onBack={checkRun ? () => { setCheckRun(false); goBack(); } : goBack}
               onDirtyChange={markEditorDirty}
               onOldEditor={() => setOldEditorFor(editTarget.song.id)}
             />
@@ -2693,7 +2731,7 @@ export default function App() {
               canEdit={canEdit && !isTeamReadOnly}
               onBack={goBack}
               onEdit={() => goSetlistBuild(currentSetlist)}
-              onPlay={(startIndex) => goSetlistRead(currentSetlist, { startIndex })}
+              onPlay={(startIndex) => goSetlistRead(freshSetlist(currentSetlist), { startIndex })}
               onMarkReady={() => markSetlistReady(currentSetlist)}
               onDelete={() => handleDeleteSetlist(currentSetlist.id)}
               onPrint={(opts) => printSetlist(setlists.find(s => s.id === currentSetlist.id) || currentSetlist, songs, opts)}
@@ -2754,7 +2792,7 @@ export default function App() {
               which is why nothing here forks any more. */}
           {currentSetlist && view === 'setlist-read' && (
             <SetlistReader
-              setlist={currentSetlist}
+              setlist={freshSetlist(currentSetlist)}
               songs={songs}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}

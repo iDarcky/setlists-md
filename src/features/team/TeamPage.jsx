@@ -245,9 +245,7 @@ export default function TeamPage({
       <div className="mx-auto flex w-full max-w-[1180px] flex-col px-4 pb-32 @min-[640px]:px-6 @min-[1024px]:pb-12">
         <div className="flex h-14 items-center @min-[640px]:mt-4" style={{ marginTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
           {onBack && (
-            <button type="button" onClick={onBack} className="-ml-2 flex h-11 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-              <BackIcon />{backLabel}
-            </button>
+<button type="button" onClick={onBack} aria-label={backLabel} title={backLabel} className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>
           )}
         </div>
         <div className="flex flex-col gap-4 @min-[1024px]:grid @min-[1024px]:grid-cols-[minmax(0,1fr)_400px] @min-[1024px]:items-start @min-[1024px]:gap-x-10">
