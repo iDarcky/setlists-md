@@ -386,6 +386,14 @@ export async function printSetlist(setlist, songs, show = {}) {
     title: setlist.name || 'Setlist',
     kind: show.mode === 'full' ? 'Charts' : 'Order sheet',
     charts: show.mode === 'full',
-    build: (look) => buildPrintDocument(setlist, songs || [], { ...show, look }),
+    content: true,
+    hasLeads: (setlist.items || []).some(it => it.leadBy),
+    // Notes and who-leads are chosen in the preview now (QA 11 Nov); the look
+    // carries them, and an older call that passes them in `show` still works.
+    build: (look) => buildPrintDocument(setlist, songs || [], {
+      ...show, look,
+      notes: look?.notes ?? show.notes,
+      leads: look?.leads ?? show.leads,
+    }),
   });
 }

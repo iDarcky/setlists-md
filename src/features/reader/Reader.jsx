@@ -387,6 +387,8 @@ export default function Reader({
   // Element 28: where a locked control in the ☰ sends you. Absent → the lock
   // is stated but not sellable.
   onUpgrade = null,
+  // False on the public guest link, which has its own strip instead.
+  showMenu = true,
 }) {
   const scrollRef = useRef(null);
   const swipeProps = useSwipe(onSwipeLeft, onSwipeRight);
@@ -1854,7 +1856,7 @@ export default function Reader({
           // whole bar changes colour and its right-hand control changes from a
           // glyph to a word at the same instant. Nothing INTERACTIVE moves under
           // a thumb — that is the jump the floating circles were fixed for.
-          onMenu={editing ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
+          onMenu={editing || !showMenu ? null : (rect) => setOwnAaAnchor(a => (a ? null : rect))}
           menuOpen={!editing && !!ownAaAnchor}
           // The side panel leaves the ☰ on screen, so the ☰ becomes the ✕ and
           // the panel drops its own. The phone dock keeps its chevron — there

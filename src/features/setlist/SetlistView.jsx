@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Avatar } from '@/app/AppTopBar';
-import { BackIcon, ClockIcon, PinIcon, PlayIcon, MoreIcon, EditIcon, ListIcon, ChevronRightIcon } from '@/app/navIcons';
+import { BackIcon, ClockIcon, PinIcon, PlayIcon, MoreIcon, ListIcon, ChevronRightIcon } from '@/app/navIcons';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Markdown } from '@/ui/Markdown';
 import { totalLabel } from '@/lib/setlistView';
@@ -27,18 +27,22 @@ const NowDot = () => <span role="img" aria-label="Now" className="mt-0.5 size-2.
 
 function OrderRow({ row, onOpen, now = false }) {
   if (row.kind === 'moment') {
+    // Style D from the QA mockups (owner, 11 Nov): a thin bar where the number
+    // would be and an italic name, so a moment reads as a pause, not a song.
     const body = (
       <>
-        <span className="flex w-5 shrink-0 justify-end">{now && <NowDot />}</span>
+        <span className="flex w-5 shrink-0 justify-end self-stretch py-1">
+          {now ? <span className="self-center"><NowDot /></span> : <span aria-hidden="true" className="w-[3px] rounded-full bg-border" />}
+        </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[15px] font-medium text-muted-foreground">{row.title}</span>
+          <span className="text-[14px] font-medium italic text-muted-foreground">{row.title}</span>
           <span className="truncate text-[13px] text-muted-foreground">
-            Moment{row.minutes ? ` · ${row.minutes} min` : ''}{row.note && <> · <span className="text-foreground">{firstLine(row.note)}</span></>}
+            {row.minutes ? `${row.minutes} min` : 'Moment'}{row.note && <> · <span className="text-foreground">{firstLine(row.note)}</span></>}
           </span>
         </span>
       </>
     );
-    const cls = cn('flex min-h-[58px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-foreground first:border-t-0', now && 'bg-selected');
+    const cls = cn('flex min-h-[48px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-1.5 text-left font-sans text-foreground first:border-t-0', now && 'bg-selected');
     // A moment with a note opens it; one without has nothing more to show.
     return row.note
       ? <button type="button" onClick={() => onOpen(row)} className={cn(cls, 'cursor-pointer outline-none focus-visible:bg-raised')}>{body}<ChevronRightIcon /></button>
@@ -93,7 +97,7 @@ export function Order({ order, onOpenRow, empty, nowIdx = null }) {
   );
 }
 
-function Band({ band, leader, onBand }) {
+function Band({ band, leader, onBand, myId = null, onChangeMine = null }) {
   if (!band.length) {
     return (
       <div className="flex flex-col items-start gap-2 py-2 text-[14px] text-muted-foreground">
@@ -106,13 +110,19 @@ function Band({ band, leader, onBand }) {
     <div className="flex flex-col">
       {band.map(b => {
         const a = ANSWER[b.status] || ANSWER.pending;
+        const mine = myId && b.userId === myId;
+        // Your own row is the "you're on Vocals" card now (QA 11 Nov): a soft
+        // highlight and a Change link, instead of a banner above the order.
         return (
-          <div key={b.id} className="flex min-h-14 items-center gap-3 border-t border-border py-2 first:border-t-0">
+          <div key={b.id} className={cn('flex min-h-14 items-center gap-3 border-t border-border py-2 first:border-t-0', mine && '-mx-2 rounded-control border-t-transparent bg-selected px-2')}>
             <Avatar name={b.name} url={b.url} size={32} />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[15px] font-medium">{b.name}</span>
+              <span className="truncate text-[15px] font-medium">{b.name}{mine && <span className="font-normal text-muted-foreground"> · you</span>}</span>
               {b.part && <span className="truncate text-[13px] text-muted-foreground">{b.part}</span>}
             </span>
+            {mine && onChangeMine && b.status !== 'pending' && (
+              <Button variant="link" size="sm" className="h-8 px-1 text-[14px] text-link" onClick={onChangeMine}>Change</Button>
+            )}
             <Chip className={a.cls}>{a.label}</Chip>
           </div>
         );
@@ -138,16 +148,9 @@ function Mine({ me, onAnswer }) {
       </div>
     );
   }
-  const a = ANSWER[me.status] || ANSWER.pending;
-  return (
-    <div className="flex items-center gap-3 rounded-card bg-selected px-4 py-3">
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <b className="text-[15px] font-semibold">{me.status === 'unavailable' ? 'You said you can’t' : `You’re on ${me.part || 'this one'}`}</b>
-        <span className="text-[13px] text-muted-foreground">You said {a.label.toLowerCase()}</span>
-      </span>
-      <Button variant="link" className="text-[14px] text-link" onClick={() => onAnswer?.(null)}>Change</Button>
-    </div>
-  );
+  // Answered: nothing up here. Your row in the band list shows it (QA 11 Nov,
+  // owner: "we can still show yourself but not that big").
+  return null;
 }
 
 /**
@@ -160,41 +163,46 @@ function Mine({ me, onAnswer }) {
 export default function SetlistView({
   setlist, order, head, me, band = [], leader = false, embedded = false,
   onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand, bandSlot = null, changes = [], nowIdx = null,
+  myId = null,
 }) {
   const [tab, setTab] = useState('order');
   const [moment, setMoment] = useState(null);
   const ready = setlist.status === 'ready';
-  const tabs = [['order', 'Order', order.songCount ? `${order.songCount} ${order.songCount === 1 ? 'song' : 'songs'} · ${totalLabel(order.totalSeconds, order.estimated)}` : ''], ['band', 'Band', band.length || '']];
+  // No "8 songs · 42 min" on the Order tab: the same line closes the list
+  // (QA 11 Nov, owner: "it's double anyway").
+  const tabs = [['order', 'Order', ''], ['band', 'Band', band.length || '']];
   const orderEl = <Order order={order} nowIdx={nowIdx} onOpenRow={(r) => (r.kind === 'moment' ? setMoment(r) : onPlay?.(r.idx))} empty={leader ? 'No songs yet. Tap Edit to add some.' : 'No songs yet.'} />;
-  const bandEl = bandSlot || <Band band={band} leader={leader} onBand={onBand} />;
+  const bandEl = bandSlot || <Band band={band} leader={leader} onBand={onBand} myId={myId} onChangeMine={onAnswer ? () => onAnswer(null) : null} />;
 
   return (
     <div data-slot="setlist-view" className={cn('@container bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      <div className={cn('mx-auto flex w-full max-w-[1180px] flex-col px-4 pb-32 @min-[640px]:px-6 @min-[1024px]:grid @min-[1024px]:grid-cols-[minmax(0,1fr)_360px] @min-[1024px]:gap-x-8 @min-[1024px]:pb-12')}>
-        <div className="mb-3 flex h-14 items-center justify-between @min-[640px]:mt-4 @min-[1024px]:col-span-2" style={{ marginTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
-          <button type="button" onClick={onBack} className="-ml-2 flex h-11 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-            <BackIcon />{backLabel}
-          </button>
-          <div className="flex items-center gap-2">
-            {leader && <span className="hidden gap-2 @min-[1024px]:flex">
-              {!ready && onMarkReady && <Button variant="outline" size="sm" onClick={onMarkReady}>Mark ready</Button>}
-              {onEdit && <Button variant="outline" size="sm" onClick={onEdit}><EditIcon size={16} />Edit</Button>}
-            </span>}
-            {onRunSheet && <Button variant="ghost" size="icon" aria-label="Run sheet" title="Run sheet" onClick={onRunSheet}><ListIcon /></Button>}
-            {onMenu && <Button variant="ghost" size="icon" aria-label="More" onClick={onMenu}><MoreIcon /></Button>}
-          </div>
-        </div>
-        <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              {head.date && <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{head.date}</span>}
-              <Chip className={ready ? 'bg-selected text-link' : 'bg-raised text-muted-foreground'}>{ready ? 'Ready' : 'Draft'}</Chip>
+      <div className={cn('mx-auto flex w-full max-w-[1180px] flex-col px-4 pb-32 @min-[640px]:px-6 @min-[1024px]:grid @min-[1024px]:grid-cols-[minmax(0,1fr)_360px] @min-[1024px]:gap-x-8 @min-[1024px]:gap-y-4 @min-[1024px]:pb-12')}>
+        <div className="flex min-w-0 flex-col gap-3 @min-[1024px]:col-start-1 @min-[1024px]:row-start-1">
+          {/* QA 11 Nov (owner): the back button had a whole row to itself —
+              "good space that's lost". It is a small ← on the title's row now,
+              with the actions on the same row at the other end. */}
+          <div className="flex items-start gap-2 pt-3 @min-[640px]:pt-6" style={{ marginTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}>
+            <Button variant="ghost" size="icon" className="-ml-2.5 shrink-0" aria-label={backLabel} title={backLabel} onClick={onBack}><BackIcon /></Button>
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5 pt-1.5">
+              <div className="flex items-center gap-2">
+                {head.date && <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{head.date}</span>}
+                <Chip className={ready ? 'bg-selected text-link' : 'bg-raised text-muted-foreground'}>{ready ? 'Ready' : 'Draft'}</Chip>
+              </div>
+              <h1 className="m-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] @min-[640px]:text-[32px] @min-[640px]:leading-10 @min-[640px]:tracking-[-1px]">{setlist.name || 'Untitled setlist'}</h1>
+              <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[14px] text-muted-foreground">
+                {head.service && <span>{head.service}</span>}
+                {head.time && <span className="flex items-center gap-1.5"><ClockIcon size={16} />{head.time}</span>}
+                {head.place && <span className="flex items-center gap-1.5"><PinIcon size={16} />{head.place}</span>}
+                {head.rehearsal && <span className="flex items-center gap-1.5"><ClockIcon size={16} />Rehearsal {head.rehearsal}</span>}
+              </div>
             </div>
-            <h1 className="m-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] @min-[640px]:text-[32px] @min-[640px]:leading-10 @min-[640px]:tracking-[-1px]">{setlist.name || 'Untitled setlist'}</h1>
-            <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[14px] text-muted-foreground">
-              {head.time && <span className="flex items-center gap-1.5"><ClockIcon size={16} />{head.time}</span>}
-              {head.place && <span className="flex items-center gap-1.5"><PinIcon size={16} />{head.place}</span>}
-              {head.rehearsal && <span className="flex items-center gap-1.5"><ClockIcon size={16} />Rehearsal {head.rehearsal}</span>}
+            <div className="flex shrink-0 items-center gap-2">
+              {leader && <span className="hidden gap-2 @min-[1024px]:flex">
+                {!ready && onMarkReady && <Button variant="outline" size="sm" onClick={onMarkReady}>Mark ready</Button>}
+                {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>Edit</Button>}
+              </span>}
+              {onRunSheet && <Button variant="ghost" size="icon" aria-label="Service order" title="Service order" onClick={onRunSheet}><ListIcon /></Button>}
+              {onMenu && <Button variant="ghost" size="icon" aria-label="More" onClick={onMenu}><MoreIcon /></Button>}
             </div>
           </div>
 
@@ -211,22 +219,26 @@ export default function SetlistView({
 
           <div className="flex gap-2">
             <Button className="h-12 flex-1 text-[16px]" disabled={!order.songCount} onClick={() => onPlay?.(0)}><PlayIcon />Play</Button>
-            {leader && onEdit && <Button variant="outline" className="h-12 flex-1 text-[16px] @min-[1024px]:hidden" onClick={onEdit}><EditIcon />Edit</Button>}
+            {leader && onEdit && <Button variant="outline" className="h-12 flex-1 text-[16px] @min-[1024px]:hidden" onClick={onEdit}>Edit</Button>}
           </div>
 
-          <div role="tablist" className="-mx-4 flex gap-5 border-b border-border px-4 @min-[640px]:-mx-6 @min-[640px]:px-6 @min-[1024px]:hidden">
+          {/* Style C (owner, 11 Nov): each tab takes half the width, green underline. */}
+          <div role="tablist" className="-mx-4 grid grid-cols-2 border-b border-border @min-[640px]:-mx-6 @min-[1024px]:hidden">
             {tabs.map(([id, label, extra]) => (
               <button key={id} role="tab" aria-selected={tab === id} type="button" onClick={() => setTab(id)}
-                className={cn('-mb-px flex h-10 min-h-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-0 font-sans text-[15px] outline-none', tab === id ? 'border-foreground font-semibold text-foreground' : 'border-transparent font-medium text-muted-foreground')}>
+                className={cn('-mb-px flex h-11 min-h-0 cursor-pointer items-center justify-center gap-1.5 border-0 border-b-2 border-solid bg-transparent px-0 font-sans text-[15px] font-semibold outline-none focus-visible:bg-raised', tab === id ? 'border-link text-foreground' : 'border-transparent text-muted-foreground')}>
                 {label}{extra !== '' && <span className="text-[12px] font-medium text-muted-foreground">{extra}</span>}
               </button>
             ))}
           </div>
           <div className="@min-[1024px]:hidden">{tab === 'order' ? orderEl : bandEl}</div>
-          <div className="hidden @min-[1024px]:block @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:px-4 @min-[1024px]:py-1">{orderEl}</div>
         </div>
+        {/* Order and band share a row on desktop, so the band starts level
+            with the first song (QA 11 Nov: "the band is higher than the
+            songs"). */}
+        <div className="hidden @min-[1024px]:col-start-1 @min-[1024px]:row-start-2 @min-[1024px]:block @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:px-4 @min-[1024px]:py-1">{orderEl}</div>
 
-        <aside className="hidden @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-2 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
+        <aside className="hidden @min-[1024px]:col-start-2 @min-[1024px]:row-start-2 @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-2 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
           <div className="flex items-center justify-between pb-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
             <span>Band{band.length ? ` · ${band.filter(b => b.status === 'available').length} of ${band.length} said yes` : ''}</span>
           </div>
