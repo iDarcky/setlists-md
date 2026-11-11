@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo, useRef, useState } from 'react';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { parseImportFiles, IMPORT_ACCEPT } from '@/lib/importFiles';
+import { markToCheck, needsCheck } from '@/lib/importCheck';
 import { matchSongByTitle } from '@/lib/setlistLinks';
 import { searchSongs } from '@/lib/search';
 import {
@@ -16,7 +17,7 @@ import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
 
 export default function Songs({
   songs = [], setlists = [], readOnly = false, onOpenSong, onEditSong,
-  onSearchCatalog, onImportSongs, onImportSetlistFile, onEditImported, onBlank, onTagSongs, onDeleteSongs, onMoveSongs, onCopySongs, otherChurches = [],
+  onSearchCatalog, onImportSongs, onImportSetlistFile, onEditImported, onCheckNext, onBlank, onTagSongs, onDeleteSongs, onMoveSongs, onCopySongs, otherChurches = [],
 }) {
   const [now] = useState(() => Date.now());
   const [query, setQuery] = useState('');
@@ -48,6 +49,9 @@ export default function Songs({
       if (setlistFile) { setPickOpen(false); onImportSetlistFile?.(setlistFile); return; }
       if (!parsed.length) { setImportError(error || 'No songs found in those files.'); if (!wide) setPickOpen(true); return; }
       setPickOpen(false);
+      // One song: no list to tick, so open it in the editor to check before it
+      // is added (nothing is saved until Add).
+      if (parsed.length === 1 && !failed.length && onEditImported) { onEditImported(parsed[0]); return; }
       setReview({
         items: parsed.map(song => ({ song, existing: matchSongByTitle(songs, song.title) || null })),
         failed,
@@ -95,6 +99,8 @@ export default function Songs({
         options={options}
         onOpen={onOpenSong}
         onEdit={leader ? onEditSong : null}
+        toCheck={leader && onCheckNext ? songs.filter(needsCheck).length : 0}
+        onCheckNext={onCheckNext}
         onAdd={leader ? () => setAddOpen(true) : null}
         onTag={leader && onTagSongs ? (ids) => setTagIds(ids) : null}
         onDelete={leader ? onDeleteSongs : null}
@@ -120,7 +126,7 @@ export default function Songs({
             items={review?.items}
             failed={review?.failed}
             source={review?.source}
-            onAdd={(list) => onImportSongs?.(list)}
+            onAdd={(list) => onImportSongs?.(list.map(markToCheck))}
             onEditFirst={onEditImported}
           />
           <TagSheet

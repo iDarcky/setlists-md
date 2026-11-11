@@ -32,6 +32,7 @@ import { MoreIcon } from '@/features/song/SongView';
 // The preview is the real Reader, so it draws exactly what the band will see.
 const Reader = lazy(() => import('@/features/reader/Reader'));
 import { PlusIcon } from '@/app/navIcons';
+import { canFillVerseChords, fillVerseChords } from '@/lib/verseChords';
 
 // The song editor, built from zero (canvas → "Song, edit and chart", Edit
 // row). Two tabs instead of four: **Chart** is the chart itself, editable in
@@ -918,7 +919,7 @@ function ArrangementBar({ arrangements, arr, defaultId, showTabs, onPick, onRena
   );
 }
 
-export default function SongEdit({ song, library = [], historyTeamId = null, mode = 'edit', settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+export default function SongEdit({ song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -953,7 +954,9 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   // No song without a name, and none without a single line of words or chords.
   const hasLines = working.arrangements.some(x => (x.sections || []).some(sc => (sc.lines || []).some(l => (typeof l === 'string' ? l.trim() : l))));
   const missing = !working.title?.trim() ? (hasLines ? 'a title' : 'a title and at least one line') : !hasLines ? 'at least one line' : null;
-  const canSave = !missing && (fresh || dirty);
+  // `checking` = a batch-imported song a leader is walking through: keeping
+  // it unchanged is an answer too ("Looks good"), so Save is always live.
+  const canSave = !missing && (fresh || dirty || !!checking);
   // Another song in the library with this name ("You already have Amazing Grace").
   const sameTitle = useMemo(() => {
     const t = normalizeText(working.title || '').trim();
@@ -1164,7 +1167,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
         <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
         <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 leading-tight">
           <b className="max-w-full truncate text-[15px] font-semibold">{working.title?.trim() || (mode === 'new' ? 'New song' : 'Untitled')}</b>
-          <span className="text-[12px] text-muted-foreground">{mode === 'new' ? 'New song' : mode === 'import' ? 'Check and add' : 'Editing'}</span>
+          <span className="text-[12px] text-muted-foreground">{checking ? `Checking · ${checking.left === 1 ? 'last one' : `${checking.left} left`}` : mode === 'new' ? 'New song' : mode === 'import' ? 'Check and add' : 'Editing'}</span>
         </div>
         <button type="button" aria-label="Undo" title="Undo" disabled={!hist.past.length} onClick={doUndo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></Svg></button>
         <button type="button" aria-label="Redo" title="Redo" disabled={!hist.future.length} onClick={doRedo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="m15 14 5-5-5-5" /><path d="M20 9H9a5 5 0 0 0 0 10h3" /></Svg></button>
@@ -1173,10 +1176,11 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
           { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
           { label: 'Paste a song', sub: mode === 'new' ? null : 'Replace this arrangement, or add it as a new one', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
           arr.sections.length > 1 && { label: arr.sections.every((_, i) => folded.has(`${arr.id}:${i}`)) ? 'Open all sections' : 'Fold all sections', onClick: () => { closeAll(); setFolded(f => { const keys = arr.sections.map((_, i) => `${arr.id}:${i}`); const all = keys.every(k => f.has(k)); const n = new Set(f); keys.forEach(k => (all ? n.delete(k) : n.add(k))); return n; }); } },
+          canFillVerseChords(arr.sections) && { label: 'Copy verse 1 chords to the other verses', sub: 'Placed by syllable. Undo if one is off.', onClick: () => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); } },
           mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
-        <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{fresh ? 'Add' : 'Save'}</Button>
+        <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{fresh ? 'Add' : checking && !dirty ? 'Looks good' : 'Save'}</Button>
       </div>
       {draftFound && (
         <div role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-warning-fill px-4 py-2">
