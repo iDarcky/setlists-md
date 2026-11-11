@@ -4,6 +4,7 @@ import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { CheckIcon } from '@/app/navIcons';
 import { songKey } from '@/lib/songsData';
+import { canFillVerseChords, fillSongVerseChords } from '@/lib/verseChords';
 
 // Import, rebuilt (canvas → Import + public domain). Pick files (a drop zone
 // from the iPad up; a phone goes straight to the file picker), then every song
@@ -58,10 +59,15 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
   const [off, setOff] = useState(() => new Set());
   const n = items.length;
   const dupes = items.filter(i => i.existing).length;
+  // Melodia-style charts print chords on verse 1 only. Offer to carry them to
+  // the other verses — on by default, since a bare verse 3 is useless on stage.
+  const [fillVerses, setFillVerses] = useState(true);
+  const fillable = items.filter(it => it.song?.arrangements?.some(a => canFillVerseChords(a.sections))).length;
+  const finish = (song) => (fillable && fillVerses ? fillSongVerseChords(song) : song);
   const picked = items.filter((_, i) => !off.has(i));
   const flip = (i) => setOff(prev => { const s = new Set(prev); if (s.has(i)) s.delete(i); else s.add(i); return s; });
   const allOff = off.size === n;
-  const add = () => { onAdd?.(picked.map(i => i.song)); onOpenChange?.(false); };
+  const add = () => { onAdd?.(picked.map(i => finish(i.song))); onOpenChange?.(false); };
   const title = n === 1 ? 'Import 1 song' : `Import ${n} songs`;
 
   return (
@@ -113,6 +119,22 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
             );
           })}
         </div>
+        {fillable > 0 && (
+          <button
+            type="button"
+            aria-pressed={fillVerses}
+            onClick={() => setFillVerses(v => !v)}
+            className="flex w-full min-w-0 cursor-pointer items-start gap-3 rounded-card border border-border bg-card px-4 py-3 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised"
+          >
+            <Box on={fillVerses} />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[15px] font-semibold">Add verse 1’s chords to the other verses</span>
+              <span className="text-[13px] text-muted-foreground">
+                {fillable === 1 ? '1 song has' : `${fillable} songs have`} chords on verse 1 only. Check them once; you can fix any chord later.
+              </span>
+            </span>
+          </button>
+        )}
         {failed.length > 0 && (
           <>
             <div className="px-0.5 pt-1 text-[13px] text-muted-foreground">Couldn’t read {failed.length === 1 ? '1 file' : `${failed.length} files`}</div>
@@ -128,7 +150,7 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
             <Button className="flex-1" disabled={!picked.length} onClick={add}>
               {n === 1 ? 'Add song' : `Add ${picked.length} song${picked.length === 1 ? '' : 's'}`}
             </Button>
-            {n === 1 && onEditFirst && <Button variant="outline" className="flex-1" onClick={() => { onOpenChange?.(false); onEditFirst(items[0].song); }}>Edit first</Button>}
+            {n === 1 && onEditFirst && <Button variant="outline" className="flex-1" onClick={() => { onOpenChange?.(false); onEditFirst(finish(items[0].song)); }}>Edit first</Button>}
           </div>
           <span className="text-center text-[12px] text-muted-foreground">You can edit any of them later.</span>
         </div>
