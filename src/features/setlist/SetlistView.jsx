@@ -27,18 +27,22 @@ const NowDot = () => <span role="img" aria-label="Now" className="mt-0.5 size-2.
 
 function OrderRow({ row, onOpen, now = false }) {
   if (row.kind === 'moment') {
+    // Style D from the QA mockups (owner, 11 Nov): a thin bar where the number
+    // would be and an italic name, so a moment reads as a pause, not a song.
     const body = (
       <>
-        <span className="flex w-5 shrink-0 justify-end">{now && <NowDot />}</span>
+        <span className="flex w-5 shrink-0 justify-end self-stretch py-1">
+          {now ? <span className="self-center"><NowDot /></span> : <span aria-hidden="true" className="w-[3px] rounded-full bg-border" />}
+        </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[15px] font-medium text-muted-foreground">{row.title}</span>
+          <span className="text-[14px] font-medium italic text-muted-foreground">{row.title}</span>
           <span className="truncate text-[13px] text-muted-foreground">
-            Moment{row.minutes ? ` · ${row.minutes} min` : ''}{row.note && <> · <span className="text-foreground">{firstLine(row.note)}</span></>}
+            {row.minutes ? `${row.minutes} min` : 'Moment'}{row.note && <> · <span className="text-foreground">{firstLine(row.note)}</span></>}
           </span>
         </span>
       </>
     );
-    const cls = cn('flex min-h-[58px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-foreground first:border-t-0', now && 'bg-selected');
+    const cls = cn('flex min-h-[48px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-1.5 text-left font-sans text-foreground first:border-t-0', now && 'bg-selected');
     // A moment with a note opens it; one without has nothing more to show.
     return row.note
       ? <button type="button" onClick={() => onOpen(row)} className={cn(cls, 'cursor-pointer outline-none focus-visible:bg-raised')}>{body}<ChevronRightIcon /></button>
@@ -197,7 +201,7 @@ export default function SetlistView({
                 {!ready && onMarkReady && <Button variant="outline" size="sm" onClick={onMarkReady}>Mark ready</Button>}
                 {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>Edit</Button>}
               </span>}
-              {onRunSheet && <Button variant="ghost" size="icon" aria-label="Run sheet" title="Run sheet" onClick={onRunSheet}><ListIcon /></Button>}
+              {onRunSheet && <Button variant="ghost" size="icon" aria-label="Service order" title="Service order" onClick={onRunSheet}><ListIcon /></Button>}
               {onMenu && <Button variant="ghost" size="icon" aria-label="More" onClick={onMenu}><MoreIcon /></Button>}
             </div>
           </div>
@@ -218,10 +222,11 @@ export default function SetlistView({
             {leader && onEdit && <Button variant="outline" className="h-12 flex-1 text-[16px] @min-[1024px]:hidden" onClick={onEdit}>Edit</Button>}
           </div>
 
-          <div role="tablist" className="-mx-4 flex gap-5 border-b border-border px-4 @min-[640px]:-mx-6 @min-[640px]:px-6 @min-[1024px]:hidden">
+          {/* Style C (owner, 11 Nov): each tab takes half the width, green underline. */}
+          <div role="tablist" className="-mx-4 grid grid-cols-2 border-b border-border @min-[640px]:-mx-6 @min-[1024px]:hidden">
             {tabs.map(([id, label, extra]) => (
               <button key={id} role="tab" aria-selected={tab === id} type="button" onClick={() => setTab(id)}
-                className={cn('-mb-px flex h-10 min-h-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 bg-transparent px-0 font-sans text-[15px] outline-none', tab === id ? 'border-foreground font-semibold text-foreground' : 'border-transparent font-medium text-muted-foreground')}>
+                className={cn('-mb-px flex h-11 min-h-0 cursor-pointer items-center justify-center gap-1.5 border-0 border-b-2 border-solid bg-transparent px-0 font-sans text-[15px] font-semibold outline-none focus-visible:bg-raised', tab === id ? 'border-link text-foreground' : 'border-transparent text-muted-foreground')}>
                 {label}{extra !== '' && <span className="text-[12px] font-medium text-muted-foreground">{extra}</span>}
               </button>
             ))}

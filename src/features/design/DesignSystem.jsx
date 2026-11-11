@@ -638,7 +638,7 @@ function RunSheetDemo() {
   const order = buildOrder(SL, SL_SONGS, (u) => SL_NAMES[u] || '');
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>Open the run sheet (live at 10:09)</Button>
+      <Button variant="outline" onClick={() => setOpen(true)}>Open the service order (live at 10:09)</Button>
       <RunSheet open={open} onClose={() => setOpen(false)} title={SL.name} order={order} setlist={SL} now={new Date(`${SL.date}T10:09:00`).getTime()} />
     </>
   );
@@ -804,7 +804,7 @@ function ShareGallery() {
   const frames = [
     ['Share: first time', 900, <DrawerFrame key="n" title="Share guest link"><ShareBody state="new" ends="Sun 1 Nov, 14:30" onCreate={noop} /></DrawerFrame>],
     ['Share: link made', 900, <DrawerFrame key="o" title="Guest link"><ShareBody state={share} ends="Sun 1 Nov, 14:30" canSend onCopy={noop} onSend={noop} onStop={noop} /></DrawerFrame>],
-    ['Guest page', 1200, <GuestView key="g" setlist={guestSl} order={order} church={{ name: 'Grace Church' }} when="Sun 1 Nov · 10:00" live ends="Sun 1 Nov, 14:30" onPlay={noop} onGetApp={noop} />],
+    ['Guest page', 1200, <GuestView key="g" setlist={guestSl} order={order} church={{ name: 'Grace Church' }} when="Sun 1 Nov · 10:00" onPlay={noop} onGetApp={noop} />],
     ['Print', 900, <DrawerFrame key="p" title="Print"><PrintBody choice={choice} setChoice={setChoice} onPrint={noop} /></DrawerFrame>],
   ];
   return (
@@ -1253,7 +1253,7 @@ export default function DesignSystem({ onBack }) {
           <SongEditGallery />
         </Section>
 
-        <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the run sheet.">
+        <Section title="Setlist" sub="View: everyone reads it; leaders also get Edit and Mark ready. Order and Band are tabs on a phone, side by side from 1024px. The list icon opens the service order.">
           <SetlistGallery />
         </Section>
 

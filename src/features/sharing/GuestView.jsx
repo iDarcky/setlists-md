@@ -2,7 +2,7 @@ import { Button } from '@/ui/shadcn/button';
 import { Order } from '@/features/setlist/SetlistView';
 
 // The page a guest link opens: the church, the service, the order with keys and
-// Open the charts. No band and no people (GDPR); nothing to edit.
+// Play. No band and no people (GDPR); nothing to edit.
 
 function ChurchMark({ church, size = 24 }) {
   const name = church?.name || '';
@@ -19,7 +19,7 @@ function ChurchMark({ church, size = 24 }) {
 
 const PlayIcon = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" /></svg>;
 
-export default function GuestView({ setlist, order, church, when, live = false, ends, onPlay, onGetApp }) {
+export default function GuestView({ setlist, order, church, when, onPlay, onGetApp }) {
   // The page is its own scroll box. html and body are locked
   // (`overflow: hidden`, fixed height, `styles/index.css`) because the app
   // scrolls inside its shell, so a page that only grows taller than the screen
@@ -39,13 +39,9 @@ export default function GuestView({ setlist, order, church, when, live = false, 
         <div className="flex flex-col gap-2 pt-2">
           {when && <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{when}</span>}
           <h1 className="m-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] sm:text-[32px] sm:leading-10 sm:tracking-[-1px]">{setlist.name || 'Untitled setlist'}</h1>
-          <span className="flex items-start gap-2 text-[14px] leading-5 text-muted-foreground">
-            {live && <span className="mt-1.5 size-2 shrink-0 rounded-full bg-success" aria-hidden="true" />}
-            {[live ? 'Live: updates when the leader changes it' : 'A copy from when it was shared', ends && `link ends ${ends}`].filter(Boolean).join(' · ')}
-          </span>
         </div>
 
-        <Button className="mt-1 h-12 text-[16px]" disabled={!order.songCount} onClick={() => onPlay(0)}><PlayIcon />Open the charts</Button>
+        <Button className="mt-1 h-12 text-[16px]" disabled={!order.songCount} onClick={() => onPlay(0)}><PlayIcon />Play</Button>
 
         <Order order={order} empty="No songs yet."
           onOpenRow={(r) => { if (r.kind === 'song') onPlay(r.idx); }} />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
-import { fetchSharedSetlist, fetchShareStamp, endsLabel } from '@/lib/setlistShare';
+import { fetchSharedSetlist, fetchShareStamp } from '@/lib/setlistShare';
 import { buildOrder } from '@/lib/setlistView';
 import { formatClockTime } from '@/lib/dateFormat';
 import { resolveChartDisplay } from '@/lib/chartDisplay';
@@ -135,7 +135,7 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
     );
   }
 
-  const { setlist, songs, church, live, expires_at: expiresAt } = state.data;
+  const { setlist, songs, church } = state.data;
   const fmt = viewSettings.clockFormat || '24h';
   const when = [
     setlist.date && new Date(`${setlist.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
@@ -204,8 +204,7 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
 
   return (
     <GuestView
-      setlist={setlist} order={order} church={church} when={when} live={live}
-      ends={expiresAt ? endsLabel(new Date(expiresAt).getTime(), fmt) : ''}
+      setlist={setlist} order={order} church={church} when={when}
       onPlay={setPlaying} onGetApp={onExit}
     />
   );

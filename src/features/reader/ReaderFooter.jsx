@@ -1,4 +1,4 @@
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 import { IconButton } from '@/ui/IconButton';
 
 /**
@@ -81,7 +81,13 @@ export default function ReaderFooter({
       </Centre>
 
       {atEnd && onFinish ? (
-        <Button size="md" variant="brand" onClick={onFinish}>Finish</Button>
+        // The new-design ink button, sized to the 48px nav arrows it replaces
+        // (QA 11 Nov: "the finish button is still the old design").
+        // Ink in the CHART's colours, not the app's: on a light chart theme
+        // inside a dark app, the app's ink would be cream on paper.
+        <Button className="h-11 min-h-0 px-5 text-[15px] sm:h-11"
+          style={{ backgroundColor: 'var(--chart-text, var(--ds-gray-1000))', color: 'var(--chart-bg, var(--ds-background-100))' }}
+          onClick={onFinish}>Finish</Button>
       ) : (
         <IconButton
           size="sm"
