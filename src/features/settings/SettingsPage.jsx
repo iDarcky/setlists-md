@@ -27,6 +27,7 @@ const REMINDER_CHIPS = REMINDER_OPTIONS.map(o => ({ value: o.value, label: SHORT
 const LAB_FLAGS = [
   { id: 'rosterOverscheduleWarning', label: 'Warn before over-scheduling', sub: 'When picking the band, flag someone who has played several services in a row.' },
   { id: 'pasteIntoChart', label: 'Paste into the chart', sub: 'A paste lands in the section you aim at.' },
+  { id: 'moveBetweenChurches', label: 'Move or copy songs to another church', sub: 'Only for songs you have the right to share. Off by default.' },
 ];
 
 const PLAN_NAMES = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };

@@ -1695,8 +1695,12 @@ export default function App() {
   // preview pane). Opens a workspace picker so users choose where to send the
   // song — Copy is offered whenever another workspace exists; Move also
   // requires write access to the source (personal, or admin of the team).
+  // Sending songs between churches copies charts somebody else holds the
+  // rights to, so it is a Labs switch now (QA 11 Nov). Moving OUT of Personal
+  // stays: that is the one way to bring your own songs into a group.
+  const moveCopyAllowed = !!settings?.moveBetweenChurches || activeLibrary === 'personal';
   const buildChartMoveCopy = (songId) => {
-    if (!songId || moveCopyWorkspaces.length === 0) return {};
+    if (!songId || !moveCopyAllowed || moveCopyWorkspaces.length === 0) return {};
     const canMove = activeLibrary === 'personal' || isTeamAdmin;
     const props = {
       onCopySong: () => setMoveCopyDialog({ action: 'copy', songId }),
@@ -2572,8 +2576,8 @@ export default function App() {
               onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
-              onMoveSongs={isTeamReadOnly ? null : handleMoveSongs}
-              onCopySongs={isTeamReadOnly ? null : handleCopySongs}
+              onMoveSongs={isTeamReadOnly || !moveCopyAllowed ? null : handleMoveSongs}
+              onCopySongs={isTeamReadOnly || !moveCopyAllowed ? null : handleCopySongs}
               otherChurches={ledChurches.filter(t => t.id !== activeLibrary)}
             />
           )}
