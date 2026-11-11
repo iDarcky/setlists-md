@@ -377,3 +377,27 @@ describe('buildChartFromItems — Melodia charts', () => {
     expect(md).not.toContain('Like Music');
   });
 });
+
+describe('wrapped lines that start with a capital', () => {
+  // "E ca Domnul meu, e ca Domnul meu," fills the column; "Isus?" is its tail.
+  const base = [
+    item('STROFA 1', 39, 702, 50, 9, HDR),
+    item('Cine pe pământ, cine-n ceruri sus', 39, 680, 200, 14, LYR),
+    item('E ca Domnul meu, e ca Domnul meu,', 39, 660, 225, 14, LYR),
+  ];
+
+  it('joins a name that did not fit on the row above', () => {
+    const { md } = buildChartFromItems([...base, item('Isus?', 39, 640, 30, 14, LYR), item('Fără El, flămând și însetat', 39, 620, 160, 14, LYR)]);
+    expect(md).toContain('E ca Domnul meu, e ca Domnul meu, Isus?\nFără El');
+  });
+
+  it('leaves a short closing line alone when it would have fitted', () => {
+    const { md } = buildChartFromItems([
+      item('STROFA 1', 39, 702, 50, 9, HDR),
+      item('Cine pe pământ, cine-n ceruri sus', 39, 680, 225, 14, LYR),
+      item('E ca Domnul meu, e ca Domnul', 39, 660, 160, 14, LYR),
+      item('Amin!', 39, 640, 30, 14, LYR),
+    ]);
+    expect(md).toContain('E ca Domnul meu, e ca Domnul\nAmin!');
+  });
+});

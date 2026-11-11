@@ -279,6 +279,10 @@ export function buildChartFromItems(rawItems) {
 
   for (const col of splitColumns(items)) {
     const lines = toLines(col, chordFont);
+    // How far this column's lyrics reach: the right edge a wrap happens at.
+    const colRight = Math.max(0, ...lines
+      .filter(l => l.kind === 'text' && l.text && !sectionNameFrom(l.text) && (!lyricSize || l.size >= lyricSize * 0.7))
+      .map(rightEdge));
     // A two-column chart repeats the header band across both columns (title and
     // composer left, key and play order right), so "still in the header" is a
     // per-column question.
@@ -360,19 +364,51 @@ export function buildChartFromItems(rawItems) {
       const text = hasChords ? mergeChordRow(above, line) : line.text;
       // A narrow column wraps a long line, and the generator sets the rest on
       // the next row (with its own chord row). Song lines start with a capital,
-      // so one that starts lowercase is the tail of the line before it.
+      // so one that starts lowercase is the tail of the line before it. A tail
+      // that starts with a name ("…e ca Domnul meu, / Isus?") is caught by
+      // geometry instead: its first word would not have fitted on the row above.
       const prev = body[body.length - 1];
-      if (prev && prev.line !== undefined && !isChordOnly(prev.line) && /^[a-zăâîșşțţ]/.test(line.text)) {
+      if (prev && prev.line !== undefined && !isChordOnly(prev.line)
+        && (/^[a-zăâîșşțţ]/.test(line.text) || wrappedTail(prev.src, line, colRight))) {
         prev.line = `${prev.line} ${text}`;
+        prev.src = line;
         continue;
       }
-      body.push({ line: text });
+      body.push({ line: text, src: line });
     }
   }
 
   if (!body.some(b => b.section)) warnings.push('No section headings found — everything landed in one section.');
 
   return { md: toMarkdown(meta, body), meta, warnings };
+}
+
+const rightEdge = (line) => Math.max(...line.items.filter(i => i.str.trim()).map(i => i.x + (i.w || 0)));
+const leftEdge = (line) => Math.min(...line.items.filter(i => i.str.trim()).map(i => i.x));
+
+// Width of a line's first word: up to the first whitespace run, or the end.
+function firstWordWidth(line) {
+  const real = line.items.filter(i => i.str.length);
+  const start = leftEdge(line);
+  const space = real.find(i => !i.str.trim() && i.x > start);
+  if (space) return space.x - start;
+  const m = line.text.match(/^\S+/);
+  const total = rightEdge(line) - start;
+  return m && line.text.length ? total * (m[0].length / line.text.length) : total;
+}
+
+// Is `line` the overflow of `prev`? Three things must hold: `prev` runs to
+// (near) the column's edge, its first word would not have fitted after `prev`,
+// and it is short, as an overflow is. A short closing line after a long one
+// ("Amin!") fails the middle test whenever there was room for it.
+function wrappedTail(prev, line, colRight) {
+  if (!prev || !colRight || prev.kind !== 'text') return false;
+  const prevRight = rightEdge(prev);
+  const width = rightEdge(line) - leftEdge(line);
+  const space = (line.size || 12) * 0.28;
+  if (prevRight < colRight * 0.85 + leftEdge(prev) * 0.15) return false;
+  if (width > (colRight - leftEdge(line)) * 0.45) return false;
+  return prevRight + space + firstWordWidth(line) > colRight + 1;
 }
 
 const isChordOnly = (line) => /^(\[[^\]]+\]\s*)+$/.test(line.trim());
