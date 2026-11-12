@@ -22,6 +22,13 @@ working. That switch happens in its own step.
 
 - `index.html` (/) — what it is, how it works, pricing, FAQ.
 - `help.html` (/help) — contact, invite links, starting a church, Add to Home Screen.
+- `start.html` (/start) and `ro/start.html` (/ro/start) — the "Start your church" form.
+  It posts straight to the `feedback` table with Supabase's publishable key (the
+  table allows anyone to insert; only the service role reads), tagged
+  `[church request]` like the app's own request. `connect-src` in `vercel.json`
+  allows that one Supabase host.
+- `ro/index.html` (/ro) — the Romanian landing page. Help and legal pages are English
+  only for now; Romanian pages link to them with `hreflang="en"`.
 - `/privacy`, `/terms`, `/copyright` — linked in the footer, added in the legal PR.
 
 Shared styles in `site.css`, the header menu in `site.js` (no inline scripts, so
