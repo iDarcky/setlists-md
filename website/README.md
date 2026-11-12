@@ -30,7 +30,7 @@ Shared styles in `site.css`, the header menu in `site.js` (no inline scripts, so
 the CSP is `script-src 'self'`). Header and footer are repeated in each page on
 purpose: no build step.
 
-Join the beta links to `https://app.setlists.md/?start=signup&from=site` and Log in
+Join beta links to `https://app.setlists.md/?start=signup&from=site` and Log in
 to `https://app.setlists.md/?from=site`. The `from=site` tag is how we count
 sign-ups that came from the website.
 
