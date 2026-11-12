@@ -16,6 +16,8 @@ import { readySnapshot } from '@/lib/setlistView';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
 import { parseSiteEntry, stripSiteEntry, rememberSignupSource } from '@/lib/siteEntry';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
+import { startScreen, storedRequest } from '@/lib/startFlow';
+import { sentChurchRequest } from '@/lib/churchRequest';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -113,6 +115,7 @@ import { TEMPLATE_KIND } from '@/lib/newSetlist';
 import { needsCheck, clearCheck } from '@/lib/importCheck';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
+const StartFlow = lazy(() => import('@/features/start/StartFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
 // PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
 // 2026-08-11 and the three old surfaces were deleted on 2026-10-11.
@@ -265,6 +268,14 @@ export default function App() {
   const [joinCode, setJoinCode] = useState(() => (
     typeof window !== 'undefined' ? parseJoinPath(window.location.pathname) : null
   ));
+  // The church/band this account asked us to set up (the "after sign-up"
+  // screens, lib/startFlow): from this device, else from the account.
+  const [startRequest, setStartRequest] = useState(null);
+  const startRequestUser = user?.id || null;
+  const startRequestMeta = user?.user_metadata?.start_request;
+  useEffect(() => {
+    setStartRequest(startRequestUser ? storedRequest(sentChurchRequest(startRequestUser), { start_request: startRequestMeta }) : null);
+  }, [startRequestUser, startRequestMeta]);
   // After joining, switch into the new Space as soon as TeamProvider has it:
   // { teamId, view }. Membership loads asynchronously after approval.
   const [pendingSpaceSwitch, setPendingSpaceSwitch] = useState(null);
@@ -2529,6 +2540,37 @@ export default function App() {
       toast({ title: 'Sign-out failed', description: err.message, variant: 'error' });
     }
   };
+
+  // No church or band yet: the "after sign-up" screens take the place of the
+  // app until one exists (church/band request -> Waiting for approval -> ready).
+  const startShows = startScreen({
+    signedIn: !!user?.id,
+    teamsLoaded,
+    teamCount: teams.length,
+    pendingJoin: loadPendingJoin(),
+    request: startRequest,
+    view,
+  });
+  if (startShows) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<AppSkeleton />}>
+          <StartFlow
+            screen={startShows}
+            user={user}
+            displayName={profile?.display_name || settings?.userName || ''}
+            request={startRequest}
+            team={teams[0] || null}
+            onRequestChange={setStartRequest}
+            onSignOut={handleSignOut}
+            onInviteBand={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'team' }); }}
+            onOpenTeam={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'home' }); }}
+            onJoinCode={(code) => { setJoinCode(code); setView('join'); }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <WorkspaceProvider activeLibrary={activeLibrary}>
