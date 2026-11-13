@@ -1377,7 +1377,7 @@ export default function App() {
     const mode = !currentSong ? 'new' : songs.some(s => s.id === currentSong.id) ? 'edit' : 'import';
     const flat = currentSong || {};
     const song = songFromFlat({ ...flat, id: flat.id || generateId() });
-    if (!currentSong) { song.title = editNewTitle || ''; song.artist = ''; song.arrangements[0].name = 'Main'; }
+    if (!currentSong) { song.title = editNewTitle || ''; song.artist = ''; song.arrangements[0].name = 'Main'; song.arrangements[0].key = ''; }
     return { song, mode };
     // `songs` is read once per visit on purpose: saving adds the song to the
     // library, and a rebuilt target would reset the form under the user.

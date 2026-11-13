@@ -8,7 +8,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getArrangement, withArrangement, addArrangement, deleteArrangement, setDefaultArrangement, resolveSongView } from '@/arrangements';
 import { transposeArrangement } from '@/lib/transposeArrangement';
 import { parseLine, parseTabBlock, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
-import { compactLabel, keyOptions, sectionStyle, semitonesBetween } from '@/music';
+import { compactLabel, sectionStyle, semitonesBetween } from '@/music';
 import { isChordToken } from '@/importer';
 import { normalizeText } from '@/lib/search';
 import { youtubeDuration, formatLength } from '@/lib/embedPlayers';
@@ -467,31 +467,36 @@ function useChipDrag(order, onChange) {
   return { shown, drag, props };
 }
 
-function OrderBar({ order, names, onChange, styleOf }) {
+function OrderBar({ order, names, onChange, styleOf, vertical = false, onJump = null }) {
   const [open, setOpen] = useState(null);
   const { shown, drag, props } = useChipDrag(order, onChange);
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      <span className="shrink-0 pr-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>
+    <div className={vertical ? 'flex flex-col gap-1' : 'flex flex-wrap items-center gap-1'}>
+      {!vertical && <span className="shrink-0 pr-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>}
       {shown.map(({ name, i }, k) => (
         <Popover key={`${name}${i}`} open={!drag && open === i} onOpenChange={(o) => setOpen(o ? i : null)}>
           <PopoverTrigger asChild>
             <button type="button" aria-label={`${name}, place ${i + 1}`} style={{ background: styleOf(name).bg, color: styleOf(name).b, touchAction: 'pan-y' }} {...props(i, k)}
-              className={cn('flex h-8 min-h-0 min-w-9 shrink-0 cursor-grab select-none items-center justify-center rounded-[7px] border-0 px-2 font-sans text-[12px] font-semibold outline-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring', drag?.from === i && 'scale-110 cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,.35)] ring-2 ring-ring')}>{compactLabel(name)}</button>
+              className={cn('flex h-8 min-h-0 min-w-9 shrink-0 cursor-grab select-none items-center justify-center rounded-[7px] border-0 px-2 font-sans text-[12px] font-semibold outline-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring',
+                vertical && 'h-9 w-full justify-start gap-2.5 px-2.5 text-[14px]',
+                drag?.from === i && (vertical ? 'cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,.35)] ring-2 ring-ring' : 'scale-110 cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,.35)] ring-2 ring-ring'))}>
+              {vertical ? (<><span className="w-7 shrink-0 text-[12px] font-bold">{compactLabel(name)}</span><span className="min-w-0 flex-1 truncate text-left font-medium text-foreground">{name}</span><span aria-hidden className="text-[14px] leading-none text-muted-foreground/60">⋮⋮</span></>) : compactLabel(name)}
+            </button>
           </PopoverTrigger>
           <PopoverContent className="flex w-[220px] flex-col p-1.5">
             <span className="px-2.5 pb-1 pt-1 text-[13px] font-semibold text-muted-foreground">{name}</span>
-            <button type="button" className={menuRow} disabled={i === 0} onClick={() => { onChange(move(order, i, -1)); setOpen(null); }}>← Move left</button>
-            <button type="button" className={menuRow} disabled={i === order.length - 1} onClick={() => { onChange(move(order, i, 1)); setOpen(null); }}>Move right →</button>
+            {onJump && <button type="button" className={menuRow} onClick={() => { onJump(name); setOpen(null); }}>Show in the chart</button>}
+            <button type="button" className={menuRow} disabled={i === 0} onClick={() => { onChange(move(order, i, -1)); setOpen(null); }}>{vertical ? '↑ Move up' : '← Move left'}</button>
+            <button type="button" className={menuRow} disabled={i === order.length - 1} onClick={() => { onChange(move(order, i, 1)); setOpen(null); }}>{vertical ? '↓ Move down' : 'Move right →'}</button>
             <button type="button" className={menuRow} onClick={() => { onChange([...order.slice(0, i + 1), name, ...order.slice(i + 1)]); setOpen(null); }}>Repeat</button>
             <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { onChange(order.filter((_, n) => n !== i)); setOpen(null); }}>Remove</button>
-            <p className="m-0 px-2.5 pb-1 pt-1.5 text-[12px] leading-4 text-muted-foreground">Or drag the chip to move it.</p>
+            <p className="m-0 px-2.5 pb-1 pt-1.5 text-[12px] leading-4 text-muted-foreground">Or drag it to move it.</p>
           </PopoverContent>
         </Popover>
       ))}
       <Popover open={open === 'add'} onOpenChange={(o) => setOpen(o ? 'add' : null)}>
         <PopoverTrigger asChild>
-          <button type="button" aria-label="Add to the order" className="flex h-8 min-h-0 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-dashed border-chip-border bg-transparent p-0 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"><PlusIcon size={14} /></button>
+          <button type="button" aria-label="Add to the order" className={cn('flex h-8 min-h-0 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-dashed border-chip-border bg-transparent p-0 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', vertical && 'h-9 w-full gap-1.5 font-sans text-[14px]')}><PlusIcon size={14} />{vertical && 'Add to the order'}</button>
         </PopoverTrigger>
         <PopoverContent className="flex w-[220px] flex-col p-1.5">
           {names.map(n => <button key={n} type="button" className={menuRow} onClick={() => { onChange([...order, n]); setOpen(null); }}>{n}</button>)}
@@ -516,7 +521,7 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
   const setRun = (ri, ls) => { const next = runs.slice(); next[ri] = { lines: ls }; onArr(setLines(arr, index, runsToLines(next))); };
 
   return (
-    <section className="flex flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: look.br }}>
+    <section data-sec={index} className="flex scroll-mt-4 flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: look.br }}>
       <div className="flex min-h-9 items-center gap-2">
         <button type="button" onClick={onFold} aria-expanded={!folded} aria-label={folded ? `Open ${sec.type}` : `Fold ${sec.type} shut`}
           className={cn(iconBtn, '-ml-1.5 size-7 text-muted-foreground')}>
@@ -648,19 +653,48 @@ function Field({ label, children, hint }) {
 }
 
 /** Our own key dropdown: the 12 major keys, then the 12 minor ones. */
+/**
+ * Pick a key in three small rows: the letter, then natural / flat / sharp,
+ * then major / minor. Seven letters read faster than 24 buttons.
+ */
+const KEY_RE = /^([A-G])([b#]?)(m?)$/;
+const NO_KEY = new Set(['E#', 'B#', 'Fb', 'Cb']);
+function KeyGrid({ value, onPick }) {
+  const m = KEY_RE.exec(value || '');
+  const [acc, setAcc] = useState(m ? m[2] : '');
+  const [minor, setMinor] = useState(m ? m[3] === 'm' : false);
+  const letter = m ? m[1] : null;
+  const put = (l, a, mi) => { if (!l) return; const k = NO_KEY.has(l + a) ? l : l + a; onPick(k + (mi ? 'm' : '')); };
+  const segBtn = (on) => cn('flex h-10 min-h-0 flex-1 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-30',
+    on && 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.25)]');
+  const row = 'flex gap-0.5 rounded-full bg-raised p-1';
+  return (
+    <div className="flex flex-col gap-2">
+      <div role="radiogroup" aria-label="Key letter" className={row}>
+        {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map(l => (
+          <button key={l} type="button" role="radio" aria-checked={letter === l} className={segBtn(letter === l)} onClick={() => put(l, acc, minor)}>{l}</button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <div role="radiogroup" aria-label="Sharp or flat" className={cn(row, 'flex-1')}>
+          {[['', '♮', 'Natural'], ['b', '♭', 'Flat'], ['#', '♯', 'Sharp']].map(([a, sym, label]) => (
+            <button key={label} type="button" role="radio" aria-checked={acc === a} aria-label={label} disabled={!!letter && a !== '' && NO_KEY.has(letter + a)}
+              className={cn(segBtn(acc === a), 'text-[20px]')} onClick={() => { setAcc(a); put(letter, a, minor); }}>{sym}</button>
+          ))}
+        </div>
+        <div role="radiogroup" aria-label="Major or minor" className={cn(row, 'flex-1')}>
+          {[[false, 'Major'], [true, 'Minor']].map(([mi, label]) => (
+            <button key={label} type="button" role="radio" aria-checked={minor === mi} className={segBtn(minor === mi)} onClick={() => { setMinor(mi); put(letter, acc, mi); }}>{label}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function KeyPicker({ value, onChange, onMove, compact = false }) {
   const [open, setOpen] = useState(false);
   const [to, setTo] = useState(null); // the key picked, while asking move or rename
-  const keys = useMemo(() => keyOptions('flats'), []);
-  const grid = (list) => (
-    <div className="grid grid-cols-6 gap-1">
-      {list.map(k => (
-        <button key={k.value} type="button" aria-pressed={k.value === value} onClick={() => { if (onMove && value && k.value !== value) { setTo(k.value); return; } onChange(k.value); setOpen(false); }}
-          className={cn('flex h-10 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent p-0 font-mono text-[14px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
-            k.value === value && 'bg-[var(--chord)] text-background hover:bg-[var(--chord)]')}>{k.value}</button>
-      ))}
-    </div>
-  );
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); setTo(null); }}>
       <PopoverTrigger asChild>
@@ -676,17 +710,15 @@ function KeyPicker({ value, onChange, onMove, compact = false }) {
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" className="flex w-[300px] flex-col gap-2 p-2.5">
+      <PopoverContent align="start" className="flex w-[340px] flex-col gap-2 p-2.5">
         {to ? (<>
           <b className="px-1 pt-1 text-[15px] font-semibold">From <span className="font-mono text-[var(--chord)]">{value}</span> to <span className="font-mono text-[var(--chord)]">{to}</span></b>
           <Button onClick={() => { onMove(to); setOpen(false); setTo(null); }}>Move every chord to {to}</Button>
           <Button variant="ghost" onClick={() => { onChange(to); setOpen(false); setTo(null); }}>Only rename the key</Button>
           <p className="m-0 px-1 text-[12px] leading-4 text-muted-foreground">Rename when the key was written down wrong and the chords are right.</p>
         </>) : (<>
-        <span className="px-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Major</span>
-        {grid(keys.filter(k => !k.value.endsWith('m')))}
-        <span className="px-1 pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Minor</span>
-        {grid(keys.filter(k => k.value.endsWith('m')))}
+        <KeyGrid value={value} onPick={(k) => { if (k === value) return; if (onMove && value) { setTo(k); return; } onChange(k); }} />
+        <Button size="sm" variant="ghost" className="self-end" onClick={() => setOpen(false)}>Done</Button>
         </>)}
       </PopoverContent>
     </Popover>
@@ -710,7 +742,7 @@ const MORE_FIELDS = [
   ['story', 'Story behind the song', ''],
 ];
 
-function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle }) {
+function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle, artists = [] }) {
   const [more, setMore] = useState(false);
   const f = (k, max = 300) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
   const a = (k, num) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: num ? (e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null) : e.target.value }) });
@@ -721,7 +753,7 @@ function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle }) {
     <div className="flex flex-col gap-3.5">
       <Field label="Title"><Input {...f('title', 120)} placeholder="Song name" autoFocus={!song.title} className={ph} /></Field>
       {sameTitle && <p className="-mt-2 m-0 text-[13px] text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
-      <Field label="Artist"><Input {...f('artist', 120)} placeholder="Artist or band" className={ph} /></Field>
+      <Field label="Artist"><ArtistInput value={song.artist} artists={artists} className={ph} onChange={(artist) => onSong({ ...song, artist })} /></Field>
       <Field label="Release year"><Input inputMode="numeric" {...f('year', 4)} placeholder="1779" className={ph} /></Field>
       <Field label="Notes for the band"><textarea {...a('notes')} maxLength={1000} rows={2} placeholder="Shown with the chart" className={cn('w-full rounded-control border border-input bg-background p-3 font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', ph)} /></Field>
       <h3 className={grp}>Listen</h3>
@@ -906,7 +938,7 @@ function reviewIssues(song) {
  * screen). It scrolls away with the chart. The arrangement is a dropdown:
  * pick another, or rename / copy / make default / delete this one.
  */
-function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefault, onDelete, onNew, onArr, chords }) {
+function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefault, onDelete, onNew, onArr, chords, stacked = false }) {
   const [naming, setNaming] = useState(null);
   const [menu, setMenu] = useState(false);
   const num = (k) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null }) });
@@ -918,7 +950,7 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
     </label>
   );
   return (
-    <div className="flex w-max items-center gap-1.5">
+    <div className={stacked ? 'grid grid-cols-2 gap-1.5 [&>*:first-child]:col-span-2 [&>*]:w-full [&>*]:justify-between' : 'flex w-max items-center gap-1.5'}>
       {naming != null ? (
         <form className="flex shrink-0 items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
           <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
@@ -959,12 +991,31 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
   );
 }
 
+/** Artist, with the library's own artists offered as you type. */
+function ArtistInput({ value, onChange, artists, className }) {
+  const [open, setOpen] = useState(false);
+  const q = normalizeText(value || '').trim();
+  const hits = q ? artists.filter(a => { const n = normalizeText(a); return n.includes(q) && n !== q; }).slice(0, 6) : [];
+  return (
+    <div className="relative">
+      <Input value={value ?? ''} maxLength={120} placeholder="Artist or band" className={className} autoComplete="off"
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} />
+      {open && hits.length > 0 && (
+        <div role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 flex flex-col rounded-control border border-border bg-popover p-1.5 shadow-lg">
+          {hits.map(a => <button key={a} type="button" role="option" aria-selected="false" className={menuRow} onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(a); setOpen(false); }}>{a}</button>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * A new song starts here (user, 13 Nov): name, artist, key and tempo first,
  * the rest behind More, then the chart gets the whole screen. Everything here
  * stays on the Info tab and the row over the chart afterwards.
  */
-function NewSongDetails({ song, arr, onSong, onArr, sameTitle, onNext, onCancel }) {
+function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onNext, onCancel }) {
   const [more, setMore] = useState(false);
   const ph = 'placeholder:text-muted-foreground/50';
   const f = (k, max = 120) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
@@ -979,9 +1030,9 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, onNext, onCancel 
         </div>
         <Field label="Name"><Input {...f('title')} autoFocus={!song.title} placeholder="Amazing Grace" className={ph} /></Field>
         {sameTitle && <p className="-mt-2 m-0 text-[13px] text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
-        <Field label="Artist"><Input {...f('artist')} placeholder="Artist or band" className={ph} /></Field>
+        <Field label="Artist"><ArtistInput value={song.artist} artists={artists} className={ph} onChange={(artist) => onSong({ ...song, artist })} /></Field>
+        <Field label="Original key"><KeyGrid value={arr.key || ''} onPick={(key) => onArr({ ...arr, key })} /></Field>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Key"><KeyPicker value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} /></Field>
           <Field label="BPM"><Input inputMode="numeric" maxLength={3} value={arr.tempo ?? ''} placeholder="72" className={ph}
             onChange={(e) => onArr({ ...arr, tempo: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null })} /></Field>
         </div>
@@ -999,7 +1050,7 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, onNext, onCancel 
           <Button type="submit" disabled={!ready}>Next: the chart</Button>
           <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
         </div>
-        {!ready && <p className="m-0 text-[13px] text-muted-foreground">Still needs {need.join(', ')}.</p>}
+        {!ready && <p className="m-0 text-[13px] text-muted-foreground">Still needs {need.length > 1 ? `${need.slice(0, -1).join(', ')} and ${need.at(-1)}` : need[0]}.</p>}
       </form>
     </div>
   );
@@ -1049,6 +1100,13 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
     const t = normalizeText(working.title || '').trim();
     return t ? library.find(x => x && x.id !== working.id && normalizeText(x.title || '').trim() === t) || null : null;
   }, [library, working.title, working.id]);
+
+  // The library's artists, to pick from instead of typing (most used first).
+  const artists = useMemo(() => {
+    const count = new Map();
+    for (const x of library) { const a = x?.artist?.trim(); if (a && a !== 'Unknown') count.set(a, (count.get(a) || 0) + 1); }
+    return [...count.keys()].sort((a, b) => count.get(b) - count.get(a) || a.localeCompare(b));
+  }, [library]);
 
   // Never lose work: an unsaved copy stays on this device until it is saved
   // or thrown away, and the next open offers it back.
@@ -1160,7 +1218,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       onDone={(t) => { setWorking(w => applyMarkdown(w, arr.id, t)); setWhole(null); closeAll(); }} />
   ) : (
     <div className="flex flex-col gap-5">
-      <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />
+      {!wide && <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />}
       {arr.sections.map((x, i) => (
         <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} editing={editing} setEditing={setEditing} pick={pick} setPick={setPick} words={words} setWords={setWords} onArr={onArr} styleOf={styleOf}
           onTab={(line) => setTabEdit({ sec: i, line })}
@@ -1202,7 +1260,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
         setTabEdit(null);
       }} />
   );
-  const info = <InfoForm sameTitle={sameTitle} song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
+  const info = <InfoForm sameTitle={sameTitle} artists={artists} song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
   const view = useMemo(() => resolveSongView(working, arr.id), [working, arr.id]);
   const preview_ = arr.sections.length ? (
     <Suspense fallback={null}>
@@ -1229,7 +1287,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   const hasChords = arr.sections.some(sc => (sc.lines || []).some(l => typeof l === 'string' && l.includes('[')));
   const arrBar = (
     <ArrangementBar arrangements={arrangements} arr={arr} defaultId={working.defaultArrangementId || working.arrangements[0]?.id}
-      chords={hasChords} onArr={onArr}
+      chords={hasChords} onArr={onArr} stacked={wide}
       onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
       onRename={(name) => onArr({ ...arr, name })}
       onDefault={() => setWorking(w => setDefaultArrangement(w, arr.id), true)}
@@ -1244,7 +1302,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   if (step === 'details' && !draftFound) {
     return (
       <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
-        <NewSongDetails song={working} arr={arr} onSong={setWorking} onArr={onArr} sameTitle={sameTitle} onCancel={cancel} onNext={() => setStep(null)} />
+        <NewSongDetails song={working} arr={arr} onSong={setWorking} onArr={onArr} sameTitle={sameTitle} artists={artists} onCancel={cancel} onNext={() => setStep(null)} />
       </div>
     );
   }
@@ -1297,7 +1355,6 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
           <div className={cn('mx-auto flex w-full flex-col gap-3 pb-16', wide ? 'max-w-[760px] px-6 pt-4' : 'max-w-[680px] px-4 pt-3')}>
             <div className="flex items-center gap-2">
               {tabs}
-              {wide && tab === 'chart' && arrBar}
               <Button variant="ghost" size="sm" aria-pressed={preview} className={cn('ml-auto shrink-0 gap-1.5 px-2.5', preview && 'bg-raised text-foreground')} onClick={() => { closeAll(); setPreview(p => !p); }}>
                 <Svg size={17}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></Svg>Preview
               </Button>
@@ -1307,8 +1364,32 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
             <div className="pt-1">{preview && !wide ? preview_ : tab === 'chart' ? chart : info}</div>
           </div>
         );
+        const jump = (name) => {
+          const i = arr.sections.findIndex(x => x.type === name);
+          if (i < 0) return;
+          setTab('chart');
+          requestAnimationFrame(() => document.querySelector(`[data-slot="song-edit"] [data-sec="${i}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        };
+        const head = 'm-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
         return (
           <div className="flex min-h-0 flex-1">
+            {wide && (
+              // Desktop: the song's frame down the left (arrangement, numbers,
+              // the order to read, drag and jump with), so the chart starts at
+              // the top and keeps the whole middle.
+              <aside className="flex min-h-0 w-[272px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-border px-4 pb-10 pt-4">
+                <div className="flex flex-col gap-2">
+                  <h3 className={head}>Arrangement</h3>
+                  {arrBar}
+                </div>
+                {!whole && arr.sections.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <h3 className={head}>Order</h3>
+                    <OrderBar vertical order={order} names={names} styleOf={styleOf} onJump={jump} onChange={(o) => onArr(withOrder(arr, o))} />
+                  </div>
+                )}
+              </aside>
+            )}
             <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{main}</div>
             {wide && preview && (
               <aside className="flex min-h-0 w-[420px] shrink-0 flex-col border-l border-border">
