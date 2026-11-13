@@ -6,6 +6,7 @@ A running log of what's new in setlists.md. Newest releases first.
 *November 2026*
 
 ### Added
+- **Start your church or band** — after signing up, say what you're setting up (a church, a band or an invite link) and send a request. You see Waiting for approval until it's ready, then a welcome with Invite your band.
 - **New song from a setlist** — in a setlist's Add songs list, add a song that isn't in the library yet by importing a file or pasting it.
 - **Section headings your way** — in Play and Practice, pick Name, Chip or Both for section headings. The song page follows the same choice.
 
@@ -18,8 +19,10 @@ A running log of what's new in setlists.md. Newest releases first.
 - **Leaving mid-edit asks first** — from any way out, including notifications, switching church and closing the tab.
 - **Band cues on the song page** are quiet grey text beside the section name.
 - **Moving or copying songs to another church** is now a Labs switch, off by default.
+- **Every theme, font and colour is free** for everyone. No more "part of Pro" locks; your group's plan only decides Church features like services.
 
 ### Fixed
+- **Adding a third verse or chorus** in the song editor names it 3, not 2 again.
 - **Personal for church members** — accounts that sync Personal see it again, and opening it no longer bounces you back to your church.
 
 ## 0.23.0 — Import your songbook
