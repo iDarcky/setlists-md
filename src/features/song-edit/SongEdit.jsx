@@ -995,17 +995,23 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
 /** Artist, with the library's own artists offered as you type. */
 function ArtistInput({ value, onChange, artists, className }) {
   const [open, setOpen] = useState(false);
-  const q = normalizeText(value || '').trim();
-  // Empty field: your most used artists. Typing: the ones that match, accents ignored.
-  const hits = (q ? artists.filter(a => { const n = normalizeText(a); return n.includes(q) && n !== q; }) : artists).slice(0, 6);
+  // Several artists go in one field with commas: suggest for the one being typed.
+  const v = value || '';
+  const cut = v.lastIndexOf(',');
+  const before = cut >= 0 ? v.slice(0, cut + 1) : '';
+  const q = normalizeText(v.slice(cut + 1)).trim();
+  const have = new Set(before.split(',').map(x => normalizeText(x).trim()).filter(Boolean));
+  // Empty: your most used artists. Typing: the ones that match, accents ignored.
+  const hits = artists.filter(a => { const n = normalizeText(a); return !have.has(n) && (q ? n.includes(q) && n !== q : true); }).slice(0, 6);
+  const pick = (a) => { onChange(before ? `${before.replace(/\s*$/, '')} ${a}` : a); setOpen(false); };
   return (
     <div className="relative">
-      <Input value={value ?? ''} maxLength={120} placeholder="Artist or band" className={className} autoComplete="off"
+      <Input value={v} maxLength={120} placeholder="Artist or band, commas between several" className={className} autoComplete="off"
         onChange={(e) => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} />
       {open && hits.length > 0 && (
-        <div role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 flex flex-col rounded-control border border-border bg-popover p-1.5 shadow-lg">
-          {hits.map(a => <button key={a} type="button" role="option" aria-selected="false" className={menuRow} onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(a); setOpen(false); }}>{a}</button>)}
+        <div role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 flex flex-col rounded-control border border-border bg-card p-1.5 shadow-lg">
+          {hits.map(a => <button key={a} type="button" role="option" aria-selected="false" className={menuRow} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(a)}>{a}</button>)}
         </div>
       )}
     </div>
@@ -1037,10 +1043,10 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
         <div className="grid grid-cols-2 gap-2">
           <Field label="BPM"><Input inputMode="numeric" maxLength={3} value={arr.tempo ?? ''} placeholder="72" className={ph}
             onChange={(e) => onArr({ ...arr, tempo: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null })} /></Field>
+          <Field label="Time"><Input maxLength={5} value={arr.time ?? ''} placeholder="4/4" className={ph} onChange={(e) => onArr({ ...arr, time: e.target.value })} /></Field>
         </div>
         {more ? (
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Time"><Input maxLength={5} value={arr.time ?? ''} placeholder="4/4" className={ph} onChange={(e) => onArr({ ...arr, time: e.target.value })} /></Field>
             <Field label="Length"><Input maxLength={5} value={arr.duration ?? ''} placeholder="3:45" className={ph} onChange={(e) => onArr({ ...arr, duration: e.target.value })} /></Field>
             <div className="col-span-2"><Field label="YouTube link"><Input {...f('youtube', 300)} inputMode="url" placeholder="youtube.com/watch?v=…" className={ph} /></Field></div>
             <p className="col-span-2 m-0 text-[13px] text-muted-foreground">Credits, tags and the rest are on the Info tab, any time.</p>
@@ -1114,7 +1120,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   // The library's artists, to pick from instead of typing (most used first).
   const artists = useMemo(() => {
     const count = new Map();
-    for (const x of library) { const a = x?.artist?.trim(); if (a && a !== 'Unknown') count.set(a, (count.get(a) || 0) + 1); }
+    for (const x of library) for (const part of String(x?.artist || '').split(',')) { const a = part.trim(); if (a && a !== 'Unknown') count.set(a, (count.get(a) || 0) + 1); }
     return [...count.keys()].sort((a, b) => count.get(b) - count.get(a) || a.localeCompare(b));
   }, [library]);
 
@@ -1322,15 +1328,16 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   return (
     <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
       <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
-        {wide ? <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button> : <span className="w-1 shrink-0" />}
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 leading-tight">
+        {wide && <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>}
+        {/* Phone: no Cancel/Save up here, so the name sits left, like a page title. */}
+        <div className={cn('flex min-w-0 flex-1 flex-col gap-0.5 leading-tight', wide ? 'items-center' : 'items-start')}>
           {/* Title and artist are typed right here (QA 11 Nov), not only in Info. */}
           <input value={working.title ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, title: e.target.value })}
             placeholder={mode === 'new' ? 'New song' : 'Song name'} aria-label="Title" spellCheck={false}
-            className={cn(headIn, 'text-[15px] font-semibold text-foreground')} />
+            className={cn(headIn, 'text-[15px] font-semibold text-foreground', !wide && 'max-w-none text-left text-[17px]')} />
           <input value={working.artist ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, artist: e.target.value })}
             placeholder={checking ? `Checking · ${checking.left === 1 ? 'last one' : `${checking.left} left`}` : 'Artist'} aria-label="Artist" spellCheck={false}
-            className={cn(headIn, 'text-[12px] text-muted-foreground')} />
+            className={cn(headIn, 'text-[12px] text-muted-foreground', !wide && 'max-w-none text-left text-[13px]')} />
           {checking && working.artist && <span className="text-[11px] text-muted-foreground">Checking · {checking.left === 1 ? 'last one' : `${checking.left} left`}</span>}
         </div>
         <button type="button" aria-label="Undo" title="Undo" disabled={!hist.past.length} onClick={doUndo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></Svg></button>
