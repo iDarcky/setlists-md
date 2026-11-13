@@ -963,7 +963,7 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
         <NewSongForm value={value} onChange={onChange} artists={artists} sameTitle={sameTitle} />
         {wide && (
           <div className="flex items-center gap-2 pt-2">
-            <Button type="submit" disabled={!!missing}>Next: the chart</Button>
+            <Button type="submit" disabled={!!missing}>Next: Chart</Button>
             <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
           </div>
         )}
@@ -972,7 +972,7 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
       {!wide && (
         <div className="sticky bottom-0 mt-auto flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
           <Button variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
-          <Button className="flex-[2]" disabled={!!missing} onClick={onNext}>Next: the chart</Button>
+          <Button className="flex-[2]" disabled={!!missing} onClick={onNext}>Next: Chart</Button>
         </div>
       )}
     </div>

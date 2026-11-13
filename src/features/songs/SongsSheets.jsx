@@ -55,7 +55,7 @@ export function AddSongSheet({ open, onOpenChange, onSearch, onImport, onBlank, 
           {missing && <p className="m-0 text-[13px] text-muted-foreground">Still needs {missing}.</p>}
           <div className="flex gap-2 pt-1">
             <Button type="button" variant="outline" className="flex-1" onClick={() => setStep('pick')}>Back</Button>
-            <Button type="submit" className="flex-[2]" disabled={!!missing}>Next: the chart</Button>
+            <Button type="submit" className="flex-[2]" disabled={!!missing}>Next: Chart</Button>
           </div>
         </form>
       </Sheet>
