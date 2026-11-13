@@ -37,7 +37,7 @@ import { canFillVerseChords, fillVerseChords } from '@/lib/verseChords';
 // The song editor, built from zero (canvas → "Song, edit and chart", Edit
 // row). Two tabs instead of four: **Chart** is the chart itself, editable in
 // place (tap a line to change its words or chords), and **Info** is the form.
-// From 1024px both sit side by side and there are no tabs at all.
+// Preview is a button (beside the editor from 1024px, instead of it on a phone).
 //
 // It edits the v2 song object directly, one arrangement at a time, and hands
 // the whole song to onSave — the same door the old editor used.
@@ -55,6 +55,8 @@ const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Sv
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 // The header's title and artist: plain text until you tap, then a field.
 const headIn = 'h-6 w-full min-w-0 max-w-[420px] truncate rounded-[6px] border-0 bg-transparent px-1.5 text-center font-sans outline-none placeholder:text-muted-foreground/70 hover:bg-raised focus:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
+// One compact control in the details row over the chart.
+const pill = 'inline-flex h-9 min-h-0 shrink-0 cursor-pointer items-center gap-1 rounded-control border border-border bg-transparent px-2 font-sans text-[14px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
 const menuRow = 'flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised disabled:cursor-default disabled:opacity-40';
 const tool = 'flex h-10 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent px-2.5 font-sans text-[13px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -646,7 +648,7 @@ function Field({ label, children, hint }) {
 }
 
 /** Our own key dropdown: the 12 major keys, then the 12 minor ones. */
-function KeyPicker({ value, onChange, onMove }) {
+function KeyPicker({ value, onChange, onMove, compact = false }) {
   const [open, setOpen] = useState(false);
   const [to, setTo] = useState(null); // the key picked, while asking move or rename
   const keys = useMemo(() => keyOptions('flats'), []);
@@ -662,10 +664,17 @@ function KeyPicker({ value, onChange, onMove }) {
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); setTo(null); }}>
       <PopoverTrigger asChild>
-        <button type="button" aria-label={`Key ${value || 'not set'}, change`}
-          className="flex h-12 w-full min-w-0 cursor-pointer items-center justify-between gap-1 rounded-control border border-input bg-background px-3 font-mono text-[15px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11">
-          {value || '—'}<ChevronIcon />
-        </button>
+        {compact ? (
+          <button type="button" aria-label={`Key ${value || 'not set'}, change`} className={cn(pill, 'gap-1.5')}>
+            <span className="font-sans text-[12px] font-medium text-muted-foreground">Key</span>
+            <span className="font-mono text-[14px] font-semibold text-[var(--chord)]">{value || '—'}</span><ChevronIcon />
+          </button>
+        ) : (
+          <button type="button" aria-label={`Key ${value || 'not set'}, change`}
+            className="flex h-12 w-full min-w-0 cursor-pointer items-center justify-between gap-1 rounded-control border border-input bg-background px-3 font-mono text-[15px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11">
+            {value || '—'}<ChevronIcon />
+          </button>
+        )}
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-[300px] flex-col gap-2 p-2.5">
         {to ? (<>
@@ -891,58 +900,107 @@ function reviewIssues(song) {
  * in one band under them. Living together says "these belong to this
  * arrangement" without renaming any field. Tap the open tab for its menu.
  */
-function ArrangementBar({ arrangements, arr, defaultId, showTabs, onPick, onRename, onDefault, onDelete, onNew, onArr, chords }) {
+/**
+ * The arrangement and its numbers as ONE short row over the chart (user
+ * feedback 13 Nov: the old tabs + four big boxes took a quarter of a desktop
+ * screen). It scrolls away with the chart. The arrangement is a dropdown:
+ * pick another, or rename / copy / make default / delete this one.
+ */
+function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefault, onDelete, onNew, onArr, chords }) {
   const [naming, setNaming] = useState(null);
   const [menu, setMenu] = useState(false);
-  const tab = 'inline-flex h-11 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 border-transparent bg-transparent px-3 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
-  const ph = 'placeholder:text-muted-foreground/50';
   const num = (k) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null }) });
   const txt = (k) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: e.target.value }) });
-  const small = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-muted-foreground';
+  const box = (label, w, props, extra = {}) => (
+    <label className={cn(pill, 'cursor-text gap-1.5 focus-within:ring-2 focus-within:ring-ring')}>
+      <span className="text-[12px] font-medium text-muted-foreground">{label}</span>
+      <input {...props} {...extra} className={cn('h-full min-w-0 border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-foreground outline-none placeholder:text-muted-foreground/50', w)} />
+    </label>
+  );
   return (
-    <div className="shrink-0 border-b border-border bg-card">
-      {showTabs && (
-        <div role="tablist" aria-label="Arrangements" className="flex items-center gap-0.5 overflow-x-auto px-2">
-          {arrangements.map(a => a.id === arr.id && naming != null ? (
-            <form key={a.id} className="flex shrink-0 items-center gap-1 py-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
-              <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
-              <Button type="button" variant="ghost" size="sm" onClick={() => setNaming(null)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
-            </form>
-          ) : a.id === arr.id ? (
-            <Popover key={a.id} open={menu} onOpenChange={setMenu}>
-              <PopoverTrigger asChild>
-                <button type="button" role="tab" aria-selected="true" aria-label={`${a.name}, arrangement options`} className={cn(tab, 'border-foreground text-foreground')}>
-                  <span className="max-w-[180px] truncate">{a.name}</span>
-                  {a.id === defaultId && arrangements.length > 1 && <span className="rounded-full bg-raised px-1.5 text-[11px] font-medium text-muted-foreground">default</span>}
-                  <ChevronIcon />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="flex w-[240px] flex-col p-1.5">
-                <button type="button" className={menuRow} onClick={() => { setMenu(false); setNaming(a.name || ''); }}>Rename</button>
-                {onNew && <button type="button" className={menuRow} onClick={() => { setMenu(false); onNew(); }}>Make a copy</button>}
-                {arrangements.length > 1 && a.id !== defaultId && <button type="button" className={cn(menuRow, 'h-auto min-h-11 flex-col items-start gap-0 py-2')} onClick={() => { setMenu(false); onDefault(); }}>Make default<span className="text-[12px] font-normal text-muted-foreground">Opens first, and new setlists use it</span></button>}
-                {arrangements.length > 1 && <><div className="mx-1 my-1 h-px bg-border" /><button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { setMenu(false); onDelete(); }}>Delete arrangement</button></>}
-              </PopoverContent>
-            </Popover>
-          ) : (
-            <button key={a.id} type="button" role="tab" aria-selected="false" disabled={naming != null} onClick={() => onPick(a.id)} className={tab}>
-              <span className="max-w-[180px] truncate">{a.name}</span>
+    <div className="flex w-max items-center gap-1.5">
+      {naming != null ? (
+        <form className="flex shrink-0 items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
+          <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
+          <Button type="button" variant="ghost" size="sm" onClick={() => setNaming(null)}>Cancel</Button>
+          <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
+        </form>
+      ) : (
+        <Popover open={menu} onOpenChange={setMenu}>
+          <PopoverTrigger asChild>
+            <button type="button" aria-label={`Arrangement ${arr.name}, change`} className={pill}>
+              <span className="max-w-[160px] truncate">{arr.name || 'Arrangement'}</span>
+              {arrangements.length > 1 && <span className="text-[12px] text-muted-foreground">{arrangements.length}</span>}
+              <ChevronIcon />
             </button>
-          ))}
-          {onNew && (
-            <button type="button" onClick={onNew} disabled={naming != null} aria-label="New arrangement, a copy of this one" className={cn(tab, 'gap-1')}>
-              <PlusIcon size={14} />New
-            </button>
-          )}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="flex w-[260px] flex-col p-1.5">
+            <span className="px-2.5 pb-1 pt-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Arrangements</span>
+            {arrangements.map(a => (
+              <button key={a.id} type="button" aria-pressed={a.id === arr.id} className={cn(menuRow, a.id === arr.id && 'font-semibold')} onClick={() => { setMenu(false); if (a.id !== arr.id) onPick(a.id); }}>
+                <span className="w-4 shrink-0 text-[var(--chord)]">{a.id === arr.id ? '✓' : ''}</span>
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                {a.id === defaultId && arrangements.length > 1 && <span className="rounded-full bg-raised px-1.5 text-[11px] font-medium text-muted-foreground">default</span>}
+              </button>
+            ))}
+            {onNew && <button type="button" className={menuRow} onClick={() => { setMenu(false); onNew(); }}><PlusIcon size={14} />New arrangement<span className="text-[12px] text-muted-foreground">a copy</span></button>}
+            <div className="mx-1 my-1 h-px bg-border" />
+            <button type="button" className={menuRow} onClick={() => { setMenu(false); setNaming(arr.name || ''); }}>Rename {arr.name}</button>
+            {arrangements.length > 1 && arr.id !== defaultId && <button type="button" className={cn(menuRow, 'h-auto min-h-11 flex-col items-start gap-0 py-2')} onClick={() => { setMenu(false); onDefault(); }}>Make default<span className="text-[12px] font-normal text-muted-foreground">Opens first, and new setlists use it</span></button>}
+            {arrangements.length > 1 && <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { setMenu(false); onDelete(); }}>Delete {arr.name}</button>}
+          </PopoverContent>
+        </Popover>
       )}
-      <div className="mx-auto grid w-full max-w-[760px] grid-cols-4 gap-2 px-4 pb-3 pt-2">
-        <label className={small}>Key<KeyPicker value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} onMove={chords ? (to) => onArr({ ...transposeArrangement(arr, semitonesBetween(arr.key, to)), key: to }) : null} /></label>
-        <label className={small}>BPM<Input inputMode="numeric" maxLength={3} {...num('tempo')} placeholder="72" className={cn('h-12 sm:h-11', ph)} /></label>
-        <label className={small}>Time<Input maxLength={5} {...txt('time')} placeholder="4/4" className={cn('h-12 sm:h-11', ph)} /></label>
-        <label className={small}>Length<Input maxLength={5} {...txt('duration')} placeholder="3:45" className={cn('h-12 sm:h-11', ph)} /></label>
-      </div>
+      <KeyPicker compact value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} onMove={chords ? (to) => onArr({ ...transposeArrangement(arr, semitonesBetween(arr.key, to)), key: to }) : null} />
+      {box('BPM', 'w-[3ch]', num('tempo'), { inputMode: 'numeric', maxLength: 3, placeholder: '72', 'aria-label': 'BPM' })}
+      {box('Time', 'w-[3.2ch]', txt('time'), { maxLength: 5, placeholder: '4/4', 'aria-label': 'Time' })}
+      {box('Length', 'w-[4ch]', txt('duration'), { maxLength: 5, placeholder: '3:45', 'aria-label': 'Length' })}
+    </div>
+  );
+}
+
+/**
+ * A new song starts here (user, 13 Nov): name, artist, key and tempo first,
+ * the rest behind More, then the chart gets the whole screen. Everything here
+ * stays on the Info tab and the row over the chart afterwards.
+ */
+function NewSongDetails({ song, arr, onSong, onArr, sameTitle, onNext, onCancel }) {
+  const [more, setMore] = useState(false);
+  const ph = 'placeholder:text-muted-foreground/50';
+  const f = (k, max = 120) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
+  const ready = !!(song.title?.trim() && song.artist?.trim() && arr.key && arr.tempo);
+  const need = [!song.title?.trim() && 'a name', !song.artist?.trim() && 'an artist', !arr.key && 'a key', !arr.tempo && 'a BPM'].filter(Boolean);
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <form className="mx-auto flex w-full max-w-[480px] flex-col gap-3.5 px-4 pb-16 pt-6" onSubmit={(e) => { e.preventDefault(); if (ready) onNext(); }}>
+        <div className="flex flex-col gap-1 pb-1">
+          <h2 className="m-0 text-[22px] font-semibold tracking-[-0.01em]">New song</h2>
+          <p className="m-0 text-[14px] text-muted-foreground">The basics first. Then the chart gets the whole screen.</p>
+        </div>
+        <Field label="Name"><Input {...f('title')} autoFocus={!song.title} placeholder="Amazing Grace" className={ph} /></Field>
+        {sameTitle && <p className="-mt-2 m-0 text-[13px] text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
+        <Field label="Artist"><Input {...f('artist')} placeholder="Artist or band" className={ph} /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Key"><KeyPicker value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} /></Field>
+          <Field label="BPM"><Input inputMode="numeric" maxLength={3} value={arr.tempo ?? ''} placeholder="72" className={ph}
+            onChange={(e) => onArr({ ...arr, tempo: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null })} /></Field>
+        </div>
+        {more ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Time"><Input maxLength={5} value={arr.time ?? ''} placeholder="4/4" className={ph} onChange={(e) => onArr({ ...arr, time: e.target.value })} /></Field>
+            <Field label="Length"><Input maxLength={5} value={arr.duration ?? ''} placeholder="3:45" className={ph} onChange={(e) => onArr({ ...arr, duration: e.target.value })} /></Field>
+            <div className="col-span-2"><Field label="YouTube link"><Input {...f('youtube', 300)} inputMode="url" placeholder="youtube.com/watch?v=…" className={ph} /></Field></div>
+            <p className="col-span-2 m-0 text-[13px] text-muted-foreground">Credits, tags and the rest are on the Info tab, any time.</p>
+          </div>
+        ) : (
+          <Button type="button" variant="outline" className="self-start" onClick={() => setMore(true)}>More</Button>
+        )}
+        <div className="flex items-center gap-2 pt-2">
+          <Button type="submit" disabled={!ready}>Next: the chart</Button>
+          <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+        </div>
+        {!ready && <p className="m-0 text-[13px] text-muted-foreground">Still needs {need.join(', ')}.</p>}
+      </form>
     </div>
   );
 }
@@ -966,8 +1024,9 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   const redo = () => setHist(h => (h.future.length ? { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1), at: 0 } : h));
   const [tabEdit, setTabEdit] = useState(null); // { sec, line | null }: the tab grid is open
   const [arrId, setArrId] = useState(() => (song.arrangements?.some(a => a.id === initialArrangementId) ? initialArrangementId : song.defaultArrangementId || song.arrangements?.[0]?.id));
-  const [tab, setTab] = useState('chart'); // phone: chart | info | preview
-  const [side, setSide] = useState('info'); // wide: the right column, info | preview
+  const [tab, setTab] = useState('chart'); // chart | info
+  const [preview, setPreview] = useState(false); // the read-only chart, beside (wide) or instead of (phone) the editor
+  const [step, setStep] = useState(mode === 'new' ? 'details' : null); // a new song asks the basics first
   const [whole, setWhole] = useState(null); // null | 'paste' | 'text'
   const [editing, setEditing] = useState(null); // { sec, line }: an open key change
   const [pick, setPick] = useState(null); // { sec, line, pos }: the letter the chord bar is for
@@ -1112,7 +1171,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       {arr.sections.length === 0 && <AddSection big onAdd={(t) => { const r = addSection(arr, -1, t); onArr(r.arr); setWords(r.index); }} />}
     </div>
   );
-  const chordBar = pick && typeof pickedLine === 'string' && !whole && (wide || tab === 'chart') ? (
+  const chordBar = pick && typeof pickedLine === 'string' && !whole && tab === 'chart' && !(preview && !wide) ? (
     <ChordBar key={`${pick.sec}-${pick.line}-${pick.pos}`} line={pickedLine} lineId={`${pick.sec}-${pick.line}`} pos={pick.pos} palette={palette} popover={wide}
       onClose={closePick}
       onPut={(c) => onArr(setLines(arr, pick.sec, arr.sections[pick.sec].lines.map((l, n) => (n === pick.line ? setChordAt(l, pick.pos, c) : l))))} />
@@ -1145,7 +1204,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   );
   const info = <InfoForm sameTitle={sameTitle} song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
   const view = useMemo(() => resolveSongView(working, arr.id), [working, arr.id]);
-  const preview = arr.sections.length ? (
+  const preview_ = arr.sections.length ? (
     <Suspense fallback={null}>
       <div className="relative min-h-[60vh]">
         <Reader embedded narrow song={view} displayMode="chords" settings={settings} onUpdateSettings={onUpdateSettings} selectedKey={arr.key} onSelectKey={() => {}} />
@@ -1153,14 +1212,6 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
     </Suspense>
   ) : <p className="m-0 py-10 text-center text-[14px] text-muted-foreground">The chart shows here once the song has a section.</p>;
 
-  const seg = (items, value, onPick) => (
-    <div role="tablist" className="flex flex-1 gap-0.5 rounded-[10px] bg-raised p-[3px]">
-      {items.map(([id, l]) => (
-        <button key={id} type="button" role="tab" aria-selected={value === id} onClick={() => onPick(id)}
-          className={cn('h-[34px] min-h-0 flex-1 cursor-pointer rounded-[7px] border-0 bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', value === id && 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.18)]')}>{l}</button>
-      ))}
-    </div>
-  );
   // A new YouTube link fills an empty Length from the video.
   const ytId = youtubeId(working.youtube || '');
   const lastYt = useRef(ytId);
@@ -1178,7 +1229,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   const hasChords = arr.sections.some(sc => (sc.lines || []).some(l => typeof l === 'string' && l.includes('[')));
   const arrBar = (
     <ArrangementBar arrangements={arrangements} arr={arr} defaultId={working.defaultArrangementId || working.arrangements[0]?.id}
-      showTabs={arrangements.length > 1 || mode === 'edit'} chords={hasChords} onArr={onArr}
+      chords={hasChords} onArr={onArr}
       onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
       onRename={(name) => onArr({ ...arr, name })}
       onDefault={() => setWorking(w => setDefaultArrangement(w, arr.id), true)}
@@ -1189,6 +1240,14 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       }}
       onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song, true); setArrId(r.arrangementId); closeAll(); } : null} />
   );
+
+  if (step === 'details' && !draftFound) {
+    return (
+      <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
+        <NewSongDetails song={working} arr={arr} onSong={setWorking} onArr={onArr} sameTitle={sameTitle} onCancel={cancel} onNext={() => setStep(null)} />
+      </div>
+    );
+  }
 
   return (
     <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
@@ -1221,35 +1280,50 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
         <div role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-warning-fill px-4 py-2">
           <span className="flex-1 text-[14px] text-foreground">Restore your unsaved changes{draftFound.at ? ` from ${new Date(draftFound.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}?</span>
           <Button size="sm" variant="ghost" onClick={() => { dropDraft(); setDraftFound(null); }}>Discard</Button>
-          <Button size="sm" onClick={() => { const d = draftFound.song; setWorking(mode === 'new' ? { ...d, id: song.id } : d, true); setArrId(d.defaultArrangementId || d.arrangements[0].id); setDraftFound(null); }}>Restore</Button>
+          <Button size="sm" onClick={() => { setStep(null); const d = draftFound.song; setWorking(mode === 'new' ? { ...d, id: song.id } : d, true); setArrId(d.defaultArrangementId || d.arrangements[0].id); setDraftFound(null); }}>Restore</Button>
         </div>
       )}
-      {arrBar}
-      {missing && (fresh || dirty) && <p className="m-0 shrink-0 border-b border-border bg-raised px-4 py-1.5 text-center text-[13px] text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>}
-      {wide ? (
-        <div className="flex min-h-0 flex-1">
-          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-[760px] px-6 pb-16 pt-5">{chart}</div>
+      {(() => {
+        const tabs = (
+          <div role="tablist" className="flex w-[150px] shrink-0 gap-0.5 rounded-[10px] bg-raised p-[3px]">
+            {[['chart', 'Chart'], ['info', 'Info']].map(([id, l]) => (
+              <button key={id} type="button" role="tab" aria-selected={tab === id && !(preview && !wide)} onClick={() => { setTab(id); closeAll(); if (!wide) setPreview(false); }}
+                className={cn('h-8 min-h-0 flex-1 cursor-pointer rounded-[7px] border-0 bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', tab === id && !(preview && !wide) && 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.18)]')}>{l}</button>
+            ))}
           </div>
-          <aside className="flex min-h-0 w-[420px] shrink-0 flex-col border-l border-border">
-            <div className="flex shrink-0 px-5 pb-2 pt-3">{seg([['info', 'Info'], ['preview', 'Preview']], side, setSide)}</div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-16 pt-2">{side === 'info' ? info : preview}</div>
-          </aside>
-          {chordBar}
-          {tabTool}
-        </div>
-      ) : (
-        <>
-          <div className="mx-auto flex w-full max-w-[680px] shrink-0 px-4 py-2.5">
-            {seg([['chart', 'Chart'], ['info', 'Info'], ['preview', 'Preview']], tab, (id) => { setTab(id); closeAll(); })}
+        );
+        const need = missing && (fresh || dirty) && <p className="m-0 text-[13px] text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>;
+        const main = (
+          <div className={cn('mx-auto flex w-full flex-col gap-3 pb-16', wide ? 'max-w-[760px] px-6 pt-4' : 'max-w-[680px] px-4 pt-3')}>
+            <div className="flex items-center gap-2">
+              {tabs}
+              {wide && tab === 'chart' && arrBar}
+              <Button variant="ghost" size="sm" aria-pressed={preview} className={cn('ml-auto shrink-0 gap-1.5 px-2.5', preview && 'bg-raised text-foreground')} onClick={() => { closeAll(); setPreview(p => !p); }}>
+                <Svg size={17}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></Svg>Preview
+              </Button>
+            </div>
+            {!wide && tab === 'chart' && !preview && <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none]">{arrBar}</div>}
+            {need}
+            <div className="pt-1">{preview && !wide ? preview_ : tab === 'chart' ? chart : info}</div>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-[680px] px-4 pb-16 pt-1">{tab === 'chart' ? chart : tab === 'info' ? info : preview}</div>
+        );
+        return (
+          <div className="flex min-h-0 flex-1">
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{main}</div>
+            {wide && preview && (
+              <aside className="flex min-h-0 w-[420px] shrink-0 flex-col border-l border-border">
+                <div className="flex shrink-0 items-center justify-between px-5 pb-1 pt-3">
+                  <b className="text-[14px] font-semibold">Preview</b>
+                  <Button variant="ghost" size="sm" onClick={() => setPreview(false)}>Close</Button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-16 pt-1">{preview_}</div>
+              </aside>
+            )}
+            {chordBar}
+            {tabTool}
           </div>
-          {chordBar}
-          {tabTool}
-        </>
-      )}
+        );
+      })()}
       {history && (
         <VersionHistory songId={song.id} teamId={historyTeamId} nameOf={nameOf} onClose={() => setHistory(false)}
           onRestore={(v) => {
