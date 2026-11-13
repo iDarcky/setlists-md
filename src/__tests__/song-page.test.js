@@ -63,6 +63,11 @@ describe('songEdit', () => {
     expect(index).toBe(1);
     expect(out.sections[1].type).toBe('Verse 2');
     expect(newSectionName([{ type: 'Verse 1' }, { type: 'Verse 2' }], 'Verse')).toBe('Verse 3');
+    // A bare name counts as 1: the third verse/chorus is 3, not a second 2.
+    expect(newSectionName([{ type: 'Verse' }, { type: 'Verse 2' }], 'Verse')).toBe('Verse 3');
+    expect(newSectionName([{ type: 'Chorus' }, { type: 'Verse 2' }, { type: 'Chorus 2' }], 'Chorus')).toBe('Chorus 3');
+    expect(newSectionName([{ type: 'Chorus' }], 'Chorus')).toBe('Chorus 2');
+    expect(newSectionName([{ type: 'Verse 1' }], 'Bridge')).toBe('Bridge');
     expect(out.structure.at(-1)).toBe('Verse 2');
   });
   it('follows the sections when there is no custom order', () => {

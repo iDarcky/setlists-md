@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { chartOverlaySurface } from './readerSurface';
 import { normalizeRibbonStyle } from '@/lib/readerConfig';
@@ -25,7 +24,6 @@ import {
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
-  FREE_CHART_THEME_IDS,
 } from '@/data/chartThemes';
 
 /**
@@ -430,34 +428,6 @@ function Picks({ value, options, onChange }) {
   );
 }
 
-/**
- * A locked control. A SENTENCE and a way out, not just a sentence — the old
- * `ProNote` told you what you couldn't do and left you there.
- */
-function LockedNote({ children, onUpgrade }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-      <ProNote>{children}</ProNote>
-      {onUpgrade && (
-        <button type="button" onClick={onUpgrade}
-          className="min-h-0 text-[14px] font-semibold cursor-pointer bg-transparent border-none px-1.5 py-1.5 -my-1.5 -mx-1.5 underline underline-offset-2"
-          style={{ color: 'var(--color-brand)' }}>
-          Upgrade
-        </button>
-      )}
-    </div>
-  );
-}
-
-function LockGlyph() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
 function Arrow({ dir, onClick, disabled, what }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
@@ -531,60 +501,31 @@ function Carousel({ children, what = 'options' }) {
   );
 }
 
-/**
- * The themes. The locked ones are SHOWN, dimmed, with a padlock — not filtered
- * out, which is what it used to do: 3 of 10 themes existed on a free plan and
- * the other 7 did not, so there was nothing to want. Seeing them is most of the
- * pitch; tapping one goes to the upgrade screen rather than silently doing
- * nothing.
- */
-function ThemeCarousel({ themes, activeId, allowed, onPick, onUpgrade }) {
-  const lockedCount = allowed ? 0 : themes.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).length;
+/** The themes, all of them open to everyone. */
+function ThemeCarousel({ themes, activeId, onPick }) {
   return (
-    <>
-      <Carousel what="themes">
-        {themes.map(t => {
-          const locked = !allowed && !FREE_CHART_THEME_IDS.has(t.id);
-          const on = activeId === t.id;
-          return (
-            <button
-              key={t.id} type="button"
-              onClick={() => (locked ? onUpgrade?.() : onPick(t.id))}
-              className="relative shrink-0 min-h-0 h-12 w-[84px] rounded-lg overflow-hidden cursor-pointer flex items-end justify-end px-2 py-1.5"
-              style={{
-                backgroundColor: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
-                opacity: locked ? 0.45 : 1,
-                boxShadow: on
-                  ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
-                  : 'inset 0 0 0 1px var(--border-2)',
-              }}
-              aria-label={locked ? `${t.name} — upgrade to use` : `Theme: ${t.name}`}
-              aria-pressed={on} title={t.name}
-            >
-              <span className="text-[12px] font-bold">Am</span>
-              {locked && (
-                <span className="absolute inset-0 grid place-items-center" style={{ color: t.text || t.chord }}>
-                  <LockGlyph />
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </Carousel>
-
-      {lockedCount > 0 && onUpgrade && (
-        <button type="button" onClick={onUpgrade}
-          className="mt-2.5 w-full min-h-0 h-11 rounded-lg border text-[13.5px] font-semibold cursor-pointer flex items-center justify-center gap-2 transition-colors"
-          style={{
-            borderColor: 'var(--color-brand)',
-            color: 'var(--color-brand)',
-            backgroundColor: 'var(--color-brand-soft)',
-          }}>
-          <LockGlyph />
-          Unlock {lockedCount} more themes
-        </button>
-      )}
-    </>
+    <Carousel what="themes">
+      {themes.map(t => {
+        const on = activeId === t.id;
+        return (
+          <button
+            key={t.id} type="button"
+            onClick={() => onPick(t.id)}
+            className="relative shrink-0 min-h-0 h-12 w-[84px] rounded-lg overflow-hidden cursor-pointer flex items-end justify-end px-2 py-1.5"
+            style={{
+              backgroundColor: t.bg, color: t.chord, fontFamily: 'var(--font-mono)',
+              boxShadow: on
+                ? '0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--color-brand)'
+                : 'inset 0 0 0 1px var(--border-2)',
+            }}
+            aria-label={`Theme: ${t.name}`}
+            aria-pressed={on} title={t.name}
+          >
+            <span className="text-[12px] font-bold">Am</span>
+          </button>
+        );
+      })}
+    </Carousel>
   );
 }
 
@@ -725,7 +666,6 @@ export default function ReaderMenu({
   dock = false,
   // Where a locked control sends you. Absent → the lock is stated but not
   // sellable, which is what every locked control here used to be.
-  onUpgrade = null,
   // Going live, and leaving it. The reader's bar shows the STATE (a red LIVE
   // badge in the slot before the ✕); this is the SWITCH. They were split
   // because the bar was carrying both and truncating the song title to "Amaz…"
@@ -742,7 +682,6 @@ export default function ReaderMenu({
   liveAvailable = false,
 }) {
   const [tab, setTab] = useState('style');
-  const { allowed: styleAllowed } = useEntitlement('chart-style');
   // Two columns only APPLY at ≥768 (`Reader`'s `wide`), so that is where the
   // control appears. It used to hide below 700 — the sheet/popover threshold —
   // which left 700–767 (iPad mini portrait is 744) showing a switch that wrote
@@ -757,8 +696,8 @@ export default function ReaderMenu({
   // only CSS — a woff2 is fetched when text actually uses it — so register
   // them all while the Style tab is open, or every preview is the fallback.
   useEffect(() => {
-    if (tab === 'style' && styleAllowed) SELF_HOSTED_CHART_FONTS.forEach(ensureChartFont);
-  }, [tab, styleAllowed]);
+    if (tab === 'style') SELF_HOSTED_CHART_FONTS.forEach(ensureChartFont);
+  }, [tab]);
 
   // Escape closes. With tabs there is no level to back out of first.
   useEffect(() => {
@@ -1100,9 +1039,7 @@ export default function ReaderMenu({
             <ThemeCarousel
               themes={CHART_THEMES}
               activeId={themeId}
-              allowed={styleAllowed}
               onPick={(id) => set('chartTheme', id)}
-              onUpgrade={onUpgrade}
             />
           </Field>
 
@@ -1113,17 +1050,13 @@ export default function ReaderMenu({
               <Stepper size="lg" value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
             </Field>
             <Field label="Font">
-              {styleAllowed
-                ? <Dropdown label="Lyric font" options={FONT_OPTIONS} styleOf={fontStyle}
+              <Dropdown label="Lyric font" options={FONT_OPTIONS} styleOf={fontStyle}
                     value={settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID}
                     onChange={(id) => set('chartLyricFont', id)} />
-                : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
             </Field>
           </Pair>
-          {styleAllowed
-            ? <ColorRow label="Colour" value={settings?.chartLyricColor}
+          <ColorRow label="Colour" value={settings?.chartLyricColor}
                 onPick={(v) => set('chartLyricColor', v || undefined)} />
-            : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
           {/* ── Chords ───────────────────────────────────────────────────── */}
           <GroupTitle>Chords</GroupTitle>
@@ -1132,17 +1065,13 @@ export default function ReaderMenu({
               <Stepper size="lg" value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
             </Field>
             <Field label="Font">
-              {styleAllowed
-                ? <Dropdown label="Chord font" options={FONT_OPTIONS} styleOf={fontStyle}
+              <Dropdown label="Chord font" options={FONT_OPTIONS} styleOf={fontStyle}
                     value={settings?.chartChordFont || DEFAULT_CHORD_FONT_ID}
                     onChange={(id) => set('chartChordFont', id)} />
-                : <LockedNote onUpgrade={onUpgrade}>Fonts are part of Pro.</LockedNote>}
             </Field>
           </Pair>
-          {styleAllowed
-            ? <ColorRow label="Colour" value={settings?.chartChordColor}
+          <ColorRow label="Colour" value={settings?.chartChordColor}
                 onPick={(v) => set('chartChordColor', v || undefined)} />
-            : <Field label="Colour"><LockedNote onUpgrade={onUpgrade}>Colours are part of Pro.</LockedNote></Field>}
 
           {/* ── Spacing ──────────────────────────────────────────────────────
               Free, like every size above it. Anything that makes the chart
@@ -1184,20 +1113,12 @@ export default function ReaderMenu({
                 onChange={(v) => set('tabSubdivision', v)} />
             </Field>
           </Pair>
-          {styleAllowed ? (
-            <>
-              <ColorRow label="Tab strings" value={settings?.tabStringColor}
-                onPick={(v) => set('tabStringColor', v || undefined)} />
-              <ColorRow label="Tab numbers" value={settings?.tabNumberColor}
-                onPick={(v) => set('tabNumberColor', v || undefined)} />
-              <ColorRow label="Tab background" value={settings?.tabBg}
-                onPick={(v) => set('tabBg', v || undefined)} />
-            </>
-          ) : (
-            <Field label="Tab colours">
-              <LockedNote onUpgrade={onUpgrade}>Tab colours are part of Pro.</LockedNote>
-            </Field>
-          )}
+          <ColorRow label="Tab strings" value={settings?.tabStringColor}
+            onPick={(v) => set('tabStringColor', v || undefined)} />
+          <ColorRow label="Tab numbers" value={settings?.tabNumberColor}
+            onPick={(v) => set('tabNumberColor', v || undefined)} />
+          <ColorRow label="Tab background" value={settings?.tabBg}
+            onPick={(v) => set('tabBg', v || undefined)} />
         </>
       )}
 

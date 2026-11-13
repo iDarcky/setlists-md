@@ -24,7 +24,6 @@ import AaMenu from '@/features/chart/AaMenu';
 import ReaderMenu from './ReaderMenu';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import ChordPopover from '@/features/chart/ChordPopover';
-import { useEntitlement } from '@/hooks/useEntitlement';
 import { useMetronome } from '@/hooks/useMetronome';
 import { clampTempo } from '@/lib/metronome';
 import { isPitched } from '@/data/instruments';
@@ -386,7 +385,6 @@ export default function Reader({
   onEditingChange = null,
   // Element 28: where a locked control in the ☰ sends you. Absent → the lock
   // is stated but not sellable.
-  onUpgrade = null,
   // False on the public guest link, which has its own strip instead.
   showMenu = true,
 }) {
@@ -463,7 +461,6 @@ export default function Reader({
   const [dockH, setDockH] = useState(0);
   // Element 11 — the chord you tapped, and where it was.
   const [tappedChord, setTappedChord] = useState(null);
-  const { allowed: canSeeShapes } = useEntitlement('chord-diagrams');
   // ⚠ The toggle is on the OCCURRENCE, not the chord name. Keyed on the name,
   // tapping the G in the chorus while the G from verse 1 was open read as
   // "same chord again" and closed — so a tap on a chord you had not asked
@@ -1767,7 +1764,6 @@ export default function Reader({
   const menuNode = ownAaAnchor && !editing ? (
     <ReaderMenu
       dock={menuDocks ? 'bottom' : 'side'}
-      onUpgrade={onUpgrade}
       anchorRect={ownAaAnchor}
       onClose={() => setOwnAaAnchor(null)}
       settings={settings}
@@ -2387,7 +2383,7 @@ export default function Reader({
                 // 2026-08-04: "maybe we can have an option to turn them off").
                 // Default ON, because element 11's whole argument is that a
                 // diagram you ask for costs nothing until you ask.
-                : (canSeeShapes && settings?.showDiagrams !== false ? onChordTap : null)}
+                : (settings?.showDiagrams !== false ? onChordTap : null)}
               showChords={showChords}
               showLyrics={showLyrics}
               editing={editing}

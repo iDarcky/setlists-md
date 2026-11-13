@@ -671,30 +671,33 @@ RLS must allow each user to `select`/`update` their own profile row
 
 ## Entitlements
 
-Feature gating uses `useEntitlement(feature)` from `hooks/useEntitlement.js`.
-It resolves the current plan against a hierarchy (`free < sync < team < church`)
-and returns `{ allowed, requiredPlan, currentPlan, subscriptionStatus }`.
+**The plan lives on the group (`teams.plan`), never on a person.** There is no
+Pro, no Sync and no personal tier (removed 2026-11-13, after a church member
+was told "Fonts are part of Pro"). Seats are the main limit and the database
+enforces them (`teams.max_seats`, in `invite_user_to_team` and
+`approve_join_request_internal`).
 
-The current plan is **context-aware**:
-- In the Personal workspace it reads `profile.subscription_tier` (canonical;
-  the legacy `profile.plan` column was dropped in `20260522_plans_migration`),
-  with one-time-Pro carve-outs via `profile.is_pro`.
-- In a team/church workspace it reads **`team.plan`** — the workspace's own
-  tier — *and* requires the workspace's `team.subscription_status` to be
-  `active`/`trialing`. A lapsed subscription drops the whole workspace to
-  free-tier access (gates paid features off). Status defaults to `active` when
-  the column is absent, so pre-migration projects keep working.
+`useEntitlement(feature)` (`hooks/useEntitlement.js`) answers "does the open
+group's plan include this?" and returns
+`{ allowed, requiredPlan, currentPlan, subscriptionStatus }`. Ranks are
+`free < team < church`; Personal ranks as `free`.
 
-Gated features and their minimum plan:
-- `cloud-sync`, `smart-import` → `sync`
-- `team-create`, `team-library`, `team-collab`, `team-roles` → `team`
-- `multi-service` → `church`
+- A feature with **no entry** in `FEATURE_GATES` is open to everyone,
+  everywhere. Chart style (themes, fonts, colours), chord shapes and import
+  are all open. Do not add a gate for anything that makes a chart readable.
+- The only gate today is `multi-service` → `church`. It also needs the group's
+  `subscription_status` to be `active`/`trialing` (defaults to `active`).
+- `checkEntitlement(plan, feature)` is the pure version; it takes a GROUP plan.
 
-A non-hook version `checkEntitlement(plan, feature, isPro)` is available for use
-outside React components (plan-only; it has no team-subscription context).
+Two leftovers still read `profiles.subscription_tier`, both on purpose and
+both temporary: `personalCloudAllowed(profile)` (Personal's cloud copy, kept
+only for the accounts that already had it, until Personal is removed) and
+`hasTeamPlan` in `TeamProvider` (who may create a group, until the new plans
+are decided). `profiles.is_pro` is read by nothing and can be dropped once
+every installed copy of the app is past this change.
 
-The `UpgradeGate` component (`ui/UpgradeGate.jsx`) wraps gated content
-and shows a branded upgrade prompt when the user's plan is insufficient.
+`ui/UpgradeGate.jsx` is no longer mounted by anything live. There are no
+upgrade prompts in the app: pricing lives on the website.
 
 ### Team Provider
 
@@ -747,7 +750,7 @@ Each team/church workspace is its own Stripe subscription, paid by the team
 - **CSP + embeds** (`vercel.json`, enforcing — not applied by `npm run dev`): the Spotify/YouTube backing-track embeds need `*.spotifycdn.com` in `script-src`/`connect-src` (the iframe-api pulls its real code from `embed-cdn.spotifycdn.com`). **Spotify playback was dropped** because its embed API runs via `eval()` (would need `'unsafe-eval'`, a whole-app downgrade) and only streams full tracks to signed-in Spotify users; `SongPlayerBar` is YouTube-only. Spotify links still drive **cover art** (`lib/coverArt.js` → the `cover-art` edge function, server-side oEmbed — no eval, no CSP issue). `lib/embedPlayers.js` loads the IFrame APIs once and clears its memo on failure so a blocked first load can retry; `SongPlayerBar` has a readiness **watchdog** that re-creates a stalled player (auto-recovers the dropped first-init).
 - Preference hydration runs **once per user id** via `prefsHydratedForUserRef` — don't re-run it on every profile change or you'll clobber a later local edit with the cloud value. The ref is cleared on sign-out.
 - Only keys in `PORTABLE_PREF_KEYS` (App.jsx) are allowed in `profile.preferences`. Adding a new portable preference? Add its key to that array or it won't follow the user across devices.
-- The `profiles.preferences` column is optional at runtime — `AuthProvider` falls back to a base `select('id, email, display_name, is_pro, subscription_tier')` if the column doesn't exist, so sign-in works even before the migration is applied. The push side swallows the error.
+- The `profiles.preferences` column is optional at runtime — `AuthProvider` falls back to a base `select('id, email, display_name, subscription_tier')` if the column doesn't exist, so sign-in works even before the migration is applied. The push side swallows the error.
 - Auth callback URL handling is split: OAuth stays on `/auth/callback` (dedicated `AuthCallback.jsx`). Magic links and recovery links land on `/` and rely on App.jsx's cleanup effect — don't add a new redirect target without wiring a matching cleanup branch.
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
