@@ -40,11 +40,18 @@ export function move(list, i, d) {
 
 /** "Verse" → "Verse 4" when Verse 1–3 exist; "Bridge" stays "Bridge" the first time. */
 export function newSectionName(sections, base) {
-  const names = new Set((sections || []).map(s => s.type));
-  if (!names.has(base) && ![...names].some(n => n.startsWith(`${base} `))) return base;
+  const names = (sections || []).map(s => s.type);
+  // The numbers already used: a bare "Verse" counts as 1, so a song with
+  // "Verse" and "Verse 2" gets "Verse 3", never a second "Verse 2".
+  const prefix = `${base} `;
+  const taken = new Set();
+  for (const n of names) {
+    if (n === base) taken.add(1);
+    else if (n?.startsWith(prefix) && /^\d+$/.test(n.slice(prefix.length))) taken.add(Number(n.slice(prefix.length)));
+  }
+  if (!taken.size && !names.some(n => n?.startsWith(prefix))) return base;
   let n = 1;
-  while (names.has(`${base} ${n}`)) n++;
-  if (n === 1 && names.has(base)) n = 2;
+  while (taken.has(n)) n++;
   return `${base} ${n}`;
 }
 
