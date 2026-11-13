@@ -25,7 +25,7 @@ import {
   playOrder, withOrder, move, renameSection, newSectionName, deleteSection, addSection, setLines, setSection,
   chordPalette, sectionToText, textToLines, SECTION_TYPES,
   arrangementToText, textToSections, blocksToSections, setChordAt, songMarkdown, applyMarkdown,
-  linesToWords, remapWords, wordsToLines, lineRuns, runsToLines, setLineNotes,
+  linesToWords, remapWords, wordsToLines, lineRuns, runsToLines, setLineNotes, pastedLines,
 } from '@/lib/songEdit';
 import { MoreIcon } from '@/features/song/SongView';
 
@@ -53,6 +53,8 @@ const TextIcon = () => <Svg><path d="M5 6h14M12 6v13M9 19h6" /></Svg>;
 const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Svg>;
 
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
+// The header's title and artist: plain text until you tap, then a field.
+const headIn = 'h-6 w-full min-w-0 max-w-[420px] truncate rounded-[6px] border-0 bg-transparent px-1.5 text-center font-sans outline-none placeholder:text-muted-foreground/70 hover:bg-raised focus:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 const menuRow = 'flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised disabled:cursor-default disabled:opacity-40';
 const tool = 'flex h-10 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent px-2.5 font-sans text-[13px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -248,6 +250,27 @@ function WordsRun({ lines, onChange, autoFocus, placeholder }) {
     setW({ text, marks });
     onChange(wordsToLines(text, marks));
   };
+  // A paste that carries chords ([G] inline or a chord line over the words)
+  // keeps them; plain words paste as the browser does.
+  const paste = (e) => {
+    const lines = pastedLines(e.clipboardData?.getData('text/plain'));
+    if (!lines) return;
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const from = ta.selectionStart ?? w.text.length;
+    const to = ta.selectionEnd ?? from;
+    // A block pasted mid-line starts on a line of its own.
+    const add = linesToWords(lines.length > 1 && from > 0 && w.text[from - 1] !== '\n' ? ['', ...lines] : lines);
+    const text = w.text.slice(0, from) + add.text + w.text.slice(to);
+    const marks = [
+      ...remapWords(w.text, text, w.marks).filter(m => m.at < from || m.at >= from + add.text.length),
+      ...add.marks.map(m => ({ ...m, at: m.at + from })),
+    ];
+    setW({ text, marks });
+    onChange(wordsToLines(text, marks));
+    const caret = from + add.text.length;
+    requestAnimationFrame(() => { try { ta.setSelectionRange(caret, caret); } catch { /* unmounted */ } });
+  };
   const chordAt = new Map(w.marks.filter(m => !m.notes).map(m => [m.at, m.chord]));
   const rows = w.text.split('\n');
   const starts = rows.reduce((acc, r, k) => [...acc, k ? acc[k - 1] + rows[k - 1].length + 1 : 0], []);
@@ -270,8 +293,8 @@ function WordsRun({ lines, onChange, autoFocus, placeholder }) {
           return <span key={k}>{out}{k < rows.length - 1 ? '\n' : '​'}</span>;
         })}
       </div>
-      <textarea ref={ref} value={w.text} onChange={(e) => change(e.target.value)} spellCheck={false} placeholder={placeholder}
-        aria-label="Words, one line per line"
+      <textarea ref={ref} value={w.text} onChange={(e) => change(e.target.value)} onPaste={paste} spellCheck={false} placeholder={placeholder}
+        aria-label="Words"
         className={cn(box, 'absolute inset-0 h-full w-full resize-none overflow-hidden border-0 bg-transparent text-foreground caret-[var(--link)] outline-none placeholder:text-muted-foreground')} />
     </div>
   );
@@ -293,20 +316,26 @@ function KeyChangeEditor({ line, onChange, onDelete, onDone }) {
   );
 }
 
-/** The section's name is its type picker, as in the old editor: tap "Verse 1 ▾", pick Chorus. */
-function SectionName({ name, look, onPick }) {
+/** The section's chip is its type picker: tap "V1 ▾", pick Chorus. The names
+ *  live in the menu, each beside its chip (QA 11 Nov: the header showed the
+ *  chip AND the name, saying the same thing twice). */
+function SectionName({ name, look, styleOf, onPick }) {
   const [open, setOpen] = useState(false);
   const base = baseType(name);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" aria-label={`${name}, change the section type`} style={{ color: look.b }}
-          className="-ml-1 inline-flex h-8 min-h-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-control border-0 bg-transparent px-1 font-sans text-[15px] font-semibold outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
-          {name}<ChevronIcon />
+        <button type="button" aria-label={`${name}, change the section type`} title={name}
+          className="-ml-1 inline-flex h-8 min-h-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-control border-0 bg-transparent px-1 font-sans outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring" style={{ color: look.b }}>
+          {sectionTag(name, look)}<ChevronIcon />
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="flex w-[220px] flex-col p-1.5">
-        {SECTION_TYPES.map(t => <button key={t} type="button" className={cn(menuRow, t === base && 'bg-selected')} onClick={() => { setOpen(false); onPick(t); }}>{t}</button>)}
+        {SECTION_TYPES.map(t => (
+          <button key={t} type="button" className={cn(menuRow, t === base && 'bg-selected')} onClick={() => { setOpen(false); onPick(t); }}>
+            {sectionTag(t, styleOf ? styleOf(t) : look)}{t}
+          </button>
+        ))}
       </PopoverContent>
     </Popover>
   );
@@ -491,10 +520,9 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
           className={cn(iconBtn, '-ml-1.5 size-7 text-muted-foreground')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={cn('transition-transform', folded && '-rotate-90')}><path d="m6 9 6 6 6-6" /></svg>
         </button>
-        {sectionTag(sec.type, look)}
         {(
           <>
-            <SectionName name={sec.type} look={look} onPick={(t) => { if (t === baseType(sec.type)) return; onArr(renameSection(arr, index, newSectionName(arr.sections.filter((_, n) => n !== index), t))); }} />
+            <SectionName name={sec.type} look={look} styleOf={styleOf} onPick={(t) => { if (t === baseType(sec.type)) return; onArr(renameSection(arr, index, newSectionName(arr.sections.filter((_, n) => n !== index), t))); }} />
             {/* The band cue lives here, by the name, as the chart shows it: tap to change; "+ Cue" when there is none. */}
             {mode !== 'cue' && (sec.note ? (
               <button type="button" onClick={() => open('cue')} aria-label={`Band cue: ${sec.note}, change`}
@@ -546,7 +574,7 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
         <div className="flex flex-col gap-2 pt-1">
           {runs.map((r, ri) => (r.lines ? (
             <WordsRun key={ri} lines={r.lines} autoFocus={ri === 0}
-              placeholder={ri === 0 && !r.lines.some(l => l.trim()) ? 'Type the lyrics, one line per line' : 'More lyrics…'}
+              placeholder={ri === 0 && !r.lines.some(l => l.trim()) ? 'Type or paste the words. Chords come along if they have them.' : 'More lyrics…'}
               onChange={(ls) => setRun(ri, ls)} />
           ) : (
             <div key={ri} className="px-1"><LineView line={r.obj} /></div>
@@ -985,6 +1013,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
     return () => clearTimeout(t);
   }, [working, dirty, draftKey, draftFound]);
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const arr = getArrangement(working, arrId) || working.arrangements[0];
   const onArr = (next) => setWorking(w => withArrangement(w, arr.id, () => next));
@@ -1166,8 +1195,14 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
         <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
         <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 leading-tight">
-          <b className="max-w-full truncate text-[15px] font-semibold">{working.title?.trim() || (mode === 'new' ? 'New song' : 'Untitled')}</b>
-          <span className="text-[12px] text-muted-foreground">{checking ? `Checking · ${checking.left === 1 ? 'last one' : `${checking.left} left`}` : mode === 'new' ? 'New song' : mode === 'import' ? 'Check and add' : 'Editing'}</span>
+          {/* Title and artist are typed right here (QA 11 Nov), not only in Info. */}
+          <input value={working.title ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, title: e.target.value })}
+            placeholder={mode === 'new' ? 'New song' : 'Song name'} aria-label="Title" spellCheck={false}
+            className={cn(headIn, 'text-[15px] font-semibold text-foreground')} />
+          <input value={working.artist ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, artist: e.target.value })}
+            placeholder={checking ? `Checking · ${checking.left === 1 ? 'last one' : `${checking.left} left`}` : 'Artist'} aria-label="Artist" spellCheck={false}
+            className={cn(headIn, 'text-[12px] text-muted-foreground')} />
+          {checking && working.artist && <span className="text-[11px] text-muted-foreground">Checking · {checking.left === 1 ? 'last one' : `${checking.left} left`}</span>}
         </div>
         <button type="button" aria-label="Undo" title="Undo" disabled={!hist.past.length} onClick={doUndo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></Svg></button>
         <button type="button" aria-label="Redo" title="Redo" disabled={!hist.future.length} onClick={doRedo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="m15 14 5-5-5-5" /><path d="M20 9H9a5 5 0 0 0 0 10h3" /></Svg></button>

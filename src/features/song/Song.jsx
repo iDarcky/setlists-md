@@ -19,13 +19,13 @@ import SongChart from './SongChart';
 
 export default function Song({
   song: songInput, setlists = [], onBack, onEdit, onPlay, onMoveSong, onCopySong, onDelete,
-  onUpdateSong, onOpenSetlist, settings, onUpdateSettings, onTransposed, onUpgrade = null,
+  onUpdateSong, onOpenSetlist, settings, onUpdateSettings, onTransposed,
   initialShow = 'chords', layout = 'auto', embedded = false,
 }) {
   const [now] = useState(() => Date.now());
   const [arrId, setArrId] = useState(songInput?.arrangements ? songInput.defaultArrangementId : undefined);
   const [semis, setSemis] = useState(0);
-  const [show, setShow] = useState(initialShow); // 'chords' | 'lyrics'
+  const [show, setShow] = useState(initialShow); // 'chords' | 'lyrics' | 'details'
   const [full, setFull] = useState(false);
   useWakeLock(settings?.keepAwake === true);
 
@@ -92,6 +92,7 @@ export default function Song({
         {...shared}
         facts={facts}
         flow={flow}
+        leader={!!onEdit}
         onBack={onBack}
         onEdit={onEdit ? () => onEdit(arrId) : null}
         menu={menu}
@@ -102,7 +103,7 @@ export default function Song({
         chart={(lead, tail) => (
           <div className="min-h-0 flex-1 overflow-y-auto">
             {lead}
-            <SongChart song={song} semis={semis} sharps={sharps} show={show} layout={layout} customSectionTypes={settings?.customSectionTypes} />
+            <SongChart song={song} semis={semis} sharps={sharps} show={show} layout={layout} customSectionTypes={settings?.customSectionTypes} heading={settings?.readerHeading} />
             {tail}
           </div>
         )}
@@ -112,8 +113,7 @@ export default function Song({
           song={song}
           settings={settings}
           onUpdateSettings={onUpdateSettings}
-          onUpgrade={onUpgrade}
-          displayMode={show}
+          displayMode={show === 'lyrics' ? 'lyrics' : 'chords'}
           selectedKey={shown}
           onSelectKey={pickKey}
           onClose={() => setFull(false)}

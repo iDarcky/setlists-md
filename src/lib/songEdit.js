@@ -5,6 +5,7 @@ import { parseSectionLines, serializeTabBlock, serializeModulate, parseSongMd, s
 import { withArrangement, getArrangement } from '@/arrangements';
 import { importChartText } from '@/lib/importChords';
 import { getDiatonicChords } from '@/music';
+import { isChordToken, isChordLine, mergeChordAndLyric, chordLineOnly } from '@/importer';
 
 /** One line of a section as the writer types it. */
 export function lineToText(l) {
@@ -39,11 +40,18 @@ export function move(list, i, d) {
 
 /** "Verse" → "Verse 4" when Verse 1–3 exist; "Bridge" stays "Bridge" the first time. */
 export function newSectionName(sections, base) {
-  const names = new Set((sections || []).map(s => s.type));
-  if (!names.has(base) && ![...names].some(n => n.startsWith(`${base} `))) return base;
+  const names = (sections || []).map(s => s.type);
+  // The numbers already used: a bare "Verse" counts as 1, so a song with
+  // "Verse" and "Verse 2" gets "Verse 3", never a second "Verse 2".
+  const prefix = `${base} `;
+  const taken = new Set();
+  for (const n of names) {
+    if (n === base) taken.add(1);
+    else if (n?.startsWith(prefix) && /^\d+$/.test(n.slice(prefix.length))) taken.add(Number(n.slice(prefix.length)));
+  }
+  if (!taken.size && !names.some(n => n?.startsWith(prefix))) return base;
   let n = 1;
-  while (names.has(`${base} ${n}`)) n++;
-  if (n === 1 && names.has(base)) n = 2;
+  while (taken.has(n)) n++;
   return `${base} ${n}`;
 }
 
@@ -313,4 +321,28 @@ export function setLineNotes(line, notes) {
   if (!keep.length) return clean;
   const tail = keep.map(n => `{!${n}}`).join(' ');
   return !clean ? tail : /\s$/.test(clean) ? clean + tail : `${clean} ${tail}`;
+}
+
+// A paste into a section's lyrics box (QA 11 Nov). People paste words from
+// somewhere else, and sometimes those words carry chords, in either form:
+// [G] inline, or a chord line above the lyric line. Both become inline
+// chords. Returns null when the paste has no chords at all, so the box takes
+// it as plain words (the browser's own paste, undo and all).
+export function pastedLines(text) {
+  const rows = String(text ?? '').replace(/\r\n?/g, '\n').replace(/\t/g, '    ').split('\n');
+  const inline = rows.some(r => /\[([^\]\s]+)\]/.test(r) && [...r.matchAll(/\[([^\]\s]+)\]/g)].some(m => isChordToken(m[1])));
+  const over = rows.some(r => isChordLine(r));
+  if (!inline && !over) return null;
+  const out = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (isChordLine(r)) {
+      const next = rows[i + 1];
+      if (next != null && next.trim() && !isChordLine(next)) { out.push(mergeChordAndLyric(r, next).trimEnd()); i++; }
+      else out.push(chordLineOnly(r).trim());
+    } else out.push(r.trimEnd());
+  }
+  while (out.length && !out[0].trim()) out.shift();
+  while (out.length && !out[out.length - 1].trim()) out.pop();
+  return out;
 }

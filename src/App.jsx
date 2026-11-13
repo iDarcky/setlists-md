@@ -16,6 +16,8 @@ import { readySnapshot } from '@/lib/setlistView';
 import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
 import { parseSiteEntry, stripSiteEntry, rememberSignupSource } from '@/lib/siteEntry';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
+import { startScreen, storedRequest } from '@/lib/startFlow';
+import { sentChurchRequest } from '@/lib/churchRequest';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import { withArrangement, addArrangement, songFromFlat } from './arrangements';
 import { computeKeyHistories, applyKeyHistories, incrementForSetlistDiff } from './keyHistory';
@@ -64,7 +66,7 @@ import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import { usePersonalWorkspace } from '@/hooks/usePersonalWorkspace';
-import { checkEntitlement } from '@/hooks/useEntitlement';
+import { personalCloudAllowed as personalCloudAllowedFor } from '@/hooks/useEntitlement';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
@@ -113,6 +115,7 @@ import { TEMPLATE_KIND } from '@/lib/newSetlist';
 import { needsCheck, clearCheck } from '@/lib/importCheck';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
+const StartFlow = lazy(() => import('@/features/start/StartFlow'));
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
 // PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
 // 2026-08-11 and the three old surfaces were deleted on 2026-10-11.
@@ -194,11 +197,11 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile, loading: authLoading, isConfigured: accountsEnabled } = useAuth();
-  // The personal library's workspace on Supabase (step 4). Entitled by the
-  // PROFILE's tier — never the active team's — so a free account inside a
-  // church workspace does not get a personal cloud it loses on switching back.
-  // The id is cached per user, so the engine choice below is synchronous.
-  const personalCloudAllowed = !!user && checkEntitlement(profile?.subscription_tier, 'cloud-sync', !!profile?.is_pro).allowed;
+  // The personal library's workspace on Supabase (step 4). Only the accounts
+  // that already had one keep it: Personal is being removed, so it is not
+  // opened to anyone new. The id is cached per user, so the engine choice
+  // below is synchronous.
+  const personalCloudAllowed = !!user && personalCloudAllowedFor(profile);
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
@@ -265,6 +268,14 @@ export default function App() {
   const [joinCode, setJoinCode] = useState(() => (
     typeof window !== 'undefined' ? parseJoinPath(window.location.pathname) : null
   ));
+  // The church/band this account asked us to set up (the "after sign-up"
+  // screens, lib/startFlow): from this device, else from the account.
+  const [startRequest, setStartRequest] = useState(null);
+  const startRequestUser = user?.id || null;
+  const startRequestMeta = user?.user_metadata?.start_request;
+  useEffect(() => {
+    setStartRequest(startRequestUser ? storedRequest(sentChurchRequest(startRequestUser), { start_request: startRequestMeta }) : null);
+  }, [startRequestUser, startRequestMeta]);
   // After joining, switch into the new Space as soon as TeamProvider has it:
   // { teamId, view }. Membership loads asynchronously after approval.
   const [pendingSpaceSwitch, setPendingSpaceSwitch] = useState(null);
@@ -457,23 +468,13 @@ export default function App() {
     setSettings(prev => (prev && !prev.defaultSpaceId ? { ...prev, defaultSpaceId: id } : prev));
   }, [loaded, user?.id, teamLoading, profile, teams, settings?.defaultSpaceId]);
 
-  // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
-  // whoever is in it once their memberships load is moved to their church,
-  // unless it holds songs or setlists of their own. Those people keep it, so
-  // they can move their songs into a church or band (Copy to…).
-  useEffect(() => {
-    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || !loaded || activeLibrary !== 'personal') return;
-    if (hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)) return;
-    const id = churchDefaultSpaceId({ current: null, teams });
-    if (id) setActiveLibrary(id);
-  }, [teamLoading, loaded, teams, activeLibrary, songs, setlists]);
-
-  // Does the personal library hold anything of the user's own? While it is
-  // the open library the answer is in state; otherwise read it from IndexedDB
-  // (null until known — unknown never hides anything).
+  // Does the personal library hold anything of the user's own? Read from
+  // IndexedDB on every Space change, Personal included (null until known —
+  // unknown never hides anything). Not from `songs` state: that is emptied
+  // while a switch loads, which read as "Personal is empty" and bounced
+  // people straight back out of it.
   const [storedPersonalHasContent, setStoredPersonalHasContent] = useState(null);
   useEffect(() => {
-    if (activeLibrary === 'personal') return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -485,6 +486,18 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [activeLibrary, user?.id]);
+
+  // Personal is blocked for church members for now (PERSONAL_BLOCKED_IN_CHURCH):
+  // whoever is in it once their memberships load is moved to their church,
+  // unless it holds songs or setlists of their own (they keep it to move them
+  // into a church or band) or the account syncs Personal. Only a Personal
+  // KNOWN to be empty moves them.
+  useEffect(() => {
+    if (!PERSONAL_BLOCKED_IN_CHURCH || teamLoading || activeLibrary !== 'personal') return;
+    if (personalCloudAllowed || storedPersonalHasContent !== false) return;
+    const id = churchDefaultSpaceId({ current: null, teams });
+    if (id) setActiveLibrary(id);
+  }, [teamLoading, teams, activeLibrary, personalCloudAllowed, storedPersonalHasContent]);
 
   // ── Join link: resume after sign-in ───────────────────────────────────────
   // OAuth comes back through /auth/callback and a magic link opens `/` in a
@@ -1147,6 +1160,27 @@ export default function App() {
     }
     return true;
   };
+  // Wrap a way out that skips goToMainView (the top bar's You, a notification,
+  // the church switcher) so it asks too. QA 11 Nov: those left an editor
+  // mid-edit without a word.
+  const leaveEditing = (fn) => async (...args) => {
+    if (!(await confirmDiscardSetlist())) return;
+    setlistDirtyRef.current = false;
+    editorDirtyRef.current = false;
+    fn(...args);
+  };
+  // Closing the tab or reloading mid-edit: the browser's own "Leave site?".
+  useEffect(() => {
+    if (view !== 'editor' && view !== 'setlist-build') return undefined;
+    const handler = (e) => {
+      const dirty = view === 'editor' ? editorDirtyRef.current : setlistDirtyRef.current;
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [view]);
 
   useEffect(() => {
     const handler = () => {
@@ -1293,8 +1327,9 @@ export default function App() {
     setJoinCode(null);
   };
 
-  const personalHasContent = activeLibrary === 'personal'
-    ? (loaded ? hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS) : null)
+  // While Personal is open, something the user just added counts too.
+  const personalHasContent = activeLibrary === 'personal' && loaded && hasOwnPersonalContent(songs, setlists, DEMO_SONG_IDS)
+    ? true
     : storedPersonalHasContent;
   const hidePersonalSpace = shouldHidePersonal({
     blocked: PERSONAL_BLOCKED_IN_CHURCH,
@@ -1485,6 +1520,7 @@ export default function App() {
     }
     // Saving a song from the editor is a leader having looked at it.
     input = clearCheck(input);
+    const wasNew = !songs.some(s => s.id === input?.id);
     const isV2 = !!(input && Array.isArray(input.arrangements) && input.arrangements.length > 0);
     let v2 = input;
     let isNew = false;
@@ -1573,11 +1609,17 @@ export default function App() {
       return;
     }
 
-    navigate('song-hub', { song, replace: true });
+    // A song just added from the editor stays in the editor (QA 11 Nov): the
+    // next thing is usually fixing chords, not reading it. The editor
+    // reopens on the saved copy, so it is no longer "new" and nothing is
+    // unsaved. Editing an existing song still lands on its page.
+    const stay = wasNew && view === 'editor';
+    if (stay) toast({ title: 'Song added' });
+    navigate(stay ? 'editor' : 'song-hub', { song, replace: true });
     if (isNew && !user && !settings?.seenSaveAccountWall) {
       openAccountWall(
         { kind: 'song', title: song.title || 'Untitled song' },
-        { ...snapshot(), view: 'song-hub', song },
+        { ...snapshot(), view: stay ? 'editor' : 'song-hub', song },
       );
     }
   };
@@ -1695,8 +1737,12 @@ export default function App() {
   // preview pane). Opens a workspace picker so users choose where to send the
   // song — Copy is offered whenever another workspace exists; Move also
   // requires write access to the source (personal, or admin of the team).
+  // Sending songs between churches copies charts somebody else holds the
+  // rights to, so it is a Labs switch now (QA 11 Nov). Moving OUT of Personal
+  // stays: that is the one way to bring your own songs into a group.
+  const moveCopyAllowed = !!settings?.moveBetweenChurches || activeLibrary === 'personal';
   const buildChartMoveCopy = (songId) => {
-    if (!songId || moveCopyWorkspaces.length === 0) return {};
+    if (!songId || !moveCopyAllowed || moveCopyWorkspaces.length === 0) return {};
     const canMove = activeLibrary === 'personal' || isTeamAdmin;
     const props = {
       onCopySong: () => setMoveCopyDialog({ action: 'copy', songId }),
@@ -1902,6 +1948,31 @@ export default function App() {
       return next;
     });
     toast({ title: list.length === 1 ? `Added "${list[0].title || 'Untitled'}"` : `Added ${list.length} songs` });
+  };
+
+  // New song from a setlist's Add songs list. Unlike an import on Songs, a
+  // title the library already has is NOT overwritten: the setlist gets the
+  // existing song and the library is left alone. Returns the songs to add.
+  const handleCreateSongsForSetlist = (list) => {
+    if (!list || list.length === 0) return [];
+    if (guardTeamReadOnly()) return [];
+    const now = Date.now();
+    const out = [];
+    const fresh = [];
+    for (const s of list) {
+      const existing = matchSongByTitle(songs, s.title) || matchSongByTitle(fresh, s.title);
+      if (existing) { out.push(existing); continue; }
+      const song = { ...s, updatedAt: now };
+      fresh.push(song);
+      out.push(song);
+    }
+    if (fresh.length) setSongs(prev => [...prev, ...fresh]);
+    const kept = list.length - fresh.length;
+    toast({
+      title: fresh.length === 1 ? `Added "${fresh[0].title || 'Untitled'}"` : fresh.length ? `Added ${fresh.length} songs` : 'Already in Songs',
+      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.` : 'Tagged “To check” in Songs.',
+    });
+    return out;
   };
 
   // One imported song, opened in the editor before it is saved ("Edit first").
@@ -2399,16 +2470,6 @@ export default function App() {
   // already used across this workspace's setlists (foundation for per-service
   // stats; a canonical team_services table can replace this source later).
   const knownServices = [...new Set(setlists.map(s => s.service).filter(Boolean))].sort();
-  // Display label for the personal plan. The internal `team` tier is branded
-  // "Band" in the UI; everything else title-cases its tier key.
-  const PLAN_DISPLAY = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
-  let plan = 'Free';
-  if (profile?.subscription_tier) {
-    const tier = profile.subscription_tier.toLowerCase();
-    plan = PLAN_DISPLAY[tier] || (tier.charAt(0).toUpperCase() + tier.slice(1));
-  } else if (profile?.is_pro) {
-    plan = 'Pro';
-  }
   // ── The new navigation (canvas "Navigation options": pill B, menu B) ──
   // Views that carry the nav pill. Everything else (a song, a service, the
   // reader, the editor) has its own "← Back".
@@ -2437,8 +2498,8 @@ export default function App() {
             onUpdateSchedule={updateSchedule}
             onMarkRead={handleMarkNotificationRead}
             onMarkAllRead={handleMarkAllNotificationsRead}
-            onOpenSetlist={goSetlistView}
-            onNotFound={showNotFound}
+            onOpenSetlist={leaveEditing(goSetlistView)}
+            onNotFound={leaveEditing(showNotFound)}
             onSettings={() => goToMainView('settings', { settingsPanel: 'notifications' })}
             onClose={() => setBellOpen(false)}
           />
@@ -2446,7 +2507,7 @@ export default function App() {
       }}
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
-      onOpenYou={() => navigate('you')}
+      onOpenYou={leaveEditing(() => navigate('you'))}
       pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
     />
   );
@@ -2469,6 +2530,37 @@ export default function App() {
       toast({ title: 'Sign-out failed', description: err.message, variant: 'error' });
     }
   };
+
+  // No church or band yet: the "after sign-up" screens take the place of the
+  // app until one exists (church/band request -> Waiting for approval -> ready).
+  const startShows = startScreen({
+    signedIn: !!user?.id,
+    teamsLoaded,
+    teamCount: teams.length,
+    pendingJoin: loadPendingJoin(),
+    request: startRequest,
+    view,
+  });
+  if (startShows) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<AppSkeleton />}>
+          <StartFlow
+            screen={startShows}
+            user={user}
+            displayName={profile?.display_name || settings?.userName || ''}
+            request={startRequest}
+            team={teams[0] || null}
+            onRequestChange={setStartRequest}
+            onSignOut={handleSignOut}
+            onInviteBand={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'team' }); }}
+            onOpenTeam={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'home' }); }}
+            onJoinCode={(code) => { setJoinCode(code); setView('join'); }}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
 
   return (
     <WorkspaceProvider activeLibrary={activeLibrary}>
@@ -2572,8 +2664,8 @@ export default function App() {
               onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
-              onMoveSongs={isTeamReadOnly ? null : handleMoveSongs}
-              onCopySongs={isTeamReadOnly ? null : handleCopySongs}
+              onMoveSongs={isTeamReadOnly || !moveCopyAllowed ? null : handleMoveSongs}
+              onCopySongs={isTeamReadOnly || !moveCopyAllowed ? null : handleCopySongs}
               otherChurches={ledChurches.filter(t => t.id !== activeLibrary)}
             />
           )}
@@ -2662,7 +2754,7 @@ export default function App() {
               has the paste and import tools. "Open the old editor" switches. */}
           {view === 'editor' && editTarget && !importQueue && oldEditorFor !== editTarget.song.id && (
             <SongEdit
-              key={editTarget.song.id}
+              key={`${editTarget.song.id}:${editTarget.mode}`}
               song={editTarget.song}
               library={songs}
               historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
@@ -2756,6 +2848,7 @@ export default function App() {
               setlistMap={teamSetlistMap}
               space={activeLibrary}
               onSave={saveSetlistFromFlow}
+              onCreateSongs={isTeamReadOnly ? null : handleCreateSongsForSetlist}
               onCancel={async () => {
                 if (!(await confirmDiscardSetlist())) return;
                 setlistDirtyRef.current = false;
@@ -2945,7 +3038,6 @@ export default function App() {
               isSignedIn={isSignedIn}
               displayName={displayName}
               displayEmail={displayEmail}
-              plan={plan}
               onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               onSignOut={handleSignOut}
@@ -3004,8 +3096,8 @@ export default function App() {
           onOpenChange={setChurchSheetOpen}
           workspaces={workspaces}
           activeId={activeLibrary}
-          onPick={switchWorkspace}
-          onNew={canCreateWorkspace ? goNewWorkspace : undefined}
+          onPick={leaveEditing(switchWorkspace)}
+          onNew={canCreateWorkspace ? leaveEditing(goNewWorkspace) : undefined}
         />
       )}
       {/* Workspace destination picker for move/copy from the song kebab. */}

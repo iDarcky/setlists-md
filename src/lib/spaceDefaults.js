@@ -83,8 +83,10 @@ export function shouldHidePersonal({
   defaultIsPersonal = false,
 }) {
   if (!inChurch) return false;
-  // Blocked: hidden unless it is known to hold something of the user's own.
-  if (blocked) return hasPersonalContent !== true;
+  // Blocked: hidden unless it is known to hold something of the user's own,
+  // or the account syncs Personal (its songs may be in the cloud, not on
+  // this device yet).
+  if (blocked) return !(hasPersonalContent === true || personalCloud);
   if (showPersonalPref === true) return false;
   if (hasPersonalContent !== false) return false;
   if (personalCloud) return false;

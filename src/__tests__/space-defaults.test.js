@@ -57,7 +57,8 @@ describe('shouldHidePersonal', () => {
     expect(shouldHidePersonal({ ...base, showPersonalPref: false, hasPersonalContent: true })).toBe(false);
   });
   it('blocked: hides it for church members unless it holds their own songs', () => {
-    expect(shouldHidePersonal({ ...base, blocked: true, showPersonalPref: true, hasPersonalContent: false, personalCloud: true, activeIsPersonal: true, defaultIsPersonal: true })).toBe(true);
+    expect(shouldHidePersonal({ ...base, blocked: true, showPersonalPref: true, hasPersonalContent: false, activeIsPersonal: true, defaultIsPersonal: true })).toBe(true);
+    expect(shouldHidePersonal({ ...base, blocked: true, hasPersonalContent: false, personalCloud: true })).toBe(false);
     expect(shouldHidePersonal({ ...base, blocked: true, hasPersonalContent: null })).toBe(true);
     expect(shouldHidePersonal({ ...base, blocked: true, hasPersonalContent: true })).toBe(false);
     expect(shouldHidePersonal({ ...base, blocked: true, inChurch: false })).toBe(false);

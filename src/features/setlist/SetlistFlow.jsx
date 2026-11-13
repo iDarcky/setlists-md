@@ -18,6 +18,7 @@ import { useDragReorder, moveItem } from './useDragReorder';
 import { MomentFields, NoteEditor, Grip, NOTE_MAX } from './SetlistEdit';
 import { Chip, DateSheet, TimeInput, TimeSigInput } from './WhenPickers';
 import BandSection from './BandSection';
+import NewSongSheet from './NewSongSheet';
 import { writeNewDraft } from '@/lib/setlistDraft';
 
 // New setlist (canvas → New setlist v2): the template pop-up picks where to
@@ -163,7 +164,7 @@ const shortDate = (date) => (date ? new Date(`${date}T12:00:00`).toLocaleDateStr
  * "Add songs": search, then one line per song (key · last played) with +.
  * Plain on purpose (2026-11-04: the three-column picker was "too busy").
  */
-function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview, previewId, onEmptySlot, searchRef }) {
+function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview, previewId, onEmptySlot, searchRef, onNewSong }) {
   const [q, setQ] = useState('');
   const inSet = new Set((draft.items || []).map(i => i?.songId).filter(Boolean));
   const suggested = useMemo(() => suggestSongs({ songs, setlist: draft, setlists, at, limit: 8 }), [songs, draft, setlists, at]);
@@ -184,6 +185,17 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
         <span className="truncate text-[13px] text-muted-foreground">{filling ? `filling song ${filling}` : '+ fills the next “Song”'}</span>
       </div>
       <Input ref={searchRef} type="search" inputMode="search" placeholder="Search the library" value={q} onChange={e => setQ(e.target.value)} className="h-11" />
+      {/* A song the library doesn't have yet, without leaving the setlist (QA 11 Nov). */}
+      {onNewSong && (
+        <button type="button" onClick={() => onNewSong(q.trim())}
+          className="flex min-h-[52px] w-full cursor-pointer items-center gap-2 rounded-card border border-dashed border-input bg-transparent px-3 py-1.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate text-[14px] font-semibold">New song{q.trim() ? `: “${q.trim()}”` : ''}</span>
+            <span className="truncate text-[12px] text-muted-foreground">Not in the library? Import a PDF or file, or paste it</span>
+          </span>
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-input"><PlusIcon size={18} /></span>
+        </button>
+      )}
       {groups.map(({ label, list }) => (list.length > 0 || !label) && (
         <div key={label || 'results'} className="flex flex-col gap-2">
           {label && <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>}
@@ -289,6 +301,9 @@ export default function SetlistFlow({
   setlist, isNew = false, songs = [], setlists = [], peopleOf = () => [], nameOf = () => '',
   team = null, members = [], schedules = [], setlistMap = {}, createSchedule, deleteSchedule, ensureRow,
   onSave, onCancel, onDirtyChange, initialStep, space = 'personal',
+  // New song from Add songs: App adds them to the library and hands back the
+  // songs to put in the setlist (an existing title resolves to that song).
+  onCreateSongs = null,
 }) {
   const wide = useWide();
   const templates = useMemo(() => templatesOf(setlists), [setlists]);
@@ -304,6 +319,7 @@ export default function SetlistFlow({
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const [ready, setReady] = useState(false);           // Save and mark ready
   const [removed, setRemoved] = useState(null);        // { item, index } — for Undo
+  const [newSong, setNewSong] = useState(null);        // the search words, while New song is open
   const searchRef = useRef(null);
   const libRef = useRef(null);
   const template = templates.find(t => t.id === draft.templateId) || null;
@@ -354,6 +370,25 @@ export default function SetlistFlow({
   const addSong = (s) => {
     if (fillAt >= 0) setItems(xs => xs.map((x, j) => (j === fillAt ? { ...songItem(s), ...(x.note ? { note: x.note } : {}), ...(x.leadBy ? { leadBy: x.leadBy } : {}) } : x)));
     else setItems(xs => [...xs, songItem(s)]);
+    setSlot(null);
+    setPreviewId(null);
+  };
+  // Several at once (a .zip): the first fills the slot, the rest go after it.
+  const addCreated = (created) => {
+    const list = (onCreateSongs?.(created) || []).filter(Boolean);
+    if (!list.length) return;
+    const at = fillAt;
+    setItems(xs => {
+      const out = [...xs];
+      const extra = list.map(songItem);
+      if (at >= 0) {
+        const x = out[at];
+        out[at] = { ...extra[0], ...(x?.note ? { note: x.note } : {}), ...(x?.leadBy ? { leadBy: x.leadBy } : {}) };
+        out.splice(at + 1, 0, ...extra.slice(1));
+        return out;
+      }
+      return [...out, ...extra];
+    });
     setSlot(null);
     setPreviewId(null);
   };
@@ -489,7 +524,8 @@ export default function SetlistFlow({
   const addSongs = (
     <AddSongs songs={songs} draft={draft} setlists={setlists} at={fillAt >= 0 ? fillAt : items.length} today={today}
       filling={slot != null ? fillingN : null} onAdd={addSong} onEmptySlot={emptySlot} searchRef={searchRef}
-      onPreview={wide ? (id) => { setPeek(null); setPreviewId(id); } : null} previewId={previewId} />
+      onPreview={wide ? (id) => { setPeek(null); setPreviewId(id); } : null} previewId={previewId}
+      onNewSong={onCreateSongs ? (q) => setNewSong(q) : null} />
   );
 
   const bandBlock = (
@@ -613,6 +649,10 @@ export default function SetlistFlow({
       {noteFor != null && (
         <NoteEditor open key={noteFor} title={items[noteFor]?.label || 'Moment'} value={items[noteFor]?.note}
           onCancel={() => setNoteFor(null)} onDone={(text) => { patchItem(noteFor, { note: text }); setNoteFor(null); }} />
+      )}
+      {onCreateSongs && (
+        <NewSongSheet open={newSong != null} onOpenChange={(o) => { if (!o) setNewSong(null); }}
+          initialTitle={newSong || ''} onCreate={addCreated} />
       )}
     </div>
   );

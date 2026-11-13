@@ -1,85 +1,70 @@
 import { describe, it, expect } from 'vitest';
-import { checkEntitlement, PLAN_RANK, FEATURE_GATES } from '@/hooks/useEntitlement';
+import { checkEntitlement, personalCloudAllowed, PLAN_RANK, FEATURE_GATES } from '@/hooks/useEntitlement';
 
+// The plan lives on the group. A person has no plan of their own, so nothing
+// here takes a profile except the leftover Personal cloud check.
 describe('checkEntitlement', () => {
-  it('free plan can access ungated features', () => {
-    const result = checkEntitlement('free', 'nonexistent-feature');
-    expect(result.allowed).toBe(true);
-    expect(result.requiredPlan).toBe('free');
-  });
-
-  it('free plan cannot access sync features', () => {
-    const result = checkEntitlement('free', 'cloud-sync');
-    expect(result.allowed).toBe(false);
-    expect(result.requiredPlan).toBe('sync');
-  });
-
-  it('free plan cannot access team features', () => {
-    const result = checkEntitlement('free', 'team-create');
-    expect(result.allowed).toBe(false);
-    expect(result.requiredPlan).toBe('team');
-  });
-
-  it('free plan cannot access church features', () => {
-    const result = checkEntitlement('free', 'multi-service');
-    expect(result.allowed).toBe(false);
-    expect(result.requiredPlan).toBe('church');
-  });
-
-  it('sync plan can access sync features', () => {
-    expect(checkEntitlement('sync', 'cloud-sync').allowed).toBe(true);
-    expect(checkEntitlement('sync', 'smart-import').allowed).toBe(true);
-  });
-
-  it('sync plan cannot access team features', () => {
-    expect(checkEntitlement('sync', 'team-create').allowed).toBe(false);
-    expect(checkEntitlement('sync', 'team-library').allowed).toBe(false);
-  });
-
-  it('team plan can access team and all lower-tier features', () => {
-    expect(checkEntitlement('team', 'cloud-sync').allowed).toBe(true);
-    expect(checkEntitlement('team', 'smart-import').allowed).toBe(true);
-    expect(checkEntitlement('team', 'team-create').allowed).toBe(true);
-    expect(checkEntitlement('team', 'team-library').allowed).toBe(true);
-    expect(checkEntitlement('team', 'team-collab').allowed).toBe(true);
-    expect(checkEntitlement('team', 'team-roles').allowed).toBe(true);
-  });
-
-  it('team plan cannot access church features', () => {
-    expect(checkEntitlement('team', 'multi-service').allowed).toBe(false);
-  });
-
-  it('church plan can access everything', () => {
-    for (const feature of Object.keys(FEATURE_GATES)) {
-      expect(checkEntitlement('church', feature).allowed).toBe(true);
+  it('opens every feature that has no gate, on any plan', () => {
+    for (const plan of ['free', 'personal', 'team', 'church', null, undefined, 'nonsense']) {
+      const result = checkEntitlement(plan, 'nonexistent-feature');
+      expect(result.allowed).toBe(true);
+      expect(result.requiredPlan).toBe('free');
     }
   });
 
-  it('handles null/undefined plan as free', () => {
-    expect(checkEntitlement(null, 'cloud-sync').allowed).toBe(false);
-    expect(checkEntitlement(undefined, 'cloud-sync').allowed).toBe(false);
-    expect(checkEntitlement(null, 'nonexistent').allowed).toBe(true);
+  it('no longer sells chart style, chord shapes or import', () => {
+    // These were the old Pro and Sync locks ("Fonts are part of Pro").
+    for (const feature of ['chart-style', 'chord-diagrams', 'smart-import']) {
+      expect(FEATURE_GATES).not.toHaveProperty(feature);
+      expect(checkEntitlement('free', feature).allowed).toBe(true);
+      expect(checkEntitlement(null, feature).allowed).toBe(true);
+    }
+  });
+
+  it('keeps services for Church groups only', () => {
+    expect(checkEntitlement('church', 'multi-service').allowed).toBe(true);
+    expect(checkEntitlement('team', 'multi-service').allowed).toBe(false);
+    expect(checkEntitlement('free', 'multi-service').allowed).toBe(false);
+    expect(checkEntitlement('personal', 'multi-service').allowed).toBe(false);
+    expect(checkEntitlement(null, 'multi-service').allowed).toBe(false);
+    expect(checkEntitlement('team', 'multi-service').requiredPlan).toBe('church');
   });
 
   it('is case-insensitive for plan names', () => {
-    expect(checkEntitlement('Team', 'team-create').allowed).toBe(true);
     expect(checkEntitlement('CHURCH', 'multi-service').allowed).toBe(true);
-    expect(checkEntitlement('Sync', 'cloud-sync').allowed).toBe(true);
+    expect(checkEntitlement('Team', 'multi-service').currentPlan).toBe('team');
   });
 
-  it('returns correct currentPlan and requiredPlan', () => {
-    const result = checkEntitlement('sync', 'team-create');
-    expect(result.currentPlan).toBe('sync');
-    expect(result.requiredPlan).toBe('team');
-    expect(result.allowed).toBe(false);
+  it('has no Pro override', () => {
+    // A third argument used to unlock features for `profiles.is_pro`.
+    expect(checkEntitlement('team', 'multi-service', true).allowed).toBe(false);
+  });
+});
+
+describe('personalCloudAllowed', () => {
+  it('keeps Personal cloud only for accounts that already had it', () => {
+    expect(personalCloudAllowed({ subscription_tier: 'church' })).toBe(true);
+    expect(personalCloudAllowed({ subscription_tier: 'Team' })).toBe(true);
+    expect(personalCloudAllowed({ subscription_tier: 'sync' })).toBe(true);
+  });
+
+  it('is closed to everyone else, and ignores is_pro', () => {
+    expect(personalCloudAllowed({ subscription_tier: 'free' })).toBe(false);
+    expect(personalCloudAllowed({ subscription_tier: 'free', is_pro: true })).toBe(false);
+    expect(personalCloudAllowed({})).toBe(false);
+    expect(personalCloudAllowed(null)).toBe(false);
   });
 });
 
 describe('PLAN_RANK', () => {
   it('has strictly increasing ranks', () => {
-    expect(PLAN_RANK.free).toBeLessThan(PLAN_RANK.sync);
-    expect(PLAN_RANK.sync).toBeLessThan(PLAN_RANK.team);
+    expect(PLAN_RANK.free).toBeLessThan(PLAN_RANK.team);
     expect(PLAN_RANK.team).toBeLessThan(PLAN_RANK.church);
+  });
+
+  it('has no personal tiers left', () => {
+    expect(PLAN_RANK).not.toHaveProperty('sync');
+    expect(PLAN_RANK).not.toHaveProperty('pro');
   });
 });
 

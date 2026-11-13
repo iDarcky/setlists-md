@@ -5,7 +5,6 @@ import { useAuth } from '@/auth/useAuth';
 import { Button } from '@/ui/Button';
 import { Button as ShadButton } from '@/ui/shadcn/button';
 import { Input } from '@/ui/Input';
-import UpgradeGate from '@/ui/UpgradeGate';
 import PageHeader from '@/ui/PageHeader';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
@@ -357,7 +356,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
+export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
   const { user } = useAuth();
   const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests } = useTeam();
   // Fresh "Waiting" list every time the page opens (realtime can miss one).
@@ -477,10 +476,20 @@ export default function TeamScreen({ onBack, onUpgrade, onSwitchLibrary, initial
           billingLive={BILLING_ENABLED}
         />
       ) : (
-        <UpgradeGate feature="team-create" onUpgrade={onUpgrade}>
-          {/* Never renders — UpgradeGate shows the prompt */}
-          <div />
-        </UpgradeGate>
+        <div className="flex-1 flex items-center justify-center px-6 py-12">
+          <div
+            className="w-full max-w-md rounded-2xl p-8 text-center flex flex-col items-center gap-3"
+            style={{ background: 'var(--ds-background-100)', border: '1px solid var(--ds-gray-400)' }}
+          >
+            <h2 className="text-heading-20 text-[var(--ds-gray-1000)] m-0 leading-tight">
+              New groups are set up by hand for now
+            </h2>
+            <p className="text-copy-14 text-[var(--ds-gray-600)] m-0 leading-relaxed max-w-sm">
+              To join a church or band that already uses Setlists.md, ask its leader for the join link.
+              To start a new one, write to us and we will set it up for you.
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

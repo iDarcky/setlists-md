@@ -2,6 +2,29 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.24.0 — A better song page
+*November 2026*
+
+### Added
+- **Start your church or band** — after signing up, say what you're setting up (a church, a band or an invite link) and send a request. You see Waiting for approval until it's ready, then a welcome with Invite your band.
+- **New song from a setlist** — in a setlist's Add songs list, add a song that isn't in the library yet by importing a file or pasting it.
+- **Section headings your way** — in Play and Practice, pick Name, Chip or Both for section headings. The song page follows the same choice.
+
+### Improved
+- **The song page is rebuilt** — a cover, the key, tempo and time on one line, the song map, and Chart, Lyrics and Details tabs. Leaders see how often a song was played and in which key.
+- **The Songs side panel** on iPad and laptop matches the new song page and shows the first lines.
+- **Search finds the best match first** — exact titles come first, then titles that start with your words, then artists and other details, then lyrics. Ties go to the song you play most.
+- **Pasting into the song editor keeps the chords**, and the title and artist can be edited right in the header.
+- **Adding a new song keeps you in the editor**, so you can keep working on it.
+- **Leaving mid-edit asks first** — from any way out, including notifications, switching church and closing the tab.
+- **Band cues on the song page** are quiet grey text beside the section name.
+- **Moving or copying songs to another church** is now a Labs switch, off by default.
+- **Every theme, font and colour is free** for everyone. No more "part of Pro" locks; your group's plan only decides Church features like services.
+
+### Fixed
+- **Adding a third verse or chorus** in the song editor names it 3, not 2 again.
+- **Personal for church members** — accounts that sync Personal see it again, and opening it no longer bounces you back to your church.
+
 ## 0.23.0 — Import your songbook
 *November 2026*
 

@@ -14,6 +14,7 @@ import { WelcomeView, CreateAccountView, LogInView, ForgotPasswordView, NewPassw
 import {
   JoinInviteView, AboutYouView, WaitingView, YoureInView, DeclinedView, BadLinkView,
 } from '@/features/join/JoinViews';
+import { ChooseView, RequestView, WaitingApprovalView, ReadyView, InviteLinkView } from '@/features/start/StartViews';
 
 import { AppTopBar } from '@/app/AppTopBar';
 import { NavPill } from '@/app/NavPill';
@@ -949,7 +950,7 @@ const nfPeople = () => [{ id: 'jd', name: 'Joe' }, { id: 'am', name: 'Ana' }];
 const NewSetlistFlowDemo = ({ step, isNew = true }) => (
   <SetlistFlow setlist={NF_DRAFT} isNew={isNew} initialStep={step} songs={NF_SONGS} setlists={NF_SETLISTS} peopleOf={nfPeople}
     nameOf={(u) => ({ jd: 'Joe', am: 'Ana' }[u] || bdName(u))} team={{ id: 'demo' }} members={BD_MEMBERS}
-    onSave={noop} onCancel={noop} />
+    onSave={noop} onCancel={noop} onCreateSongs={(list) => list} />
 );
 const NewSetlistPopupDemo = ({ first = false }) => (
   <div className="min-h-full bg-background p-4 font-sans text-foreground">
@@ -988,6 +989,12 @@ const SCREENS = [
   ['Join: invite', () => <JoinInviteView embedded church={CHURCH} alreadyIn="Daniel and 11 others are already in" onCreateAccount={noop} onLogIn={noop} onNotNow={noop} />],
   ['Join: log in', () => <LogInView embedded joining={CHURCH} values={FILLED} onChange={noop} onSubmit={noop} onBack={noop} onForgot={noop} onCreateAccount={noop} />],
   ['Join: about you', () => <AboutYouDemo embedded />],
+  ['Start: what are you setting up', () => <ChooseView embedded name="Joe" onChurch={noop} onBand={noop} onInvite={noop} onSignOut={noop} />],
+  ['Start: church request', () => <RequestView embedded kind="church" values={{ church: 'Grace Church', place: 'Cluj-Napoca, Romania', people: '11 to 30', note: '' }} onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['Start: band request', () => <RequestView embedded kind="band" values={{ church: 'Christmas fair band', place: 'Oradea, Romania', people: 'Up to 5', note: '' }} onChange={noop} onSubmit={noop} onBack={noop} />],
+  ['Start: waiting for approval', () => <WaitingApprovalView embedded church="Grace Church" email="joe@gracechurch.ro" sentLabel="Today, 21:14" onChange={noop} onSignOut={noop} />],
+  ['Start: ready', () => <ReadyView embedded church="Grace Church" onInvite={noop} onOpen={noop} />],
+  ['Start: invite link', () => <InviteLinkView embedded value="" onChange={noop} onSubmit={noop} onBack={noop} />],
   ['Join: waiting', () => <WaitingView embedded church={CHURCH} name="Joe Doe" parts={['vocals', 'keys']} onSignOut={noop} />],
   ['Join: you’re in', () => (
     <YoureInView

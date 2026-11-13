@@ -149,19 +149,29 @@ describe('element 3 — section heading', () => {
     expect(document.querySelector('[data-section-index] > div').style.position).toBe('');
   });
 
-  it('offers the original all-caps heading alongside name and code', () => {
-    render(<Reader song={makeSong()} settings={{ readerHeading: 'caps' }} onExit={() => {}} />);
-    // The old chart wrote "VERSE 1:" — same text as `name`, different weight.
-    expect(screen.getAllByText('Verse 1:').length).toBeGreaterThan(0);
-  });
-
-  it('switches between the name and the ribbon code', () => {
-    const r = render(<Reader song={makeSong()} settings={{ readerHeading: 'name' }} onExit={() => {}} />);
+  // QA 11 Nov: "Name also has the chip. Do we need all of them?" Three now.
+  it('Name shows the name only, Chip the chip only, Both the two', () => {
+    let r = render(<Reader song={makeSong()} settings={{ readerHeading: 'chip' }} onExit={() => {}} />);
     expect(screen.getAllByText('Verse 1').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBe(0);
     r.unmount();
 
-    render(<Reader song={makeSong()} settings={{ readerHeading: 'code' }} onExit={() => {}} />);
-    expect(screen.getAllByText('V1').length).toBeGreaterThan(0);
+    r = render(<Reader song={makeSong()} settings={{ readerHeading: 'chipOnly' }} onExit={() => {}} />);
+    expect(screen.getAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Verse 1').filter(el => el.closest('[data-section-index]')).length).toBe(0);
+    r.unmount();
+
+    render(<Reader song={makeSong()} settings={{ readerHeading: 'both' }} onExit={() => {}} />);
+    expect(screen.getAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Verse 1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+  });
+
+  it('reads the retired Short and Uppercase as Chip and Name', () => {
+    const r = render(<Reader song={makeSong()} settings={{ readerHeading: 'code' }} onExit={() => {}} />);
+    expect(screen.getAllByText('V1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
+    r.unmount();
+    render(<Reader song={makeSong()} settings={{ readerHeading: 'caps' }} onExit={() => {}} />);
+    expect(screen.getAllByText('Verse 1').filter(el => el.closest('[data-section-index]')).length).toBeGreaterThan(0);
   });
 
   it('changes the frame with the section style — and none of them takes width', () => {
@@ -330,7 +340,7 @@ describe('the ☰ menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
     // 4+ options are dropdowns now; 2–3 stay as pills.
     expect(screen.getByLabelText('Structure style')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Uppercase' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Both' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Style' }));
     expect(screen.getAllByText('Theme').length).toBeGreaterThan(0);
   });
@@ -418,7 +428,7 @@ describe('the ☰ menu', () => {
     // 2026-08-04: "everything is way too small").
     const stylePill = screen.getByRole('button', { name: 'S' });
     fireEvent.click(screen.getByRole('button', { name: 'Layout' }));
-    const layoutPill = screen.getByRole('button', { name: 'Uppercase' });
+    const layoutPill = screen.getByRole('button', { name: 'Both' });
     expect(stylePill.className).toContain('h-11');
     expect(layoutPill.className).toContain('h-11');
     // The steppers take the same size.
@@ -865,47 +875,32 @@ describe('the lyric colour and font belong to the LYRICS', () => {
   });
 });
 
-describe('the ☰ — free and Pro', () => {
-  // The suite's global mock says "allowed" to everything; this one says no.
+describe('the ☰ — nothing is locked', () => {
+  // Pro is gone (2026-11-13): a church member was told "Fonts are part of Pro".
+  // Every theme, font and colour is open to everyone, whatever any plan says —
+  // so this mock answers "no" to everything and the menu must not care.
   const asFree = () => {
     vi.doMock('@/hooks/useEntitlement', () => ({
-      useEntitlement: () => ({ allowed: false, requiredPlan: 'sync', currentPlan: 'free' }),
-      checkEntitlement: () => false,
+      useEntitlement: () => ({ allowed: false, requiredPlan: 'church', currentPlan: 'free' }),
+      checkEntitlement: () => ({ allowed: false }),
     }));
   };
 
-  it('never charges for legibility — sizes and spacing are free', async () => {
+  it('offers every theme, font and colour with no upgrade prompt', async () => {
     vi.resetModules();
     asFree();
     const { default: FreeReader } = await import('@/features/reader/Reader');
     render(<FreeReader song={makeSong()} settings={{}} onExit={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
 
-    // Both steppers, and both spacing steppers, all live.
     expect(screen.getByRole('button', { name: 'Increase lyric size' }).disabled).toBe(false);
     expect(screen.getByRole('button', { name: 'Increase chord size' }).disabled).toBe(false);
-    expect(screen.getByRole('button', { name: 'Increase line height' }).disabled).toBe(false);
-    expect(screen.getByRole('button', { name: 'Increase section gap' }).disabled).toBe(false);
-    vi.resetModules();
-  });
 
-  it('SHOWS the locked themes rather than hiding them, and offers a way in', async () => {
-    vi.resetModules();
-    asFree();
-    const { default: FreeReader } = await import('@/features/reader/Reader');
-    const onUpgrade = vi.fn();
-    render(<FreeReader song={makeSong()} settings={{}} onExit={() => {}} onUpgrade={onUpgrade} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-
-    // It used to FILTER them out: only the free themes existed on a free plan
-    // and the rest did not, so there was nothing to want. Seeing them is the
-    // pitch. Counted from the data so the number cannot rot.
-    const { CHART_THEMES, FREE_CHART_THEME_IDS } = await import('@/data/chartThemes');
-    const n = CHART_THEMES.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).length;
-    expect(screen.getAllByRole('button', { name: /upgrade to use$/ }).length).toBe(n);
-    // And the CTA is a button, not a sentence telling you what you can't do.
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`Unlock ${n} more themes`) }));
-    expect(onUpgrade).toHaveBeenCalled();
+    const { CHART_THEMES } = await import('@/data/chartThemes');
+    expect(screen.getAllByRole('button', { name: /^Theme: / }).length).toBe(CHART_THEMES.length);
+    expect(screen.queryAllByRole('button', { name: /upgrade/i }).length).toBe(0);
+    expect(screen.queryByText(/part of Pro/i)).toBeNull();
+    expect(screen.queryByText(/Unlock \d+ more themes/)).toBeNull();
     vi.resetModules();
   });
 });
@@ -1093,15 +1088,15 @@ describe('element 11 — tap a chord', () => {
     expect(screen.queryAllByRole('button', { name: 'G chord shape' }).length).toBe(0);
   });
 
-  it('leaves chords inert without the entitlement', async () => {
+  it('needs no plan — chord shapes open for everyone', async () => {
     vi.resetModules();
     vi.doMock('@/hooks/useEntitlement', () => ({
-      useEntitlement: () => ({ allowed: false, requiredPlan: 'sync', currentPlan: 'free' }),
-      checkEntitlement: () => false,
+      useEntitlement: () => ({ allowed: false, requiredPlan: 'church', currentPlan: 'free' }),
+      checkEntitlement: () => ({ allowed: false }),
     }));
-    const { default: Gated } = await import('@/features/reader/Reader');
-    render(<Gated song={makeSong()} settings={{}} onExit={() => {}} />);
-    expect(screen.queryAllByRole('button', { name: /chord shape$/ }).length).toBe(0);
+    const { default: Ungated } = await import('@/features/reader/Reader');
+    render(<Ungated song={makeSong()} settings={{}} onExit={() => {}} />);
+    expect(screen.queryAllByRole('button', { name: /chord shape$/ }).length).toBeGreaterThan(0);
     vi.doUnmock('@/hooks/useEntitlement');
   });
 });

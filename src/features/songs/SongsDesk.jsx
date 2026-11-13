@@ -3,7 +3,11 @@ import { Button } from '@/ui/shadcn/button';
 import { CheckIcon, PlayIcon } from '@/app/navIcons';
 import { songTempo } from '@/lib/songsData';
 import { mostPlayedKey } from '@/keyHistory';
-import { splitMulti } from '@/lib/songFacets';
+import { resolveSongView } from '@/arrangements';
+import { buildSongFlow } from '@/lib/songFlow';
+import { sectionTone } from '@/lib/sectionTone';
+import { extractInlineNotes } from '@/parser';
+import { Cover, Fact, MetaLine, Played, SongMap } from '@/features/song/SongParts';
 
 // Songs from 1024px: a table with the columns that matter for planning, and
 // the picked song on the right (canvas → Songs → Desktop). Pure view parts,
@@ -61,7 +65,22 @@ function arrangementOf(song) {
   return arrs.find(a => a.id === song.defaultArrangementId) || arrs[0] || song || {};
 }
 
-export function SongPreview({ row, nextLabel, onOpen, onEdit }) {
+// The first words of the song, chords and cues stripped: enough to recognise it.
+function firstLines(arr, n = 2) {
+  const out = [];
+  for (const sec of arr.sections || []) {
+    for (const l of sec?.lines || []) {
+      if (typeof l !== 'string') continue;
+      const words = extractInlineNotes(l).clean.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
+      if (words) out.push(words);
+      if (out.length >= n) return out;
+    }
+  }
+  return out;
+}
+
+/** The picked song beside the table (QA 11 Nov rebuild): the song page's header, small. */
+export function SongPreview({ row, nextLabel, onOpen, onEdit, customSectionTypes }) {
   if (!row) {
     return (
       <div className="flex flex-col items-center gap-1 rounded-card border border-dashed border-border px-5 py-10 text-center text-[14px] text-muted-foreground">
@@ -71,58 +90,41 @@ export function SongPreview({ row, nextLabel, onOpen, onEdit }) {
   }
   const { song, stat, next } = row;
   const arr = arrangementOf(song);
-  const meta = [arr.key && `Key ${arr.key}`, arr.tempo && `${arr.tempo} BPM`, arr.time].filter(Boolean).join(' · ');
-  const usual = mostPlayedKey(song.keyHistory) || arr.key || '—';
-  const order = (arr.structure?.length ? arr.structure : (arr.sections || []).map(sec => sec.type)).filter(Boolean);
+  const view = song.arrangements ? resolveSongView(song, arr.id) : song;
+  const codes = (buildSongFlow(view).ordered || []).map(sec => sectionTone(sec?.type, customSectionTypes));
   const arrs = song.arrangements || [];
-  const details = [
-    ['Length', arr.duration || song.duration],
-    ['Arrangements', arrs.length > 1 && arrs.map(x => x.name || 'Default').join(', ')],
-    ['Theme', splitMulti(song.themes, song.genres).join(', ')],
-    ['Tags', (song.tags || []).join(', ')],
-    ['Capo', arr.capo ? String(arr.capo) : ''],
-    ['CCLI', song.ccli],
-  ].filter(([, v]) => v);
+  const lines = firstLines(arr);
+  const facts = { plays: stat?.plays || 0, last: stat?.last ? short(stat.last) : null, usualKey: mostPlayedKey(song.keyHistory) || '' };
   return (
     <aside aria-label="Song preview" className="sticky top-4 flex flex-col gap-3.5 rounded-card border border-border bg-card p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          {song.artist && <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{song.artist}</span>}
-          <h2 className="m-0 text-[24px] font-semibold leading-7 tracking-[-0.5px]">{song.title || 'Untitled'}</h2>
-          {meta && <span className="text-[13px] text-muted-foreground">{meta}</span>}
+      <div className="flex items-center gap-4">
+        <Cover song={song} size={72} />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h2 className="m-0 text-[22px] font-semibold leading-[26px] tracking-[-0.3px]">{song.title || 'Untitled'}</h2>
+          {song.artist && <span className="truncate text-[15px] text-muted-foreground">{song.artist}</span>}
         </div>
-        {next && nextLabel && <span className="flex h-6 shrink-0 items-center rounded-full bg-selected px-2.5 text-[12px] font-semibold text-link">{nextLabel}</span>}
+        {next && nextLabel && <span className="flex h-6 shrink-0 items-center self-start rounded-full bg-selected px-2.5 text-[12px] font-semibold text-link">{nextLabel}</span>}
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {[[`${stat?.plays || 0}×`, 'played'], [stat?.last ? short(stat.last) : '—', 'last time'], [usual, 'usual key']].map(([v, l]) => (
-          <div key={l} className="flex flex-col gap-0.5 rounded-[10px] bg-raised px-3 py-2.5">
-            <b className="text-[17px] font-semibold">{v}</b>
-            <span className="text-[12px] text-muted-foreground">{l}</span>
-          </div>
-        ))}
-      </div>
-      {order.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>
-          <div className="flex flex-wrap gap-1.5">
-            {order.map((name, i) => <span key={i} className="flex h-7 items-center rounded-full bg-raised px-2.5 text-[13px] font-medium">{name}</span>)}
-          </div>
-        </div>
-      )}
-      {details.length > 0 && (
-        <dl className="m-0 flex flex-col text-[14px]">
-          {details.map(([k, v]) => (
-            <div key={k} className="flex gap-3 border-t border-border py-2 first:border-t-0">
-              <dt className="w-[104px] shrink-0 text-muted-foreground">{k}</dt>
-              <dd className="m-0 min-w-0 flex-1">{v}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      <div className="flex gap-2">
+      <MetaLine>
+        {arrs.length > 1 && <span className="inline-flex h-7 max-w-[160px] items-center truncate rounded-full border-[1.5px] border-foreground px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em]">{arr.name || 'Main'}</span>}
+        <Fact label="Key">{arr.key && <span className="font-mono font-semibold text-warning-text">{arr.key}</span>}</Fact>
+        <Fact label="BPM">{arr.tempo}</Fact>
+        <Fact label="Time">{arr.time}</Fact>
+        <Fact label="Length">{arr.duration || song.duration}</Fact>
+      </MetaLine>
+      {onEdit && <Played facts={facts} />}
+      <SongMap codes={codes} />
+      <div className="flex gap-2 pt-1">
         <Button className="flex-1" onClick={() => onOpen?.(song)}><PlayIcon size={14} />Open</Button>
         {onEdit && <Button variant="outline" className="flex-1" onClick={() => onEdit(song)}>Edit</Button>}
       </div>
+      {lines.length > 0 && (
+        <div className="flex flex-col gap-1 border-t border-border pt-3.5 text-[15px]">
+          <span className="text-[13px] text-muted-foreground">First lines</span>
+          <span>{lines[0]}</span>
+          {lines[1] && <span className="text-muted-foreground">{lines[1].replace(/[.,;:!?…]+$/, '')}…</span>}
+        </div>
+      )}
     </aside>
   );
 }
