@@ -23,10 +23,7 @@ export function UpdateLine({ onRefresh, onLater, inline = false }) {
             <path d="M16 10a6 6 0 1 1-1.76-4.24" /><path d="M16 4v3.5h-3.5" />
           </svg>
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-semibold leading-5">Update available</div>
-          <div className="text-[13px] leading-5 text-muted-foreground">Takes a second.</div>
-        </div>
+        <div className="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5">Update available</div>
         <Button size="sm" onClick={onRefresh} className="shrink-0">Refresh</Button>
         <button type="button" onClick={onLater} aria-label="Not now"
           className="relative grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground after:absolute after:-inset-1.5 after:content-['']">
