@@ -12,7 +12,9 @@
   }
   // Open every page at the top unless the link points at a section.
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
-  if (!location.hash) scrollTo(0, 0);
+  // scrollIntoView as well: inside an embedding frame (a preview) it also
+  // scrolls the page around the frame, which scrollTo cannot reach.
+  if (!location.hash) { scrollTo(0, 0); var top = document.body.firstElementChild; if (top && top.scrollIntoView) top.scrollIntoView({ block: 'start' }); }
   var head = document.getElementById('head');
   if (head) addEventListener('scroll', function () { head.classList.toggle('scrolled', scrollY > 8); }, { passive: true });
   var btn = document.getElementById('menuBtn'), nav = document.getElementById('mnav');
@@ -24,3 +26,4 @@
     if (e.target.closest('a')) { nav.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
   });
 })();
+
