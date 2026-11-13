@@ -928,6 +928,9 @@
   100% { background-position: -200% 0; }
 }
 
+/* "Update available" card (ui/UpdatePrompt): rises from the bottom edge. */
+.update-card-in { animation: sheet-up 220ms ease-out both; }
+
 @keyframes pop-in {
   0% { opacity: 0; }
   100% { opacity: 1; }
