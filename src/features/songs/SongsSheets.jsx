@@ -3,6 +3,9 @@ import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Input } from '@/ui/shadcn/input';
+import { NewSongForm } from '@/features/song-edit/NewSongForm';
+import { detailsMissing, EMPTY_DETAILS } from '@/features/song-edit/newSongDetails';
+import { normalizeText } from '@/lib/search';
 
 // The Songs page's smaller sheets: + Add, Tag, and Move/Copy to another church.
 
@@ -29,14 +32,41 @@ function Option({ icon, title, text, onClick }) {
   );
 }
 
-export function AddSongSheet({ open, onOpenChange, onSearch, onImport, onBlank }) {
-  const pick = (fn) => () => { onOpenChange?.(false); fn?.(); };
+// "Start from blank" continues in the same sheet (user, 13 Nov: "why not
+// continue in the pop-up?"): the details first, then the editor opens with
+// them filled in and the chart gets the whole screen.
+export function AddSongSheet({ open, onOpenChange, onSearch, onImport, onBlank, songs = [], artists = [] }) {
+  const [step, setStep] = useState('pick');
+  const [details, setDetails] = useState(EMPTY_DETAILS);
+  const close = (o) => { onOpenChange?.(o); if (!o) { setStep('pick'); setDetails(EMPTY_DETAILS); } };
+  const pick = (fn) => () => { close(false); fn?.(); };
+  const missing = detailsMissing(details);
+  const sameTitle = (() => {
+    const t = normalizeText(details.title || '').trim();
+    return t ? songs.find(x => normalizeText(x.title || '').trim() === t) || null : null;
+  })();
+  const next = () => { if (missing) return; const d = details; close(false); onBlank?.(d); };
+
+  if (step === 'details') {
+    return (
+      <Sheet open={open} onOpenChange={close} title="New song" className="h-auto max-h-[92dvh] sm:max-w-[480px]">
+        <form className="flex flex-col gap-3.5" onSubmit={(e) => { e.preventDefault(); next(); }}>
+          <NewSongForm value={details} onChange={setDetails} artists={artists} sameTitle={sameTitle} />
+          {missing && <p className="m-0 text-[13px] text-muted-foreground">Still needs {missing}.</p>}
+          <div className="flex gap-2 pt-1">
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setStep('pick')}>Back</Button>
+            <Button type="submit" className="flex-[2]" disabled={!!missing}>Next: the chart</Button>
+          </div>
+        </form>
+      </Sheet>
+    );
+  }
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Add a song" className="h-auto sm:max-w-[440px]">
+    <Sheet open={open} onOpenChange={close} title="Add a song" className="h-auto sm:max-w-[440px]">
       <div className="flex flex-col gap-2.5">
         {onSearch && <Option icon={SEARCH} title="Find a public-domain song" text="Hymns and old songs anyone may use, with chords." onClick={pick(onSearch)} />}
         {onImport && <Option icon={FILE} title="Import files" text="ChordPro, OpenSong, .md, or a .zip of many songs." onClick={pick(onImport)} />}
-        {onBlank && <Option icon={PEN} title="Start from blank" text="Type it in yourself." onClick={pick(onBlank)} />}
+        {onBlank && <Option icon={PEN} title="Start from blank" text="Type it in yourself." onClick={() => setStep('details')} />}
         <p className="m-0 pt-1 text-[13px] text-muted-foreground">Only add songs your church has a licence for (CCLI).</p>
       </div>
     </Sheet>

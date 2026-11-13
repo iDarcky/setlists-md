@@ -2,7 +2,6 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
-import { toggleVariants } from '@/ui/shadcn/toggle';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -15,6 +14,8 @@ import { normalizeText } from '@/lib/search';
 import { youtubeDuration, formatLength } from '@/lib/embedPlayers';
 import { youtubeId } from '@/lib/coverArt';
 import TabTool from './TabTool';
+import { Field, KeyGrid, ArtistInput, NewSongForm } from './NewSongForm';
+import { libraryArtists, detailsMissing } from './newSongDetails';
 import VersionHistory from './VersionHistory';
 import { useTeam } from '@/auth/useTeam';
 import { songDoc, songFromDoc } from '@/sync/songDoc';
@@ -644,55 +645,6 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
   );
 }
 
-function Field({ label, children, hint }) {
-  return (
-    <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-[13px] font-medium text-muted-foreground">{label}{hint && <span className="font-normal"> · {hint}</span>}</span>
-      {children}
-    </label>
-  );
-}
-
-/** Our own key dropdown: the 12 major keys, then the 12 minor ones. */
-/**
- * Pick a key in three small rows: the letter, then natural / flat / sharp,
- * then major / minor. Seven letters read faster than 24 buttons.
- */
-const KEY_RE = /^([A-G])([b#]?)(m?)$/;
-const NO_KEY = new Set(['E#', 'B#', 'Fb', 'Cb']);
-function KeyGrid({ value, onPick }) {
-  const m = KEY_RE.exec(value || '');
-  const [acc, setAcc] = useState(m ? m[2] : '');
-  const [minor, setMinor] = useState(m ? m[3] === 'm' : false);
-  const letter = m ? m[1] : null;
-  const put = (l, a, mi) => { if (!l) return; const k = NO_KEY.has(l + a) ? l : l + a; onPick(k + (mi ? 'm' : '')); };
-  // The app's own chips (ui/shadcn/toggle): picked = soft fill + accent edge.
-  const chip = (on, extra) => ({ 'data-state': on ? 'on' : 'off', className: cn(toggleVariants({ variant: 'chip' }), 'min-w-11 justify-center', extra) });
-  return (
-    <div className="flex flex-col gap-2">
-      <div role="radiogroup" aria-label="Key letter" className="flex flex-wrap gap-1.5">
-        {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map(l => (
-          <button key={l} type="button" role="radio" aria-checked={letter === l} {...chip(letter === l, 'text-[15px]')} onClick={() => put(l, acc, minor)}>{l}</button>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-1.5">
-        <div role="radiogroup" aria-label="Sharp or flat" className="flex gap-1.5">
-          {[['', '♮', 'Natural'], ['b', '♭', 'Flat'], ['#', '♯', 'Sharp']].map(([a, sym, label]) => (
-            <button key={label} type="button" role="radio" aria-checked={acc === a} aria-label={label} title={label} disabled={!!letter && a !== '' && NO_KEY.has(letter + a)}
-              {...chip(acc === a, 'text-[18px]')} onClick={() => { setAcc(a); put(letter, a, minor); }}>{sym}</button>
-          ))}
-        </div>
-        <span aria-hidden className="mx-1 w-px self-stretch bg-border" />
-        <div role="radiogroup" aria-label="Major or minor" className="flex gap-1.5">
-          {[[false, 'Major'], [true, 'Minor']].map(([mi, label]) => (
-            <button key={label} type="button" role="radio" aria-checked={minor === mi} {...chip(minor === mi)} onClick={() => { setMinor(mi); put(letter, acc, mi); }}>{label}</button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function KeyPicker({ value, onChange, onMove, compact = false }) {
   const [open, setOpen] = useState(false);
   const [to, setTo] = useState(null); // the key picked, while asking move or rename
@@ -992,87 +944,42 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
   );
 }
 
-/** Artist, with the library's own artists offered as you type. */
-function ArtistInput({ value, onChange, artists, className }) {
-  const [open, setOpen] = useState(false);
-  // Several artists go in one field with commas: suggest for the one being typed.
-  const v = value || '';
-  const cut = v.lastIndexOf(',');
-  const before = cut >= 0 ? v.slice(0, cut + 1) : '';
-  const q = normalizeText(v.slice(cut + 1)).trim();
-  const have = new Set(before.split(',').map(x => normalizeText(x).trim()).filter(Boolean));
-  // Empty: your most used artists. Typing: the ones that match, accents ignored.
-  const hits = artists.filter(a => { const n = normalizeText(a); return !have.has(n) && (q ? n.includes(q) && n !== q : true); }).slice(0, 6);
-  const pick = (a) => { onChange(before ? `${before.replace(/\s*$/, '')} ${a}` : a); setOpen(false); };
-  return (
-    <div className="relative">
-      <Input value={v} maxLength={120} placeholder="Artist or band, commas between several" className={className} autoComplete="off"
-        onChange={(e) => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)}
-        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} />
-      {open && hits.length > 0 && (
-        <div role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 flex flex-col rounded-control border border-border bg-card p-1.5 shadow-lg">
-          {hits.map(a => <button key={a} type="button" role="option" aria-selected="false" className={menuRow} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(a)}>{a}</button>)}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /**
  * A new song starts here (user, 13 Nov): name, artist, key and tempo first,
  * the rest behind More, then the chart gets the whole screen. Everything here
  * stays on the Info tab and the row over the chart afterwards.
  */
 function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onNext, onCancel, wide = true }) {
-  const [more, setMore] = useState(false);
-  const ph = 'placeholder:text-muted-foreground/50';
-  const f = (k, max = 120) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
-  const ready = !!(song.title?.trim() && song.artist?.trim() && arr.key && arr.tempo);
-  const need = [!song.title?.trim() && 'a name', !song.artist?.trim() && 'an artist', !arr.key && 'a key', !arr.tempo && 'a BPM'].filter(Boolean);
+  const value = { title: song.title, artist: song.artist, youtube: song.youtube, key: arr.key, tempo: arr.tempo, time: arr.time, duration: arr.duration };
+  const onChange = (v) => {
+    if (v.title !== value.title || v.artist !== value.artist || v.youtube !== value.youtube) onSong({ ...song, title: v.title, artist: v.artist, youtube: v.youtube });
+    else onArr({ ...arr, key: v.key, tempo: v.tempo, time: v.time, duration: v.duration });
+  };
+  const missing = detailsMissing(value);
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <form className="mx-auto flex w-full max-w-[480px] flex-col gap-3.5 px-4 pb-16 pt-6" onSubmit={(e) => { e.preventDefault(); if (ready) onNext(); }}>
-        <div className="flex flex-col gap-1 pb-1">
-          <h2 className="m-0 text-[22px] font-semibold tracking-[-0.01em]">New song</h2>
-          <p className="m-0 text-[14px] text-muted-foreground">The basics first. Then the chart gets the whole screen.</p>
-        </div>
-        <Field label="Name"><Input {...f('title')} autoFocus={!song.title} placeholder="Amazing Grace" className={ph} /></Field>
-        {sameTitle && <p className="-mt-2 m-0 text-[13px] text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
-        <Field label="Artist"><ArtistInput value={song.artist} artists={artists} className={ph} onChange={(artist) => onSong({ ...song, artist })} /></Field>
-        <Field label="Original key"><KeyGrid value={arr.key || ''} onPick={(key) => onArr({ ...arr, key })} /></Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="BPM"><Input inputMode="numeric" maxLength={3} value={arr.tempo ?? ''} placeholder="72" className={ph}
-            onChange={(e) => onArr({ ...arr, tempo: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null })} /></Field>
-          <Field label="Time"><Input maxLength={5} value={arr.time ?? ''} placeholder="4/4" className={ph} onChange={(e) => onArr({ ...arr, time: e.target.value })} /></Field>
-        </div>
-        {more ? (
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Length"><Input maxLength={5} value={arr.duration ?? ''} placeholder="3:45" className={ph} onChange={(e) => onArr({ ...arr, duration: e.target.value })} /></Field>
-            <div className="col-span-2"><Field label="YouTube link"><Input {...f('youtube', 300)} inputMode="url" placeholder="youtube.com/watch?v=…" className={ph} /></Field></div>
-            <p className="col-span-2 m-0 text-[13px] text-muted-foreground">Credits, tags and the rest are on the Info tab, any time.</p>
-          </div>
-        ) : (
-          <Button type="button" variant="outline" className="self-start" onClick={() => setMore(true)}>More</Button>
-        )}
+      <form className="mx-auto flex w-full max-w-[480px] flex-col gap-3.5 px-4 pb-16 pt-6" onSubmit={(e) => { e.preventDefault(); if (!missing) onNext(); }}>
+        <h2 className="m-0 pb-1 text-[22px] font-semibold tracking-[-0.01em]">New song</h2>
+        <NewSongForm value={value} onChange={onChange} artists={artists} sameTitle={sameTitle} />
         {wide && (
           <div className="flex items-center gap-2 pt-2">
-            <Button type="submit" disabled={!ready}>Next: the chart</Button>
+            <Button type="submit" disabled={!!missing}>Next: the chart</Button>
             <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
           </div>
         )}
-        {!ready && <p className="m-0 text-[13px] text-muted-foreground">Still needs {need.length > 1 ? `${need.slice(0, -1).join(', ')} and ${need.at(-1)}` : need[0]}.</p>}
+        {missing && <p className="m-0 text-[13px] text-muted-foreground">Still needs {missing}.</p>}
       </form>
       {!wide && (
         <div className="sticky bottom-0 mt-auto flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
           <Button variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
-          <Button className="flex-[2]" disabled={!ready} onClick={onNext}>Next: the chart</Button>
+          <Button className="flex-[2]" disabled={!!missing} onClick={onNext}>Next: the chart</Button>
         </div>
       )}
     </div>
   );
 }
 
-export default function SongEdit({ song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+export default function SongEdit({ askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -1093,7 +1000,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   const [arrId, setArrId] = useState(() => (song.arrangements?.some(a => a.id === initialArrangementId) ? initialArrangementId : song.defaultArrangementId || song.arrangements?.[0]?.id));
   const [tab, setTab] = useState('chart'); // chart | info
   const [preview, setPreview] = useState(false); // the read-only chart, beside (wide) or instead of (phone) the editor
-  const [step, setStep] = useState(mode === 'new' ? 'details' : null); // a new song asks the basics first
+  const [step, setStep] = useState(mode === 'new' && askDetails ? 'details' : null); // a new song asks the basics first
   const [whole, setWhole] = useState(null); // null | 'paste' | 'text'
   const [editing, setEditing] = useState(null); // { sec, line }: an open key change
   const [pick, setPick] = useState(null); // { sec, line, pos }: the letter the chord bar is for
@@ -1118,11 +1025,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   }, [library, working.title, working.id]);
 
   // The library's artists, to pick from instead of typing (most used first).
-  const artists = useMemo(() => {
-    const count = new Map();
-    for (const x of library) for (const part of String(x?.artist || '').split(',')) { const a = part.trim(); if (a && a !== 'Unknown') count.set(a, (count.get(a) || 0) + 1); }
-    return [...count.keys()].sort((a, b) => count.get(b) - count.get(a) || a.localeCompare(b));
-  }, [library]);
+  const artists = useMemo(() => libraryArtists(library), [library]);
 
   // Never lose work: an unsaved copy stays on this device until it is saved
   // or thrown away, and the next open offers it back.
