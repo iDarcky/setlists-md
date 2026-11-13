@@ -19,7 +19,7 @@ import SongChart from './SongChart';
 
 export default function Song({
   song: songInput, setlists = [], onBack, onEdit, onPlay, onMoveSong, onCopySong, onDelete,
-  onUpdateSong, onOpenSetlist, settings, onUpdateSettings, onTransposed, onUpgrade = null,
+  onUpdateSong, onOpenSetlist, settings, onUpdateSettings, onTransposed,
   initialShow = 'chords', layout = 'auto', embedded = false,
 }) {
   const [now] = useState(() => Date.now());
@@ -113,7 +113,6 @@ export default function Song({
           song={song}
           settings={settings}
           onUpdateSettings={onUpdateSettings}
-          onUpgrade={onUpgrade}
           displayMode={show === 'lyrics' ? 'lyrics' : 'chords'}
           selectedKey={shown}
           onSelectKey={pickKey}

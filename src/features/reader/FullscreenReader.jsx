@@ -20,7 +20,6 @@ export default function FullscreenReader({
   song, settings, onUpdateSettings, displayMode, selectedKey, onSelectKey, onClose,
   onUpdateSong = null,
   // Element 28 — where a locked control in the ☰ sends you.
-  onUpgrade = null,
 }) {
   // ── The flashbang ──────────────────────────────────────────────────────────
   // Owner, 2026-07-31: "the leader searches for a song at night and the reader
@@ -59,7 +58,6 @@ export default function FullscreenReader({
         settings={settings}
         onUpdateSettings={onUpdateSettings}
         onUpdateSong={onUpdateSong}
-        onUpgrade={onUpgrade}
         displayMode={displayMode}
         selectedKey={selectedKey}
         onSelectKey={onSelectKey}

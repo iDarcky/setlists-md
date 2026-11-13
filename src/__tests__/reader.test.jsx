@@ -875,47 +875,32 @@ describe('the lyric colour and font belong to the LYRICS', () => {
   });
 });
 
-describe('the ☰ — free and Pro', () => {
-  // The suite's global mock says "allowed" to everything; this one says no.
+describe('the ☰ — nothing is locked', () => {
+  // Pro is gone (2026-11-13): a church member was told "Fonts are part of Pro".
+  // Every theme, font and colour is open to everyone, whatever any plan says —
+  // so this mock answers "no" to everything and the menu must not care.
   const asFree = () => {
     vi.doMock('@/hooks/useEntitlement', () => ({
-      useEntitlement: () => ({ allowed: false, requiredPlan: 'sync', currentPlan: 'free' }),
-      checkEntitlement: () => false,
+      useEntitlement: () => ({ allowed: false, requiredPlan: 'church', currentPlan: 'free' }),
+      checkEntitlement: () => ({ allowed: false }),
     }));
   };
 
-  it('never charges for legibility — sizes and spacing are free', async () => {
+  it('offers every theme, font and colour with no upgrade prompt', async () => {
     vi.resetModules();
     asFree();
     const { default: FreeReader } = await import('@/features/reader/Reader');
     render(<FreeReader song={makeSong()} settings={{}} onExit={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
 
-    // Both steppers, and both spacing steppers, all live.
     expect(screen.getByRole('button', { name: 'Increase lyric size' }).disabled).toBe(false);
     expect(screen.getByRole('button', { name: 'Increase chord size' }).disabled).toBe(false);
-    expect(screen.getByRole('button', { name: 'Increase line height' }).disabled).toBe(false);
-    expect(screen.getByRole('button', { name: 'Increase section gap' }).disabled).toBe(false);
-    vi.resetModules();
-  });
 
-  it('SHOWS the locked themes rather than hiding them, and offers a way in', async () => {
-    vi.resetModules();
-    asFree();
-    const { default: FreeReader } = await import('@/features/reader/Reader');
-    const onUpgrade = vi.fn();
-    render(<FreeReader song={makeSong()} settings={{}} onExit={() => {}} onUpgrade={onUpgrade} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Display options' }));
-
-    // It used to FILTER them out: only the free themes existed on a free plan
-    // and the rest did not, so there was nothing to want. Seeing them is the
-    // pitch. Counted from the data so the number cannot rot.
-    const { CHART_THEMES, FREE_CHART_THEME_IDS } = await import('@/data/chartThemes');
-    const n = CHART_THEMES.filter(t => !FREE_CHART_THEME_IDS.has(t.id)).length;
-    expect(screen.getAllByRole('button', { name: /upgrade to use$/ }).length).toBe(n);
-    // And the CTA is a button, not a sentence telling you what you can't do.
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`Unlock ${n} more themes`) }));
-    expect(onUpgrade).toHaveBeenCalled();
+    const { CHART_THEMES } = await import('@/data/chartThemes');
+    expect(screen.getAllByRole('button', { name: /^Theme: / }).length).toBe(CHART_THEMES.length);
+    expect(screen.queryAllByRole('button', { name: /upgrade/i }).length).toBe(0);
+    expect(screen.queryByText(/part of Pro/i)).toBeNull();
+    expect(screen.queryByText(/Unlock \d+ more themes/)).toBeNull();
     vi.resetModules();
   });
 });
@@ -1103,15 +1088,15 @@ describe('element 11 — tap a chord', () => {
     expect(screen.queryAllByRole('button', { name: 'G chord shape' }).length).toBe(0);
   });
 
-  it('leaves chords inert without the entitlement', async () => {
+  it('needs no plan — chord shapes open for everyone', async () => {
     vi.resetModules();
     vi.doMock('@/hooks/useEntitlement', () => ({
-      useEntitlement: () => ({ allowed: false, requiredPlan: 'sync', currentPlan: 'free' }),
-      checkEntitlement: () => false,
+      useEntitlement: () => ({ allowed: false, requiredPlan: 'church', currentPlan: 'free' }),
+      checkEntitlement: () => ({ allowed: false }),
     }));
-    const { default: Gated } = await import('@/features/reader/Reader');
-    render(<Gated song={makeSong()} settings={{}} onExit={() => {}} />);
-    expect(screen.queryAllByRole('button', { name: /chord shape$/ }).length).toBe(0);
+    const { default: Ungated } = await import('@/features/reader/Reader');
+    render(<Ungated song={makeSong()} settings={{}} onExit={() => {}} />);
+    expect(screen.queryAllByRole('button', { name: /chord shape$/ }).length).toBeGreaterThan(0);
     vi.doUnmock('@/hooks/useEntitlement');
   });
 });

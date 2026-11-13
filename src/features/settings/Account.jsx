@@ -2,8 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import {
   StageGreeting,
   AccountSummary,
-  PlanLabel,
-  UpgradePill,
   SignInButton,
   CreateAccountButton,
 } from './AccountPanel';
@@ -21,8 +19,6 @@ export default function Account({
   isSignedIn = false,
   displayName = 'Guest',
   displayEmail = '',
-  plan = 'Free',
-  onUpgrade,
   onSignIn,
   onCreateAccount,
   onSignOut,
@@ -315,30 +311,15 @@ export default function Account({
             )}
           </div>
         )}
-        <div
-          className="rounded-2xl border p-6 flex flex-col gap-4"
-          style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
-        >
-          <PlanLabel plan={plan} tone="drawer" />
-          {isSignedIn && plan === 'Free' ? (
-            <UpgradePill onUpgrade={onUpgrade} />
-          ) : (
-            <>
-              <SignInButton onSignIn={onSignIn} />
-              <CreateAccountButton onCreateAccount={onCreateAccount} />
-              {onUpgrade && (
-                <button
-                  type="button"
-                  onClick={onUpgrade}
-                  className="self-start text-label-13 bg-transparent border-none p-0 cursor-pointer hover:underline underline-offset-4"
-                  style={{ color: 'var(--drawer-text-muted)' }}
-                >
-                  Compare plans →
-                </button>
-              )}
-            </>
-          )}
-        </div>
+        {!isSignedIn && (
+          <div
+            className="rounded-2xl border p-6 flex flex-col gap-4"
+            style={{ background: 'var(--drawer-surface)', borderColor: 'var(--drawer-border)' }}
+          >
+            <SignInButton onSignIn={onSignIn} />
+            <CreateAccountButton onCreateAccount={onCreateAccount} />
+          </div>
+        )}
 
         {isSignedIn && (
           <div
