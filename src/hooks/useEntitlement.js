@@ -1,102 +1,71 @@
-import { useAuth } from '@/auth/useAuth';
 import { useWorkspace } from '@/contexts/workspace';
 import { useTeam } from '@/auth/useTeam';
 
-// Plan hierarchy — higher rank = more access.
+// The plan lives on the GROUP (`teams.plan`), never on a person. A member is
+// never checked for a plan of their own: no Pro, no personal tier. Seats are
+// the main limit and the database enforces them (`teams.max_seats`); the only
+// feature that depends on the group's plan is services, which is Church-only.
 //
-// Single-user tiers: free → sync. The one-time **Pro** purchase is not a rank
-// here; it's an overlay flag (`profile.is_pro`) that unlocks the same
-// single-user paid features as Sync but via Bring-Your-Own-Cloud (see the
-// carve-out below). Workspace tiers: **Band** (internal key `team`, 10 seats)
-// and **Church** (`church`, 30 seats) gate on the workspace's own plan.
-const PLAN_RANK = { free: 0, sync: 1, team: 2, church: 3 };
+// Plan keys on a group: `team` (Band, 10 seats) and `church` (Church, 30
+// seats). Anything else, Personal included, ranks as `free`.
+const PLAN_RANK = { free: 0, team: 1, church: 2 };
 
-// Feature → minimum required plan.
-// Every gated feature in the app should have an entry here. Adding a new
-// gated feature? Add its key here and call `useEntitlement('feature-key')`
-// in the component that renders it.
+// Feature → minimum group plan. A feature with no entry here is open to
+// everyone, everywhere. Chart style, fonts, colours, themes and chord shapes
+// used to be listed (the old Pro and Sync tiers) and are free now.
 const FEATURE_GATES = {
-  // Single-user paid features — covered by Sync ($5/mo) or the one-time
-  // Pro purchase ($25, BYOC). The is_pro carve-out below unlocks these.
-  'cloud-sync':    'sync',
-  'smart-import':  'sync',
-  'chart-style':   'sync',   // advanced layout: themes, colours, custom fonts
-  'chord-diagrams':'sync',   // element 11: tap a chord for its shape
-
-  // Band tier (internal key `team`, $15/mo, up to 10 seats)
-  'team-create':   'team',
-  'team-library':  'team',
-  'team-collab':   'team',
-  'team-roles':    'team',
-
-  // Church tier ($25/mo, up to 30 seats)
   'multi-service': 'church',
 };
 
+function rank(plan) {
+  return PLAN_RANK[(plan || 'free').toLowerCase()] ?? 0;
+}
+
 /**
- * Check whether the current user's plan allows access to a given feature.
+ * Pure check: does a group on `plan` get `feature`?
+ * @param {string|null|undefined} plan — the group's plan (`teams.plan`)
+ * @param {string} feature — key from FEATURE_GATES; unknown keys are open
+ * @returns {{ allowed: boolean, requiredPlan: string, currentPlan: string }}
+ */
+export function checkEntitlement(plan, feature) {
+  const currentPlan = (plan || 'free').toLowerCase();
+  const requiredPlan = FEATURE_GATES[feature] || 'free';
+  return { allowed: rank(currentPlan) >= rank(requiredPlan), requiredPlan, currentPlan };
+}
+
+/**
+ * Does the open group's plan include a feature?
  *
  * @param {string} feature — key from FEATURE_GATES
- * @returns {{ allowed: boolean, requiredPlan: string, currentPlan: string }}
+ * @returns {{ allowed: boolean, requiredPlan: string, currentPlan: string, subscriptionStatus: string|null }}
  */
 export function useEntitlement(feature) {
   const { activeLibrary } = useWorkspace();
   const { team } = useTeam();
-  const { profile } = useAuth();
-  
+
   const isPersonal = activeLibrary === 'personal';
-  
-  // 1. Determine current rank based on context
-  // Team/church workspaces gate on the team's own plan. The schema and
-  // TeamProvider expose `team.plan` (team|church) — not `billing_plan`, which
-  // never existed and silently resolved every team feature to `free`.
-  const currentPlan = isPersonal
-    ? (profile?.subscription_tier || 'free').toLowerCase()
-    : (team?.plan || 'free').toLowerCase();
-    
-  const requiredPlan = FEATURE_GATES[feature] || 'free';
-  let allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);
+  const group = isPersonal ? null : team;
+  const result = checkEntitlement(group?.plan, feature);
 
-  // 2. Per-workspace billing: a team/church workspace carries its own Stripe
-  // subscription. If that subscription has lapsed the whole workspace drops to
-  // free-tier access — paid features gate off until billing is restored.
-  // Defaults to 'active' when the column is absent (pre-migration projects) so
-  // existing teams keep working.
-  const subscriptionStatus = isPersonal
-    ? null
-    : (team?.subscription_status || 'active').toLowerCase();
-  if (!isPersonal && team && requiredPlan !== 'free') {
+  // A group whose subscription lapsed loses its plan's extras until billing is
+  // restored. Absent status (older rows) counts as active.
+  const subscriptionStatus = group ? (group.subscription_status || 'active').toLowerCase() : null;
+  if (group && result.requiredPlan !== 'free') {
     const billingOk = subscriptionStatus === 'active' || subscriptionStatus === 'trialing';
-    if (!billingOk) allowed = false;
+    if (!billingOk) result.allowed = false;
   }
 
-  // 3. Special carve-outs for 'Pro' one-time purchases in Personal mode
-  if (isPersonal && profile?.is_pro) {
-    if (feature === 'chart-style' || feature === 'cloud-sync' || feature === 'smart-import') {
-      allowed = true;
-    }
-  }
-
-  return { allowed, requiredPlan, currentPlan, subscriptionStatus };
+  return { ...result, subscriptionStatus };
 }
 
 /**
- * Non-hook version for use outside of React components (e.g. in callbacks
- * where you already have the profile object).
- * We pass isPro to allow one-time purchase overrides.
+ * Personal's cloud copy, for the few accounts that already had one. Personal
+ * is being removed, so this is not opened to anyone new; it reads the legacy
+ * `profiles.subscription_tier` and goes away with Personal.
  */
-export function checkEntitlement(plan, feature, isPro = false) {
-  const currentPlan = (plan || 'free').toLowerCase();
-  const requiredPlan = FEATURE_GATES[feature] || 'free';
-  let allowed = (PLAN_RANK[currentPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0);
-  
-  if (isPro) {
-    if (feature === 'chart-style' || feature === 'cloud-sync' || feature === 'smart-import') {
-      allowed = true;
-    }
-  }
-
-  return { allowed, requiredPlan, currentPlan };
+export function personalCloudAllowed(profile) {
+  const tier = (profile?.subscription_tier || 'free').toLowerCase();
+  return tier === 'sync' || tier === 'team' || tier === 'church';
 }
 
 export { PLAN_RANK, FEATURE_GATES };

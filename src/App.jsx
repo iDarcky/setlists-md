@@ -64,7 +64,7 @@ import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import { usePersonalWorkspace } from '@/hooks/usePersonalWorkspace';
-import { checkEntitlement } from '@/hooks/useEntitlement';
+import { personalCloudAllowed as personalCloudAllowedFor } from '@/hooks/useEntitlement';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
@@ -194,11 +194,11 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile, loading: authLoading, isConfigured: accountsEnabled } = useAuth();
-  // The personal library's workspace on Supabase (step 4). Entitled by the
-  // PROFILE's tier — never the active team's — so a free account inside a
-  // church workspace does not get a personal cloud it loses on switching back.
-  // The id is cached per user, so the engine choice below is synchronous.
-  const personalCloudAllowed = !!user && checkEntitlement(profile?.subscription_tier, 'cloud-sync', !!profile?.is_pro).allowed;
+  // The personal library's workspace on Supabase (step 4). Only the accounts
+  // that already had one keep it: Personal is being removed, so it is not
+  // opened to anyone new. The id is cached per user, so the engine choice
+  // below is synchronous.
+  const personalCloudAllowed = !!user && personalCloudAllowedFor(profile);
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
@@ -2459,16 +2459,6 @@ export default function App() {
   // already used across this workspace's setlists (foundation for per-service
   // stats; a canonical team_services table can replace this source later).
   const knownServices = [...new Set(setlists.map(s => s.service).filter(Boolean))].sort();
-  // Display label for the personal plan. The internal `team` tier is branded
-  // "Band" in the UI; everything else title-cases its tier key.
-  const PLAN_DISPLAY = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
-  let plan = 'Free';
-  if (profile?.subscription_tier) {
-    const tier = profile.subscription_tier.toLowerCase();
-    plan = PLAN_DISPLAY[tier] || (tier.charAt(0).toUpperCase() + tier.slice(1));
-  } else if (profile?.is_pro) {
-    plan = 'Pro';
-  }
   // ── The new navigation (canvas "Navigation options": pill B, menu B) ──
   // Views that carry the nav pill. Everything else (a song, a service, the
   // reader, the editor) has its own "← Back".
@@ -3006,7 +2996,6 @@ export default function App() {
               isSignedIn={isSignedIn}
               displayName={displayName}
               displayEmail={displayEmail}
-              plan={plan}
               onSignIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
               onCreateAccount={() => { setAuthStartMode('signup'); navigate('signin'); }}
               onSignOut={handleSignOut}

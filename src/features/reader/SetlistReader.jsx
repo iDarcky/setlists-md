@@ -53,7 +53,6 @@ export default function SetlistReader({
   // old `PracticeView` honoured it, the reader that replaced it did not.
   startIndex = 0,
   // Element 28 — where a locked control in the ☰ sends you.
-  onUpgrade = null,
   // The public guest link draws its own Chords/Lyrics + size strip, so it has
   // no ☰ (owner, 2026-11-11 QA).
   showMenu = true,
@@ -427,7 +426,6 @@ export default function SetlistReader({
   const menuNode = menuAnchor ? (
     <ReaderMenu
       dock={menuDocks ? 'bottom' : 'side'}
-      onUpgrade={onUpgrade}
       anchorRect={menuAnchor}
       onClose={() => setMenu(null)}
       settings={settings}
@@ -489,7 +487,6 @@ export default function SetlistReader({
       liveAvailable={liveAvailable}
       onUpdateSong={onUpdateSong}
       onSaveAsArrangement={onSaveAsArrangement}
-      onUpgrade={onUpgrade}
       showMenu={showMenu}
       onExit={onBack}
       selectedKey={keys[idx] || slotKey(cur)}

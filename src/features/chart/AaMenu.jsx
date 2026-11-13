@@ -1,22 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useEntitlement } from '@/hooks/useEntitlement';
 import {
   CHART_THEMES,
   DEFAULT_CHART_THEME_ID,
   DEFAULT_CHORD_FONT_ID,
   DEFAULT_LYRIC_FONT_ID,
-  FREE_CHART_THEME_IDS,
 } from '@/data/chartThemes';
 // Shared with the reader's ☰ menu — two private copies of a stepper drift
 // within a release.
-import { Stepper, Label, Pick, FontList, Swatches, ProHint } from '@/ui/PanelControls';
+import { Stepper, Label, Pick, FontList, Swatches } from '@/ui/PanelControls';
 
 // The chart's single "Aa" display popover. Three tabs — Lyrics / Chords / Page —
 // fold the old Display + Layout sheets into one anchored menu. Lyrics and Chords
 // each get their own Size · Font · Colour (so chords can read small gold mono over
-// larger sans lyrics); Page holds Theme · Notation · Columns · Show toggles. Fonts,
-// colours and the non-free themes are gated behind the `chart-style` entitlement.
+// larger sans lyrics); Page holds Theme · Notation · Columns · Show toggles. All
+// of it is open to everyone.
 //
 // All writes go through `onUpdateSettings` / the passed change handlers, so the
 // menu is stateless beyond which tab is open. Everything is set-once-per-device.
@@ -37,7 +35,6 @@ export default function AaMenu({
   chartControls = true,
 }) {
   const [tab, setTab] = useState('page');
-  const { allowed: styleAllowed } = useEntitlement('chart-style');
 
   // Let the wheel scroll the theme strip horizontally while hovering it, not
   // just the scrollbar underneath it.
@@ -57,7 +54,7 @@ export default function AaMenu({
   const themeId = settings?.chartTheme || DEFAULT_CHART_THEME_ID;
   const lyricFontId = settings?.chartLyricFont || DEFAULT_LYRIC_FONT_ID;
   const chordFontId = settings?.chartChordFont || DEFAULT_CHORD_FONT_ID;
-  const visibleThemes = styleAllowed ? CHART_THEMES : CHART_THEMES.filter(t => FREE_CHART_THEME_IDS.has(t.id));
+  const visibleThemes = CHART_THEMES;
 
   // Position: below the anchor, clamped into the viewport. It aligns to
   // whichever edge of the anchor keeps it on screen — right-aligned for a
@@ -99,13 +96,9 @@ export default function AaMenu({
               <Stepper value={lyricSize} min={10} max={40} onChange={onLyricSize} label="lyric size" />
               {chartControls && (<>
                 <Label>Font</Label>
-                {styleAllowed
-                  ? <FontList activeId={lyricFontId} onPick={(id) => onUpdateSettings?.('chartLyricFont', id)} />
-                  : <ProHint>Upgrade to choose lyric fonts.</ProHint>}
+                <FontList activeId={lyricFontId} onPick={(id) => onUpdateSettings?.('chartLyricFont', id)} />
                 <Label>Colour</Label>
-                {styleAllowed
-                  ? <Swatches activeValue={settings?.chartLyricColor} onPick={(v) => onUpdateSettings?.('chartLyricColor', v || undefined)} />
-                  : <ProHint>Upgrade to recolour lyrics.</ProHint>}
+                <Swatches activeValue={settings?.chartLyricColor} onPick={(v) => onUpdateSettings?.('chartLyricColor', v || undefined)} />
               </>)}
             </>
           )}
@@ -116,13 +109,9 @@ export default function AaMenu({
               <Stepper value={chordSize} min={8} max={40} onChange={onChordSize} label="chord size" />
               {chartControls && (<>
                 <Label>Font</Label>
-                {styleAllowed
-                  ? <FontList activeId={chordFontId} onPick={(id) => onUpdateSettings?.('chartChordFont', id)} />
-                  : <ProHint>Upgrade to choose chord fonts.</ProHint>}
+                <FontList activeId={chordFontId} onPick={(id) => onUpdateSettings?.('chartChordFont', id)} />
                 <Label>Colour</Label>
-                {styleAllowed
-                  ? <Swatches activeValue={settings?.chartChordColor} onPick={(v) => onUpdateSettings?.('chartChordColor', v || undefined)} />
-                  : <ProHint>Upgrade to recolour chords.</ProHint>}
+                <Swatches activeValue={settings?.chartChordColor} onPick={(v) => onUpdateSettings?.('chartChordColor', v || undefined)} />
               </>)}
               <Label>Sharps or flats</Label>
               <div className="flex gap-1.5 flex-wrap">
