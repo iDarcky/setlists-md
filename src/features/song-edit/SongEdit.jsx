@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
+import { toggleVariants } from '@/ui/shadcn/toggle';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -665,26 +666,26 @@ function KeyGrid({ value, onPick }) {
   const [minor, setMinor] = useState(m ? m[3] === 'm' : false);
   const letter = m ? m[1] : null;
   const put = (l, a, mi) => { if (!l) return; const k = NO_KEY.has(l + a) ? l : l + a; onPick(k + (mi ? 'm' : '')); };
-  const segBtn = (on) => cn('flex h-10 min-h-0 flex-1 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-30',
-    on && 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.25)]');
-  const row = 'flex gap-0.5 rounded-full bg-raised p-1';
+  // The app's own chips (ui/shadcn/toggle): picked = soft fill + accent edge.
+  const chip = (on, extra) => ({ 'data-state': on ? 'on' : 'off', className: cn(toggleVariants({ variant: 'chip' }), 'min-w-11 justify-center', extra) });
   return (
     <div className="flex flex-col gap-2">
-      <div role="radiogroup" aria-label="Key letter" className={row}>
+      <div role="radiogroup" aria-label="Key letter" className="flex flex-wrap gap-1.5">
         {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map(l => (
-          <button key={l} type="button" role="radio" aria-checked={letter === l} className={segBtn(letter === l)} onClick={() => put(l, acc, minor)}>{l}</button>
+          <button key={l} type="button" role="radio" aria-checked={letter === l} {...chip(letter === l, 'text-[15px]')} onClick={() => put(l, acc, minor)}>{l}</button>
         ))}
       </div>
-      <div className="flex gap-2">
-        <div role="radiogroup" aria-label="Sharp or flat" className={cn(row, 'flex-1')}>
+      <div className="flex flex-wrap gap-1.5">
+        <div role="radiogroup" aria-label="Sharp or flat" className="flex gap-1.5">
           {[['', '♮', 'Natural'], ['b', '♭', 'Flat'], ['#', '♯', 'Sharp']].map(([a, sym, label]) => (
-            <button key={label} type="button" role="radio" aria-checked={acc === a} aria-label={label} disabled={!!letter && a !== '' && NO_KEY.has(letter + a)}
-              className={cn(segBtn(acc === a), 'text-[20px]')} onClick={() => { setAcc(a); put(letter, a, minor); }}>{sym}</button>
+            <button key={label} type="button" role="radio" aria-checked={acc === a} aria-label={label} title={label} disabled={!!letter && a !== '' && NO_KEY.has(letter + a)}
+              {...chip(acc === a, 'text-[18px]')} onClick={() => { setAcc(a); put(letter, a, minor); }}>{sym}</button>
           ))}
         </div>
-        <div role="radiogroup" aria-label="Major or minor" className={cn(row, 'flex-1')}>
+        <span aria-hidden className="mx-1 w-px self-stretch bg-border" />
+        <div role="radiogroup" aria-label="Major or minor" className="flex gap-1.5">
           {[[false, 'Major'], [true, 'Minor']].map(([mi, label]) => (
-            <button key={label} type="button" role="radio" aria-checked={minor === mi} className={segBtn(minor === mi)} onClick={() => { setMinor(mi); put(letter, acc, mi); }}>{label}</button>
+            <button key={label} type="button" role="radio" aria-checked={minor === mi} {...chip(minor === mi)} onClick={() => { setMinor(mi); put(letter, acc, mi); }}>{label}</button>
           ))}
         </div>
       </div>
@@ -995,7 +996,8 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
 function ArtistInput({ value, onChange, artists, className }) {
   const [open, setOpen] = useState(false);
   const q = normalizeText(value || '').trim();
-  const hits = q ? artists.filter(a => { const n = normalizeText(a); return n.includes(q) && n !== q; }).slice(0, 6) : [];
+  // Empty field: your most used artists. Typing: the ones that match, accents ignored.
+  const hits = (q ? artists.filter(a => { const n = normalizeText(a); return n.includes(q) && n !== q; }) : artists).slice(0, 6);
   return (
     <div className="relative">
       <Input value={value ?? ''} maxLength={120} placeholder="Artist or band" className={className} autoComplete="off"
@@ -1015,7 +1017,7 @@ function ArtistInput({ value, onChange, artists, className }) {
  * the rest behind More, then the chart gets the whole screen. Everything here
  * stays on the Info tab and the row over the chart afterwards.
  */
-function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onNext, onCancel }) {
+function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onNext, onCancel, wide = true }) {
   const [more, setMore] = useState(false);
   const ph = 'placeholder:text-muted-foreground/50';
   const f = (k, max = 120) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
@@ -1046,12 +1048,20 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
         ) : (
           <Button type="button" variant="outline" className="self-start" onClick={() => setMore(true)}>More</Button>
         )}
-        <div className="flex items-center gap-2 pt-2">
-          <Button type="submit" disabled={!ready}>Next: the chart</Button>
-          <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
-        </div>
+        {wide && (
+          <div className="flex items-center gap-2 pt-2">
+            <Button type="submit" disabled={!ready}>Next: the chart</Button>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+          </div>
+        )}
         {!ready && <p className="m-0 text-[13px] text-muted-foreground">Still needs {need.length > 1 ? `${need.slice(0, -1).join(', ')} and ${need.at(-1)}` : need[0]}.</p>}
       </form>
+      {!wide && (
+        <div className="sticky bottom-0 mt-auto flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
+          <Button variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button className="flex-[2]" disabled={!ready} onClick={onNext}>Next: the chart</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1299,10 +1309,12 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song, true); setArrId(r.arrangementId); closeAll(); } : null} />
   );
 
+  const saveLabel = fresh ? 'Add' : checking && !dirty ? 'Looks good' : 'Save';
+
   if (step === 'details' && !draftFound) {
     return (
       <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
-        <NewSongDetails song={working} arr={arr} onSong={setWorking} onArr={onArr} sameTitle={sameTitle} artists={artists} onCancel={cancel} onNext={() => setStep(null)} />
+        <NewSongDetails song={working} arr={arr} onSong={setWorking} onArr={onArr} sameTitle={sameTitle} artists={artists} wide={wide} onCancel={cancel} onNext={() => setStep(null)} />
       </div>
     );
   }
@@ -1310,7 +1322,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   return (
     <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
       <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
-        <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
+        {wide ? <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button> : <span className="w-1 shrink-0" />}
         <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 leading-tight">
           {/* Title and artist are typed right here (QA 11 Nov), not only in Info. */}
           <input value={working.title ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, title: e.target.value })}
@@ -1332,7 +1344,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
           mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
-        <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{fresh ? 'Add' : checking && !dirty ? 'Looks good' : 'Save'}</Button>
+        {wide && <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{saveLabel}</Button>}
       </div>
       {draftFound && (
         <div role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-warning-fill px-4 py-2">
@@ -1405,6 +1417,13 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
           </div>
         );
       })()}
+      {!wide && !pick && !tabEdit && (
+        // Phone: Cancel and Save sit under the thumb (user, 13 Nov), not in the top corners.
+        <div className="flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
+          <Button variant="outline" className="flex-1" onClick={cancel}>Cancel</Button>
+          <Button className="flex-[2]" onClick={save} disabled={!canSave} loading={saving}>{saveLabel}</Button>
+        </div>
+      )}
       {history && (
         <VersionHistory songId={song.id} teamId={historyTeamId} nameOf={nameOf} onClose={() => setHistory(false)}
           onRestore={(v) => {
