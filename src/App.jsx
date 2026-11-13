@@ -2568,11 +2568,9 @@ export default function App() {
     <Suspense fallback={lazyFallback}>
       <Toaster />
       <OfflineBanner />
-      {/* Suppressed for the WHOLE reader route, both modes. It used to name the
-          two live routes and leave practice out — an artifact of the fork, not
-          a decision: the reason is "do not cover a chart somebody is playing
-          from", which is equally true at a rehearsal. */}
-      <UpdatePrompt suppress={view === 'setlist-read'} />
+      {/* Home only: nobody is mid-task there, so a reload never lands in a
+          live set, a rehearsal or a half-typed song. */}
+      <UpdatePrompt suppress={view !== 'home'} />
       <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen

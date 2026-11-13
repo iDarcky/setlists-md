@@ -51,6 +51,7 @@ import PromptDialog from '@/ui/PromptDialog';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import StatusScreen from '@/ui/StatusScreen';
 import { OfflineLine } from '@/ui/OfflineBanner';
+import { UpdateLine } from '@/ui/UpdatePrompt';
 import { SyncProblem } from '@/features/home/HomeView';
 import BandSection from '@/features/setlist/BandSection';
 import { buildOrder } from '@/lib/setlistView';
@@ -288,6 +289,19 @@ function HomeGallery() {
       <Frame theme="dark" width={1200} height={1100} scale={0.8} label="Desktop · leader">
         <HomeDemo layout="wide" leader />
       </Frame>
+      {/* A new release is waiting. Shown on Home only; see ui/UpdatePrompt. */}
+      <div className="flex flex-wrap gap-6">
+        {THEMES.map(t => (
+          <Frame key={'upd' + t.id} theme={t.id} width={390} height={844} scale={0.6} label={`Update available · ${t.label}`}>
+            <HomeDemo layout="phone" />
+            <div className="absolute inset-x-3 bottom-[96px]"><UpdateLine inline onRefresh={noop} onLater={noop} /></div>
+          </Frame>
+        ))}
+        <Frame theme="light" width={1200} height={760} scale={0.6} label="Update available · desktop">
+          <HomeDemo layout="wide" leader />
+          <div className="absolute bottom-6 right-6 w-[360px]"><UpdateLine inline onRefresh={noop} onLater={noop} /></div>
+        </Frame>
+      </div>
     </div>
   );
 }
@@ -766,10 +780,11 @@ function PopupsGallery() {
           </Frame>
         )))}
         {THEMES.map(t => (
-          <Frame key={'bars' + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`Offline, back online, sync problem · ${t.label}`}>
+          <Frame key={'bars' + t.id} theme={t.id} width={390} height={700} scale={0.6} label={`Offline, back online, new version, sync problem · ${t.label}`}>
             <div className="flex h-full flex-col gap-3 bg-background px-4 pt-6 font-sans text-foreground">
               <OfflineLine state="offline" inline />
               <OfflineLine state="back" inline />
+              <UpdateLine inline onRefresh={() => {}} onLater={() => {}} />
               <SyncProblem onRetry={() => {}} />
             </div>
           </Frame>
