@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { supabase } from '@/auth/supabase';
 import { Avatar, AvatarImage, AvatarFallback } from './Avatar';
 import { Button } from './Button';
-import { shrinkImage, extFor } from '@/lib/shrinkImage';
+import { uploadAvatar, removeOldAvatars } from '@/lib/avatarUpload';
 
 /**
  * Uploads an image to the public `avatars` storage bucket and reports the
@@ -11,7 +11,8 @@ import { shrinkImage, extFor } from '@/lib/shrinkImage';
  * the bucket's RLS policies authorize. Removing calls onChange(null).
  *
  * The photo is shrunk on the device first (256px square, WebP or JPEG on
- * Safari) so a 3 MB phone photo is stored as ~20 KB.
+ * Safari) so a 3 MB phone photo is stored as ~20 KB. Once the new URL is
+ * saved, older files in the same folder are deleted.
  */
 export default function AvatarUploader({
   url,
@@ -43,14 +44,9 @@ export default function AvatarUploader({
     setBusy(true);
     setError(null);
     try {
-      const small = await shrinkImage(file);
-      const path = `${pathPrefix}/avatar-${Date.now()}.${extFor(small.type)}`;
-      const { error: upErr } = await supabase.storage
-        .from('avatars')
-        .upload(path, small, { upsert: true, cacheControl: '31536000', contentType: small.type });
-      if (upErr) throw upErr;
-      const publicUrl = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+      const publicUrl = await uploadAvatar(file, pathPrefix);
       await onChange?.(publicUrl);
+      removeOldAvatars(pathPrefix, publicUrl);
     } catch (err) {
       setError(err?.message || 'Upload failed.');
     } finally {
@@ -61,7 +57,7 @@ export default function AvatarUploader({
   const remove = async () => {
     setBusy(true);
     setError(null);
-    try { await onChange?.(null); }
+    try { await onChange?.(null); removeOldAvatars(pathPrefix, null); }
     catch (err) { setError(err?.message || 'Could not remove.'); }
     finally { setBusy(false); }
   };

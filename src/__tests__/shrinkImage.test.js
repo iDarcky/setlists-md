@@ -14,3 +14,31 @@ describe('shrinkImage helpers', () => {
     expect(extFor('image/png')).toBe('png');
   });
 });
+
+import { needsShrink } from '@/lib/avatarUpload';
+
+describe('needsShrink', () => {
+  const base = 'https://x.supabase.co/storage/v1/object/public/avatars/users/u1/';
+  it('flags a full-size photo from before shrinking', () => {
+    expect(needsShrink(base + 'avatar-1794418409511.png')).toBe(true);
+    expect(needsShrink(base + 'avatar-1780445578809.webp')).toBe(true);
+  });
+  it('leaves a shrunk photo, an empty one and outside links alone', () => {
+    expect(needsShrink(base + 'avatar-1794418409511-s256.webp')).toBe(false);
+    expect(needsShrink(null)).toBe(false);
+    expect(needsShrink('https://lh3.googleusercontent.com/a/photo.jpg')).toBe(false);
+  });
+});
+
+import { pathFromUrl } from '@/lib/avatarUpload';
+
+describe('pathFromUrl', () => {
+  it('reads the storage path from a public URL', () => {
+    expect(pathFromUrl('https://x.supabase.co/storage/v1/object/public/avatars/users/u1/avatar-1-s256.webp'))
+      .toBe('users/u1/avatar-1-s256.webp');
+  });
+  it('returns null for anything else', () => {
+    expect(pathFromUrl(null)).toBe(null);
+    expect(pathFromUrl('https://example.com/a.png')).toBe(null);
+  });
+});
