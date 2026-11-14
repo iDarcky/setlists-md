@@ -87,7 +87,9 @@ describe('JoinFlow', () => {
     const onJoined = vi.fn();
     render(<JoinFlow code={CODE} onJoined={onJoined} />);
     expect(await screen.findByText('You’re in!')).toBeInTheDocument();
-    expect(onJoined).toHaveBeenCalledWith('t1');
+    // `onJoined` fires from an effect AFTER the screen renders, so on a busy CI
+    // runner `findByText` can resolve first. Wait for it rather than assume.
+    await waitFor(() => expect(onJoined).toHaveBeenCalledWith('t1'));
     expect(screen.getByRole('button', { name: 'Skip to Home' })).toBeInTheDocument();
   });
 });

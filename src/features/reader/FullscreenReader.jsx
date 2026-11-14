@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Reader from './Reader';
+import { useChartSystemBars } from '@/lib/systemBars';
 
 /**
  * Full screen, from the Song Hub — the Reader with nothing around it.
@@ -21,6 +22,7 @@ export default function FullscreenReader({
   onUpdateSong = null,
   // Element 28 — where a locked control in the ☰ sends you.
 }) {
+  useChartSystemBars();
   // ── The flashbang ──────────────────────────────────────────────────────────
   // Owner, 2026-07-31: "the leader searches for a song at night and the reader
   // is set to light mode and presses full screen and bang flashbang."
