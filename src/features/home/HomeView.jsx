@@ -453,20 +453,25 @@ export default function HomeView({
   // asks' own state twice). `layout` pins it for /design's frames.
   const wideScreen = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'auto' ? wideScreen : layout === 'wide';
+  // The same header as Songs and Schedule (owner, 2026-11-13: "the hi user
+  // and new setlist button should all be on the same level as songs and
+  // schedule"): title and button share one centred row at the same size and
+  // padding, and the date line sits under that row instead of pushing the
+  // button down.
   const hello = (
-    <header className="flex items-start justify-between gap-3 pb-1">
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <h1 className={cn('m-0 font-semibold', wide ? 'text-[32px] leading-10 tracking-[-1px]' : 'text-[24px] leading-8 tracking-[-0.5px]')}>Hi {name}</h1>
-        <div className="flex flex-wrap items-center gap-x-2 text-[14px] text-muted-foreground">
-          <span>{dateLabel}</span>
-          {sync && <><span aria-hidden="true" className="text-border">·</span><SyncLine sync={sync} /></>}
-        </div>
+    <header className="flex flex-col gap-0.5 pb-0.5 pt-1">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className={cn('m-0 min-w-0 truncate font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Hi {name}</h1>
+        {leader && onNewSetlist && (
+          <Button size="sm" className="shrink-0" onClick={onNewSetlist}>
+            <PlusIcon size={16} />New setlist
+          </Button>
+        )}
       </div>
-      {leader && onNewSetlist && (
-        <Button size="sm" className={cn('shrink-0', wide ? 'mt-1.5' : 'mt-0.5')} onClick={onNewSetlist}>
-          <PlusIcon size={18} />New setlist
-        </Button>
-      )}
+      <div className="flex flex-wrap items-center gap-x-2 text-[14px] text-muted-foreground">
+        <span>{dateLabel}</span>
+        {sync && <><span aria-hidden="true" className="text-border">·</span><SyncLine sync={sync} /></>}
+      </div>
     </header>
   );
   const needsEl = leader && <NeedsYou items={needs} onOpen={onNeed} />;
@@ -479,7 +484,7 @@ export default function HomeView({
 
   return (
     <div data-slot="home" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      <div className={cn('mx-auto flex w-full max-w-[1040px] flex-col gap-3 pb-8', wide ? 'px-8 pt-8' : layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-4')}>
+      <div className={cn('mx-auto flex w-full max-w-[1040px] flex-col gap-3 pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         {hello}
         {syncProblem && <SyncProblem {...syncProblem} />}
         {startChurch}
