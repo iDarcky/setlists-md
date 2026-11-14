@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { setAppBarColor } from '@/lib/systemBars';
 
 /**
  * Document-level appearance: theme, the Labs neutral palette, and orientation
@@ -17,18 +18,10 @@ export function useAppearance(settings) {
     const theme = settings.theme === 'midnight' ? 'dark' : settings.theme;
 
     const setThemeColor = (mode) => {
-      // Must track --ds-background-100 per theme, or the phone's status bar is
-      // a different colour from the page under it.
-      const color = mode === 'light' ? '#f6f4ef' : mode === 'midnight' ? '#161a24' : '#161618';
-      // Remove the media-scoped tags so the single active tag wins everywhere.
-      document.querySelectorAll('meta[name="theme-color"][media]').forEach(m => m.remove());
-      let tag = document.querySelector('meta[name="theme-color"]:not([media])');
-      if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('name', 'theme-color');
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute('content', color);
+      // Must track `--background` (ds.css, what `<main>` paints) per theme, or the phone's status bar is
+      // a different colour from the page under it. A reader on screen overrides
+      // this with the chart's own background (`lib/systemBars.js`).
+      setAppBarColor(mode === 'light' ? '#f6f4ef' : '#11100e');
     };
 
     if (theme === 'default') {
