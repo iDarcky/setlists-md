@@ -11,6 +11,7 @@ import { ConfirmProvider } from '@/ui/useConfirm';
 import { initSentry } from './sentry';
 import { installAppViewport } from '@/lib/appViewport';
 import '@/styles/index.css';
+import { BlocksPreview, showBlocks } from '@/ui/blocks/lazyPreview';
 
 // Fire-and-forget — Sentry no-ops if VITE_SENTRY_DSN isn't set.
 initSentry();
@@ -35,7 +36,12 @@ window.addEventListener('vite:preloadError', (event) => {
   window.location.reload();
 });
 
+// `?blocks` shows the Bencho blocks on their own (src/ui/blocks).
+
 ReactDOM.createRoot(document.getElementById('root')).render(
+  showBlocks ? (
+    <React.Suspense fallback={null}><BlocksPreview /></React.Suspense>
+  ) : (
   <React.StrictMode>
     <AuthProvider>
       <TeamProvider>
@@ -45,4 +51,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       </TeamProvider>
     </AuthProvider>
   </React.StrictMode>
+  )
 );
