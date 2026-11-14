@@ -51,9 +51,6 @@ export const SparkIcon = ({ size = 20 }) => (
 export const PhoneIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><rect x="6" y="2.5" width="12" height="19" rx="3" /><path d="M11 18h2" /></svg>
 );
-export const SwatchIcon = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="8" rx="2" /><rect x="3" y="13" width="8" height="8" rx="2" /><rect x="13" y="13" width="8" height="8" rx="2" /></svg>
-);
 export const SignOutIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5M21 12H9" /></svg>
 );

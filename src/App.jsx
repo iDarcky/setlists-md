@@ -134,7 +134,6 @@ const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 // corner is deliberately cheap rather than self-explanatory, and this is where
 // it gets explained. See `LiveIntro`.
 const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
-const DesignSystem = lazy(() => import('@/features/design/DesignSystem'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
 // replaced is deleted). Lazy — only fetched when the user adds a song.
@@ -250,7 +249,6 @@ export default function App() {
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (window.location.pathname === '/copyright') return 'legal-copyright';
-      if (window.location.pathname === '/design') return 'design';
       // `/join/<code>` — a church's join link. Public: works before sign-in.
       if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
@@ -843,8 +841,6 @@ export default function App() {
             savedSettings.onboardingComplete = true;
             setSettings(savedSettings);
           }
-        } else if (view === 'design' && savedSettings.onboardingComplete) {
-          // /design: the design system page, opened by its address.
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
@@ -2408,8 +2404,8 @@ export default function App() {
   }
 
   // Only the signed-in app waits; public pages (guest link, join, legal,
-  // password reset, /design) draw at once.
-  const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'design', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
+  // password reset) draw at once.
+  const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
   const settlingHomeSpace = !publicView && waitingForHomeSpace({
     userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
     loaded, teamId: team?.id || null, schedulesLoaded: !team?.id || schedulesLoaded,
@@ -2628,7 +2624,7 @@ export default function App() {
       {!lockedOut && !['onboarding', 'signin', 'recovery'].includes(view) && (
         <DesktopLayout
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
-          activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
+          activeView={view === 'setlist-view' ? 'setlists' : view === 'schedule' ? 'home' : view}
           isFullscreen={view === 'setlist-read' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
           topBar={appTopBar}
           topBarOnPhone={['home', 'library', 'setlists', 'schedule'].includes(view)}
@@ -2948,9 +2944,6 @@ export default function App() {
               }}
             />
           )}
-          {view === "design" && (
-            <DesignSystem onBack={goBack} />
-          )}
           {view === "help" && (
             <HelpPage
               onBack={goBack}
@@ -2980,7 +2973,6 @@ export default function App() {
               onInstall={!isStandalone && (isIOS || canInstall)
                 ? async () => { if (isIOS) openIOSHint(); else await promptInstall(); }
                 : undefined}
-              onDesign={() => navigate('design')}
               onSignOut={handleSignOut}
               onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
             />
