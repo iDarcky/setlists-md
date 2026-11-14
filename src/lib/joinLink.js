@@ -57,10 +57,11 @@ export function inviteMailto({ email, teamName, url }) {
 }
 
 // ── "What do you play or sing?" ─────────────────────────────────────────────
-// `id` is what the request stores in `parts`. The six instrument ids are the
+// `id` is what the request stores in `parts`. The instrument ids are the
 // canonical tokens of data/instruments.js (`vocals` is a retired-but-valid
-// token), so approval copies them straight into `team_members.instruments`;
-// Sound desk / Something else are not instruments and stay on the request.
+// token, `other` is the Other instrument), so approval copies them straight
+// into `team_members.instruments`; Sound desk and Lyrics / slides are not
+// instruments and stay on the request.
 export const JOIN_PARTS = [
   { id: 'vocals', label: 'Vocals' },
   { id: 'acoustic-guitar', label: 'Acoustic guitar' },
@@ -70,7 +71,7 @@ export const JOIN_PARTS = [
   { id: 'drums', label: 'Drums' },
   { id: 'sound-desk', label: 'Sound desk' },
   { id: 'lyrics-slides', label: 'Lyrics / slides' },
-  { id: 'other', label: 'Something else' },
+  { id: 'other', label: 'Other instrument' },
 ];
 
 const PART_LABELS = new Map(JOIN_PARTS.map(p => [p.id, p.label]));
