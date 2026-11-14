@@ -82,7 +82,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={`Template · ${title}`} className="fixed inset-0 z-[70] flex flex-col bg-background font-sans text-foreground">
+    <div role="dialog" aria-modal="true" aria-label={`Template · ${title}`} className="fixed inset-0 z-[140] flex flex-col bg-background font-sans text-foreground">
       <div className="flex min-h-14 items-center justify-center gap-2 border-b border-border px-4 py-2 sm:justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
         {/* Phone: Cancel and Save sit in the bar at the bottom. */}
         <Button variant="ghost" className="hidden sm:inline-flex" onClick={onCancel}>Cancel</Button>
@@ -144,7 +144,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
                   <PlusIcon size={16} />Add to band<span aria-hidden="true" className="ml-auto text-muted-foreground">▾</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="z-[80] max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
+              <PopoverContent className="z-[150] max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
                 {ADDABLE_PARTS.filter(p => !partRows.some(x => x.part === p)).map(p => (
                   <button key={p} type="button" onClick={() => { set({ parts: [...(t.parts || []), p] }); setAddPart(false); }}
                     className="flex min-h-11 w-full cursor-pointer items-center rounded-control border-0 bg-transparent px-3 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
@@ -245,7 +245,7 @@ export function TemplateView({ template: t, onEdit, onClose, embedded = false })
   const items = t.items || [];
   const body = (
     <div role="dialog" aria-modal={embedded ? undefined : 'true'} aria-label={`Template · ${templateTitle(t)}`}
-      className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'fixed inset-0 z-[70]')}>
+      className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'fixed inset-0 z-[140]')}>
       <div className="flex items-center gap-1 px-4 pb-1" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
         <button type="button" onClick={onClose} aria-label="Templates" title="Templates" className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>
       </div>
@@ -275,7 +275,7 @@ export function TemplateView({ template: t, onEdit, onClose, embedded = false })
                   {it.type === 'break' ? (it.label || 'Moment') : it.songId ? (it.songTitle || 'Song') : (it.label || 'Song')}
                 </span>
                 <span className="text-[13px] text-muted-foreground">
-                  {it.type === 'break' ? (it.duration ? `${it.duration} min` : 'Moment') : it.songId ? 'Always this song' : isPlaceholder(it) ? 'Song to pick' : ''}
+                  {it.type === 'break' ? (it.duration ? `${it.duration} min` : '') : it.songId ? 'Always this song' : isPlaceholder(it) ? 'Song to pick' : ''}
                 </span>
               </div>
             )) : <p className="m-0 px-4 py-4 text-[14px] text-muted-foreground">Nothing in the order yet.</p>}
