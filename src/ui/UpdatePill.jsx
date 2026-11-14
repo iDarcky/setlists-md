@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Toaster, sileo } from 'sileo';
 
-// The green "Update available" pill (Sileo), top centre just under the top
-// bar. Tap it (hover on desktop) and it opens to show Refresh. It can't be
+// The green "Update available" pill (Sileo), at the very top centre of the
+// screen. Tap it (hover on desktop) and it opens to show Refresh. It can't be
 // closed or swiped away. Loaded lazily by UpdatePrompt only when an update is
 // waiting, so Sileo and its animation library cost nothing on a normal start.
 

@@ -931,14 +931,11 @@
 /* "Update available" pill (ui/UpdatePrompt, Sileo). Unlayered on purpose and
    scoped to .update-pill so it outranks the styles Sileo injects at runtime.
    Green fill with white text in both themes; Refresh is a white button. */
-/* Just under the top bar (phone 56px, desktop 65px; the viewport adds 12px
-   of padding) so it never covers the church name, the tabs or the bell. */
+/* At the very top of the screen (user, 14 Nov), over the top bar. The
+   viewport adds 12px of padding below the safe area. */
 .update-pill [data-sileo-viewport][data-position] {
   z-index: 60;
-  top: calc(env(safe-area-inset-top, 0px) + 50px);
-}
-@media (min-width: 640px) {
-  .update-pill [data-sileo-viewport][data-position] { top: 58px; }
+  top: env(safe-area-inset-top, 0px);
 }
 .update-pill [data-sileo-toast] { cursor: pointer; }
 .update-pill [data-sileo-title] {
