@@ -286,6 +286,8 @@ export default function App() {
   // The song the user asked to open in the old editor instead (Info → "Open the old editor").
   const [oldEditorFor, setOldEditorFor] = useState(null);
   const [editNewTitle, setEditNewTitle] = useState('');
+  // A new song's details, filled in the Add-a-song sheet before the editor opens.
+  const [editNewDetails, setEditNewDetails] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -1092,7 +1094,7 @@ export default function App() {
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle, newDetails } = {}) => {
     // Central gate for read-only team members (audit D-1): every editor entry
     // point funnels through here, so members can't reach the editor and lose
     // work to the server-authoritative sync (RLS already blocks their writes).
@@ -1104,6 +1106,7 @@ export default function App() {
       setEditArrangementId(arrangementId ?? null);
       // Seed title for a brand-new song, carried from the Add-a-song search box.
       setEditNewTitle(newTitle || '');
+      setEditNewDetails(newDetails || null);
     }
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
@@ -1372,9 +1375,9 @@ export default function App() {
   // Persist a table's visible columns (Songs / Setlists) — synced via prefs.
   const setTableColumns = (table, ids) =>
     setSettings(prev => ({ ...prev, tableColumns: { ...(prev?.tableColumns || {}), [table]: ids } }));
-  const goEditor = (song = null, arrangementId = null, newTitle = '') => {
+  const goEditor = (song = null, arrangementId = null, newTitle = '', newDetails = null) => {
     if (isTeamReadOnly) return;
-    navigate('editor', { song, arrangementId, newTitle });
+    navigate('editor', { song, arrangementId, newTitle, newDetails });
   };
   const [newSetlistOpen, setNewSetlistOpen] = useState(false);
   // What the new editor (SongEdit) edits. It only speaks the v2 shape, so a
@@ -1388,12 +1391,21 @@ export default function App() {
     const mode = !currentSong ? 'new' : songs.some(s => s.id === currentSong.id) ? 'edit' : 'import';
     const flat = currentSong || {};
     const song = songFromFlat({ ...flat, id: flat.id || generateId() });
-    if (!currentSong) { song.title = editNewTitle || ''; song.artist = ''; song.arrangements[0].name = 'Main'; }
+    if (!currentSong) {
+      const d = editNewDetails || {};
+      const a = song.arrangements[0];
+      song.title = (d.title ?? editNewTitle ?? '').trim(); song.artist = (d.artist || '').trim();
+      if (d.youtube) song.youtube = d.youtube.trim();
+      a.name = 'Main'; a.key = d.key || '';
+      if (d.tempo) a.tempo = d.tempo;
+      if (d.time) a.time = d.time.trim();
+      if (d.duration) a.duration = d.duration.trim();
+    }
     return { song, mode };
     // `songs` is read once per visit on purpose: saving adds the song to the
     // library, and a rebuilt target would reset the form under the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, currentSong, editNewTitle]);
+  }, [view, currentSong, editNewTitle, editNewDetails]);
   const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
     // Warn before editing a setlist whose date has already passed — editing it
@@ -2659,7 +2671,7 @@ export default function App() {
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
               onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { setCheckRun(true); goEditor(first); } }}
-              onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
+              onBlank={isTeamReadOnly ? null : (details) => goEditor(null, null, '', details || null)}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
               onMoveSongs={isTeamReadOnly || !moveCopyAllowed ? null : handleMoveSongs}
@@ -2757,6 +2769,7 @@ export default function App() {
               library={songs}
               historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
               mode={editTarget.mode}
+              askDetails={!editNewDetails}
               checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? { left: songs.filter(needsCheck).length } : null}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
