@@ -39,6 +39,12 @@ import { readLastLibrary, writeLastLibrary, waitingForHomeSpace } from '@/lib/la
 import { APP_HEIGHT } from '@/lib/appViewport';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Home from '@/features/home/Home';
+// The three nav-pill tabs load with the app, not on first tap. Lazy, the first
+// visit to Songs or Schedule swapped the WHOLE app for a "Loading…" screen
+// while the chunk arrived (the Suspense boundary sits above the shell). They
+// are small (~55 KB together, before gzip) next to the main bundle.
+import Schedule from '@/features/schedule/Schedule';
+import Songs from '@/features/songs/Songs';
 import Account from '@/features/settings/Account';
 import Setlists from '@/features/setlists/Setlists';
 import DesktopLayout from '@/app/DesktopLayout';
@@ -143,8 +149,6 @@ const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
 const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
-const Schedule = lazy(() => import('@/features/schedule/Schedule'));
-const Songs = lazy(() => import('@/features/songs/Songs'));
 const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
 const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
@@ -1245,7 +1249,11 @@ export default function App() {
         setSettingsPanel(targetPanel || 'hub');
       }
     };
-    if (typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
+    // Switching between the nav pill's tabs is instant, like a native tab
+    // bar: no cross-fade. The fade added ~250 ms to every tap and read as
+    // "loading" on Home ↔ Schedule ↔ Songs. Other main views keep it.
+    const tabSwitch = !!navItemFor(view) && !!navItemFor(viewName);
+    if (!tabSwitch && typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
       document.startViewTransition(apply);
     } else {
       apply();

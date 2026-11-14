@@ -7,6 +7,7 @@ import { Input } from '@/ui/shadcn/input';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useLongPress } from '@/lib/useLongPress';
 import { useMediaQuery } from '@/lib/useMediaQuery';
+import { useRevealList } from '@/hooks/useRevealList';
 import { SongsTable, SongPreview } from './SongsDesk';
 import { SORTS, filterCount } from '@/lib/songsData';
 import { PlusIcon, ChevronDownIcon, CheckIcon } from '@/app/navIcons';
@@ -192,6 +193,9 @@ export default function SongsView({
   const sortLabel = SORTS.find(s => s.value === sort)?.label || 'A–Z';
   const chipKey = filters.keys.length ? `Key: ${filters.keys.join(', ')}` : 'Key';
   const chipTheme = filters.themes.length ? `Theme: ${filters.themes.join(', ')}` : 'Theme';
+  // A screenful first, the rest as you scroll (see useRevealList).
+  const { count: shown, more, sentinel } = useRevealList(rows.length, { resetKey: `${query}|${sort}|${JSON.stringify(filters)}` });
+  const shownRows = shown < rows.length ? rows.slice(0, shown) : rows;
 
   return (
     <div data-slot="songs" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
@@ -278,7 +282,7 @@ export default function SongsView({
             ) : wide ? (
               <div className="grid grid-cols-[minmax(0,1fr)_360px] items-start gap-5">
                 <SongsTable
-                  rows={rows}
+                  rows={shownRows}
                   picked={picked?.song.id}
                   selecting={selecting}
                   selected={selected}
@@ -292,7 +296,7 @@ export default function SongsView({
               </div>
             ) : (
               <div className="overflow-hidden rounded-card border border-border bg-card">
-                {rows.map(r => (
+                {shownRows.map(r => (
                   <Row
                     key={r.song.id}
                     row={r}
@@ -306,6 +310,7 @@ export default function SongsView({
                 ))}
               </div>
             )}
+            {more && <div ref={sentinel} aria-hidden="true" className="h-px" />}
           </>
         )}
       </div>
