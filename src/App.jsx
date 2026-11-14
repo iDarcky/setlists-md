@@ -72,6 +72,7 @@ import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import { usePersonalWorkspace } from '@/hooks/usePersonalWorkspace';
+import useShrinkOldAvatar from '@/hooks/useShrinkOldAvatar';
 import { personalCloudAllowed as personalCloudAllowedFor } from '@/hooks/useEntitlement';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
@@ -201,6 +202,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile, loading: authLoading, isConfigured: accountsEnabled } = useAuth();
+  useShrinkOldAvatar(user, profile, updateProfile);
   // The personal library's workspace on Supabase (step 4). Only the accounts
   // that already had one keep it: Personal is being removed, so it is not
   // opened to anyone new. The id is cached per user, so the engine choice
