@@ -38,8 +38,8 @@ export default function RunSheet({ open, onClose, title, order, setlist, clockFo
   if (!open) return null;
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={`Service order · ${title}`} data-theme="dark"
-      className="fixed inset-0 z-[60] overflow-y-auto bg-[#11100E] font-sans text-[#F3EFE8]">
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#2E2A26] bg-[#11100E] px-4 py-3 sm:px-5" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}>
+      className="fixed inset-0 z-[60] overflow-y-auto bg-[#0E0D0B] font-sans text-[#F3EFE8]">
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[#2E2A26] bg-[#0E0D0B] px-4 py-3 sm:px-5" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}>
         <span className="flex min-w-0 flex-col">
           <b className="truncate text-[17px] font-semibold sm:text-[20px]">{title}</b>
           <span className="text-[13px] text-[#A39C92] sm:text-[14px]">{order.songCount} songs · {totalLabel(order.totalSeconds, order.estimated)}{status && <> · <b className="font-semibold text-[#7AA89C]">{status}</b></>}</span>

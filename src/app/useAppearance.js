@@ -21,7 +21,7 @@ export function useAppearance(settings) {
       // Must track `--background` (ds.css, what `<main>` paints) per theme, or the phone's status bar is
       // a different colour from the page under it. A reader on screen overrides
       // this with the chart's own background (`lib/systemBars.js`).
-      setAppBarColor(mode === 'light' ? '#f6f4ef' : '#11100e');
+      setAppBarColor(mode === 'light' ? '#f6f4ef' : '#0e0d0b');
     };
 
     if (theme === 'default') {
