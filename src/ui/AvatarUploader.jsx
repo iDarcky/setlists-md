@@ -2,12 +2,16 @@ import React, { useRef, useState } from 'react';
 import { supabase } from '@/auth/supabase';
 import { Avatar, AvatarImage, AvatarFallback } from './Avatar';
 import { Button } from './Button';
+import { shrinkImage, extFor } from '@/lib/shrinkImage';
 
 /**
  * Uploads an image to the public `avatars` storage bucket and reports the
  * resulting public URL via onChange. `pathPrefix` controls the storage folder
  * — `users/{uid}` for personal avatars, `teams/{teamId}` for team logos — which
  * the bucket's RLS policies authorize. Removing calls onChange(null).
+ *
+ * The photo is shrunk on the device first (256px square, WebP or JPEG on
+ * Safari) so a 3 MB phone photo is stored as ~20 KB.
  */
 export default function AvatarUploader({
   url,
@@ -26,7 +30,8 @@ export default function AvatarUploader({
   const radius = shape === 'square' ? 'rounded-2xl' : 'rounded-full';
 
   const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-  const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+  // The original only has to fit in memory: it is shrunk before upload.
+  const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -34,15 +39,15 @@ export default function AvatarUploader({
     if (!file) return;
     if (!supabase) { setError('Sign in to upload.'); return; }
     if (!ALLOWED_TYPES.includes(file.type)) { setError('Use a JPEG, PNG, or WebP image.'); return; }
-    if (file.size > MAX_BYTES) { setError('Image must be under 5 MB.'); return; }
+    if (file.size > MAX_BYTES) { setError('Image must be under 25 MB.'); return; }
     setBusy(true);
     setError(null);
     try {
-      const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const path = `${pathPrefix}/avatar-${Date.now()}.${ext || 'png'}`;
+      const small = await shrinkImage(file);
+      const path = `${pathPrefix}/avatar-${Date.now()}.${extFor(small.type)}`;
       const { error: upErr } = await supabase.storage
         .from('avatars')
-        .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+        .upload(path, small, { upsert: true, cacheControl: '31536000', contentType: small.type });
       if (upErr) throw upErr;
       const publicUrl = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
       await onChange?.(publicUrl);
