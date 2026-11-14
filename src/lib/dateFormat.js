@@ -10,13 +10,27 @@
  * agree on what "8 PM" means.
  */
 
+/**
+ * A shared Intl.DateTimeFormat per (locale, options). `toLocaleDateString`
+ * and `toLocaleTimeString` with options build a fresh formatter on every
+ * call, which is slow enough to show on a list of hundreds of rows. Same
+ * output, built once.
+ */
+const formatters = new Map();
+export function dateFormatter(locale, opts) {
+  const key = `${locale}|${JSON.stringify(opts)}`;
+  let f = formatters.get(key);
+  if (!f) { f = new Intl.DateTimeFormat(locale, opts); formatters.set(key, f); }
+  return f;
+}
+
+const CLOCK_24 = { hour: '2-digit', minute: '2-digit', hour12: false };
+const CLOCK_12 = { hour: 'numeric', minute: 'numeric', hour12: true };
+
 /** Format a stored 'HH:MM' time string for display. */
 export function formatClockTime(timeStr, format = '12h') {
   if (!timeStr) return '';
-  const opts = format === '24h'
-    ? { hour: '2-digit', minute: '2-digit', hour12: false }
-    : { hour: 'numeric', minute: 'numeric', hour12: true };
-  return new Date(`1970-01-01T${timeStr}`).toLocaleTimeString('en-US', opts);
+  return dateFormatter('en-US', format === '24h' ? CLOCK_24 : CLOCK_12).format(new Date(`1970-01-01T${timeStr}`));
 }
 
 /**

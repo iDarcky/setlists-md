@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/ui/shadcn/utils';
+import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Button } from '@/ui/shadcn/button';
+import { BottomActions } from '@/ui/shadcn/bottom-actions';
 import { Input } from '@/ui/shadcn/input';
 import { Sheet } from '@/ui/shadcn/sheet';
-import { PlusIcon } from '@/app/navIcons';
+import { PlusIcon, BackIcon } from '@/app/navIcons';
 import { transposeKey, transposeChord } from '@/music';
 import { parseLine } from '@/parser';
 import { resolveSongView, getArrangement } from '@/arrangements';
@@ -46,12 +48,7 @@ const Field = ({ label, children }) => (
     <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">{children}</div>
   </div>
 );
-const Switch = ({ on, onChange, label }) => (
-  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
-    className={cn('relative h-[26px] w-11 min-h-0 shrink-0 cursor-pointer rounded-full border-0 p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring', on ? 'bg-link' : 'bg-raised')}>
-    <span className={cn('absolute top-[3px] size-5 rounded-full bg-background transition-[left]', on ? 'left-[21px]' : 'left-[3px]')} />
-  </button>
-);
+const Switch = ({ on, onChange, label }) => <SharedSwitch checked={on} onCheckedChange={onChange} label={label} />;
 const KeyChip = ({ k }) => (k ? <span className="flex h-7 min-w-9 shrink-0 items-center justify-center rounded-md bg-raised px-1.5 font-mono text-[13px] font-semibold text-[var(--chord)]">{k}</span> : null);
 
 const lastLine = (lp, song, nameOf) => {
@@ -559,7 +556,7 @@ export default function SetlistFlow({
   if (step === 'details') {
     body = wide
       ? <div className="mx-auto grid w-full max-w-[1100px] grid-cols-2 gap-8 px-6 pb-16 pt-4">{serviceBlock}{bandBlock}</div>
-      : <div className="mx-auto flex w-full max-w-[600px] flex-col gap-5 px-4 pb-36 pt-2">{serviceBlock}{bandBlock}</div>;
+      : <div className="mx-auto flex w-full max-w-[600px] flex-col gap-5 px-4 pb-44 pt-2">{serviceBlock}{bandBlock}</div>;
   } else if (wide) {
     body = (
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(360px,420px)] border-t border-border">
@@ -575,7 +572,7 @@ export default function SetlistFlow({
     );
   } else {
     body = (
-      <div className="mx-auto flex w-full max-w-[600px] flex-col gap-6 px-4 pb-36 pt-2">
+      <div className="mx-auto flex w-full max-w-[600px] flex-col gap-6 px-4 pb-44 pt-2">
         {orderBlock}
         <div ref={libRef} className="scroll-mt-28">{addSongs}</div>
       </div>
@@ -587,8 +584,14 @@ export default function SetlistFlow({
     <div data-slot="setlist-flow" className={cn('flex flex-col bg-background font-sans text-foreground', deskSongs ? 'h-full min-h-[calc(100dvh-64px)]' : 'min-h-full')}>
       <div className="sticky top-0 z-10 flex flex-col bg-background" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="flex h-14 items-center gap-3 px-4">
-          <Button variant="ghost" className="-ml-3" onClick={onCancel}>Cancel</Button>
+          {wide && <Button variant="ghost" className="-ml-3" onClick={onCancel}>Cancel</Button>}
+          {/* Phone: Cancel and Save are in the bar at the bottom (user, 13 Nov);
+              the top keeps only the way back to the step before. */}
+          {!wide && (idx > 0
+            ? <Button variant="ghost" size="icon" className="-ml-3" aria-label={`Back to ${STEPS[idx - 1][1]}`} onClick={() => setStep(STEPS[idx - 1][0])}><BackIcon /></Button>
+            : <span className="size-11 -ml-3 shrink-0" />)}
           {!wide && <b className="flex-1 text-center text-[16px] font-semibold">{isNew ? 'New setlist' : 'Edit setlist'}</b>}
+          {!wide && <span className="size-11 -mr-3 shrink-0" />}
           {wide && (
             <>
               <b className="truncate font-mono text-[16px] font-semibold">{draft.name || (isNew ? 'New setlist' : 'Edit setlist')}</b>
@@ -606,7 +609,6 @@ export default function SetlistFlow({
               {nextStep ? <Button onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button> : <Button disabled={!canSave} onClick={() => save(true)}>{saveLabel}</Button>}
             </>
           )}
-          {!wide && <Button variant="ghost" className="-mr-3 text-link" disabled={!canSave || (!dirty && !isNew)} onClick={() => save()}>{isNew ? 'Save draft' : 'Save'}</Button>}
         </div>
         {!wide && (
           <div className="flex flex-col gap-1.5 px-4 pb-2">
@@ -627,16 +629,22 @@ export default function SetlistFlow({
       {body}
 
       {!wide && (
-        <div className="fixed inset-x-0 bottom-0 z-20 flex gap-2 border-t border-border bg-background px-4 pt-3" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
-          {idx > 0 && <Button variant="outline" className="h-12" onClick={() => setStep(STEPS[idx - 1][0])}>Back</Button>}
+        // Three actions don't fit one row on a 360px phone ("Save and mark
+        // ready" alone is 171px), so Cancel and Save draft share a row and the
+        // step's main action gets the one under the thumb.
+        <BottomActions fixed className="flex-col items-stretch">
+          <div className="flex gap-2">
+            <Button variant="outline" className="h-11 flex-1" onClick={onCancel}>Cancel</Button>
+            <Button variant="outline" className="h-11 flex-1" disabled={!canSave || (!dirty && !isNew)} onClick={() => save()}>{isNew ? 'Save draft' : 'Save'}</Button>
+          </div>
           {nextStep
-            ? <Button className="h-12 flex-1" onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button>
-            : <Button className="h-12 flex-1" disabled={!canSave} onClick={() => save(true)}>{saveLabel}</Button>}
-        </div>
+            ? <Button className="h-12" onClick={() => setStep(nextStep[0])}>Next: {nextStep[1]}</Button>
+            : <Button className="h-12" disabled={!canSave} onClick={() => save(true)}>{saveLabel}</Button>}
+        </BottomActions>
       )}
 
       {removed && (
-        <div role="status" className={cn('fixed inset-x-0 z-30 mx-auto flex w-[calc(100%-32px)] max-w-[420px] items-center gap-3 rounded-card border border-border bg-raised px-4 py-2.5 shadow-lg', wide ? 'bottom-6' : 'bottom-[88px]')}>
+        <div role="status" className={cn('fixed inset-x-0 z-30 mx-auto flex w-[calc(100%-32px)] max-w-[420px] items-center gap-3 rounded-card border border-border bg-raised px-4 py-2.5 shadow-lg', wide ? 'bottom-6' : 'bottom-[150px]')}>
           <span className="min-w-0 flex-1 truncate text-[14px]">Removed “{removed.title || removed.item?.label || 'Song'}”</span>
           <Button variant="link" className="text-[14px]" onClick={undoRemove}>Undo</Button>
         </div>

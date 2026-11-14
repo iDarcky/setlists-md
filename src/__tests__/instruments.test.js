@@ -9,10 +9,10 @@ describe('instruments — the musical axis', () => {
   // ⚠ Vocals is NOT offered as an instrument (owner, 2026-08-08). Once the
   // vocal part became independent of the instrument, an entry called "Vocals"
   // said the same thing twice — a pure singer is *no instrument + a part*.
-  it('is a closed list of six, with vocals deliberately absent', () => {
+  it('is a closed list of seven, with vocals deliberately absent', () => {
     expect(INSTRUMENTS.map(i => i.id)).toEqual([
       'acoustic-guitar', 'electric-guitar', 'bass-guitar',
-      'keys', 'piano', 'drums',
+      'keys', 'piano', 'drums', 'other',
     ]);
     expect(INSTRUMENTS.some(i => i.id === 'vocals')).toBe(false);
     expect(INSTRUMENTS.some(i => i.parts)).toBe(false);
@@ -114,9 +114,9 @@ describe('instruments — the musical axis', () => {
   // one list" helper existed briefly and, wired into the two roster pickers
   // that already had their own Vocal-part row, put Vocals in the picker EIGHT
   // times. Step one is instruments only.
-  it('offers only the seven instruments in step one', () => {
+  it('offers only the instruments in step one', () => {
     expect(INSTRUMENT_IDS).toEqual(INSTRUMENTS.map(i => i.id));
-    expect(INSTRUMENT_IDS).toHaveLength(6);
+    expect(INSTRUMENT_IDS).toHaveLength(7);
     expect(INSTRUMENT_IDS).not.toContain('vocals');
     for (const id of INSTRUMENT_IDS) expect(id).not.toContain(':');
     for (const id of INSTRUMENT_IDS) expect(normalize(id)).toBe(id);
@@ -142,5 +142,14 @@ describe('partLabel', () => {
     expect(partLabel({ vocal_part: 'lead-female' })).toBe('Lead female');
     expect(partLabel({ role: 'Trumpet' })).toBe('Trumpet');
     expect(partLabel(null)).toBe('');
+  });
+
+  it('has an Other instrument for everything the list does not name', () => {
+    expect(normalize('other')).toBe('other');
+    expect(normalize('Saxophone')).toBe('other');
+    expect(normalize('Something else')).toBe('other');
+    expect(labelFor('other')).toBe('Other');
+    expect(displayModeFor('other')).toBe('chords');
+    expect(tabId('other')).toBe(null);
   });
 });

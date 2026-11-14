@@ -9,11 +9,11 @@ import AppSkeleton from "@/ui/AppSkeleton";
 import { isQuotaError } from "@/lib/storageErrors";
 import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { songToMd, generateId } from './parser';
+import { generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { readySnapshot } from '@/lib/setlistView';
-import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
+import { canWriteLibrary as roleCanWriteLibrary, roleDef } from '@/lib/teamRoles';
 import { parseSiteEntry, stripSiteEntry, rememberSignupSource } from '@/lib/siteEntry';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { startScreen, storedRequest } from '@/lib/startFlow';
@@ -39,6 +39,12 @@ import { readLastLibrary, writeLastLibrary, waitingForHomeSpace } from '@/lib/la
 import { APP_HEIGHT } from '@/lib/appViewport';
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 import Home from '@/features/home/Home';
+// The three nav-pill tabs load with the app, not on first tap. Lazy, the first
+// visit to Songs or Schedule swapped the WHOLE app for a "Loading…" screen
+// while the chunk arrived (the Suspense boundary sits above the shell). They
+// are small (~55 KB together, before gzip) next to the main bundle.
+import Schedule from '@/features/schedule/Schedule';
+import Songs from '@/features/songs/Songs';
 import Account from '@/features/settings/Account';
 import Setlists from '@/features/setlists/Setlists';
 import DesktopLayout from '@/app/DesktopLayout';
@@ -66,11 +72,14 @@ import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import { usePersonalWorkspace } from '@/hooks/usePersonalWorkspace';
+import useShrinkOldAvatar from '@/hooks/useShrinkOldAvatar';
 import { personalCloudAllowed as personalCloudAllowedFor } from '@/hooks/useEntitlement';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
+// The group's plan, as the You page's Subscription row names it.
+const PLAN_LABELS = { free: 'Free', team: 'Band', church: 'Church' };
 
 // Leaving an editor with changes not saved: one wording for every way out
 // (Cancel, Back, a tab in the nav, the phone's back swipe).
@@ -125,7 +134,7 @@ const StartFlow = lazy(() => import('@/features/start/StartFlow'));
 // would have quietly outlived the graduation it was supposed to end — the same
 // dead import `Library.jsx` was carrying. Sixth of the family.
 const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
-const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
+import { WebRedirect } from '@/features/legal/WebSheet';
 const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
 // Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
 // ~80% the same file). Both were deleted on 2026-10-11.
@@ -134,17 +143,13 @@ const ReaderFinale = lazy(() => import('@/features/reader/ReaderFinale'));
 // corner is deliberately cheap rather than self-explanatory, and this is where
 // it gets explained. See `LiveIntro`.
 const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
-const DesignSystem = lazy(() => import('@/features/design/DesignSystem'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
 // replaced is deleted). Lazy — only fetched when the user adds a song.
-const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
 const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
 const TeamScreen = lazy(() => import('@/features/team/TeamScreen'));
-const Schedule = lazy(() => import('@/features/schedule/Schedule'));
-const Songs = lazy(() => import('@/features/songs/Songs'));
 const SchedulingGrid = lazy(() => import('@/features/scheduling/SchedulingGrid'));
 const AccountWall = lazy(() => import('@/features/settings/AccountWall'));
 const FounderNote = lazy(() => import('@/features/onboarding/FounderNote'));
@@ -197,6 +202,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 
 export default function App() {
   const { user, profile, signOut, updateProfile, loading: authLoading, isConfigured: accountsEnabled } = useAuth();
+  useShrinkOldAvatar(user, profile, updateProfile);
   // The personal library's workspace on Supabase (step 4). Only the accounts
   // that already had one keep it: Personal is being removed, so it is not
   // opened to anyone new. The id is cached per user, so the engine choice
@@ -205,7 +211,7 @@ export default function App() {
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
-  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
+  const { team, teams, members, myRole, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
   const signedOutSettled = !authLoading && !user?.id;
   // Launch: give memberships a few seconds to say which church to open before
   // falling back to whatever is open (offline, slow network).
@@ -250,7 +256,6 @@ export default function App() {
       if (window.location.pathname === '/privacy') return 'legal-privacy';
       if (window.location.pathname === '/terms') return 'legal-terms';
       if (window.location.pathname === '/copyright') return 'legal-copyright';
-      if (window.location.pathname === '/design') return 'design';
       // `/join/<code>` — a church's join link. Public: works before sign-in.
       if (parseJoinPath(window.location.pathname)) return 'join';
       if (/(type=recovery|#access_token=.*type=recovery)/.test(window.location.hash + window.location.search)) return 'recovery';
@@ -286,6 +291,8 @@ export default function App() {
   // The song the user asked to open in the old editor instead (Info → "Open the old editor").
   const [oldEditorFor, setOldEditorFor] = useState(null);
   const [editNewTitle, setEditNewTitle] = useState('');
+  // A new song's details, filled in the Add-a-song sheet before the editor opens.
+  const [editNewDetails, setEditNewDetails] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -841,8 +848,6 @@ export default function App() {
             savedSettings.onboardingComplete = true;
             setSettings(savedSettings);
           }
-        } else if (view === 'design' && savedSettings.onboardingComplete) {
-          // /design: the design system page, opened by its address.
         } else if (!savedSettings.onboardingComplete && isFirstRun) {
           setView('onboarding');
         } else if (!savedSettings.onboardingComplete) {
@@ -1092,7 +1097,7 @@ export default function App() {
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle, newDetails } = {}) => {
     // Central gate for read-only team members (audit D-1): every editor entry
     // point funnels through here, so members can't reach the editor and lose
     // work to the server-authoritative sync (RLS already blocks their writes).
@@ -1104,6 +1109,7 @@ export default function App() {
       setEditArrangementId(arrangementId ?? null);
       // Seed title for a brand-new song, carried from the Add-a-song search box.
       setEditNewTitle(newTitle || '');
+      setEditNewDetails(newDetails || null);
     }
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
@@ -1245,7 +1251,11 @@ export default function App() {
         setSettingsPanel(targetPanel || 'hub');
       }
     };
-    if (typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
+    // Switching between the nav pill's tabs is instant, like a native tab
+    // bar: no cross-fade. The fade added ~250 ms to every tap and read as
+    // "loading" on Home ↔ Schedule ↔ Songs. Other main views keep it.
+    const tabSwitch = !!navItemFor(view) && !!navItemFor(viewName);
+    if (!tabSwitch && typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
       document.startViewTransition(apply);
     } else {
       apply();
@@ -1372,9 +1382,9 @@ export default function App() {
   // Persist a table's visible columns (Songs / Setlists) — synced via prefs.
   const setTableColumns = (table, ids) =>
     setSettings(prev => ({ ...prev, tableColumns: { ...(prev?.tableColumns || {}), [table]: ids } }));
-  const goEditor = (song = null, arrangementId = null, newTitle = '') => {
+  const goEditor = (song = null, arrangementId = null, newTitle = '', newDetails = null) => {
     if (isTeamReadOnly) return;
-    navigate('editor', { song, arrangementId, newTitle });
+    navigate('editor', { song, arrangementId, newTitle, newDetails });
   };
   const [newSetlistOpen, setNewSetlistOpen] = useState(false);
   // What the new editor (SongEdit) edits. It only speaks the v2 shape, so a
@@ -1388,12 +1398,21 @@ export default function App() {
     const mode = !currentSong ? 'new' : songs.some(s => s.id === currentSong.id) ? 'edit' : 'import';
     const flat = currentSong || {};
     const song = songFromFlat({ ...flat, id: flat.id || generateId() });
-    if (!currentSong) { song.title = editNewTitle || ''; song.artist = ''; song.arrangements[0].name = 'Main'; }
+    if (!currentSong) {
+      const d = editNewDetails || {};
+      const a = song.arrangements[0];
+      song.title = (d.title ?? editNewTitle ?? '').trim(); song.artist = (d.artist || '').trim();
+      if (d.youtube) song.youtube = d.youtube.trim();
+      a.name = 'Main'; a.key = d.key || '';
+      if (d.tempo) a.tempo = d.tempo;
+      if (d.time) a.time = d.time.trim();
+      if (d.duration) a.duration = d.duration.trim();
+    }
     return { song, mode };
     // `songs` is read once per visit on purpose: saving adds the song to the
     // library, and a rebuilt target would reset the form under the user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, currentSong, editNewTitle]);
+  }, [view, currentSong, editNewTitle, editNewDetails]);
   const goSetlistBuild = async (sl = null) => {
     if (isTeamReadOnly) return;
     // Warn before editing a setlist whose date has already passed — editing it
@@ -2396,8 +2415,8 @@ export default function App() {
   }
 
   // Only the signed-in app waits; public pages (guest link, join, legal,
-  // password reset, /design) draw at once.
-  const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'design', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
+  // password reset) draw at once.
+  const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'google-drive-callback', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
   const settlingHomeSpace = !publicView && waitingForHomeSpace({
     userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
     loaded, teamId: team?.id || null, schedulesLoaded: !team?.id || schedulesLoaded,
@@ -2568,11 +2587,9 @@ export default function App() {
     <Suspense fallback={lazyFallback}>
       <Toaster />
       <OfflineBanner />
-      {/* Suppressed for the WHOLE reader route, both modes. It used to name the
-          two live routes and leave practice out — an artifact of the fork, not
-          a decision: the reason is "do not cover a chart somebody is playing
-          from", which is equally true at a rehearsal. */}
-      <UpdatePrompt suppress={view === 'setlist-read'} />
+      {/* Home only: nobody is mid-task there, so a reload never lands in a
+          live set, a rehearsal or a half-typed song. */}
+      <UpdatePrompt suppress={view !== 'home'} />
       <ConflictResolver conflicts={pendingConflicts} onResolve={resolveConflict} onResolveAll={resolveAllConflicts} />
       {view === 'signin' && (
         <AuthScreen
@@ -2618,7 +2635,7 @@ export default function App() {
       {!lockedOut && !['onboarding', 'signin', 'recovery'].includes(view) && (
         <DesktopLayout
           scrollKey={`${view}|${currentSetlist?.id || currentSong?.id || ''}`}
-          activeView={view === 'setlist-view' ? 'setlists' : view === 'design' ? 'settings' : view === 'schedule' ? 'home' : view}
+          activeView={view === 'setlist-view' ? 'setlists' : view === 'schedule' ? 'home' : view}
           isFullscreen={view === 'setlist-read' || (isFullscreen && (view === 'library' || view === 'setlists' || view === 'song-hub'))}
           topBar={appTopBar}
           topBarOnPhone={['home', 'library', 'setlists', 'schedule'].includes(view)}
@@ -2661,7 +2678,7 @@ export default function App() {
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
               onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { setCheckRun(true); goEditor(first); } }}
-              onBlank={isTeamReadOnly ? null : () => goEditor(null, null, '')}
+              onBlank={isTeamReadOnly ? null : (details) => goEditor(null, null, '', details || null)}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
               onMoveSongs={isTeamReadOnly || !moveCopyAllowed ? null : handleMoveSongs}
@@ -2759,6 +2776,7 @@ export default function App() {
               library={songs}
               historyTeamId={activeLibrary === 'personal' ? personalCloudId : activeLibrary}
               mode={editTarget.mode}
+              askDetails={!editNewDetails}
               checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? { left: songs.filter(needsCheck).length } : null}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
@@ -2929,32 +2947,25 @@ export default function App() {
         </Suspense>
       )}
           {(view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') && (
-            <LegalPage
-              doc={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'}
-              onBack={() => {
-                if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
-                goToMainView('home');
-              }}
-            />
-          )}
-          {view === "design" && (
-            <DesignSystem onBack={goBack} />
-          )}
-          {view === "help" && (
-            <HelpPage
-              onBack={goBack}
-              onMarkSeen={() => {
-                if (!settings?.notifications) return;
-                const updated = settings.notifications.map(n => ({ ...n, read: true }));
-                setSettings(prev => ({ ...prev, notifications: updated, helpPageSeen: true }));
-              }}
-            />
+            <WebRedirect page={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'} />
           )}
           {view === "you" && settings && (
             <YouPage
               me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
               signedIn={isSignedIn}
-              church={activeLibrary !== 'personal' ? { name: currentWorkspaceName } : null}
+              church={activeLibrary !== 'personal' ? {
+                name: currentWorkspaceName,
+                logoUrl: team?.logo_url || null,
+                role: !team ? null : team.owner_id === user?.id ? 'Owner' : roleDef(myRole).id === 'admin' ? 'Leader' : roleDef(myRole).label,
+                people: members?.length || 0,
+              } : null}
+              subscription={activeLibrary !== 'personal' && team && team.kind !== 'personal' && team.owner_id === user?.id
+                ? { label: PLAN_LABELS[(team.plan || 'free').toLowerCase()] || team.plan }
+                : null}
+              onSubscription={() => goToMainView('settings', { settingsPanel: 'plan' })}
+              userId={user?.id || null}
+              labsUnlocked={!!settings?.labsUnlocked}
+              onUnlockLabs={() => setSettings(prev => ({ ...prev, labsUnlocked: true }))}
               teamBadge={pendingJoinCount}
               onBack={goBack}
               onProfile={() => goToMainView('settings', { settingsPanel: 'profile' })}
@@ -2962,14 +2973,11 @@ export default function App() {
               onSettings={() => goToMainView('settings')}
               theme={settings?.theme}
               onThemeChange={(theme) => setSettings(prev => ({ ...prev, theme }))}
-              onHelp={() => navigate('help')}
               onWhatsNew={() => goToMainView('settings', { settingsPanel: 'whatsnew' })}
-              onAbout={() => goToMainView('settings', { settingsPanel: 'about' })}
               hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
               onInstall={!isStandalone && (isIOS || canInstall)
                 ? async () => { if (isIOS) openIOSHint(); else await promptInstall(); }
                 : undefined}
-              onDesign={() => navigate('design')}
               onSignOut={handleSignOut}
               onLogIn={() => { setAuthStartMode('signin'); navigate('signin'); }}
             />
@@ -2991,22 +2999,6 @@ export default function App() {
               trash={trash}
               onSaveTemplate={isTeamReadOnly ? null : handleSaveTemplate}
               onDeleteTemplate={handleDeleteTemplate}
-              onDownloadSongs={() => {
-                songs.forEach(s => {
-                  const md = songToMd(s);
-                  const blob = new Blob([md], { type: 'text/markdown' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = slugify(s.title) + '.md';
-                  a.click();
-                  URL.revokeObjectURL(url);
-                });
-                toast({
-                  title: 'Library exported',
-                  description: `${songs.length} song${songs.length === 1 ? '' : 's'} downloaded as .md files.`,
-                });
-              }}
               onDownloadBackup={async () => {
                 try {
                   const blob = await exportLibraryZip(songs, setlists);
@@ -3027,8 +3019,6 @@ export default function App() {
               onRestoreSong={handleRestoreSong}
               onPurgeSong={handlePurgeSong}
               onEmptyTrash={handleEmptyTrash}
-              onShowLegal={(doc) => navigate(`legal-${doc}`)}
-              onHelp={() => navigate('help')}
             />
           )}
           {view === "account" && settings && (

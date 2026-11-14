@@ -414,9 +414,8 @@ Tab blocks live inside sections. Parsed into `{ type: 'tab', strings: [{note, co
 **Redesign in progress (2026-10-25): warm black + Geist on shadcn/ui.** Tokens
 in `src/styles/ds.css` (shadcn names + `link`/`selected`/`raised`, status
 colours, `rounded-control|card|sheet`, `text-display|title|body|small|caption`);
-components in `src/ui/shadcn/`; the design system page is `/design`
-(`features/design/DesignSystem.jsx`, `?screen=<n>&theme=light` shows one
-screen alone). Signed-out + joining screens are on it (`features/auth/AuthLayout`
+components in `src/ui/shadcn/`. (The `/design` gallery page was removed
+2026-11-14.) Signed-out + joining screens are on it (`features/auth/AuthLayout`
 + `AuthViews`, `features/join/JoinViews`). Every other screen still uses the
 older system below until it is rebuilt.
 
@@ -476,7 +475,7 @@ The mobile experience (< 640px) is a bespoke shell distinct from the desktop sid
 - `Dashboard` drops all mobile-specific headers/FABs, runs under the "modes" theme variant, and uses `flex-1 min-h-0 overflow-hidden flex-col` so it fills the viewport without outer scroll. The "Recently Edited" card becomes the only internally scrollable region on the page.
 
 ### Theme Setting
-Settings → Appearance → Theme offers three options stored on `settings.theme`:
+The You page's Theme row (it left Settings on 2026-11-14) offers three options stored on `settings.theme`:
 - `default` — follows the OS via `matchMedia('(prefers-color-scheme: light)')` and live-updates on system changes.
 - `light` — forces the light palette (`data-theme="light"` on `<html>`).
 - `dark` — forces the dark palette (default).

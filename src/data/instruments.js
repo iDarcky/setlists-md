@@ -94,6 +94,10 @@ export const INSTRUMENTS = [
   { id: 'keys', label: 'Keys', display: 'chords', tabs: null, diagrams: false, pitched: true },
   { id: 'piano', label: 'Piano', display: 'chords', tabs: null, diagrams: false, pitched: true },
   { id: 'drums', label: 'Drums', display: 'lyrics', tabs: null, diagrams: false, pitched: false },
+  // Everything the list does not name: sax, violin, flute, trumpet… (a church
+  // sax player could not be scheduled, 2026-11-13). Reads chords by default.
+  // Naming your own instrument is parked until a second group asks for it.
+  { id: 'other', label: 'Other', display: 'chords', tabs: null, diagrams: false, pitched: true },
 ];
 
 // Retired from the pickable list but still a real stored value. `parseToken`
@@ -145,6 +149,12 @@ const LEGACY = {
   'keys': 'keys',
   'keyboard': 'keys',
   'piano': 'piano',
+  // the join form's "Something else" and the instruments it stands for
+  'other': 'other',
+  'other instrument': 'other',
+  'something else': 'other',
+  'sax': 'other',
+  'saxophone': 'other',
   // `ReaderMenu`'s old preset ids. `leader` is NOT an instrument — leading a
   // service is an administrative role plus a per-service flag, so it resolves
   // to nothing rather than quietly becoming somebody's instrument.
@@ -224,7 +234,7 @@ export function isPitched(token) {
   return parseToken(token).instrument?.pitched ?? true;
 }
 
-/** The seven top-level ids, for a picker's first step. */
+/** The top-level ids, for a picker's first step. */
 export const INSTRUMENT_IDS = INSTRUMENTS.map(i => i.id);
 
 /**

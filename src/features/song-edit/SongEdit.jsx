@@ -8,12 +8,14 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getArrangement, withArrangement, addArrangement, deleteArrangement, setDefaultArrangement, resolveSongView } from '@/arrangements';
 import { transposeArrangement } from '@/lib/transposeArrangement';
 import { parseLine, parseTabBlock, extractInlineNotes, lineToPlacement, CUE_MAX_CHARS, INLINE_NOTE_MAX_CHARS, EXTRA_META_FIELDS } from '@/parser';
-import { compactLabel, keyOptions, sectionStyle, semitonesBetween } from '@/music';
+import { compactLabel, sectionStyle, semitonesBetween } from '@/music';
 import { isChordToken } from '@/importer';
 import { normalizeText } from '@/lib/search';
 import { youtubeDuration, formatLength } from '@/lib/embedPlayers';
 import { youtubeId } from '@/lib/coverArt';
 import TabTool from './TabTool';
+import { Field, KeyGrid, ArtistInput, NewSongForm } from './NewSongForm';
+import { libraryArtists, detailsMissing } from './newSongDetails';
 import VersionHistory from './VersionHistory';
 import { useTeam } from '@/auth/useTeam';
 import { songDoc, songFromDoc } from '@/sync/songDoc';
@@ -37,7 +39,7 @@ import { canFillVerseChords, fillVerseChords } from '@/lib/verseChords';
 // The song editor, built from zero (canvas → "Song, edit and chart", Edit
 // row). Two tabs instead of four: **Chart** is the chart itself, editable in
 // place (tap a line to change its words or chords), and **Info** is the form.
-// From 1024px both sit side by side and there are no tabs at all.
+// Preview is a button (beside the editor from 1024px, instead of it on a phone).
 //
 // It edits the v2 song object directly, one arrangement at a time, and hands
 // the whole song to onSave — the same door the old editor used.
@@ -55,6 +57,8 @@ const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Sv
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 // The header's title and artist: plain text until you tap, then a field.
 const headIn = 'h-6 w-full min-w-0 max-w-[420px] truncate rounded-[6px] border-0 bg-transparent px-1.5 text-center font-sans outline-none placeholder:text-muted-foreground/70 hover:bg-raised focus:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
+// One compact control in the details row over the chart.
+const pill = 'inline-flex h-9 min-h-0 shrink-0 cursor-pointer items-center gap-1 rounded-control border border-border bg-transparent px-2 font-sans text-[14px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
 const menuRow = 'flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised disabled:cursor-default disabled:opacity-40';
 const tool = 'flex h-10 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent px-2.5 font-sans text-[13px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
@@ -465,31 +469,36 @@ function useChipDrag(order, onChange) {
   return { shown, drag, props };
 }
 
-function OrderBar({ order, names, onChange, styleOf }) {
+function OrderBar({ order, names, onChange, styleOf, vertical = false, onJump = null }) {
   const [open, setOpen] = useState(null);
   const { shown, drag, props } = useChipDrag(order, onChange);
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      <span className="shrink-0 pr-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>
+    <div className={vertical ? 'flex flex-col gap-1' : 'flex flex-wrap items-center gap-1'}>
+      {!vertical && <span className="shrink-0 pr-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>}
       {shown.map(({ name, i }, k) => (
         <Popover key={`${name}${i}`} open={!drag && open === i} onOpenChange={(o) => setOpen(o ? i : null)}>
           <PopoverTrigger asChild>
             <button type="button" aria-label={`${name}, place ${i + 1}`} style={{ background: styleOf(name).bg, color: styleOf(name).b, touchAction: 'pan-y' }} {...props(i, k)}
-              className={cn('flex h-8 min-h-0 min-w-9 shrink-0 cursor-grab select-none items-center justify-center rounded-[7px] border-0 px-2 font-sans text-[12px] font-semibold outline-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring', drag?.from === i && 'scale-110 cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,.35)] ring-2 ring-ring')}>{compactLabel(name)}</button>
+              className={cn('flex h-8 min-h-0 min-w-9 shrink-0 cursor-grab select-none items-center justify-center rounded-[7px] border-0 px-2 font-sans text-[12px] font-semibold outline-none [-webkit-touch-callout:none] focus-visible:ring-2 focus-visible:ring-ring',
+                vertical && 'h-9 w-full justify-start gap-2.5 px-2.5 text-[14px]',
+                drag?.from === i && (vertical ? 'cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,.35)] ring-2 ring-ring' : 'scale-110 cursor-grabbing shadow-[0_4px_12px_rgba(0,0,0,.35)] ring-2 ring-ring'))}>
+              {vertical ? (<><span className="w-7 shrink-0 text-[12px] font-bold">{compactLabel(name)}</span><span className="min-w-0 flex-1 truncate text-left font-medium text-foreground">{name}</span><span aria-hidden className="text-[14px] leading-none text-muted-foreground/60">⋮⋮</span></>) : compactLabel(name)}
+            </button>
           </PopoverTrigger>
           <PopoverContent className="flex w-[220px] flex-col p-1.5">
             <span className="px-2.5 pb-1 pt-1 text-[13px] font-semibold text-muted-foreground">{name}</span>
-            <button type="button" className={menuRow} disabled={i === 0} onClick={() => { onChange(move(order, i, -1)); setOpen(null); }}>← Move left</button>
-            <button type="button" className={menuRow} disabled={i === order.length - 1} onClick={() => { onChange(move(order, i, 1)); setOpen(null); }}>Move right →</button>
+            {onJump && <button type="button" className={menuRow} onClick={() => { onJump(name); setOpen(null); }}>Show in the chart</button>}
+            <button type="button" className={menuRow} disabled={i === 0} onClick={() => { onChange(move(order, i, -1)); setOpen(null); }}>{vertical ? '↑ Move up' : '← Move left'}</button>
+            <button type="button" className={menuRow} disabled={i === order.length - 1} onClick={() => { onChange(move(order, i, 1)); setOpen(null); }}>{vertical ? '↓ Move down' : 'Move right →'}</button>
             <button type="button" className={menuRow} onClick={() => { onChange([...order.slice(0, i + 1), name, ...order.slice(i + 1)]); setOpen(null); }}>Repeat</button>
             <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { onChange(order.filter((_, n) => n !== i)); setOpen(null); }}>Remove</button>
-            <p className="m-0 px-2.5 pb-1 pt-1.5 text-[12px] leading-4 text-muted-foreground">Or drag the chip to move it.</p>
+            <p className="m-0 px-2.5 pb-1 pt-1.5 text-[12px] leading-4 text-muted-foreground">Or drag it to move it.</p>
           </PopoverContent>
         </Popover>
       ))}
       <Popover open={open === 'add'} onOpenChange={(o) => setOpen(o ? 'add' : null)}>
         <PopoverTrigger asChild>
-          <button type="button" aria-label="Add to the order" className="flex h-8 min-h-0 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-dashed border-chip-border bg-transparent p-0 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"><PlusIcon size={14} /></button>
+          <button type="button" aria-label="Add to the order" className={cn('flex h-8 min-h-0 w-9 shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-dashed border-chip-border bg-transparent p-0 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', vertical && 'h-9 w-full gap-1.5 font-sans text-[14px]')}><PlusIcon size={14} />{vertical && 'Add to the order'}</button>
         </PopoverTrigger>
         <PopoverContent className="flex w-[220px] flex-col p-1.5">
           {names.map(n => <button key={n} type="button" className={menuRow} onClick={() => { onChange([...order, n]); setOpen(null); }}>{n}</button>)}
@@ -514,7 +523,7 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
   const setRun = (ri, ls) => { const next = runs.slice(); next[ri] = { lines: ls }; onArr(setLines(arr, index, runsToLines(next))); };
 
   return (
-    <section className="flex flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: look.br }}>
+    <section data-sec={index} className="flex scroll-mt-4 flex-col gap-1.5 border-l-2 pl-3" style={{ borderColor: look.br }}>
       <div className="flex min-h-9 items-center gap-2">
         <button type="button" onClick={onFold} aria-expanded={!folded} aria-label={folded ? `Open ${sec.type}` : `Fold ${sec.type} shut`}
           className={cn(iconBtn, '-ml-1.5 size-7 text-muted-foreground')}>
@@ -636,48 +645,33 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
   );
 }
 
-function Field({ label, children, hint }) {
-  return (
-    <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-[13px] font-medium text-muted-foreground">{label}{hint && <span className="font-normal"> · {hint}</span>}</span>
-      {children}
-    </label>
-  );
-}
-
-/** Our own key dropdown: the 12 major keys, then the 12 minor ones. */
-function KeyPicker({ value, onChange, onMove }) {
+function KeyPicker({ value, onChange, onMove, compact = false }) {
   const [open, setOpen] = useState(false);
   const [to, setTo] = useState(null); // the key picked, while asking move or rename
-  const keys = useMemo(() => keyOptions('flats'), []);
-  const grid = (list) => (
-    <div className="grid grid-cols-6 gap-1">
-      {list.map(k => (
-        <button key={k.value} type="button" aria-pressed={k.value === value} onClick={() => { if (onMove && value && k.value !== value) { setTo(k.value); return; } onChange(k.value); setOpen(false); }}
-          className={cn('flex h-10 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent p-0 font-mono text-[14px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
-            k.value === value && 'bg-[var(--chord)] text-background hover:bg-[var(--chord)]')}>{k.value}</button>
-      ))}
-    </div>
-  );
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); setTo(null); }}>
       <PopoverTrigger asChild>
-        <button type="button" aria-label={`Key ${value || 'not set'}, change`}
-          className="flex h-12 w-full min-w-0 cursor-pointer items-center justify-between gap-1 rounded-control border border-input bg-background px-3 font-mono text-[15px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11">
-          {value || '—'}<ChevronIcon />
-        </button>
+        {compact ? (
+          <button type="button" aria-label={`Key ${value || 'not set'}, change`} className={cn(pill, 'gap-1.5')}>
+            <span className="font-sans text-[12px] font-medium text-muted-foreground">Key</span>
+            <span className="font-mono text-[14px] font-semibold text-[var(--chord)]">{value || '—'}</span><ChevronIcon />
+          </button>
+        ) : (
+          <button type="button" aria-label={`Key ${value || 'not set'}, change`}
+            className="flex h-12 w-full min-w-0 cursor-pointer items-center justify-between gap-1 rounded-control border border-input bg-background px-3 font-mono text-[15px] font-semibold text-[var(--chord)] outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-11">
+            {value || '—'}<ChevronIcon />
+          </button>
+        )}
       </PopoverTrigger>
-      <PopoverContent align="start" className="flex w-[300px] flex-col gap-2 p-2.5">
+      <PopoverContent align="start" className="flex w-[340px] flex-col gap-2 p-2.5">
         {to ? (<>
           <b className="px-1 pt-1 text-[15px] font-semibold">From <span className="font-mono text-[var(--chord)]">{value}</span> to <span className="font-mono text-[var(--chord)]">{to}</span></b>
           <Button onClick={() => { onMove(to); setOpen(false); setTo(null); }}>Move every chord to {to}</Button>
           <Button variant="ghost" onClick={() => { onChange(to); setOpen(false); setTo(null); }}>Only rename the key</Button>
           <p className="m-0 px-1 text-[12px] leading-4 text-muted-foreground">Rename when the key was written down wrong and the chords are right.</p>
         </>) : (<>
-        <span className="px-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Major</span>
-        {grid(keys.filter(k => !k.value.endsWith('m')))}
-        <span className="px-1 pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Minor</span>
-        {grid(keys.filter(k => k.value.endsWith('m')))}
+        <KeyGrid value={value} onPick={(k) => { if (k === value) return; if (onMove && value) { setTo(k); return; } onChange(k); }} />
+        <Button size="sm" variant="ghost" className="self-end" onClick={() => setOpen(false)}>Done</Button>
         </>)}
       </PopoverContent>
     </Popover>
@@ -701,7 +695,7 @@ const MORE_FIELDS = [
   ['story', 'Story behind the song', ''],
 ];
 
-function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle }) {
+function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle, artists = [] }) {
   const [more, setMore] = useState(false);
   const f = (k, max = 300) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
   const a = (k, num) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: num ? (e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null) : e.target.value }) });
@@ -712,7 +706,7 @@ function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle }) {
     <div className="flex flex-col gap-3.5">
       <Field label="Title"><Input {...f('title', 120)} placeholder="Song name" autoFocus={!song.title} className={ph} /></Field>
       {sameTitle && <p className="-mt-2 m-0 text-[13px] text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
-      <Field label="Artist"><Input {...f('artist', 120)} placeholder="Artist or band" className={ph} /></Field>
+      <Field label="Artist"><ArtistInput value={song.artist} artists={artists} className={ph} onChange={(artist) => onSong({ ...song, artist })} /></Field>
       <Field label="Release year"><Input inputMode="numeric" {...f('year', 4)} placeholder="1779" className={ph} /></Field>
       <Field label="Notes for the band"><textarea {...a('notes')} maxLength={1000} rows={2} placeholder="Shown with the chart" className={cn('w-full rounded-control border border-input bg-background p-3 font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', ph)} /></Field>
       <h3 className={grp}>Listen</h3>
@@ -891,63 +885,101 @@ function reviewIssues(song) {
  * in one band under them. Living together says "these belong to this
  * arrangement" without renaming any field. Tap the open tab for its menu.
  */
-function ArrangementBar({ arrangements, arr, defaultId, showTabs, onPick, onRename, onDefault, onDelete, onNew, onArr, chords }) {
+/**
+ * The arrangement and its numbers as ONE short row over the chart (user
+ * feedback 13 Nov: the old tabs + four big boxes took a quarter of a desktop
+ * screen). It scrolls away with the chart. The arrangement is a dropdown:
+ * pick another, or rename / copy / make default / delete this one.
+ */
+function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefault, onDelete, onNew, onArr, chords, stacked = false }) {
   const [naming, setNaming] = useState(null);
   const [menu, setMenu] = useState(false);
-  const tab = 'inline-flex h-11 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 border-0 border-b-2 border-transparent bg-transparent px-3 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
-  const ph = 'placeholder:text-muted-foreground/50';
   const num = (k) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null }) });
   const txt = (k) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: e.target.value }) });
-  const small = 'flex min-w-0 flex-col gap-1 text-[12px] font-medium text-muted-foreground';
+  const box = (label, w, props, extra = {}) => (
+    <label className={cn(pill, 'cursor-text gap-1.5 focus-within:ring-2 focus-within:ring-ring')}>
+      <span className="text-[12px] font-medium text-muted-foreground">{label}</span>
+      <input {...props} {...extra} className={cn('h-full min-w-0 border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-foreground outline-none placeholder:text-muted-foreground/50', w)} />
+    </label>
+  );
   return (
-    <div className="shrink-0 border-b border-border bg-card">
-      {showTabs && (
-        <div role="tablist" aria-label="Arrangements" className="flex items-center gap-0.5 overflow-x-auto px-2">
-          {arrangements.map(a => a.id === arr.id && naming != null ? (
-            <form key={a.id} className="flex shrink-0 items-center gap-1 py-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
-              <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
-              <Button type="button" variant="ghost" size="sm" onClick={() => setNaming(null)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
-            </form>
-          ) : a.id === arr.id ? (
-            <Popover key={a.id} open={menu} onOpenChange={setMenu}>
-              <PopoverTrigger asChild>
-                <button type="button" role="tab" aria-selected="true" aria-label={`${a.name}, arrangement options`} className={cn(tab, 'border-foreground text-foreground')}>
-                  <span className="max-w-[180px] truncate">{a.name}</span>
-                  {a.id === defaultId && arrangements.length > 1 && <span className="rounded-full bg-raised px-1.5 text-[11px] font-medium text-muted-foreground">default</span>}
-                  <ChevronIcon />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="flex w-[240px] flex-col p-1.5">
-                <button type="button" className={menuRow} onClick={() => { setMenu(false); setNaming(a.name || ''); }}>Rename</button>
-                {onNew && <button type="button" className={menuRow} onClick={() => { setMenu(false); onNew(); }}>Make a copy</button>}
-                {arrangements.length > 1 && a.id !== defaultId && <button type="button" className={cn(menuRow, 'h-auto min-h-11 flex-col items-start gap-0 py-2')} onClick={() => { setMenu(false); onDefault(); }}>Make default<span className="text-[12px] font-normal text-muted-foreground">Opens first, and new setlists use it</span></button>}
-                {arrangements.length > 1 && <><div className="mx-1 my-1 h-px bg-border" /><button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { setMenu(false); onDelete(); }}>Delete arrangement</button></>}
-              </PopoverContent>
-            </Popover>
-          ) : (
-            <button key={a.id} type="button" role="tab" aria-selected="false" disabled={naming != null} onClick={() => onPick(a.id)} className={tab}>
-              <span className="max-w-[180px] truncate">{a.name}</span>
+    <div className={stacked ? 'grid grid-cols-2 gap-1.5 [&>*:first-child]:col-span-2 [&>*]:w-full [&>*]:justify-between' : 'flex w-max items-center gap-1.5'}>
+      {naming != null ? (
+        <form className="flex shrink-0 items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
+          <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
+          <Button type="button" variant="ghost" size="sm" onClick={() => setNaming(null)}>Cancel</Button>
+          <Button type="submit" size="sm" disabled={!naming.trim()}>Save</Button>
+        </form>
+      ) : (
+        <Popover open={menu} onOpenChange={setMenu}>
+          <PopoverTrigger asChild>
+            <button type="button" aria-label={`Arrangement ${arr.name}, change`} className={pill}>
+              <span className="max-w-[160px] truncate">{arr.name || 'Arrangement'}</span>
+              {arrangements.length > 1 && <span className="text-[12px] text-muted-foreground">{arrangements.length}</span>}
+              <ChevronIcon />
             </button>
-          ))}
-          {onNew && (
-            <button type="button" onClick={onNew} disabled={naming != null} aria-label="New arrangement, a copy of this one" className={cn(tab, 'gap-1')}>
-              <PlusIcon size={14} />New
-            </button>
-          )}
-        </div>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="flex w-[260px] flex-col p-1.5">
+            <span className="px-2.5 pb-1 pt-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Arrangements</span>
+            {arrangements.map(a => (
+              <button key={a.id} type="button" aria-pressed={a.id === arr.id} className={cn(menuRow, a.id === arr.id && 'font-semibold')} onClick={() => { setMenu(false); if (a.id !== arr.id) onPick(a.id); }}>
+                <span className="w-4 shrink-0 text-[var(--chord)]">{a.id === arr.id ? '✓' : ''}</span>
+                <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                {a.id === defaultId && arrangements.length > 1 && <span className="rounded-full bg-raised px-1.5 text-[11px] font-medium text-muted-foreground">default</span>}
+              </button>
+            ))}
+            {onNew && <button type="button" className={menuRow} onClick={() => { setMenu(false); onNew(); }}><PlusIcon size={14} />New arrangement<span className="text-[12px] text-muted-foreground">a copy</span></button>}
+            <div className="mx-1 my-1 h-px bg-border" />
+            <button type="button" className={menuRow} onClick={() => { setMenu(false); setNaming(arr.name || ''); }}>Rename {arr.name}</button>
+            {arrangements.length > 1 && arr.id !== defaultId && <button type="button" className={cn(menuRow, 'h-auto min-h-11 flex-col items-start gap-0 py-2')} onClick={() => { setMenu(false); onDefault(); }}>Make default<span className="text-[12px] font-normal text-muted-foreground">Opens first, and new setlists use it</span></button>}
+            {arrangements.length > 1 && <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { setMenu(false); onDelete(); }}>Delete {arr.name}</button>}
+          </PopoverContent>
+        </Popover>
       )}
-      <div className="mx-auto grid w-full max-w-[760px] grid-cols-4 gap-2 px-4 pb-3 pt-2">
-        <label className={small}>Key<KeyPicker value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} onMove={chords ? (to) => onArr({ ...transposeArrangement(arr, semitonesBetween(arr.key, to)), key: to }) : null} /></label>
-        <label className={small}>BPM<Input inputMode="numeric" maxLength={3} {...num('tempo')} placeholder="72" className={cn('h-12 sm:h-11', ph)} /></label>
-        <label className={small}>Time<Input maxLength={5} {...txt('time')} placeholder="4/4" className={cn('h-12 sm:h-11', ph)} /></label>
-        <label className={small}>Length<Input maxLength={5} {...txt('duration')} placeholder="3:45" className={cn('h-12 sm:h-11', ph)} /></label>
-      </div>
+      <KeyPicker compact value={arr.key || ''} onChange={(key) => onArr({ ...arr, key })} onMove={chords ? (to) => onArr({ ...transposeArrangement(arr, semitonesBetween(arr.key, to)), key: to }) : null} />
+      {box('BPM', 'w-[3ch]', num('tempo'), { inputMode: 'numeric', maxLength: 3, placeholder: '72', 'aria-label': 'BPM' })}
+      {box('Time', 'w-[3.2ch]', txt('time'), { maxLength: 5, placeholder: '4/4', 'aria-label': 'Time' })}
+      {box('Length', 'w-[4ch]', txt('duration'), { maxLength: 5, placeholder: '3:45', 'aria-label': 'Length' })}
     </div>
   );
 }
 
-export default function SongEdit({ song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+/**
+ * A new song starts here (user, 13 Nov): name, artist, key and tempo first,
+ * the rest behind More, then the chart gets the whole screen. Everything here
+ * stays on the Info tab and the row over the chart afterwards.
+ */
+function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onNext, onCancel, wide = true }) {
+  const value = { title: song.title, artist: song.artist, youtube: song.youtube, key: arr.key, tempo: arr.tempo, time: arr.time, duration: arr.duration };
+  const onChange = (v) => {
+    if (v.title !== value.title || v.artist !== value.artist || v.youtube !== value.youtube) onSong({ ...song, title: v.title, artist: v.artist, youtube: v.youtube });
+    else onArr({ ...arr, key: v.key, tempo: v.tempo, time: v.time, duration: v.duration });
+  };
+  const missing = detailsMissing(value);
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <form className="mx-auto flex w-full max-w-[480px] flex-col gap-3.5 px-4 pb-16 pt-6" onSubmit={(e) => { e.preventDefault(); if (!missing) onNext(); }}>
+        <h2 className="m-0 pb-1 text-[22px] font-semibold tracking-[-0.01em]">New song</h2>
+        <NewSongForm value={value} onChange={onChange} artists={artists} sameTitle={sameTitle} />
+        {wide && (
+          <div className="flex items-center gap-2 pt-2">
+            <Button type="submit" disabled={!!missing}>Next: Chart</Button>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+          </div>
+        )}
+        {missing && <p className="m-0 text-[13px] text-muted-foreground">Still needs {missing}.</p>}
+      </form>
+      {!wide && (
+        <div className="sticky bottom-0 mt-auto flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
+          <Button variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button className="flex-[2]" disabled={!!missing} onClick={onNext}>Next: Chart</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function SongEdit({ askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -966,8 +998,9 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   const redo = () => setHist(h => (h.future.length ? { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1), at: 0 } : h));
   const [tabEdit, setTabEdit] = useState(null); // { sec, line | null }: the tab grid is open
   const [arrId, setArrId] = useState(() => (song.arrangements?.some(a => a.id === initialArrangementId) ? initialArrangementId : song.defaultArrangementId || song.arrangements?.[0]?.id));
-  const [tab, setTab] = useState('chart'); // phone: chart | info | preview
-  const [side, setSide] = useState('info'); // wide: the right column, info | preview
+  const [tab, setTab] = useState('chart'); // chart | info
+  const [preview, setPreview] = useState(false); // the read-only chart, beside (wide) or instead of (phone) the editor
+  const [step, setStep] = useState(mode === 'new' && askDetails ? 'details' : null); // a new song asks the basics first
   const [whole, setWhole] = useState(null); // null | 'paste' | 'text'
   const [editing, setEditing] = useState(null); // { sec, line }: an open key change
   const [pick, setPick] = useState(null); // { sec, line, pos }: the letter the chord bar is for
@@ -990,6 +1023,9 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
     const t = normalizeText(working.title || '').trim();
     return t ? library.find(x => x && x.id !== working.id && normalizeText(x.title || '').trim() === t) || null : null;
   }, [library, working.title, working.id]);
+
+  // The library's artists, to pick from instead of typing (most used first).
+  const artists = useMemo(() => libraryArtists(library), [library]);
 
   // Never lose work: an unsaved copy stays on this device until it is saved
   // or thrown away, and the next open offers it back.
@@ -1101,7 +1137,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       onDone={(t) => { setWorking(w => applyMarkdown(w, arr.id, t)); setWhole(null); closeAll(); }} />
   ) : (
     <div className="flex flex-col gap-5">
-      <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />
+      {!wide && <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />}
       {arr.sections.map((x, i) => (
         <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} editing={editing} setEditing={setEditing} pick={pick} setPick={setPick} words={words} setWords={setWords} onArr={onArr} styleOf={styleOf}
           onTab={(line) => setTabEdit({ sec: i, line })}
@@ -1112,7 +1148,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       {arr.sections.length === 0 && <AddSection big onAdd={(t) => { const r = addSection(arr, -1, t); onArr(r.arr); setWords(r.index); }} />}
     </div>
   );
-  const chordBar = pick && typeof pickedLine === 'string' && !whole && (wide || tab === 'chart') ? (
+  const chordBar = pick && typeof pickedLine === 'string' && !whole && tab === 'chart' && !(preview && !wide) ? (
     <ChordBar key={`${pick.sec}-${pick.line}-${pick.pos}`} line={pickedLine} lineId={`${pick.sec}-${pick.line}`} pos={pick.pos} palette={palette} popover={wide}
       onClose={closePick}
       onPut={(c) => onArr(setLines(arr, pick.sec, arr.sections[pick.sec].lines.map((l, n) => (n === pick.line ? setChordAt(l, pick.pos, c) : l))))} />
@@ -1143,9 +1179,9 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
         setTabEdit(null);
       }} />
   );
-  const info = <InfoForm sameTitle={sameTitle} song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
+  const info = <InfoForm sameTitle={sameTitle} artists={artists} song={working} arr={arr} onSong={setWorking} onArr={onArr} onOldEditor={onOldEditor} />;
   const view = useMemo(() => resolveSongView(working, arr.id), [working, arr.id]);
-  const preview = arr.sections.length ? (
+  const preview_ = arr.sections.length ? (
     <Suspense fallback={null}>
       <div className="relative min-h-[60vh]">
         <Reader embedded narrow song={view} displayMode="chords" settings={settings} onUpdateSettings={onUpdateSettings} selectedKey={arr.key} onSelectKey={() => {}} />
@@ -1153,14 +1189,6 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
     </Suspense>
   ) : <p className="m-0 py-10 text-center text-[14px] text-muted-foreground">The chart shows here once the song has a section.</p>;
 
-  const seg = (items, value, onPick) => (
-    <div role="tablist" className="flex flex-1 gap-0.5 rounded-[10px] bg-raised p-[3px]">
-      {items.map(([id, l]) => (
-        <button key={id} type="button" role="tab" aria-selected={value === id} onClick={() => onPick(id)}
-          className={cn('h-[34px] min-h-0 flex-1 cursor-pointer rounded-[7px] border-0 bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', value === id && 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.18)]')}>{l}</button>
-      ))}
-    </div>
-  );
   // A new YouTube link fills an empty Length from the video.
   const ytId = youtubeId(working.youtube || '');
   const lastYt = useRef(ytId);
@@ -1178,7 +1206,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
   const hasChords = arr.sections.some(sc => (sc.lines || []).some(l => typeof l === 'string' && l.includes('[')));
   const arrBar = (
     <ArrangementBar arrangements={arrangements} arr={arr} defaultId={working.defaultArrangementId || working.arrangements[0]?.id}
-      showTabs={arrangements.length > 1 || mode === 'edit'} chords={hasChords} onArr={onArr}
+      chords={hasChords} onArr={onArr} stacked={wide}
       onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
       onRename={(name) => onArr({ ...arr, name })}
       onDefault={() => setWorking(w => setDefaultArrangement(w, arr.id), true)}
@@ -1190,18 +1218,29 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
       onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song, true); setArrId(r.arrangementId); closeAll(); } : null} />
   );
 
+  const saveLabel = fresh ? 'Add' : checking && !dirty ? 'Looks good' : 'Save';
+
+  if (step === 'details' && !draftFound) {
+    return (
+      <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
+        <NewSongDetails song={working} arr={arr} onSong={setWorking} onArr={onArr} sameTitle={sameTitle} artists={artists} wide={wide} onCancel={cancel} onNext={() => setStep(null)} />
+      </div>
+    );
+  }
+
   return (
     <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
       <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
-        <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>
-        <div className="flex min-w-0 flex-1 flex-col items-center gap-0.5 leading-tight">
+        {wide && <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>}
+        {/* Phone: no Cancel/Save up here, so the name sits left, like a page title. */}
+        <div className={cn('flex min-w-0 flex-1 flex-col gap-0.5 leading-tight', wide ? 'items-center' : 'items-start')}>
           {/* Title and artist are typed right here (QA 11 Nov), not only in Info. */}
           <input value={working.title ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, title: e.target.value })}
             placeholder={mode === 'new' ? 'New song' : 'Song name'} aria-label="Title" spellCheck={false}
-            className={cn(headIn, 'text-[15px] font-semibold text-foreground')} />
+            className={cn(headIn, 'text-[15px] font-semibold text-foreground', !wide && 'max-w-none text-left text-[17px]')} />
           <input value={working.artist ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, artist: e.target.value })}
             placeholder={checking ? `Checking · ${checking.left === 1 ? 'last one' : `${checking.left} left`}` : 'Artist'} aria-label="Artist" spellCheck={false}
-            className={cn(headIn, 'text-[12px] text-muted-foreground')} />
+            className={cn(headIn, 'text-[12px] text-muted-foreground', !wide && 'max-w-none text-left text-[13px]')} />
           {checking && working.artist && <span className="text-[11px] text-muted-foreground">Checking · {checking.left === 1 ? 'last one' : `${checking.left} left`}</span>}
         </div>
         <button type="button" aria-label="Undo" title="Undo" disabled={!hist.past.length} onClick={doUndo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></Svg></button>
@@ -1211,44 +1250,89 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
           { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
           { label: 'Paste a song', sub: mode === 'new' ? null : 'Replace this arrangement, or add it as a new one', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
           arr.sections.length > 1 && { label: arr.sections.every((_, i) => folded.has(`${arr.id}:${i}`)) ? 'Open all sections' : 'Fold all sections', onClick: () => { closeAll(); setFolded(f => { const keys = arr.sections.map((_, i) => `${arr.id}:${i}`); const all = keys.every(k => f.has(k)); const n = new Set(f); keys.forEach(k => (all ? n.delete(k) : n.add(k))); return n; }); } },
-          canFillVerseChords(arr.sections) && { label: 'Copy verse 1 chords to the other verses', sub: 'Placed by syllable. Undo if one is off.', onClick: () => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); } },
+          canFillVerseChords(arr.sections) && { label: 'Copy verse 1 chords to the other verses', sub: 'Placed at the same spot on each line. Undo if one is off.', onClick: () => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); } },
           mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
-        <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{fresh ? 'Add' : checking && !dirty ? 'Looks good' : 'Save'}</Button>
+        {wide && <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{saveLabel}</Button>}
       </div>
       {draftFound && (
         <div role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-warning-fill px-4 py-2">
           <span className="flex-1 text-[14px] text-foreground">Restore your unsaved changes{draftFound.at ? ` from ${new Date(draftFound.at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}?</span>
           <Button size="sm" variant="ghost" onClick={() => { dropDraft(); setDraftFound(null); }}>Discard</Button>
-          <Button size="sm" onClick={() => { const d = draftFound.song; setWorking(mode === 'new' ? { ...d, id: song.id } : d, true); setArrId(d.defaultArrangementId || d.arrangements[0].id); setDraftFound(null); }}>Restore</Button>
+          <Button size="sm" onClick={() => { setStep(null); const d = draftFound.song; setWorking(mode === 'new' ? { ...d, id: song.id } : d, true); setArrId(d.defaultArrangementId || d.arrangements[0].id); setDraftFound(null); }}>Restore</Button>
         </div>
       )}
-      {arrBar}
-      {missing && (fresh || dirty) && <p className="m-0 shrink-0 border-b border-border bg-raised px-4 py-1.5 text-center text-[13px] text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>}
-      {wide ? (
-        <div className="flex min-h-0 flex-1">
-          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-[760px] px-6 pb-16 pt-5">{chart}</div>
+      {(() => {
+        const tabs = (
+          <div role="tablist" className="flex w-[150px] shrink-0 gap-0.5 rounded-[10px] bg-raised p-[3px]">
+            {[['chart', 'Chart'], ['info', 'Info']].map(([id, l]) => (
+              <button key={id} type="button" role="tab" aria-selected={tab === id && !(preview && !wide)} onClick={() => { setTab(id); closeAll(); if (!wide) setPreview(false); }}
+                className={cn('h-8 min-h-0 flex-1 cursor-pointer rounded-[7px] border-0 bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', tab === id && !(preview && !wide) && 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.18)]')}>{l}</button>
+            ))}
           </div>
-          <aside className="flex min-h-0 w-[420px] shrink-0 flex-col border-l border-border">
-            <div className="flex shrink-0 px-5 pb-2 pt-3">{seg([['info', 'Info'], ['preview', 'Preview']], side, setSide)}</div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-16 pt-2">{side === 'info' ? info : preview}</div>
-          </aside>
-          {chordBar}
-          {tabTool}
+        );
+        const need = missing && (fresh || dirty) && <p className="m-0 text-[13px] text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>;
+        const main = (
+          <div className={cn('mx-auto flex w-full flex-col gap-3 pb-16', wide ? 'max-w-[760px] px-6 pt-4' : 'max-w-[680px] px-4 pt-3')}>
+            <div className="flex items-center gap-2">
+              {tabs}
+              <Button variant="ghost" size="sm" aria-pressed={preview} className={cn('ml-auto shrink-0 gap-1.5 px-2.5', preview && 'bg-raised text-foreground')} onClick={() => { closeAll(); setPreview(p => !p); }}>
+                <Svg size={17}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></Svg>Preview
+              </Button>
+            </div>
+            {!wide && tab === 'chart' && !preview && <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none]">{arrBar}</div>}
+            {need}
+            <div className="pt-1">{preview && !wide ? preview_ : tab === 'chart' ? chart : info}</div>
+          </div>
+        );
+        const jump = (name) => {
+          const i = arr.sections.findIndex(x => x.type === name);
+          if (i < 0) return;
+          setTab('chart');
+          requestAnimationFrame(() => document.querySelector(`[data-slot="song-edit"] [data-sec="${i}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+        };
+        const head = 'm-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
+        return (
+          <div className="flex min-h-0 flex-1">
+            {wide && (
+              // Desktop: the song's frame down the left (arrangement, numbers,
+              // the order to read, drag and jump with), so the chart starts at
+              // the top and keeps the whole middle.
+              <aside className="flex min-h-0 w-[272px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-border px-4 pb-10 pt-4">
+                <div className="flex flex-col gap-2">
+                  <h3 className={head}>Arrangement</h3>
+                  {arrBar}
+                </div>
+                {!whole && arr.sections.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <h3 className={head}>Order</h3>
+                    <OrderBar vertical order={order} names={names} styleOf={styleOf} onJump={jump} onChange={(o) => onArr(withOrder(arr, o))} />
+                  </div>
+                )}
+              </aside>
+            )}
+            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{main}</div>
+            {wide && preview && (
+              <aside className="flex min-h-0 w-[420px] shrink-0 flex-col border-l border-border">
+                <div className="flex shrink-0 items-center justify-between px-5 pb-1 pt-3">
+                  <b className="text-[14px] font-semibold">Preview</b>
+                  <Button variant="ghost" size="sm" onClick={() => setPreview(false)}>Close</Button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-16 pt-1">{preview_}</div>
+              </aside>
+            )}
+            {chordBar}
+            {tabTool}
+          </div>
+        );
+      })()}
+      {!wide && !pick && !tabEdit && (
+        // Phone: Cancel and Save sit under the thumb (user, 13 Nov), not in the top corners.
+        <div className="flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
+          <Button variant="outline" className="flex-1" onClick={cancel}>Cancel</Button>
+          <Button className="flex-[2]" onClick={save} disabled={!canSave} loading={saving}>{saveLabel}</Button>
         </div>
-      ) : (
-        <>
-          <div className="mx-auto flex w-full max-w-[680px] shrink-0 px-4 py-2.5">
-            {seg([['chart', 'Chart'], ['info', 'Info'], ['preview', 'Preview']], tab, (id) => { setTab(id); closeAll(); })}
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto w-full max-w-[680px] px-4 pb-16 pt-1">{tab === 'chart' ? chart : tab === 'info' ? info : preview}</div>
-          </div>
-          {chordBar}
-          {tabTool}
-        </>
       )}
       {history && (
         <VersionHistory songId={song.id} teamId={historyTeamId} nameOf={nameOf} onClose={() => setHistory(false)}

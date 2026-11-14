@@ -208,3 +208,7 @@ button { font: inherit; color: inherit; }
 .lang:hover { color: var(--text); background: var(--raised); }
 @media (max-width: 819px) { .head-end .lang { display: none; } }
 
+
+/* Inside the app (?app=1, set by site.js): the app draws the header. */
+.in-app .site-head, .in-app .foot, .in-app .skip-link { display: none; }
+.in-app main { padding-top: 8px; }

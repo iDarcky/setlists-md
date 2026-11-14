@@ -8,20 +8,31 @@ const v2 = { type: 'Verse 2', lines: ['Isuse, eu acum', 'Cunosc puterea Ta,', 'C
 const v4 = { type: 'Verse 4', lines: ['La tronul Tău ceresc', 'Genunchii-mi voi pleca', 'Și-atunci voi preamări,', 'Isuse, mila Ta.'] };
 
 describe('fillVerseChords', () => {
-  it('copies verse 1 onto bare verses, syllable by syllable', () => {
+  it('copies verse 1 onto bare verses at the same place along each line', () => {
     const out = fillVerseChords([v1, chorus, v2]);
     expect(out[2].lines).toEqual([
       '[Bb]Isuse, eu acum',
-      'Cu[F]nosc puterea [Bb]Ta,',
-      'Ce [Gm]inima pe [Eb]veci', // silent final "i": the chord goes on "veci", not "ci"
-      'Mi-[F]o poate transfor[Bb]ma.',
+      'Cuno[F]sc puterea [Bb]Ta,',
+      'Ce [Gm]inima pe [Eb]veci',
+      'Mi-o [F]poate transf[Bb]orma.',
     ]);
   });
 
-  it('keeps "ch" together and lands the last chord on the last syllable', () => {
+  it('works without knowing the language: same fraction of the line, nearest letter', () => {
     const out = fillVerseChords([v1, v4]);
-    expect(out[1].lines[1]).toBe('Ge[F]nunchii-mi voi ple[Bb]ca');
-    expect(out[1].lines[2]).toBe('Și-[Gm]atunci voi prea[Eb]mări,');
+    expect(out[1].lines).toEqual([
+      '[Bb]La tronul Tău ceresc',
+      'Genun[F]chii-mi voi [Bb]pleca',
+      'Și-a[Gm]tunci voi prea[Eb]mări,',
+      'Isu[F]se, mila [Bb]Ta.',
+    ]);
+  });
+
+  it('never lands on a space or quote, keeps end-of-line chords at the end and every chord in order', () => {
+    const src = { type: 'Verse 1', lines: ['„[G]One two [C]three four [D]five [A]'] };
+    const out = fillVerseChords([src, { type: 'Verse 2', lines: ['„Uno dos', 'x'] }]);
+    expect(out[1].lines[0]).toBe('„[G]Un[C]o do[D]s [A]');
+    expect(out[1].lines[1]).toBe('x');
   });
 
   it('leaves the source verse, the chorus and chorded verses untouched', () => {
