@@ -365,6 +365,11 @@ function ScheduleGallery() {
           <ScheduleDemo layout="phone" {...props} />
         </Frame>
       )))}
+      {THEMES.map(t => (
+        <Frame key={`desk${t.id}`} theme={t.id} width={1280} height={1000} scale={0.55} label={`Desktop · ${t.label}`}>
+          <ScheduleDemo layout="desk" leader />
+        </Frame>
+      ))}
     </div>
   );
 }

@@ -484,7 +484,7 @@ export default function HomeView({
 
   return (
     <div data-slot="home" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      <div className={cn('mx-auto flex w-full max-w-[1040px] flex-col gap-3 pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
+      <div className={cn('mx-auto flex w-full flex-col gap-3 pb-8', wide ? 'max-w-[1180px]' : 'max-w-[680px]', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         {hello}
         {syncProblem && <SyncProblem {...syncProblem} />}
         {startChurch}
