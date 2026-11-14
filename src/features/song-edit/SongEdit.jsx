@@ -1211,7 +1211,7 @@ export default function SongEdit({ song, library = [], historyTeamId = null, mod
           { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
           { label: 'Paste a song', sub: mode === 'new' ? null : 'Replace this arrangement, or add it as a new one', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
           arr.sections.length > 1 && { label: arr.sections.every((_, i) => folded.has(`${arr.id}:${i}`)) ? 'Open all sections' : 'Fold all sections', onClick: () => { closeAll(); setFolded(f => { const keys = arr.sections.map((_, i) => `${arr.id}:${i}`); const all = keys.every(k => f.has(k)); const n = new Set(f); keys.forEach(k => (all ? n.delete(k) : n.add(k))); return n; }); } },
-          canFillVerseChords(arr.sections) && { label: 'Copy verse 1 chords to the other verses', sub: 'Placed word by word. Undo if one is off.', onClick: () => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); } },
+          canFillVerseChords(arr.sections) && { label: 'Copy verse 1 chords to the other verses', sub: 'Placed at the same spot on each line. Undo if one is off.', onClick: () => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); } },
           mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />

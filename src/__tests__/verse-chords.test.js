@@ -8,26 +8,30 @@ const v2 = { type: 'Verse 2', lines: ['Isuse, eu acum', 'Cunosc puterea Ta,', 'C
 const v4 = { type: 'Verse 4', lines: ['La tronul Tău ceresc', 'Genunchii-mi voi pleca', 'Și-atunci voi preamări,', 'Isuse, mila Ta.'] };
 
 describe('fillVerseChords', () => {
-  it('copies verse 1 onto bare verses, word by word', () => {
+  it('copies verse 1 onto bare verses at the same place along each line', () => {
     const out = fillVerseChords([v1, chorus, v2]);
     expect(out[2].lines).toEqual([
       '[Bb]Isuse, eu acum',
-      'Cunosc [F]puterea [Bb]Ta,', // 4th word on a 3-word line: the last word
-      'Ce [Gm]inima pe [Eb]veci', // "a[Eb]cum" is word 4, so "veci" gets it at its start
-      'Mi-o [F]poate [Bb]transforma.', // "Mi-o" is one word
+      'Cuno[F]sc puterea [Bb]Ta,',
+      'Ce [Gm]inima pe [Eb]veci',
+      'Mi-o [F]poate transf[Bb]orma.',
     ]);
   });
 
-  it('puts the chord on the same word, never inside one', () => {
+  it('works without knowing the language: same fraction of the line, nearest letter', () => {
     const out = fillVerseChords([v1, v4]);
-    expect(out[1].lines[1]).toBe('Genunchii-mi [F]voi [Bb]pleca');
-    expect(out[1].lines[2]).toBe('Și-atunci [Gm]voi [Eb]preamări,');
+    expect(out[1].lines).toEqual([
+      '[Bb]La tronul Tău ceresc',
+      'Genun[F]chii-mi voi [Bb]pleca',
+      'Și-a[Gm]tunci voi prea[Eb]mări,',
+      'Isu[F]se, mila [Bb]Ta.',
+    ]);
   });
 
-  it('skips opening quotes, keeps end-of-line chords at the end, keeps chords sharing a word in order', () => {
+  it('never lands on a space or quote, keeps end-of-line chords at the end and every chord in order', () => {
     const src = { type: 'Verse 1', lines: ['„[G]One two [C]three four [D]five [A]'] };
     const out = fillVerseChords([src, { type: 'Verse 2', lines: ['„Uno dos', 'x'] }]);
-    expect(out[1].lines[0]).toBe('„[G]Uno [C][D]dos [A]');
+    expect(out[1].lines[0]).toBe('„[G]Un[C]o do[D]s [A]');
     expect(out[1].lines[1]).toBe('x');
   });
 

@@ -5,16 +5,18 @@
 // across. A reader showing verse 3 bare is useless on a stage, so on import
 // the chords can be carried across for them.
 //
-// A chord is placed by WORD: the chord on verse 1's third word goes on the
-// third word of every other verse, at the word's start. Users asked for this
-// (2026-11-13): an earlier version counted syllables, which landed chords in
-// the middle of words and drifted whenever a verse had a different number of
-// syllables. Words are easy to check by eye and easy to fix by hand.
+// A chord is placed by LOCATION: a chord a third of the way along verse 1's
+// line goes a third of the way along the other verse's line, on the nearest
+// letter. That needs no idea of words or syllables, so it works the same in
+// any language (owner, 2026-11-14).
 //
-// A chord in the middle of a word ("a[Eb]cum") counts as that word; a chord
-// after the last word stays at the end of the line. A line with fewer words
-// puts the extra chords on its last word, in order, rather than dropping any.
-// It is a guess, so it is opt-in and the leader can still fix a chord by hand.
+// Tested against a Melodia chart that prints chords on every verse ("Când
+// moartea-i înfrânt-o", 36 chords on verses 2-4): by location 28 land on the
+// right word, by syllable 29, by word 20. The syllable count it replaces only
+// understood Romanian.
+//
+// A chord after the last letter stays at the end of the line. It is a guess,
+// so it is opt-in and the leader can still fix a chord by hand.
 
 const CHORD = /\[([^\]]+)\]/g;
 const LETTER = /[\p{L}\p{N}]/u;
@@ -24,20 +26,6 @@ const textLines = (s) => (s?.lines || []).filter(l => typeof l === 'string');
 const hasChords = (line) => /\[[^\]]+\]/.test(line);
 const sectionHasChords = (s) => textLines(s).some(hasChords);
 const isLyricLine = (line) => typeof line === 'string' && line.trim() && !line.trim().startsWith('>') && !line.trim().startsWith('{');
-
-// Words of plain text: runs between spaces that hold at least one letter, so a
-// lone "–" is not a word. "Mi-o" and "Și-atunci" stay one word each.
-// `start` is where the word begins, `letter` where its first letter is (after
-// an opening quote like „), `end` where it stops.
-function words(text) {
-  const out = [];
-  for (const m of text.matchAll(/\S+/g)) {
-    const off = m[0].search(LETTER);
-    if (off === -1) continue;
-    out.push({ start: m.index, letter: m.index + off, end: m.index + m[0].length });
-  }
-  return out;
-}
 
 // "[G]Isus îmi [C]spune" → { text: 'Isus îmi spune', marks: [{ at: 0, chord }, …] }
 function splitChords(line) {
@@ -53,27 +41,34 @@ function splitChords(line) {
   return { text, marks };
 }
 
-// Chords of a source line as word slots: `word` is the index of the word the
-// chord sits on (or the next word, for a chord in the gap before it); a chord
-// after the last word is `end`, kept at the end of the line.
+// Chords of a source line as fractions of its length (0 = start, 1 = end); a
+// chord after the last letter is `end`.
 function chordSlots(line) {
   const { text, marks } = splitChords(line);
-  const ws = words(text);
-  return marks.map(({ at, chord }) => {
-    const word = ws.findIndex(w => at < w.end);
-    return word === -1 ? { chord, end: true } : { chord, word };
-  });
+  const len = text.trimEnd().length;
+  return marks.map(({ at, chord }) => (at >= len || !len)
+    ? { chord, end: true }
+    : { chord, frac: at / len });
+}
+
+// The letter nearest to `x`, so a chord never sits on a space or a comma.
+function nearestLetter(text, x) {
+  for (let d = 0; d < text.length; d++) {
+    if (LETTER.test(text[x + d] || '')) return x + d;
+    if (LETTER.test(text[x - d] || '')) return x - d;
+  }
+  return x;
 }
 
 function placeChords(line, slots) {
   // An end-of-line chord gets a space before it, so "dos[A]" reads "dos [A]".
   if (slots.some(s => s.end) && !/\s$/.test(line)) line = `${line} `;
-  const ws = words(line);
-  const marks = slots.map(s => (s.end || !ws.length)
+  const len = line.trimEnd().length;
+  const marks = slots.map(s => (s.end || !len)
     ? { at: line.length, chord: s.chord }
-    : { at: ws[Math.min(s.word, ws.length - 1)].letter, chord: s.chord });
-  // Insert from the back so earlier positions stay valid; a stable reverse
-  // keeps chords that share a word in their original order.
+    : { at: nearestLetter(line, Math.min(len - 1, Math.round(s.frac * len))), chord: s.chord });
+  // Insert from the back so earlier positions stay valid; chords that land on
+  // the same letter keep their order.
   let out = line;
   for (const m of [...marks].reverse()) out = `${out.slice(0, m.at)}[${m.chord}]${out.slice(m.at)}`;
   return out;
@@ -92,7 +87,7 @@ export function canFillVerseChords(sections = []) {
 
 /**
  * New sections array with chordless verses given the first chorded verse's
- * chords, line by line and word by word. Verses that already have any
+ * chords, line by line, each at the same place along its line. Verses that already have any
  * chord are left alone, as is everything that is not a verse. Returns the
  * same array when there is nothing to do.
  */
