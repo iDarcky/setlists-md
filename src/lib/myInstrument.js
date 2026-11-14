@@ -102,6 +102,7 @@ const ROLE_INSTRUMENT = {
   bass: 'bass-guitar',
   keys: 'keys',
   drums: 'drums',
+  other: 'other',
 };
 
 /**
