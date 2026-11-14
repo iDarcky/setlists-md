@@ -15,7 +15,7 @@ The redesign (warm black + Geist) is built on **shadcn/ui**, copied into
 `src/ui/shadcn/` as plain JSX: `button`, `input`, `label`, `field`, `toggle`
 (chips), `badge`, `card`, `alert`, `dialog`, `drawer`, `sheet` (drawer on a
 phone, dialog from the iPad up), `spinner`, and `utils.cn`. Tokens live in
-`src/styles/ds.css`; `/design` shows every one of them in both themes.
+`src/styles/ds.css`.
 
 Screens move onto it one at a time and are rebuilt from scratch, not
 restyled. A screen on the new layer uses ONLY `@/ui/shadcn/*` and the
@@ -118,5 +118,4 @@ one, restore it from git rather than writing a new one.
    don't exist in native webviews. See `pdf/pdfDocument.js` for the pattern.
 5. **Imports go through `@/ui/X`** from outside this folder, `./X` from inside.
    ESLint enforces it.
-6. **Adding a primitive?** Add it to this file in the same commit, and to
-   `features/design/LydianShowcase.jsx` if it's visual.
+6. **Adding a primitive?** Add it to this file in the same commit.

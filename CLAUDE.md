@@ -414,9 +414,8 @@ Tab blocks live inside sections. Parsed into `{ type: 'tab', strings: [{note, co
 **Redesign in progress (2026-10-25): warm black + Geist on shadcn/ui.** Tokens
 in `src/styles/ds.css` (shadcn names + `link`/`selected`/`raised`, status
 colours, `rounded-control|card|sheet`, `text-display|title|body|small|caption`);
-components in `src/ui/shadcn/`; the design system page is `/design`
-(`features/design/DesignSystem.jsx`, `?screen=<n>&theme=light` shows one
-screen alone). Signed-out + joining screens are on it (`features/auth/AuthLayout`
+components in `src/ui/shadcn/`. (The `/design` gallery page was removed
+2026-11-14.) Signed-out + joining screens are on it (`features/auth/AuthLayout`
 + `AuthViews`, `features/join/JoinViews`). Every other screen still uses the
 older system below until it is rebuilt.
 
