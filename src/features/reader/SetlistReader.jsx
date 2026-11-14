@@ -4,6 +4,7 @@ import { semitonesBetween, transposeKey } from '@/music';
 import { resolveReaderConfig } from '@/lib/readerConfig';
 import { resolveOpeningMode } from '@/lib/openingMode';
 import { useMediaQuery } from '@/lib/useMediaQuery';
+import { useChartSystemBars } from '@/lib/systemBars';
 import FloatingNavPill from '@/ui/FloatingNavPill';
 import EdgeNavArrows from '@/ui/EdgeNavArrows';
 import Reader from './Reader';
@@ -57,6 +58,8 @@ export default function SetlistReader({
   // no ☰ (owner, 2026-11-11 QA).
   showMenu = true,
 }) {
+  // The reader wears the chart theme, so the phone's status bar does too.
+  useChartSystemBars();
   const [idx, setIdx] = useState(() => {
     const n = (setlist?.items || []).length;
     return Number.isInteger(startIndex) && startIndex > 0 && startIndex < n ? startIndex : 0;
