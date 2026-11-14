@@ -53,11 +53,34 @@ export default function UpdatePill({ onRefresh }) {
     return () => sileo.dismiss(id);
   }, [position]);
 
+  // Sileo opens a toast on mouse hover only, which a finger on a phone does
+  // not reliably send. So a tap on the pill opens it (Sileo listens for the
+  // hover through React's mouseover), and a tap anywhere else closes it again.
+  // The Refresh button is left alone.
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    const onDown = e => {
+      const toast = wrapRef.current?.querySelector('[data-sileo-toast][data-expanded="true"]');
+      if (toast && !toast.contains(e.target)) {
+        toast.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body }));
+      }
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, []);
+  const openOnTap = e => {
+    if (e.target.closest('[data-sileo-button]')) return;
+    const toast = e.target.closest('[data-sileo-toast]');
+    if (toast && toast.dataset.expanded !== 'true') {
+      toast.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: document.body }));
+    }
+  };
+
   // Sileo dismisses a toast on a vertical swipe. Stopping pointerdown before it
-  // reaches the toast keeps the pill on screen; taps and hover still open it.
+  // reaches the toast keeps the pill on screen.
   // Styles: `.update-pill` in styles/index.css.
   return (
-    <div className="update-pill" onPointerDownCapture={e => e.stopPropagation()}>
+    <div ref={wrapRef} className="update-pill" onClickCapture={openOnTap} onPointerDownCapture={e => e.stopPropagation()}>
       <Toaster position={position} />
     </div>
   );
