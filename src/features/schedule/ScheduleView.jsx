@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRevealList } from '@/hooks/useRevealList';
 import BackToTop from '@/ui/BackToTop';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
@@ -209,12 +210,17 @@ export default function ScheduleView({
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
   const { count: shown, more, sentinel } = useRevealList(total, { resetKey: `${tab}|${filter}` });
   const shownGroups = shown >= total ? groups : cutGroups(groups, shown);
+  // Same frame as Songs (owner, 2026-11-14: "match them on desktop/tablet as
+  // well … songs"): 680px on phones and tablets, 1180px with a 28px title from
+  // 1024px, so the title and buttons don't jump when you switch tabs.
+  const desk = useMediaQuery('(min-width: 1024px)');
+  const wide = layout === 'desk' || (layout === 'auto' && desk);
   return (
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       {past && <BackToTop />}
-      <div className={cn('mx-auto flex w-full max-w-[680px] flex-col gap-3 pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
+      <div className={cn('mx-auto flex w-full flex-col gap-3 pb-8', wide ? 'max-w-[1180px]' : 'max-w-[680px]', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
-          <h1 className="m-0 text-[24px] font-semibold leading-8 tracking-[-0.5px]">Schedule</h1>
+          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Schedule</h1>
           <div className="flex gap-2">
             {onAvailability && (
               <Button variant="outline" size="sm" onClick={onAvailability} aria-label="My availability">

@@ -12,11 +12,6 @@
       "permanent": false
     },
     {
-      "source": "/design",
-      "destination": "https://app.setlists.md/design",
-      "permanent": false
-    },
-    {
       "source": "/",
       "has": [
         {

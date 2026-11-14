@@ -45,7 +45,7 @@ npx serve website
 The app used to live on setlists.md. Once that address points at this
 project, old links are sent on to app.setlists.md:
 
-- `vercel.json` redirects `/join/<code>`, `/auth/...`, `/design`, shared
+- `vercel.json` redirects `/join/<code>`, `/auth/...`, shared
   setlist links (`/?setlist=...`) and sign-in returns (`/?code=...`).
 - `site.js` sends on what the server never sees: a Home Screen icon saved
   before the move (opens full screen on `/`) and password-reset links whose
