@@ -7,6 +7,12 @@ const UpdatePill = lazy(() => import('./UpdatePill'));
 // a music stand for hours otherwise only checks when it is opened again.
 const CHECK_EVERY_MS = 30 * 60 * 1000;
 
+// `?test-update` in the address shows the pill without a real release, so it
+// can be checked on a phone (on Home; Refresh just reloads). Read once at
+// load, before App tidies the address bar.
+const TEST_UPDATE = typeof window !== 'undefined'
+  && new URLSearchParams(window.location.search).has('test-update');
+
 // "Update available" pill, top centre (Sileo, in ./UpdatePill). Tap it (hover on desktop) and
 // it opens to show Refresh. It can't be closed or swiped away: it stays on
 // Home until somebody refreshes, or the app is fully closed and opened again.
@@ -54,7 +60,7 @@ export default function UpdatePrompt({ suppress = false }) {
     else window.location.reload();
   }, [registration, updateServiceWorker]);
 
-  if (!needRefresh || suppress) return null;
+  if (!(needRefresh || TEST_UPDATE) || suppress) return null;
   return (
     <Suspense fallback={null}>
       <UpdatePill onRefresh={refresh} />
