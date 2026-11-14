@@ -157,7 +157,7 @@ export function NoteEditor({ open, title, value, onDone, onCancel }) {
   };
   const tools = [['# Title', () => line('# ')], ['## Subtitle', () => line('## ')], ['B', () => wrap('**')], ['I', () => wrap('*')], ['• List', () => line('- ')]];
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={`Note · ${title}`} className="fixed inset-0 z-[70] flex flex-col bg-background font-sans text-foreground">
+    <div role="dialog" aria-modal="true" aria-label={`Note · ${title}`} className="fixed inset-0 z-[140] flex flex-col bg-background font-sans text-foreground">
       <div className="flex min-h-14 items-center justify-center gap-2 border-b border-border px-4 py-2 sm:justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
         {/* Phone: Cancel and Done sit in the bar at the bottom, above the keyboard. */}
         <Button variant="ghost" className="hidden sm:inline-flex" onClick={onCancel}>Cancel</Button>
