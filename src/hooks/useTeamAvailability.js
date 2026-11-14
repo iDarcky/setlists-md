@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/auth/supabase';
 import { useAuth } from '@/auth/useAuth';
+import { readTeamRows, writeTeamRows } from './teamRowsCache';
+
+const NO_ROWS = [];
 
 // Convert a Date or YYYY-MM-DD string to YYYY-MM-DD using LOCAL components.
 // `Date#toISOString()` shifts to UTC, which silently writes to the previous
@@ -17,7 +20,23 @@ function toDateStr(d) {
 
 export function useTeamAvailability(teamId) {
   const { user } = useAuth();
-  const [availability, setAvailability] = useState([]);
+  // Seeded from the last visit, so Home and Schedule paint the band's
+  // availability at once on a tab switch instead of empty-then-filled (see
+  // teamRowsCache.js). Rows from another team are never shown.
+  const [state, setState] = useState(() => ({ teamId, rows: readTeamRows('availability', teamId) || NO_ROWS }));
+  const availability = useMemo(
+    () => (state.teamId === teamId ? state.rows : (readTeamRows('availability', teamId) || NO_ROWS)),
+    [state, teamId],
+  );
+  // Every write goes through here, so the cache always holds what is on screen.
+  const setAvailability = useCallback((next) => {
+    setState(prev => {
+      const base = prev.teamId === teamId ? prev.rows : (readTeamRows('availability', teamId) || NO_ROWS);
+      const rows = typeof next === 'function' ? next(base) : next;
+      writeTeamRows('availability', teamId, rows);
+      return { teamId, rows };
+    });
+  }, [teamId]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -47,7 +66,7 @@ export function useTeamAvailability(teamId) {
     } finally {
       setLoading(false);
     }
-  }, [teamId, user]);
+  }, [teamId, user, setAvailability]);
 
   useEffect(() => {
     fetchAvailability();
@@ -114,7 +133,7 @@ export function useTeamAvailability(teamId) {
       return [...prev, data];
     });
     return data;
-  }, [teamId, user, fetchAvailability]);
+  }, [teamId, user, fetchAvailability, setAvailability]);
 
   const clearStatus = useCallback(async (date) => {
     if (!teamId || !user) return;
@@ -132,7 +151,7 @@ export function useTeamAvailability(teamId) {
       fetchAvailability();
       throw delErr;
     }
-  }, [teamId, user, fetchAvailability]);
+  }, [teamId, user, fetchAvailability, setAvailability]);
 
   const getStatus = useCallback((userId, date) => {
     const dateStr = toDateStr(date);
