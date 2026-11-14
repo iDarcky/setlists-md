@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Toaster, sileo } from 'sileo';
 
-// The green "Update available" pill (Sileo), at the very top centre of the
-// screen. Tap it (hover on desktop) and it opens to show Refresh. It can't be
+// The green "Update available" pill (Sileo). Phone: the very top centre of
+// the screen. iPad/desktop (640px and up, Tailwind's sm): bottom right, clear
+// of the top bar's tabs (user, 14 Nov). Tap it (hover on desktop) and it opens to show Refresh. It can't be
 // closed or swiped away. Loaded lazily by UpdatePrompt only when an update is
 // waiting, so Sileo and its animation library cost nothing on a normal start.
 
@@ -17,9 +18,19 @@ const ArrowIcon = (
   </svg>
 );
 
+const WIDE = '(min-width: 640px)';
+const subscribeWide = cb => {
+  const mq = window.matchMedia(WIDE);
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+};
+const getWide = () => window.matchMedia(WIDE).matches;
+
 export default function UpdatePill({ onRefresh }) {
   // Kept in a ref so the pill is not re-created when the callback changes.
   const refreshRef = useRef(onRefresh);
+  const wide = useSyncExternalStore(subscribeWide, getWide, () => false);
+  const position = wide ? 'bottom-right' : 'top-center';
   useEffect(() => { refreshRef.current = onRefresh; }, [onRefresh]);
 
   // Mounted = shown, unmounted (left Home) = dismissed. Each showing gets its
@@ -35,19 +46,19 @@ export default function UpdatePill({ onRefresh }) {
       button: { title: 'Refresh', onClick: () => refreshRef.current?.() },
       icon: ArrowIcon,
       fill: GREEN,
-      position: 'top-center',
+      position,
       duration: null,
       autopilot: false,
     });
     return () => sileo.dismiss(id);
-  }, []);
+  }, [position]);
 
   // Sileo dismisses a toast on a vertical swipe. Stopping pointerdown before it
   // reaches the toast keeps the pill on screen; taps and hover still open it.
   // Styles: `.update-pill` in styles/index.css.
   return (
     <div className="update-pill" onPointerDownCapture={e => e.stopPropagation()}>
-      <Toaster position="top-center" />
+      <Toaster position={position} />
     </div>
   );
 }

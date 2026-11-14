@@ -931,12 +931,11 @@
 /* "Update available" pill (ui/UpdatePrompt, Sileo). Unlayered on purpose and
    scoped to .update-pill so it outranks the styles Sileo injects at runtime.
    Green fill with white text in both themes; Refresh is a white button. */
-/* At the very top of the screen (user, 14 Nov), over the top bar. The
-   viewport adds 12px of padding below the safe area. */
-.update-pill [data-sileo-viewport][data-position] {
-  z-index: 60;
-  top: env(safe-area-inset-top, 0px);
-}
+/* Phone: at the very top of the screen, over the top bar (user, 14 Nov).
+   iPad/desktop: bottom right. The viewport adds 12px of padding. */
+.update-pill [data-sileo-viewport][data-position] { z-index: 60; }
+.update-pill [data-sileo-viewport][data-position^=top] { top: env(safe-area-inset-top, 0px); }
+.update-pill [data-sileo-viewport][data-position^=bottom] { bottom: 12px; right: 12px; }
 .update-pill [data-sileo-toast] { cursor: pointer; }
 .update-pill [data-sileo-title] {
   color: #fff;
