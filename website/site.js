@@ -10,6 +10,17 @@
     location.replace('https://app.setlists.md/' + location.search + location.hash);
     return;
   }
+  // Shown inside the app (help, privacy, terms, copyright with ?app=1): the
+  // app draws its own header, so drop the site's menu and footer, and send
+  // every link out to the browser instead of navigating inside the app's frame.
+  if (/[?&]app=1(&|$)/.test(location.search)) {
+    document.documentElement.classList.add('in-app');
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (!a || a.getAttribute('href').charAt(0) === '#') return;
+      a.target = '_blank'; a.rel = 'noopener';
+    });
+  }
   // Open every page at the top unless the link points at a section.
   if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   // scrollIntoView as well: inside an embedding frame (a preview) it also

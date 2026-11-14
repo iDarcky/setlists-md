@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TemplatesList, TemplateEditor } from '@/features/setlist/TemplateEditor';
+import { TemplatesList, TemplateEditor, TemplateView } from '@/features/setlist/TemplateEditor';
 import { templatesOf, blankTemplate } from '@/lib/newSetlist';
 import { useAuth } from '@/auth/useAuth';
 import { useTeam } from '@/auth/useTeam';
@@ -12,36 +12,35 @@ import { useConfirm } from '@/ui/useConfirmHook';
 import AvatarUploader from '@/ui/AvatarUploader';
 import WhatsNewPanel from './WhatsNewPanel';
 import {
-  SettingsHubView, ProfileView, PasswordSheet, DeleteAccountSheet, AppearanceView,
-  NotificationsSettingsView, PlanView, DataView, LabsView, AboutView, SettingsShell,
+  SettingsHubView, ProfileView, PasswordSheet, DeleteAccountSheet, DateTimeView,
+  NotificationsSettingsView, PlanView, DataView, DeletedSongsView, LabsView, SettingsShell,
 } from './SettingsViews';
 
 // Settings (owner, 2026-10-25). The pages are pure views in SettingsViews;
 // this file feeds them. `panel` lives in App so Back walks the pages.
 
-const SHORT_REMINDER = { 0: 'At start', 15: '15 min', 30: '30 min', 60: '1 hour', 120: '2 hours', 180: '3 hours', 720: '12 hours', 1440: '1 day', 2880: '2 days', 10080: '1 week' };
-const REMINDER_CHIPS = REMINDER_OPTIONS.map(o => ({ value: o.value, label: SHORT_REMINDER[o.value] || o.label }));
+const REMINDERS = REMINDER_OPTIONS.map(o => ({ value: o.value, long: o.value === 0 ? 'When it starts' : o.label }));
 
-// Only flags something in the new app still reads. The rest belonged to
-// screens that have been rebuilt.
+// Labs is hidden until it is unlocked (tap the version on the You page 7
+// times, 2026-11-14). Only one thing left to try: the over-scheduling warning
+// had no reader in the rebuilt band picker and the paste-into-chart editor
+// was redone, so both switches went.
 const LAB_FLAGS = [
-  { id: 'rosterOverscheduleWarning', label: 'Warn before over-scheduling', sub: 'When picking the band, flag someone who has played several services in a row.' },
-  { id: 'pasteIntoChart', label: 'Paste into the chart', sub: 'A paste lands in the section you aim at.' },
-  { id: 'moveBetweenChurches', label: 'Move or copy songs to another church', sub: 'Only for songs you have the right to share. Off by default.' },
+  { id: 'moveBetweenChurches', label: 'Move or copy songs to another church' },
 ];
 
 const PLAN_NAMES = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
 const STATUS = { active: 'Active', trialing: 'Trial', past_due: 'Past due', unpaid: 'Unpaid', canceled: 'Cancelled' };
 const DAY_MS = 86400000;
 
-const SETTINGS_PAGES = ['hub', 'profile', 'appearance', 'notifications', 'plan', 'services', 'data', 'labs', 'about', 'whatsnew'];
+// 'appearance' is the old name of 'datetime', kept so a stored history entry still lands.
+const SETTINGS_PAGES = ['hub', 'profile', 'datetime', 'appearance', 'notifications', 'plan', 'services', 'data', 'deleted', 'labs', 'whatsnew'];
 
 export default function SettingsPage({
   panel = 'hub', onChangePanel, onBack, settings, onUpdate,
   isSignedIn, displayName, displayEmail, onLogIn,
   activeLibrary, setlists = [], songs = [], trash = [],
-  onSaveTemplate, onDeleteTemplate, onDownloadSongs, onDownloadBackup, onRestoreSong, onPurgeSong, onEmptyTrash,
-  onUpgrade, onShowLegal, onHelp,
+  onSaveTemplate, onDeleteTemplate, onDownloadBackup, onRestoreSong, onPurgeSong, onEmptyTrash,
 }) {
   const { profile, user, updateProfile, updatePassword, deleteAccount, signOut } = useAuth();
   const { team, members = [], isAdmin, updateMyInstruments } = useTeam();
@@ -59,6 +58,7 @@ export default function SettingsPage({
   // Services are templates now (2026-11-04): each service the church runs,
   // saved or still only a name on its setlists.
   const templates = useMemo(() => templatesOf(setlists), [setlists]);
+  const [tplView, setTplView] = useState(null);
   const [tplEdit, setTplEdit] = useState(null);
 
   const planKey = (church?.plan || 'free').toLowerCase();
@@ -163,10 +163,10 @@ export default function SettingsPage({
           <DeleteAccountSheet open={delOpen} onOpenChange={setDelOpen} onDelete={doDelete} busy={delBusy} error={delError} />
         </>
       );
+    case 'datetime':
     case 'appearance':
       return (
-        <AppearanceView
-          theme={settings?.theme} onTheme={(v) => set('theme', v)}
+        <DateTimeView
           firstDay={settings?.firstDayOfWeek || 'sunday'} onFirstDay={(v) => set('firstDayOfWeek', v)}
           clock={settings?.clockFormat || '12h'} onClock={(v) => set('clockFormat', v)}
           onBack={toHub}
@@ -176,22 +176,22 @@ export default function SettingsPage({
       return (
         <NotificationsSettingsView
           push={push} onPush={(on) => (on ? push.enable() : push.disable())}
-          reminderOptions={REMINDER_CHIPS}
+          reminderOptions={REMINDERS}
           serviceReminders={normalizeReminders(settings?.serviceReminders)} onServiceReminders={(v) => set('serviceReminders', v)}
           rehearsalReminders={normalizeReminders(settings?.rehearsalReminders)} onRehearsalReminders={(v) => set('rehearsalReminders', v)}
           onBack={toHub}
         />
       );
     case 'plan':
-      if (!leader) return null;
+      // Owner only (2026-11-14): the person who set the church up pays for it.
+      if (!church || church.owner_id !== user?.id) return null;
       return (
         <PlanView
           church={church}
-          plan={{ label: PLAN_NAMES[planKey] || planKey, status: STATUS[status] || 'Active', tone: billingOk ? null : 'bad', seats: church.max_seats ? `Up to ${church.max_seats} people` : null }}
-          isOwner={church.owner_id === user?.id} billingLive={BILLING_ENABLED}
+          plan={{ label: PLAN_NAMES[planKey] || planKey, status: STATUS[status] || 'Active', tone: billingOk ? null : 'bad', maxSeats: church.max_seats || null, usedSeats: members.length }}
+          billingLive={BILLING_ENABLED}
           onSubscribe={!billingOk ? () => runBilling(() => startTeamCheckout(church.id, church.plan)) : undefined}
           onManage={() => runBilling(() => openBillingPortal(church.id))}
-          onComparePlans={onUpgrade}
           busy={billBusy} error={billError}
           onBack={toHub}
         />
@@ -200,11 +200,15 @@ export default function SettingsPage({
       if (!leader) return null;
       return (
         <SettingsShell title="Templates" onBack={toHub} backLabel="Settings">
-          <TemplatesList templates={templates} onEdit={setTplEdit} onNew={() => setTplEdit(blankTemplate())} />
+          <TemplatesList templates={templates} onEdit={setTplView} onNew={() => setTplEdit(blankTemplate())} />
+          {tplView && !tplEdit && (
+            <TemplateView template={templates.find(t => t.id === tplView.id) || tplView} onClose={() => setTplView(null)}
+              onEdit={onSaveTemplate ? () => setTplEdit(templates.find(t => t.id === tplView.id) || tplView) : undefined} />
+          )}
           {tplEdit && (
             <TemplateEditor template={tplEdit} setlists={setlists} onCancel={() => setTplEdit(null)}
               onSave={(tpl, meta) => { onSaveTemplate?.(tpl, meta); setTplEdit(null); }}
-              onDelete={templatesOf(setlists).some(t => t.id === tplEdit.id) && onDeleteTemplate ? () => { onDeleteTemplate(tplEdit.id); setTplEdit(null); } : null} />
+              onDelete={templatesOf(setlists).some(t => t.id === tplEdit.id) && onDeleteTemplate ? () => { onDeleteTemplate(tplEdit.id); setTplEdit(null); setTplView(null); } : null} />
           )}
         </SettingsShell>
       );
@@ -212,30 +216,38 @@ export default function SettingsPage({
       if (church && !leader) return null;
       return (
         <DataView
-          songCount={songs.length} setlistCount={setlists.length}
-          onBackup={onDownloadBackup} onExport={onDownloadSongs}
+          songCount={songs.length} setlistCount={setlists.filter(sl => !sl.isTemplate).length}
+          deletedCount={trash.length}
+          onBackup={onDownloadBackup} onDeleted={() => onChangePanel('deleted')}
+          onBack={toHub}
+        />
+      );
+    case 'deleted':
+      if (church && !leader) return null;
+      return (
+        <DeletedSongsView
           trash={[...trash].sort((a, b) => b.deletedAt - a.deletedAt).map(({ song, deletedAt }) => ({
             id: song.id, title: song.title, artist: song.artist,
             daysLeft: Math.max(0, 30 - Math.floor((now - deletedAt) / DAY_MS)),
           }))}
           onRestore={onRestoreSong} onPurge={onPurgeSong}
           onEmptyTrash={async () => {
-            const ok = await confirm({ title: 'Empty recently deleted?', description: 'These songs are gone for good.', confirmLabel: 'Empty', variant: 'danger' });
+            const ok = await confirm({ title: 'Delete all for good?', description: 'These songs can’t be brought back.', confirmLabel: 'Delete all', variant: 'danger' });
             if (ok) onEmptyTrash?.();
           }}
           onBack={toHub}
         />
       );
     case 'labs':
+      if (!settings?.labsUnlocked) return null;
       return (
         <LabsView
           flags={LAB_FLAGS.map(f => ({ ...f, on: !!settings?.[f.id] }))}
           onFlag={(id, on) => set(id, on)}
+          onHide={() => { set('labsUnlocked', false); toHub(); }}
           onBack={toHub}
         />
       );
-    case 'about':
-      return <AboutView version={__APP_VERSION__} onWhatsNew={() => onChangePanel('whatsnew')} onHelp={onHelp} onLegal={onShowLegal} onBack={toHub} />;
     case 'whatsnew':
       return (
         <SettingsShell title="What’s new" onBack={onBack}>
@@ -247,15 +259,14 @@ export default function SettingsPage({
         <SettingsHubView
           signedIn={isSignedIn}
           summary={{
-            appearance: ({ light: 'Light', dark: 'Dark', midnight: 'Dark', default: 'Auto' })[settings?.theme || 'dark'],
+            dateTime: (settings?.clockFormat || '12h') === '24h' ? '24-hour' : '12-hour',
             notifications: !push.supported ? null : push.subscribed ? 'On' : 'Off',
-            plan: PLAN_NAMES[planKey] || null,
             services: templates.length ? String(templates.length) : null,
             data: `${songs.length} songs`,
-            version: `v${__APP_VERSION__}`,
           }}
           church={leader ? { name: church.name } : null}
           own={{ library: !church }}
+          labs={!!settings?.labsUnlocked}
           onOpen={onChangePanel}
           onLogIn={onLogIn}
           onBack={onBack}

@@ -475,7 +475,7 @@ The mobile experience (< 640px) is a bespoke shell distinct from the desktop sid
 - `Dashboard` drops all mobile-specific headers/FABs, runs under the "modes" theme variant, and uses `flex-1 min-h-0 overflow-hidden flex-col` so it fills the viewport without outer scroll. The "Recently Edited" card becomes the only internally scrollable region on the page.
 
 ### Theme Setting
-Settings → Appearance → Theme offers three options stored on `settings.theme`:
+The You page's Theme row (it left Settings on 2026-11-14) offers three options stored on `settings.theme`:
 - `default` — follows the OS via `matchMedia('(prefers-color-scheme: light)')` and live-updates on system changes.
 - `light` — forces the light palette (`data-theme="light"` on `<html>`).
 - `dark` — forces the dark palette (default).

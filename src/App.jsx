@@ -9,11 +9,11 @@ import AppSkeleton from "@/ui/AppSkeleton";
 import { isQuotaError } from "@/lib/storageErrors";
 import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { songToMd, generateId } from './parser';
+import { generateId } from './parser';
 import { loadSongs, saveSongs, loadSetlists, saveSetlists, loadSettings, saveSettings, loadTombstones, saveTombstones, loadTrash, saveTrash, loadConflicts, saveConflicts, getStorageEstimate } from './storage';
 import { shareTokenFromUrl } from '@/lib/setlistShare';
 import { readySnapshot } from '@/lib/setlistView';
-import { canWriteLibrary as roleCanWriteLibrary } from '@/lib/teamRoles';
+import { canWriteLibrary as roleCanWriteLibrary, roleDef } from '@/lib/teamRoles';
 import { parseSiteEntry, stripSiteEntry, rememberSignupSource } from '@/lib/siteEntry';
 import { parseJoinPath, loadPendingJoin, clearPendingJoin, shouldResumeJoin, joinDecisionFor } from '@/lib/joinLink';
 import { startScreen, storedRequest } from '@/lib/startFlow';
@@ -71,6 +71,8 @@ import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
+// The group's plan, as the You page's Subscription row names it.
+const PLAN_LABELS = { free: 'Free', team: 'Band', church: 'Church' };
 
 // Leaving an editor with changes not saved: one wording for every way out
 // (Cancel, Back, a tab in the nav, the phone's back swipe).
@@ -125,7 +127,7 @@ const StartFlow = lazy(() => import('@/features/start/StartFlow'));
 // would have quietly outlived the graduation it was supposed to end — the same
 // dead import `Library.jsx` was carrying. Sixth of the family.
 const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
-const LegalPage = lazy(() => import('@/features/legal/LegalPage'));
+import { WebRedirect } from '@/features/legal/WebSheet';
 const GoogleDriveCallback = lazy(() => import('@/features/auth/GoogleDriveCallback'));
 // Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
 // ~80% the same file). Both were deleted on 2026-10-11.
@@ -137,7 +139,6 @@ const LiveIntro = lazy(() => import('@/features/reader/LiveIntro'));
 // The add-a-song surface: search over the catalog, with Import and Blank
 // underneath. Graduated from Labs 2026-07 (the tabbed Import|Browse modal it
 // replaced is deleted). Lazy — only fetched when the user adds a song.
-const HelpPage = lazy(() => import('@/features/legal/HelpPage'));
 const AuthScreen = lazy(() => import('@/features/auth/AuthScreen'));
 const AuthCallback = lazy(() => import('@/features/auth/AuthCallback'));
 const RecoveryScreen = lazy(() => import('@/features/auth/RecoveryScreen'));
@@ -204,7 +205,7 @@ export default function App() {
   const personalWorkspaceId = usePersonalWorkspace(user?.id, personalCloudAllowed);
   const personalWorkspaceIdRef = useRef(null);
   personalWorkspaceIdRef.current = personalWorkspaceId;
-  const { team, teams, members, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
+  const { team, teams, members, myRole, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
   const signedOutSettled = !authLoading && !user?.id;
   // Launch: give memberships a few seconds to say which church to open before
   // falling back to whatever is open (offline, slow network).
@@ -2936,29 +2937,25 @@ export default function App() {
         </Suspense>
       )}
           {(view === 'legal-privacy' || view === 'legal-terms' || view === 'legal-copyright') && (
-            <LegalPage
-              doc={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'}
-              onBack={() => {
-                if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
-                goToMainView('home');
-              }}
-            />
-          )}
-          {view === "help" && (
-            <HelpPage
-              onBack={goBack}
-              onMarkSeen={() => {
-                if (!settings?.notifications) return;
-                const updated = settings.notifications.map(n => ({ ...n, read: true }));
-                setSettings(prev => ({ ...prev, notifications: updated, helpPageSeen: true }));
-              }}
-            />
+            <WebRedirect page={view === 'legal-privacy' ? 'privacy' : view === 'legal-terms' ? 'terms' : 'copyright'} />
           )}
           {view === "you" && settings && (
             <YouPage
               me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
               signedIn={isSignedIn}
-              church={activeLibrary !== 'personal' ? { name: currentWorkspaceName } : null}
+              church={activeLibrary !== 'personal' ? {
+                name: currentWorkspaceName,
+                logoUrl: team?.logo_url || null,
+                role: !team ? null : team.owner_id === user?.id ? 'Owner' : roleDef(myRole).id === 'admin' ? 'Leader' : roleDef(myRole).label,
+                people: members?.length || 0,
+              } : null}
+              subscription={activeLibrary !== 'personal' && team && team.kind !== 'personal' && team.owner_id === user?.id
+                ? { label: PLAN_LABELS[(team.plan || 'free').toLowerCase()] || team.plan }
+                : null}
+              onSubscription={() => goToMainView('settings', { settingsPanel: 'plan' })}
+              userId={user?.id || null}
+              labsUnlocked={!!settings?.labsUnlocked}
+              onUnlockLabs={() => setSettings(prev => ({ ...prev, labsUnlocked: true }))}
               teamBadge={pendingJoinCount}
               onBack={goBack}
               onProfile={() => goToMainView('settings', { settingsPanel: 'profile' })}
@@ -2966,9 +2963,7 @@ export default function App() {
               onSettings={() => goToMainView('settings')}
               theme={settings?.theme}
               onThemeChange={(theme) => setSettings(prev => ({ ...prev, theme }))}
-              onHelp={() => navigate('help')}
               onWhatsNew={() => goToMainView('settings', { settingsPanel: 'whatsnew' })}
-              onAbout={() => goToMainView('settings', { settingsPanel: 'about' })}
               hasNewChangelog={settings?.lastChangelogVersion !== __APP_VERSION__}
               onInstall={!isStandalone && (isIOS || canInstall)
                 ? async () => { if (isIOS) openIOSHint(); else await promptInstall(); }
@@ -2994,22 +2989,6 @@ export default function App() {
               trash={trash}
               onSaveTemplate={isTeamReadOnly ? null : handleSaveTemplate}
               onDeleteTemplate={handleDeleteTemplate}
-              onDownloadSongs={() => {
-                songs.forEach(s => {
-                  const md = songToMd(s);
-                  const blob = new Blob([md], { type: 'text/markdown' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = slugify(s.title) + '.md';
-                  a.click();
-                  URL.revokeObjectURL(url);
-                });
-                toast({
-                  title: 'Library exported',
-                  description: `${songs.length} song${songs.length === 1 ? '' : 's'} downloaded as .md files.`,
-                });
-              }}
               onDownloadBackup={async () => {
                 try {
                   const blob = await exportLibraryZip(songs, setlists);
@@ -3030,8 +3009,6 @@ export default function App() {
               onRestoreSong={handleRestoreSong}
               onPurgeSong={handlePurgeSong}
               onEmptyTrash={handleEmptyTrash}
-              onShowLegal={(doc) => navigate(`legal-${doc}`)}
-              onHelp={() => navigate('help')}
             />
           )}
           {view === "account" && settings && (
