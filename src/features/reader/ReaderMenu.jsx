@@ -136,6 +136,7 @@ const ROLES = [
   { id: 'bass', label: 'Bass', applies: { displayMode: 'chords', tabInstrument: 'bass' } },
   { id: 'keys', label: 'Keys', applies: { displayMode: 'chords', tabInstrument: 'all' } },
   { id: 'drums', label: 'Drums', applies: { displayMode: 'lyrics', tabInstrument: 'all' } },
+  { id: 'other', label: 'Other', applies: { displayMode: 'chords', tabInstrument: 'all' } },
 ];
 
 // Stored ids no longer offered → the row that now means the same thing. A pick
