@@ -7,7 +7,10 @@ import { setlistStartMs, isSetlistUpcoming } from './setlistTime';
 import { bandFor, toDateStr } from './homeData';
 import { partLabel } from '@/data/instruments';
 
-const monthOf = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+// One formatter, not one per setlist: `toLocaleDateString` with options builds
+// a new Intl object on each call, which added up on a long Past tab.
+const MONTH = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+const monthOf = (date) => MONTH.format(new Date(`${date}T12:00:00`));
 
 /**
  * Dated setlists split into upcoming (soonest first) or past (latest first),

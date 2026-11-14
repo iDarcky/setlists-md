@@ -48,7 +48,11 @@ export function nextSetlistSongs(setlists = [], now = Date.now()) {
   };
 }
 
-const short = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+// One formatter and one collator for the whole list: `toLocaleDateString` and
+// `localeCompare` with options build a new Intl object on every call, and on a
+// 500-song library that was most of the Songs tab's time.
+const SHORT_DATE = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+const short = (date) => SHORT_DATE.format(new Date(`${date}T12:00:00`));
 
 /** The line under a song's title: "Played 7× · last 25 Oct", or why not. */
 export function playLine(stat, now = Date.now()) {
@@ -68,7 +72,8 @@ export const SORTS = [
   { value: 'stale', label: 'Not played in a while' },
 ];
 
-const byTitle = (a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' });
+const TITLE_ORDER = new Intl.Collator(undefined, { sensitivity: 'base' });
+const byTitle = (a, b) => TITLE_ORDER.compare(a.title || '', b.title || '');
 
 export function sortSongs(songs, sort = 'az', stats = {}) {
   const list = [...songs];

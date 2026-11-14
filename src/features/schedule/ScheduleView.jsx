@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useRevealList } from '@/hooks/useRevealList';
 import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
-import { formatClockTime } from '@/lib/dateFormat';
+import { formatClockTime, dateFormatter } from '@/lib/dateFormat';
 import { CalendarIcon, PlusIcon } from '@/app/navIcons';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 
@@ -17,7 +18,7 @@ import { CanYouPlay, AnswerDay } from './CanYouPlay';
 // availability. Leaders: the same list with band faces and Draft/Ready, and
 // filters for what needs people and what is still a draft.
 
-const day = (dateStr, opts) => new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', opts);
+const day = (dateStr, opts) => dateFormatter('en-GB', opts).format(new Date(`${dateStr}T12:00:00`));
 const clock = (t, fmt) => (t ? formatClockTime(t, fmt) : '');
 
 const CHIP = {
@@ -156,6 +157,18 @@ function Segmented({ value, options, onChange }) {
   );
 }
 
+// The first `n` rows across the month groups, months kept whole up to the cut.
+function cutGroups(groups, n) {
+  const out = [];
+  let left = n;
+  for (const g of groups) {
+    if (left <= 0) break;
+    out.push(g.rows.length <= left ? g : { ...g, rows: g.rows.slice(0, left) });
+    left -= g.rows.length;
+  }
+  return out;
+}
+
 function FilterChip({ on, onClick, children, count }) {
   return (
     <button
@@ -191,6 +204,11 @@ export default function ScheduleView({
   const past = tab === 'past';
   const isBand = tab === 'band' && band;
   const [picked, setPicked] = useState(null);
+  // A screenful of rows first, the rest as you scroll: Past grows by a
+  // service a week, forever (see useRevealList).
+  const total = groups.reduce((n, g) => n + g.rows.length, 0);
+  const { count: shown, more, sentinel } = useRevealList(total, { resetKey: `${tab}|${filter}` });
+  const shownGroups = shown >= total ? groups : cutGroups(groups, shown);
   return (
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       {past && <BackToTop />}
@@ -230,7 +248,7 @@ export default function ScheduleView({
               {past ? 'Setlists you have played show up here.' : leader ? 'Make a setlist with a date and it shows up here.' : 'When your church plans a setlist, it shows up here.'}
             </p>
           </div>
-        ) : groups.map(g => (
+        ) : shownGroups.map(g => (
           <section key={g.month} aria-label={g.month} className="flex flex-col gap-2">
             <h2 className="m-0 px-0.5 pt-1.5 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{g.month}</h2>
             <div className="overflow-hidden rounded-card border border-border bg-card">
@@ -240,6 +258,7 @@ export default function ScheduleView({
             </div>
           </section>
         ))}
+        {!isBand && more && <div ref={sentinel} aria-hidden="true" className="h-px" />}
       </div>
       <AnswerDay tile={picked} onClose={() => setPicked(null)} onAnswer={onAnswerDay} clockFormat={clockFormat} />
     </div>
