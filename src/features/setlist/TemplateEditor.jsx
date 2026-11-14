@@ -5,7 +5,7 @@ import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
-import { ChevronRightIcon, PlusIcon } from '@/app/navIcons';
+import { BackIcon, ChevronRightIcon, EditIcon, PlusIcon } from '@/app/navIcons';
 import { partName, ADDABLE_PARTS } from '@/lib/bandParts';
 import { WEEKDAYS, splitPattern, nextNumber, formatName, patternFromName, templateTitle, blankTemplate, placeholderItem, isPlaceholder, TEMPLATE_KIND } from '@/lib/newSetlist';
 import { Chip, TimeInput } from './WhenPickers';
@@ -221,4 +221,72 @@ export function TemplatesSheet({ open, onOpenChange, templates = [], onEdit, onN
       <TemplatesList templates={templates} onEdit={onEdit} onNew={onNew} />
     </Sheet>
   );
+}
+
+const Info = ({ label, value }) => (
+  <div className="flex min-h-12 items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
+    <span className="flex-1 text-[15px]">{label}</span>
+    <span className="text-right text-[15px] text-muted-foreground">{value || '—'}</span>
+  </div>
+);
+
+/**
+ * One template, read-only (owner, 2026-11-14): tapping a template shows it
+ * first, so nobody lands in the editor by accident. Edit opens the editor.
+ */
+export function TemplateView({ template: t, onEdit, onClose, embedded = false }) {
+  const parts = [];
+  (t.parts || []).forEach(p => { const x = parts.find(r => r.part === p); if (x) x.n += 1; else parts.push({ part: p, n: 1 }); });
+  const serviceDay = Number.isInteger(t.weekday) ? t.weekday : null;
+  const rehearsalDay = t.rehearsalPick ? 'Picked each week'
+    : serviceDay == null ? '' : WEEKDAYS[(serviceDay - (Number(t.rehearsalOffset) || 0) + 7) % 7];
+  const numbered = splitPattern(t.namePattern);
+  const items = t.items || [];
+  const body = (
+    <div role="dialog" aria-modal={embedded ? undefined : 'true'} aria-label={`Template · ${templateTitle(t)}`}
+      className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'fixed inset-0 z-[70]')}>
+      <div className="flex items-center gap-1 px-4 pb-1" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
+        <button type="button" onClick={onClose} aria-label="Templates" title="Templates" className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-[560px] flex-col gap-2 px-4 pb-28">
+          <h1 className="m-0 text-[26px] font-semibold tracking-[-0.5px]">{templateTitle(t)}</h1>
+          <p className="m-0 text-[14px] text-muted-foreground">Template{numbered ? ` · setlists are numbered (${formatName(t.namePattern, Number(t.startNumber) || 1, t.namePad)} …)` : ''}</p>
+
+          <Caps>When</Caps>
+          <div className="rounded-card border border-border bg-card">
+            <Info label="Service" value={[serviceDay != null && WEEKDAYS[serviceDay], t.time].filter(Boolean).join(' ')} />
+            {t.rehearsalOn && <Info label="Rehearsal" value={[rehearsalDay, t.rehearsalTime].filter(Boolean).join(' ')} />}
+            <Info label="Place" value={t.location} />
+          </div>
+
+          <Caps>Band</Caps>
+          <div className="rounded-card border border-border bg-card px-4 py-3 text-[15px]">
+            {parts.length ? parts.map(x => (x.n > 1 ? `${x.n} ${partName(x.part)}` : partName(x.part))).join(', ') : <span className="text-muted-foreground">No parts picked</span>}
+          </div>
+
+          <Caps>Order of service</Caps>
+          <div className="rounded-card border border-border bg-card">
+            {items.length ? items.map((it, i) => (
+              <div key={i} className="flex min-h-11 items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
+                <span className="w-5 text-[13px] text-muted-foreground">{i + 1}</span>
+                <span className="flex-1 text-[15px]">
+                  {it.type === 'break' ? (it.label || 'Moment') : it.songId ? (it.songTitle || 'Song') : (it.label || 'Song')}
+                </span>
+                <span className="text-[13px] text-muted-foreground">
+                  {it.type === 'break' ? (it.duration ? `${it.duration} min` : 'Moment') : it.songId ? 'Always this song' : isPlaceholder(it) ? 'Song to pick' : ''}
+                </span>
+              </div>
+            )) : <p className="m-0 px-4 py-4 text-[14px] text-muted-foreground">Nothing in the order yet.</p>}
+          </div>
+        </div>
+      </div>
+      {onEdit && (
+        <div className="absolute inset-x-0 bottom-0 border-t border-border bg-background px-4 pt-3" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
+          <div className="mx-auto max-w-[560px]"><Button className="w-full" onClick={onEdit}><EditIcon size={16} />Edit template</Button></div>
+        </div>
+      )}
+    </div>
+  );
+  return embedded ? body : createPortal(body, document.body);
 }

@@ -8,14 +8,14 @@ import { Sheet } from '@/ui/shadcn/sheet';
 import { Avatar } from '@/app/AppTopBar';
 import { PartsPicker } from '@/features/team/PartsPicker';
 import {
-  BackIcon, ChevronRightIcon, UserIcon, MoonIcon, BellIcon, SparkIcon, HelpIcon,
-  SignOutIcon, CalendarIcon, MusicIcon,
+  BackIcon, ChevronRightIcon, UserIcon, BellIcon, CalendarIcon, ClockIcon, CloseIcon, PlusIcon,
 } from '@/app/navIcons';
 
-// Settings, rebuilt (owner, 2026-10-25): four groups — Profile, this device,
-// the church (admins only) and the app — and every row opens a page of its
-// own. Chart settings live in the reader's Aa, never here. Pure views: the
-// container (SettingsPage.jsx) owns the data.
+// Settings (owner, 2026-10-25; reworked 2026-11-14): this device, the
+// church's setup (leaders only) and Labs once unlocked. Every row opens a page
+// of its own. Profile, Team, Subscription, theme, help and legal live on the
+// You page; chart settings live in the reader's Aa, never here. Pure views:
+// the container (SettingsPage.jsx) owns the data.
 
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
@@ -118,7 +118,7 @@ export function SettingsShell({ title, onBack, backLabel = 'Back', children, emb
 const Svg = ({ children, size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
-const CardIcon = () => <Svg><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 10h19M6.5 15h4" /></Svg>;
+const DownloadIcon = () => <Svg><path d="M12 3v12M7 10l5 5 5-5M4 21h16" /></Svg>;
 const DataIcon = () => <Svg><ellipse cx="12" cy="5.5" rx="8" ry="3" /><path d="M4 5.5v13c0 1.66 3.6 3 8 3s8-1.34 8-3v-13M4 12c0 1.66 3.6 3 8 3s8-1.34 8-3" /></Svg>;
 const LabsIcon = () => <Svg><path d="M9 3h6M10 3v6l-5.5 9.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" /><path d="M7.5 15h9" /></Svg>;
 const TrashIcon = () => <Svg><path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></Svg>;
@@ -126,32 +126,32 @@ const TrashIcon = () => <Svg><path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12a2 2 0 0
 // ── The hub ─────────────────────────────────────────────────────────────────
 
 /**
- * @param {{ name, email?, url? }} me
- * @param {{ name }} [church]   shown only to the church's admins
+ * Settings (owner, 2026-11-14): what this device does, then the church's
+ * own setup for its leaders, then Labs once it has been unlocked. Account
+ * things (profile, team, subscription) live on the You page.
+ * @param {{ name }} [church]   shown only to the church's leaders
  * @param {{ library?: boolean }} [own]  your own library (no church): its Data row
+ * @param {boolean} [labs]      Labs unlocked on this device
  */
-export function SettingsHubView({ signedIn = true, summary = {}, church, own, onOpen, onLogIn, onBack, embedded }) {
+export function SettingsHubView({ signedIn = true, summary = {}, church, own, labs = false, onOpen, onLogIn, onBack, embedded }) {
   return (
     <SettingsShell title="Settings" onBack={onBack} embedded={embedded}>
       {!signedIn && (
         <Group className="mt-2"><NavRow icon={<UserIcon />} label="Log in or create an account" onClick={onLogIn} /></Group>
       )}
 
-      <GroupLabel>This device</GroupLabel>
-      <Group>
-        <NavRow icon={<MoonIcon />} label="Appearance" detail={summary.appearance} onClick={() => onOpen('appearance')} />
+      <Group className="mt-2">
+        <NavRow icon={<ClockIcon size={20} />} label="Date and time" detail={summary.dateTime} onClick={() => onOpen('datetime')} />
         <NavRow icon={<BellIcon />} label="Notifications" detail={summary.notifications} onClick={() => onOpen('notifications')} />
       </Group>
 
       {church && (
         <>
-          <GroupLabel>{church.name}</GroupLabel>
+          <GroupLabel>{church.name} · leaders</GroupLabel>
           <Group>
-            <NavRow icon={<CardIcon />} label="Plan and billing" detail={summary.plan} onClick={() => onOpen('plan')} />
             <NavRow icon={<CalendarIcon />} label="Templates" detail={summary.services} onClick={() => onOpen('services')} />
             <NavRow icon={<DataIcon />} label="Data" detail={summary.data} onClick={() => onOpen('data')} />
           </Group>
-          <Note>Only leaders see this.</Note>
         </>
       )}
       {!church && own?.library && (
@@ -161,10 +161,12 @@ export function SettingsHubView({ signedIn = true, summary = {}, church, own, on
         </>
       )}
 
-      <GroupLabel>App</GroupLabel>
-      <Group>
-        <NavRow icon={<LabsIcon />} label="Labs" detail="Try things early" onClick={() => onOpen('labs')} />
-      </Group>
+      {labs && (
+        <>
+          <GroupLabel>Labs</GroupLabel>
+          <Group><NavRow icon={<LabsIcon />} label="Labs" detail="Try things early" onClick={() => onOpen('labs')} /></Group>
+        </>
+      )}
     </SettingsShell>
   );
 }
@@ -267,161 +269,167 @@ export function DeleteAccountSheet({ open, onOpenChange, onDelete, busy = false,
 
 // ── This device ─────────────────────────────────────────────────────────────
 
-const THEMES = [{ id: 'light', label: 'Light' }, { id: 'dark', label: 'Dark' }, { id: 'default', label: 'Auto' }];
-
-export function AppearanceView({ theme, onTheme, firstDay = 'sunday', onFirstDay, clock = '12h', onClock, onBack, embedded }) {
-  const current = theme === 'midnight' ? 'dark' : (theme || 'dark');
+export function DateTimeView({ firstDay = 'sunday', onFirstDay, clock = '12h', onClock, onBack, embedded }) {
   return (
-    <SettingsShell title="Appearance" onBack={onBack} backLabel="Settings" embedded={embedded}>
+    <SettingsShell title="Date and time" onBack={onBack} backLabel="Settings" embedded={embedded}>
       <Group className="mt-2">
-        <Row label="Theme" sub="Auto follows your phone."><Segmented label="Theme" value={current} options={THEMES} onChange={onTheme} /></Row>
+        <Row label="Time">
+          <Segmented label="Time" value={clock} options={[{ id: '12h', label: '12-hour' }, { id: '24h', label: '24-hour' }]} onChange={onClock} />
+        </Row>
         <Row label="Week starts on">
           <Segmented label="Week starts on" value={firstDay} options={[{ id: 'sunday', label: 'Sunday' }, { id: 'monday', label: 'Monday' }]} onChange={onFirstDay} />
         </Row>
-        <Row label="Times">
-          <Segmented label="Times" value={clock} options={[{ id: '12h', label: '9:30 AM' }, { id: '24h', label: '09:30' }]} onChange={onClock} />
-        </Row>
       </Group>
+      <Note>Used on the schedule, setlists and reminders.</Note>
     </SettingsShell>
   );
 }
 
 /**
  * @param {{ supported, subscribed, denied, busy }} push  this device
- * @param {Array<{value,label}>} reminderOptions
+ * @param {Array<{value,label}>} reminderOptions  in time order, nearest first
  */
 export function NotificationsSettingsView({ push = {}, onPush, reminderOptions = [], serviceReminders = [], onServiceReminders, rehearsalReminders = [], onRehearsalReminders, onBack, embedded }) {
+  const [adding, setAdding] = useState(null); // 'service' | 'rehearsal'
   const status = !push.supported ? 'Not available here'
     : push.denied ? 'Blocked in your phone’s settings'
-      : push.subscribed ? 'On' : 'Off';
+      : null;
+  const lists = {
+    service: { title: 'Before a service', value: serviceReminders, onChange: onServiceReminders },
+    rehearsal: { title: 'Before a rehearsal', value: rehearsalReminders, onChange: onRehearsalReminders },
+  };
+  const open = adding ? lists[adding] : null;
+  const left = open ? reminderOptions.filter(o => !open.value.includes(o.value)) : [];
   return (
     <SettingsShell title="Notifications" onBack={onBack} backLabel="Settings" embedded={embedded}>
       <Group className="mt-2">
-        <Row label="Lock-screen alerts" sub={`On this phone or computer · ${status}`}>
+        <Row label="Notifications on this device" sub={status || 'Asked to play, setlist ready, reminders'}>
           {push.supported && !push.denied && (
-            <Switch label="Lock-screen alerts" checked={!!push.subscribed} onChange={(on) => !push.busy && onPush?.(on)} />
+            <Switch label="Notifications on this device" checked={!!push.subscribed} onChange={(on) => !push.busy && onPush?.(on)} />
           )}
         </Row>
       </Group>
       {!push.supported && <Note>On an iPhone or iPad, put the app on your home screen first (Share → Add to Home Screen), open it from there, then come back here.</Note>}
       {push.supported && push.denied && <Note>Turn notifications back on for this app in your phone’s settings, then come back.</Note>}
-      {push.supported && !push.denied && <Note>You get one when you’re asked to play, when a setlist you’re on is ready, and before a service.</Note>}
 
-      <GroupLabel>Remind me</GroupLabel>
-      <Group>
-        <ReminderRow label="Before a service" value={serviceReminders} options={reminderOptions} onChange={onServiceReminders} />
-        <ReminderRow label="Before a rehearsal" value={rehearsalReminders} options={reminderOptions} onChange={onRehearsalReminders} />
-      </Group>
-      <Note>Tap to turn a time on or off. These apply to every setlist you’re on.</Note>
+      {['service', 'rehearsal'].map(kind => (
+        <ReminderList key={kind} title={lists[kind].title} value={lists[kind].value} options={reminderOptions}
+          onRemove={(v) => lists[kind].onChange?.(lists[kind].value.filter(x => x !== v))}
+          onAdd={() => setAdding(kind)} />
+      ))}
+      <Note>These apply to every setlist you’re on.</Note>
+
+      <Sheet open={!!open} onOpenChange={(o) => { if (!o) setAdding(null); }} title={open ? `Remind me ${open.title.toLowerCase()}` : ''} className="h-auto sm:max-w-[440px]">
+        {open && (left.length ? (
+          <Group>
+            {left.map(o => (
+              <button key={o.value} type="button" onClick={() => {
+                const next = new Set([...open.value, o.value]);
+                open.onChange?.(reminderOptions.map(x => x.value).filter(v => next.has(v)));
+                setAdding(null);
+              }} className={cn(rowBase, 'min-h-12 cursor-pointer text-[16px] outline-none hover:bg-raised focus-visible:bg-raised sm:text-[15px]')}>
+                {o.long}
+              </button>
+            ))}
+          </Group>
+        ) : <p className="m-0 text-[15px] text-muted-foreground">You already have every time.</p>)}
+      </Sheet>
     </SettingsShell>
   );
 }
 
-function ReminderRow({ label, value = [], options, onChange }) {
-  const on = new Set(value);
+function ReminderList({ title, value = [], options, onRemove, onAdd }) {
+  // Furthest ahead first: "1 day before" above "1 hour before".
+  const picked = options.filter(o => value.includes(o.value)).reverse();
   return (
-    <Row label={label} stack>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map(o => (
-          <Toggle key={o.value} pressed={on.has(o.value)} onPressedChange={() => {
-            const next = new Set(on);
-            if (next.has(o.value)) next.delete(o.value); else next.add(o.value);
-            onChange?.(options.map(x => x.value).filter(v => next.has(v)));
-          }}>
-            {o.label}
-          </Toggle>
+    <>
+      <GroupLabel>{title}</GroupLabel>
+      <Group>
+        {picked.map(o => (
+          <div key={o.value} className={cn(rowBase, 'min-h-12 py-1 pr-1.5')}>
+            <span className="flex-1 text-[16px] sm:text-[15px]">{o.long}</span>
+            <Button size="icon" variant="ghost" className="text-muted-foreground" aria-label={`Remove ${o.long}`} onClick={() => onRemove?.(o.value)}><CloseIcon size={18} /></Button>
+          </div>
         ))}
-      </div>
-    </Row>
+        {picked.length < options.length && (
+          <button type="button" onClick={onAdd} className={cn(rowBase, 'min-h-12 cursor-pointer text-link outline-none hover:bg-raised focus-visible:bg-raised')}>
+            <PlusIcon size={18} />
+            <span className="text-[16px] sm:text-[15px]">Add reminder</span>
+          </button>
+        )}
+      </Group>
+    </>
   );
 }
 
-// ── The church (admins) ─────────────────────────────────────────────────────
+// ── The church ──────────────────────────────────────────────────────────────
 
 /**
- * @param {{ label, status, tone?, seats? }} plan
- * @param {'subscribe'|'manage'|null} action  what the owner can do here
+ * Owner only (2026-11-14). Plans and prices live on the website.
+ * @param {{ label, status, tone?, maxSeats?, usedSeats? }} plan
  */
-export function PlanView({ church, plan, isOwner = false, billingLive = false, onSubscribe, onManage, onComparePlans, busy = false, error = '', onBack, embedded }) {
+export function PlanView({ church, plan, billingLive = false, onSubscribe, onManage, busy = false, error = '', onBack, embedded }) {
+  const pct = plan?.maxSeats ? Math.min(100, Math.round((plan.usedSeats / plan.maxSeats) * 100)) : 0;
   return (
-    <SettingsShell title="Plan and billing" onBack={onBack} backLabel="Settings" embedded={embedded}>
+    <SettingsShell title="Subscription" onBack={onBack} embedded={embedded}>
       <Group className="mt-2 p-5">
         <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{church?.name}</div>
         <div className="flex items-center justify-between gap-3 pt-1">
           <b className="text-[22px] font-semibold tracking-[-0.4px]">{plan?.label}</b>
           <span className={cn('rounded-full px-2.5 py-1 text-[12px] font-semibold', plan?.tone === 'bad' ? 'bg-danger-fill text-danger-text' : 'bg-selected text-link')}>{plan?.status}</span>
         </div>
-        {plan?.seats && <p className="m-0 pt-1 text-[14px] text-muted-foreground">{plan.seats}</p>}
+        {plan?.maxSeats ? (
+          <>
+            <p className="m-0 pt-1 text-[14px] text-muted-foreground">{plan.usedSeats} of {plan.maxSeats} seats used</p>
+            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuemin={0} aria-valuemax={plan.maxSeats} aria-valuenow={plan.usedSeats} aria-label="Seats used">
+              <div className={cn('h-full rounded-full', pct >= 100 ? 'bg-danger' : 'bg-link')} style={{ width: `${pct}%` }} />
+            </div>
+          </>
+        ) : null}
       </Group>
-      {isOwner && billingLive ? (
+      {billingLive ? (
         <div className="flex flex-col gap-2 pt-4">
           {onSubscribe && <Button loading={busy} onClick={onSubscribe}>Subscribe</Button>}
           <Button variant="outline" loading={busy && !onSubscribe} onClick={onManage}>Manage billing</Button>
           {error && <Alert variant="danger">{error}</Alert>}
         </div>
-      ) : (
-        <Note>{isOwner ? 'Billing isn’t switched on yet. Nothing to pay for now.' : 'Only the person who set up the church can change the plan.'}</Note>
-      )}
-      {onComparePlans && <Button variant="link" className="mt-4 self-start text-[15px]" onClick={onComparePlans}>Compare plans</Button>}
+      ) : null}
+      <Note>{billingLive ? '' : 'Billing isn’t switched on yet. Nothing to pay for now. '}Only you see this, because you set up {church?.name}. Plans and prices are on setlists.md.</Note>
     </SettingsShell>
   );
 }
 
-/** The kinds of service setlists belong to (Sunday Morning, Youth…). */
-export function ServicesView({ services = [], onRename, onRemove, onBack, embedded }) {
-  const [editing, setEditing] = useState(null);
-  const [draft, setDraft] = useState('');
-  return (
-    <SettingsShell title="Services" onBack={onBack} backLabel="Settings" embedded={embedded}>
-      <p className="m-0 pb-2 text-[15px] leading-[22px] text-muted-foreground">The kinds of service your setlists are for. Rename one and every setlist follows.</p>
-      {services.length === 0 ? (
-        <Group className="p-6 text-center text-[15px] text-muted-foreground">None yet. Pick a service on a setlist and it shows up here.</Group>
-      ) : (
-        <Group>
-          {services.map(s => (
-            editing === s.name ? (
-              <form key={s.name} className={cn(rowBase, 'gap-2')} onSubmit={(e) => { e.preventDefault(); const v = draft.trim(); if (v && v !== s.name) onRename?.(s.name, v); setEditing(null); }}>
-                <Input autoFocus value={draft} onChange={e => setDraft(e.target.value)} className="flex-1" aria-label="Service name" />
-                <Button type="submit" size="sm" disabled={!draft.trim()}>Save</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
-              </form>
-            ) : (
-              <div key={s.name} className={cn(rowBase, 'gap-1 py-0 pr-1')}>
-                <button type="button" onClick={() => { setEditing(s.name); setDraft(s.name); }} aria-label={`Rename ${s.name}`}
-                  className="flex min-h-[56px] min-w-0 flex-1 cursor-pointer items-center gap-3.5 border-0 bg-transparent p-0 py-2.5 text-left font-sans text-foreground outline-none focus-visible:underline">
-                  <span className="text-muted-foreground"><MusicIcon size={20} /></span>
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate text-[16px] sm:text-[15px]">{s.name}</span>
-                    <span className="text-[13px] text-muted-foreground">{s.count === 1 ? '1 setlist' : `${s.count} setlists`} · tap to rename</span>
-                  </span>
-                </button>
-                <Button size="icon" variant="ghost" className="text-danger-text" onClick={() => onRemove?.(s.name, s.count)} aria-label={`Remove ${s.name}`}><TrashIcon /></Button>
-              </div>
-            )
-          ))}
-        </Group>
-      )}
-    </SettingsShell>
-  );
-}
-
-/**
- * @param {Array<{ id, title, artist?, daysLeft }>} trash  newest first
- */
-export function DataView({ songCount = 0, setlistCount = 0, onBackup, onExport, trash = [], onRestore, onPurge, onEmptyTrash, onBack, embedded }) {
+export function DataView({ songCount = 0, setlistCount = 0, deletedCount = 0, onBackup, onDeleted, onBack, embedded }) {
   return (
     <SettingsShell title="Data" onBack={onBack} backLabel="Settings" embedded={embedded}>
-      <p className="m-0 pb-2 text-[15px] text-muted-foreground">{songCount} songs · {setlistCount} setlists</p>
-      <Group>
-        <Row label="Back up everything" sub="One .zip with every song, arrangement and setlist."><Button size="sm" variant="outline" onClick={onBackup}>Download</Button></Row>
-        <Row label="Export songs" sub="Every song as its own .md file."><Button size="sm" variant="outline" onClick={onExport}>Download</Button></Row>
+      <p className="m-0 pb-3 text-[15px] text-muted-foreground">{songCount} songs · {setlistCount} setlists</p>
+      <Group className="flex flex-col gap-3 p-4">
+        <div className="flex items-start gap-3.5">
+          <span className="pt-0.5 text-muted-foreground"><DownloadIcon /></span>
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[16px] sm:text-[15px]">Download a backup</span>
+            <span className="text-[13px] leading-[18px] text-muted-foreground">Every song and setlist in one .zip. Songs are plain .md files you can open anywhere.</span>
+          </span>
+        </div>
+        <Button variant="outline" onClick={onBackup}>Download backup</Button>
       </Group>
 
       <GroupLabel>Recently deleted</GroupLabel>
+      <Group><NavRow icon={<TrashIcon />} label="Deleted songs" detail={String(deletedCount)} onClick={onDeleted} /></Group>
+      <Note>Deleted songs wait 30 days, then they’re gone.</Note>
+    </SettingsShell>
+  );
+}
+
+/** @param {Array<{ id, title, artist?, daysLeft }>} trash  newest first */
+export function DeletedSongsView({ trash = [], onRestore, onPurge, onEmptyTrash, onBack, embedded }) {
+  return (
+    <SettingsShell title="Deleted songs" onBack={onBack} backLabel="Data" embedded={embedded}>
       {trash.length === 0 ? (
-        <Group className="p-5 text-center text-[15px] text-muted-foreground">Nothing here. Deleted songs wait 30 days before they’re gone.</Group>
+        <Group className="mt-2 p-5 text-center text-[15px] text-muted-foreground">Nothing here. Deleted songs wait 30 days before they’re gone.</Group>
       ) : (
         <>
+          <p className="m-0 pb-3 text-[15px] text-muted-foreground">{trash.length === 1 ? '1 song' : `${trash.length} songs`} · each one is gone for good 30 days after it was deleted.</p>
           <Group>
             {trash.map(t => (
               <div key={t.id} className={rowBase}>
@@ -434,17 +442,17 @@ export function DataView({ songCount = 0, setlistCount = 0, onBackup, onExport, 
               </div>
             ))}
           </Group>
-          <Button variant="link" className="mt-3 self-start text-[15px] text-danger-text" onClick={onEmptyTrash}>Empty recently deleted</Button>
+          <Button variant="link" className="mt-3 self-start text-[15px] text-danger-text" onClick={onEmptyTrash}>Delete all for good</Button>
         </>
       )}
     </SettingsShell>
   );
 }
 
-// ── App ─────────────────────────────────────────────────────────────────────
+// ── Labs ────────────────────────────────────────────────────────────────────
 
 /** @param {Array<{ id, label, sub, on }>} flags */
-export function LabsView({ flags = [], onFlag, onBack, embedded }) {
+export function LabsView({ flags = [], onFlag, onHide, onBack, embedded }) {
   return (
     <SettingsShell title="Labs" onBack={onBack} backLabel="Settings" embedded={embedded}>
       <p className="m-0 pb-2 text-[15px] leading-[22px] text-muted-foreground">Things we’re still trying out. They may change or go away. Turn one off if it gets in the way.</p>
@@ -457,32 +465,7 @@ export function LabsView({ flags = [], onFlag, onBack, embedded }) {
           ))}
         </Group>
       )}
-    </SettingsShell>
-  );
-}
-
-export function AboutView({ version, onWhatsNew, onHelp, onLegal, onBack, embedded }) {
-  return (
-    <SettingsShell title="About" onBack={onBack} embedded={embedded}>
-      <Group className="mt-2 flex items-center gap-3.5 p-5">
-        <img src="/setlists-md-mark.svg" alt="" aria-hidden="true" width="48" height="48" className="rounded-[12px]" />
-        <span className="flex flex-col gap-0.5">
-          <b className="text-[17px] font-semibold">Setlists.md</b>
-          <span className="text-[14px] text-muted-foreground">Version {version}</span>
-        </span>
-      </Group>
-      <Note>Chord charts and setlists for your church’s worship team. Your songs stay plain text you can open anywhere.</Note>
-      <div className="h-4" />
-      <Group>
-        {onWhatsNew && <NavRow icon={<SparkIcon />} label="What’s new" onClick={onWhatsNew} />}
-        {onHelp && <NavRow icon={<HelpIcon />} label="Help and feedback" onClick={onHelp} />}
-      </Group>
-      <GroupLabel>Legal</GroupLabel>
-      <Group>
-        <NavRow label="Privacy policy" onClick={() => onLegal?.('privacy')} />
-        <NavRow label="Terms of service" onClick={() => onLegal?.('terms')} />
-        <NavRow label="Copyright and takedowns" onClick={() => onLegal?.('copyright')} />
-      </Group>
+      {onHide && <Button variant="link" className="mt-3 self-start text-[15px]" onClick={onHide}>Hide Labs again</Button>}
     </SettingsShell>
   );
 }
