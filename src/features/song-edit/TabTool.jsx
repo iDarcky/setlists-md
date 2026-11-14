@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
+import { BottomActions } from '@/ui/shadcn/bottom-actions';
 import { TAB_INSTRUMENTS, stringsForCount, instrumentForStrings } from '@/data/tabInstruments';
 import {
   TECHNIQUES, DURATIONS, slotsPerMeasure, beatLabels, makeGrid, gridToAscii, gridFromTab,
@@ -127,9 +128,10 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
       <div ref={box} tabIndex={-1} role="dialog" aria-label={title} onKeyDown={onKey} onClick={(e) => e.stopPropagation()}
         className="flex max-h-[100dvh] w-full max-w-[860px] select-none flex-col overflow-hidden rounded-t-[16px] border border-border bg-background font-sans text-foreground shadow-[0_16px_48px_rgba(0,0,0,.5)] outline-none sm:max-h-[92vh] sm:rounded-[16px]">
         <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border px-3">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+          {/* Phone: Cancel and Save sit in the bar at the bottom, under the thumb. */}
+          <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={onClose}>Cancel</Button>
           <b className="min-w-0 flex-1 truncate text-center text-[15px] font-semibold">{title}</b>
-          <Button size="sm" onClick={save}>{initialTab ? 'Save' : 'Add tab'}</Button>
+          <Button size="sm" className="hidden sm:inline-flex" onClick={save}>{initialTab ? 'Save' : 'Add tab'}</Button>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2">
@@ -190,7 +192,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-border bg-card px-3 pt-2.5" style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className="shrink-0 border-t border-border bg-card px-3 pb-2.5 pt-2.5 sm:pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))]">
           <div className="flex flex-wrap items-center gap-2 pb-2">
             <Seg label="Note length, how far the cursor moves" value={dur} items={DURATIONS.map(d => [d.id, d.label, d.title])} onPick={setDur} />
             <div className="flex gap-1" role="group" aria-label="Technique on this note">
@@ -214,6 +216,10 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
             {onRemove && <Button variant="ghost" size="sm" className="text-danger-text" onClick={onRemove}>{removeLabel}</Button>}
           </div>
         </div>
+        <BottomActions className="sm:hidden">
+          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button className="flex-1" onClick={save}>{initialTab ? 'Save' : 'Add tab'}</Button>
+        </BottomActions>
       </div>
     </div>
   );

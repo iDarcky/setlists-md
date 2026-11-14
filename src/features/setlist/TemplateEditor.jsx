@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
+import { BottomActions } from '@/ui/shadcn/bottom-actions';
 import { Input } from '@/ui/shadcn/input';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
@@ -86,10 +87,11 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
 
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={`Template · ${title}`} className="fixed inset-0 z-[70] flex flex-col bg-background font-sans text-foreground">
-      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
-        <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+      <div className="flex min-h-14 items-center justify-center gap-2 border-b border-border px-4 py-2 sm:justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
+        {/* Phone: Cancel and Save sit in the bar at the bottom. */}
+        <Button variant="ghost" className="hidden sm:inline-flex" onClick={onCancel}>Cancel</Button>
         <b className="truncate text-[16px]">{t.templateName || 'New template'}</b>
-        <Button disabled={!canSave} onClick={save}>Save</Button>
+        <Button className="hidden sm:inline-flex" disabled={!canSave} onClick={save}>Save</Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-4 pb-16 pt-4">
@@ -185,6 +187,10 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           {onDelete && <Button variant="outline" className="mt-6 text-danger" onClick={onDelete}>Delete template</Button>}
         </div>
       </div>
+      <BottomActions className="sm:hidden">
+        <Button variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+        <Button className="flex-1" disabled={!canSave} onClick={save}>Save</Button>
+      </BottomActions>
     </div>,
     document.body,
   );

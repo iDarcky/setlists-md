@@ -9,6 +9,7 @@ import {
 } from '@/lib/songsData';
 import SongsView from './SongsView';
 import { AddSongSheet, TagSheet, ChurchPickerSheet } from './SongsSheets';
+import { libraryArtists } from '@/features/song-edit/newSongDetails';
 import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
 
 // Songs: works out the rows from the library and the setlists, and hands them
@@ -67,6 +68,7 @@ export default function Songs({
   const stats = useMemo(() => playStats(setlists, now), [setlists, now]);
   const next = useMemo(() => nextSetlistSongs(setlists, now), [setlists, now]);
   const options = useMemo(() => filterOptions(songs), [songs]);
+  const artists = useMemo(() => libraryArtists(songs), [songs]);
   const allTags = useMemo(() => [...new Set(songs.flatMap(s => s.tags || []))].sort(), [songs]);
 
   const rows = useMemo(() => {
@@ -109,7 +111,7 @@ export default function Songs({
       />
       {leader && (
         <>
-          <AddSongSheet open={addOpen} onOpenChange={setAddOpen} onSearch={onSearchCatalog} onImport={onImportSongs ? startImport : null} onBlank={onBlank} />
+          <AddSongSheet open={addOpen} onOpenChange={setAddOpen} onSearch={onSearchCatalog} onImport={onImportSongs ? startImport : null} onBlank={onBlank} songs={songs} artists={artists} />
           <input
             ref={fileRef}
             type="file"
