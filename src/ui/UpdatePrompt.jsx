@@ -1,33 +1,30 @@
 import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import { Button } from '@/ui/shadcn/button';
 
 // How often an open app asks the server for a new version. A PWA left open on
 // a music stand for hours otherwise only checks when it is opened again.
 const CHECK_EVERY_MS = 30 * 60 * 1000;
 
-// The card itself, split out so /design can show it without a service worker.
-// The common SaaS shape (Linear, Vercel, Figma, Material's snackbar): a small
-// card that slides up at the bottom, says an update is ready, offers ONE
-// action, and stays until it is used or closed. It never auto-dismisses, and
-// it never reloads by itself. Phone: above the tab bar. Desktop: bottom right.
-export function UpdateLine({ onRefresh, onLater, inline = false }) {
+// The card. The common SaaS shape (Linear, Vercel, Figma, Material's snackbar):
+// a small card at the bottom that says an update is ready, offers ONE action,
+// and stays until it is used or closed. It never auto-dismisses and never
+// reloads by itself. Phone: above the tab bar. Desktop: bottom right.
+// INVERTED (ink card on the page, page-coloured button) so it reads as a
+// message from the app, not one more card on Home: the first version was
+// card-on-card and easy to miss.
+export function UpdateLine({ onRefresh, onLater }) {
   return (
     <div role="status" aria-live="polite"
-      className={inline
-        ? 'w-full'
-        : 'update-card-in fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] z-[60] mx-auto max-w-[420px] sm:inset-x-auto sm:bottom-6 sm:right-6 sm:mx-0 sm:w-[360px]'}>
-      <div className="flex items-center gap-3 rounded-card border border-border bg-card py-3 pl-3.5 pr-2 font-sans text-foreground shadow-[0_8px_30px_rgba(0,0,0,.28)]">
-        <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-raised text-foreground">
-          <svg viewBox="0 0 20 20" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M16 10a6 6 0 1 1-1.76-4.24" /><path d="M16 4v3.5h-3.5" />
-          </svg>
-        </span>
-        <div className="min-w-0 flex-1 truncate text-[14px] font-semibold leading-5">Update available</div>
-        <Button size="sm" onClick={onRefresh} className="shrink-0">Refresh</Button>
+      className="update-card-in fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] z-[60] mx-auto max-w-[420px] sm:inset-x-auto sm:bottom-6 sm:right-6 sm:mx-0 sm:w-[380px]">
+      <div className="flex items-center gap-2 rounded-card bg-foreground py-2.5 pl-4 pr-2 font-sans text-background shadow-[0_12px_40px_rgba(0,0,0,.45)]">
+        <div className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-6">Update available</div>
+        <button type="button" onClick={onRefresh}
+          className="relative h-10 shrink-0 cursor-pointer rounded-control border-0 bg-background px-4 font-sans text-[15px] font-semibold text-foreground hover:opacity-90 active:opacity-80 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']">
+          Refresh
+        </button>
         <button type="button" onClick={onLater} aria-label="Not now"
-          className="relative grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-raised hover:text-foreground after:absolute after:-inset-1.5 after:content-['']">
-          <svg aria-hidden="true" viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+          className="relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-background/70 hover:bg-background/10 hover:text-background">
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg>
         </button>
       </div>
     </div>
