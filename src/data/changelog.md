@@ -2,6 +2,12 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.25.1 — Other in the band
+*November 2026*
+
+### Fixed
+- **Other shows up in a setlist's band and in service templates**, so a leader can add the sax player (or anyone the list doesn't name) to Sunday's band. Other is also in the reader's Your instrument menu.
+
 ## 0.25.0 — Faster, roomier, easier to update
 *November 2026*
 
