@@ -928,8 +928,47 @@
   100% { background-position: -200% 0; }
 }
 
-/* "Update available" card (ui/UpdatePrompt): rises from the bottom edge. */
-.update-card-in { animation: sheet-up 220ms ease-out both; }
+/* "Update available" pill (ui/UpdatePrompt, Sileo). Unlayered on purpose and
+   scoped to .update-pill so it outranks the styles Sileo injects at runtime.
+   Green fill with white text in both themes; Refresh is a white button. */
+/* Phone: at the very top of the screen, over the top bar (user, 14 Nov).
+   iPad/desktop: bottom right. The viewport adds 12px of padding. */
+.update-pill [data-sileo-viewport][data-position] { z-index: 60; }
+.update-pill [data-sileo-viewport][data-position^=top] { top: env(safe-area-inset-top, 0px); }
+.update-pill [data-sileo-viewport][data-position^=bottom] { bottom: 12px; right: 12px; }
+.update-pill [data-sileo-toast] { cursor: pointer; }
+.update-pill [data-sileo-title] {
+  color: #fff;
+  font-family: var(--font-sans, inherit);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+}
+.update-pill [data-sileo-badge] { color: #fff; background: rgba(255, 255, 255, 0.18); }
+.update-pill [data-sileo-description] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 14px 14px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-sans, inherit);
+  font-size: 14px;
+  line-height: 20px;
+}
+.update-pill [data-sileo-button] {
+  height: 40px;
+  margin-top: 10px;
+  padding: 0 18px;
+  align-self: center;
+  width: 100%;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #24623A;
+  background: #fff;
+  text-decoration: none;
+}
+.update-pill [data-sileo-button]:hover { background: rgba(255, 255, 255, 0.9); }
 
 @keyframes pop-in {
   0% { opacity: 0; }
