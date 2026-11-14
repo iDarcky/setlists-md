@@ -2,6 +2,27 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.25.0 — Faster, roomier, easier to update
+*November 2026*
+
+### Added
+- **An Other instrument** — for players the list doesn't name, like a sax. Pick it in your profile, the "What do you play?" pop-up or when joining a church, and leaders can schedule you.
+- **Ask before updating** — when a new version is ready, a card on Home says Update available. Tap Refresh to switch now, or close it and the new version is used next time you open the app.
+
+### Improved
+- **More room for the chart in the song editor** — on a laptop, the arrangement, key, tempo and song order sit in a column on the left and the chart starts at the top. On a phone they fit in one short row. Preview is a button, and arrangements are a dropdown.
+- **New song starts with the details** — name, artist, key and BPM first, then the chart. Artists you already have are suggested as you type.
+- **Save and Cancel at the bottom on phones** — in the setlist, song, template, note and tab editors, under your thumb, and they stay above the keyboard.
+- **Switching between Home, Schedule and Songs is instant**, and long libraries (hundreds of songs or past setlists) stay quick.
+- **Copy verse 1 chords** places each chord at the same spot along the line, so it works in any language.
+- **The You page and Settings are simpler** — your church at the top, Theme in one place, Help and Privacy open inside the app, and reminders are a list you add to. Labs is hidden until you need it.
+- **Home and Schedule line up with Songs** — same header, same width.
+- **In Play, the phone's status bar matches the chart's colours** in the installed app.
+- **Profile photos and logos load faster** — they're shrunk to a small size on upload, and old ones are cleaned up.
+
+### Fixed
+- The full-screen "There's a new version" page no longer interrupts you; the app reloads once by itself instead.
+
 ## 0.24.0 — A better song page
 *November 2026*
 
