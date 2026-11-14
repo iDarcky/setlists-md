@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/ui/shadcn/utils';
+import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Button } from '@/ui/shadcn/button';
 import { BottomActions } from '@/ui/shadcn/bottom-actions';
 import { Input } from '@/ui/shadcn/input';
@@ -30,12 +31,7 @@ const Row = ({ label, children }) => (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
   </div>
 );
-const Switch = ({ on, onChange, label }) => (
-  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
-    className={cn('relative h-[26px] w-11 min-h-0 shrink-0 cursor-pointer rounded-full border-0 p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring', on ? 'bg-link' : 'bg-raised')}>
-    <span className={cn('absolute top-[3px] size-5 rounded-full bg-background transition-[left]', on ? 'left-[21px]' : 'left-[3px]')} />
-  </button>
-);
+const Switch = ({ on, onChange, label }) => <SharedSwitch checked={on} onCheckedChange={onChange} label={label} />;
 
 export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDelete }) {
   const [t, setT] = useState(() => {
@@ -213,10 +209,9 @@ export function TemplatesList({ templates = [], onEdit, onNew }) {
             <ChevronRightIcon />
           </button>
         ))}
-        {!templates.length && <p className="m-0 px-4 py-5 text-[14px] text-muted-foreground">No templates yet. A template holds a service’s day, time, rehearsal, band parts and order.</p>}
+        {!templates.length && <p className="m-0 px-4 py-5 text-[14px] text-muted-foreground">No templates yet.</p>}
       </div>
       <Button onClick={onNew}><PlusIcon size={16} />New template</Button>
-      <p className="m-0 text-[13px] text-muted-foreground">Templates are made here only. Renaming one renames the service on the setlists made with it.</p>
     </div>
   );
 }

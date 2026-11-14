@@ -5,6 +5,7 @@ import { Input } from '@/ui/shadcn/input';
 import { Toggle } from '@/ui/shadcn/toggle';
 import { Alert } from '@/ui/shadcn/alert';
 import { Sheet } from '@/ui/shadcn/sheet';
+import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Avatar } from '@/app/AppTopBar';
 import { PartsPicker } from '@/features/team/PartsPicker';
 import {
@@ -78,23 +79,9 @@ export function Segmented({ value, options, onChange, label }) {
   );
 }
 
-/** On/off switch. */
+/** On/off switch: the shared one. */
 export function Switch({ checked, onChange, label }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={!!checked}
-      aria-label={label}
-      onClick={() => onChange?.(!checked)}
-      className={cn(
-        'relative h-[30px] w-[50px] min-h-0 shrink-0 cursor-pointer rounded-full border-0 p-0 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-        checked ? 'bg-link' : 'bg-input',
-      )}
-    >
-      <span className={cn('absolute top-[3px] size-6 rounded-full bg-white shadow transition-[left]', checked ? 'left-[23px]' : 'left-[3px]')} />
-    </button>
-  );
+  return <SharedSwitch checked={checked} onCheckedChange={onChange} label={label} />;
 }
 
 /** Every settings page: ← and the title on one row, then the page. */
@@ -164,7 +151,7 @@ export function SettingsHubView({ signedIn = true, summary = {}, church, own, la
       {labs && (
         <>
           <GroupLabel>Labs</GroupLabel>
-          <Group><NavRow icon={<LabsIcon />} label="Labs" detail="Try things early" onClick={() => onOpen('labs')} /></Group>
+          <Group><NavRow icon={<LabsIcon />} label="Labs" onClick={() => onOpen('labs')} /></Group>
         </>
       )}
     </SettingsShell>
@@ -198,13 +185,12 @@ export function ProfileView({
         <Input id={`${uid}-name`} autoComplete="name" maxLength={80} value={nameDraft} onChange={e => onNameDraft?.(e.target.value)} className="flex-1" />
         {(dirty || nameBusy) && <Button type="submit" loading={nameBusy} disabled={!nameDraft?.trim()}>Save</Button>}
       </form>
-      {nameSaved && !dirty && <Note>Saved. Your church sees this name.</Note>}
+      {nameSaved && !dirty && <Note>Saved.</Note>}
 
       {church && (
         <>
           <GroupLabel>What you do at {church.name}</GroupLabel>
           <PartsPicker tokens={parts} onChange={onParts} busy={partsBusy} error={partsError} playLabel="You play" singLabel="You sing" />
-          <Note>Pick all that apply. Charts open with the first instrument’s tabs.</Note>
         </>
       )}
 
@@ -216,7 +202,6 @@ export function ProfileView({
         <>
           <div className="h-6" />
           <Group><NavRow label="Delete account" danger onClick={onDeleteAccount} /></Group>
-          <Note>Removes your account and everything only you can see. Church songs and setlists stay with the church.</Note>
         </>
       )}
     </SettingsShell>
@@ -280,7 +265,6 @@ export function DateTimeView({ firstDay = 'sunday', onFirstDay, clock = '12h', o
           <Segmented label="Week starts on" value={firstDay} options={[{ id: 'sunday', label: 'Sunday' }, { id: 'monday', label: 'Monday' }]} onChange={onFirstDay} />
         </Row>
       </Group>
-      <Note>Used on the schedule, setlists and reminders.</Note>
     </SettingsShell>
   );
 }
@@ -294,6 +278,8 @@ export function NotificationsSettingsView({ push = {}, onPush, reminderOptions =
   const status = !push.supported ? 'Not available here'
     : push.denied ? 'Blocked in your phone’s settings'
       : null;
+  // No help lines on Settings pages (owner, 2026-11-14): only a status when
+  // the switch can't work.
   const lists = {
     service: { title: 'Before a service', value: serviceReminders, onChange: onServiceReminders },
     rehearsal: { title: 'Before a rehearsal', value: rehearsalReminders, onChange: onRehearsalReminders },
@@ -303,21 +289,18 @@ export function NotificationsSettingsView({ push = {}, onPush, reminderOptions =
   return (
     <SettingsShell title="Notifications" onBack={onBack} backLabel="Settings" embedded={embedded}>
       <Group className="mt-2">
-        <Row label="Notifications on this device" sub={status || 'Asked to play, setlist ready, reminders'}>
+        <Row label="Notifications on this device" sub={status}>
           {push.supported && !push.denied && (
             <Switch label="Notifications on this device" checked={!!push.subscribed} onChange={(on) => !push.busy && onPush?.(on)} />
           )}
         </Row>
       </Group>
-      {!push.supported && <Note>On an iPhone or iPad, put the app on your home screen first (Share → Add to Home Screen), open it from there, then come back here.</Note>}
-      {push.supported && push.denied && <Note>Turn notifications back on for this app in your phone’s settings, then come back.</Note>}
 
       {['service', 'rehearsal'].map(kind => (
         <ReminderList key={kind} title={lists[kind].title} value={lists[kind].value} options={reminderOptions}
           onRemove={(v) => lists[kind].onChange?.(lists[kind].value.filter(x => x !== v))}
           onAdd={() => setAdding(kind)} />
       ))}
-      <Note>These apply to every setlist you’re on.</Note>
 
       <Sheet open={!!open} onOpenChange={(o) => { if (!o) setAdding(null); }} title={open ? `Remind me ${open.title.toLowerCase()}` : ''} className="h-auto sm:max-w-[440px]">
         {open && (left.length ? (
@@ -394,7 +377,6 @@ export function PlanView({ church, plan, billingLive = false, onSubscribe, onMan
           {error && <Alert variant="danger">{error}</Alert>}
         </div>
       ) : null}
-      <Note>{billingLive ? '' : 'Billing isn’t switched on yet. Nothing to pay for now. '}Only you see this, because you set up {church?.name}. Plans and prices are on setlists.md.</Note>
     </SettingsShell>
   );
 }
@@ -408,7 +390,6 @@ export function DataView({ songCount = 0, setlistCount = 0, deletedCount = 0, on
           <span className="pt-0.5 text-muted-foreground"><DownloadIcon /></span>
           <span className="flex flex-col gap-0.5">
             <span className="text-[16px] sm:text-[15px]">Download a backup</span>
-            <span className="text-[13px] leading-[18px] text-muted-foreground">Every song and setlist in one .zip. Songs are plain .md files you can open anywhere.</span>
           </span>
         </div>
         <Button variant="outline" onClick={onBackup}>Download backup</Button>
@@ -416,7 +397,6 @@ export function DataView({ songCount = 0, setlistCount = 0, deletedCount = 0, on
 
       <GroupLabel>Recently deleted</GroupLabel>
       <Group><NavRow icon={<TrashIcon />} label="Deleted songs" detail={String(deletedCount)} onClick={onDeleted} /></Group>
-      <Note>Deleted songs wait 30 days, then they’re gone.</Note>
     </SettingsShell>
   );
 }
@@ -426,10 +406,9 @@ export function DeletedSongsView({ trash = [], onRestore, onPurge, onEmptyTrash,
   return (
     <SettingsShell title="Deleted songs" onBack={onBack} backLabel="Data" embedded={embedded}>
       {trash.length === 0 ? (
-        <Group className="mt-2 p-5 text-center text-[15px] text-muted-foreground">Nothing here. Deleted songs wait 30 days before they’re gone.</Group>
+        <Group className="mt-2 p-5 text-center text-[15px] text-muted-foreground">Nothing here.</Group>
       ) : (
         <>
-          <p className="m-0 pb-3 text-[15px] text-muted-foreground">{trash.length === 1 ? '1 song' : `${trash.length} songs`} · each one is gone for good 30 days after it was deleted.</p>
           <Group>
             {trash.map(t => (
               <div key={t.id} className={rowBase}>
@@ -455,13 +434,12 @@ export function DeletedSongsView({ trash = [], onRestore, onPurge, onEmptyTrash,
 export function LabsView({ flags = [], onFlag, onHide, onBack, embedded }) {
   return (
     <SettingsShell title="Labs" onBack={onBack} backLabel="Settings" embedded={embedded}>
-      <p className="m-0 pb-2 text-[15px] leading-[22px] text-muted-foreground">Things we’re still trying out. They may change or go away. Turn one off if it gets in the way.</p>
       {flags.length === 0 ? (
         <Group className="p-5 text-center text-[15px] text-muted-foreground">Nothing to try right now.</Group>
       ) : (
         <Group>
           {flags.map(f => (
-            <Row key={f.id} label={f.label} sub={f.sub}><Switch label={f.label} checked={f.on} onChange={(on) => onFlag?.(f.id, on)} /></Row>
+            <Row key={f.id} label={f.label}><Switch label={f.label} checked={f.on} onChange={(on) => onFlag?.(f.id, on)} /></Row>
           ))}
         </Group>
       )}

@@ -175,7 +175,7 @@ export default function YouPage({
 
         <GroupLabel>You</GroupLabel>
         <Group>
-          {signedIn && onProfile && <Row icon={<UserIcon />} label="Profile" sub="Name, photo, what you play" onClick={onProfile} />}
+          {signedIn && onProfile && <Row icon={<UserIcon />} label="Profile" onClick={onProfile} />}
           {church && onTeam && <Row icon={<TeamIcon />} label="Team" detail={church.people ? `${church.people} ${church.people === 1 ? 'person' : 'people'}` : null} badge={teamBadge} onClick={onTeam} />}
           {subscription && onSubscription && <Row icon={<CrownIcon />} label="Subscription" detail={subscription.label} onClick={onSubscription} />}
           <Row icon={<GearIcon />} label="Settings" onClick={onSettings} />

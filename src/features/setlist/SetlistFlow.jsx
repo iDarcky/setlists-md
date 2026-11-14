@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/ui/shadcn/utils';
+import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Button } from '@/ui/shadcn/button';
 import { BottomActions } from '@/ui/shadcn/bottom-actions';
 import { Input } from '@/ui/shadcn/input';
@@ -47,12 +48,7 @@ const Field = ({ label, children }) => (
     <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">{children}</div>
   </div>
 );
-const Switch = ({ on, onChange, label }) => (
-  <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
-    className={cn('relative h-[26px] w-11 min-h-0 shrink-0 cursor-pointer rounded-full border-0 p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring', on ? 'bg-link' : 'bg-raised')}>
-    <span className={cn('absolute top-[3px] size-5 rounded-full bg-background transition-[left]', on ? 'left-[21px]' : 'left-[3px]')} />
-  </button>
-);
+const Switch = ({ on, onChange, label }) => <SharedSwitch checked={on} onCheckedChange={onChange} label={label} />;
 const KeyChip = ({ k }) => (k ? <span className="flex h-7 min-w-9 shrink-0 items-center justify-center rounded-md bg-raised px-1.5 font-mono text-[13px] font-semibold text-[var(--chord)]">{k}</span> : null);
 
 const lastLine = (lp, song, nameOf) => {

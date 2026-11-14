@@ -26,7 +26,7 @@ const REMINDERS = REMINDER_OPTIONS.map(o => ({ value: o.value, long: o.value ===
 // had no reader in the rebuilt band picker and the paste-into-chart editor
 // was redone, so both switches went.
 const LAB_FLAGS = [
-  { id: 'moveBetweenChurches', label: 'Move or copy songs to another church', sub: 'Only for songs you have the right to share. Off by default.' },
+  { id: 'moveBetweenChurches', label: 'Move or copy songs to another church' },
 ];
 
 const PLAN_NAMES = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
