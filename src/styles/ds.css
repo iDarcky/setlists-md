@@ -16,17 +16,17 @@
 :root,
 [data-theme="dark"],
 [data-theme="midnight"] {
-  --background: #11100E;
+  --background: #0E0D0B;
   --foreground: #F3EFE8;
-  --card: #1A1816;
+  --card: #272420;
   --card-foreground: #F3EFE8;
-  --raised: #23201D;
+  --raised: #33302B;
   --muted-foreground: #A39C92;
-  --border: #2E2A26;
+  --border: #2F2B27;
   --input: #6B645B;
   --chip-border: #3D3833;
   --primary: #F3EFE8;
-  --primary-foreground: #11100E;
+  --primary-foreground: #0E0D0B;
   --link: #7AA89C;
   --selected: rgba(122, 168, 156, 0.16);
   --ring: #7AA89C;
