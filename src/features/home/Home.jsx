@@ -13,6 +13,8 @@ import { partLabel, normalize } from '@/data/instruments';
 import { PartsSheet } from '@/features/team/PartsPicker';
 import { membersWithoutParts } from '@/lib/memberInstruments';
 import { useNow } from '@/hooks/useNow';
+import { setlistStartMs } from '@/lib/setlistTime';
+import AddSongFlow from '@/features/songs/AddSongFlow';
 import { supabase } from '@/auth/supabase';
 import { sendChurchRequest, sentChurchRequest, rememberChurchRequest } from '@/lib/churchRequest';
 import { signupSource } from '@/lib/siteEntry';
@@ -35,8 +37,10 @@ export default function Home({
   songs = [], setlists = [], settings, displayName, syncState,
   schedules = [], updateSchedule, setlistMap = {},
   onOpenSetlist, onPlaySetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady, onNewSetlist,
-  onNewSong, onImportSongs, onSetupDone, onRetrySync, onNotFound,
+  canAddSongs = false, onImportSongs, onImportSetlistFile, onEditImported, onBlank, onSetupDone, onRetrySync, onNotFound,
 }) {
+  // New song and Import open their sheets here, on Home, not on Songs.
+  const [adding, setAdding] = useState(null); // null | 'add' | 'import'
   const { user } = useAuth();
   const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
@@ -65,6 +69,8 @@ export default function Home({
       part: n.schedule ? partLabel(n.schedule) || null : null,
       band: rows.map(r => ({ id: r.id, name: nameOf(r.user_id), avatarUrl: memberOf(r.user_id)?.profile?.avatar_url || null, yes: r.availability === 'available' })),
       days: daysUntil(n.setlist, now),
+      // Started and not over: Home keeps it as "On now" until it ends.
+      onNow: !!n.setlist.time && setlistStartMs(n.setlist) <= now,
     };
   }, [setlists, schedules, userId, setlistMap, now, inTeam, leader, members]);
 
@@ -119,8 +125,8 @@ export default function Home({
   const allDone = !!steps && steps.every(s => s.done);
   useEffect(() => { if (allDone) onSetupDone?.(); }, [allDone]); // eslint-disable-line react-hooks/exhaustive-deps
   const onStep = (id) => {
-    if (id === 'song') onNewSong?.();
-    else if (id === 'import') onImportSongs?.();
+    if (id === 'song' && canAddSongs) setAdding('add');
+    else if (id === 'import' && canAddSongs) setAdding('import');
     else if (id === 'parts') setPartsOpen(true);
     else if (id === 'setlist') onNewSetlist?.();
     else if (id === 'invite') onOpenTeam?.();
@@ -133,8 +139,8 @@ export default function Home({
 
   // The + menu: the three ways to start something a leader has.
   const create = [
-    onNewSong && { icon: Music, label: 'New song', onSelect: onNewSong },
-    onImportSongs && { icon: FileText, label: 'Import PDFs', onSelect: onImportSongs },
+    canAddSongs && { icon: Music, label: 'New song', onSelect: () => setAdding('add') },
+    canAddSongs && onImportSongs && { icon: FileText, label: 'Import PDFs', onSelect: () => setAdding('import') },
     onNewSetlist && { icon: List, label: 'New setlist', onSelect: onNewSetlist, divider: true },
   ].filter(Boolean);
   // Activity rows name the server row; find the local copy by row map, then by name.
@@ -198,6 +204,17 @@ export default function Home({
       create={leader || !inTeam ? create : []}
       startChurch={noChurch ? <StartChurchCard sent={churchSent} onStart={() => setChurchAsk(true)} /> : null}
     />
+    {canAddSongs && (
+      <AddSongFlow
+        mode={adding}
+        onMode={setAdding}
+        songs={songs}
+        onImportSongs={onImportSongs}
+        onImportSetlistFile={onImportSetlistFile}
+        onEditImported={onEditImported}
+        onBlank={onBlank}
+      />
+    )}
     {noChurch && !churchSent && (
       <StartChurchSheet open={churchAsk} onOpenChange={setChurchAsk} email={user?.email} onSend={askForChurch} />
     )}

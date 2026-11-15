@@ -222,14 +222,16 @@ function inDays(n) {
 
 function NextUp({ next, leader, clockFormat, onOpen, onPlay, onMarkReady }) {
   if (!next) return null;
-  const { setlist: sl, part, band = [], days } = next;
-  const when = [shortDate(sl.date), clock(sl.time, clockFormat), inDays(days)].filter(Boolean).join(' · ');
+  const { setlist: sl, part, band = [], days, onNow } = next;
+  const when = onNow
+    ? `Started ${clock(sl.time, clockFormat)}`
+    : [shortDate(sl.date), clock(sl.time, clockFormat), inDays(days)].filter(Boolean).join(' · ');
   const songs = (sl.items || []).filter(it => it?.type !== 'break').length;
   const sub = [songs ? `${songs} song${songs === 1 ? '' : 's'}` : 'No songs yet', part ? `you play ${part}` : null, sl.location].filter(Boolean).join(' · ');
   const yes = band.filter(b => b.yes);
   const canMarkReady = leader && onMarkReady && sl.status === 'draft';
   return (
-    <Section label="Next up">
+    <Section label={onNow ? 'On now' : 'Next up'}>
       <Card className="flex flex-col gap-3.5 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
@@ -351,7 +353,7 @@ function NeedsYou({ asks = [], needs = [], onAnswer, onOpenSetlist, onNeed, limi
 
 // ── 4 · Your two weeks ──────────────────────────────────────────────────────
 
-function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onOpen, onOpenSchedule }) {
+function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onOpen }) {
   if (!days?.length) return null;
   const sel = days.find(d => d.date === selected) || null;
   const lines = sel
@@ -417,15 +419,6 @@ function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onO
               </button>
             ))}
           </div>
-        )}
-        {/* Schedule's only door (owner, 2026-11-15): a full row, not a small
-            link, so people find where to say when they can play. */}
-        {onOpenSchedule && (
-          <button type="button" onClick={onOpenSchedule} className={cn(row, tappable, '-mx-2.5 mt-1 w-[calc(100%+20px)] border-t')}>
-            <Tile icon={Calendar} />
-            <Lines title="Schedule" sub="Your availability, invites and who plays when" />
-            <Chevron />
-          </button>
         )}
       </Card>
       <div className="flex flex-wrap gap-x-3.5 gap-y-1 px-0.5 text-[12px] leading-4 text-muted-foreground" aria-hidden="true">
@@ -532,14 +525,23 @@ export default function HomeView({
           <SyncLine sync={sync} />
         </div>
       </div>
-      <CreateButton items={create} />
+      {/* Schedule's door (owner, 2026-11-15): a calendar button beside the +,
+          not a row in the two weeks. Schedule is not a nav tab. */}
+      <div className="flex shrink-0 items-center gap-2">
+        {onOpenSchedule && (
+          <Button variant="outline" size="icon" aria-label="Schedule" title="Schedule" onClick={onOpenSchedule} className="size-11 rounded-control">
+            <Calendar size={20} strokeWidth={STROKE} aria-hidden="true" />
+          </Button>
+        )}
+        <CreateButton items={create} />
+      </div>
     </header>
   );
   const setupEl = setup && <SetupCard {...setup} />;
   const nextEl = <NextUp next={next} leader={leader} clockFormat={clockFormat} onOpen={onOpenSetlist} onPlay={onPlaySetlist} onMarkReady={onMarkReady} />;
   const needsEl = <NeedsYou asks={asks} needs={leader ? needs : []} onAnswer={onAnswer} onOpenSetlist={onOpenSetlist} onNeed={onNeed} />;
   const emptyEl = showNothingPlanned && !setup && <NothingPlanned onBrowse={onOpenSongs} />;
-  const stripEl = strip && <TwoWeeks {...strip} clockFormat={clockFormat} onOpen={onOpenSetlist} onOpenSchedule={onOpenSchedule} />;
+  const stripEl = strip && <TwoWeeks {...strip} clockFormat={clockFormat} onOpen={onOpenSetlist} />;
   const activityEl = <Activity items={activity} now={now} onOpen={onOpenActivity} onOpenSongs={onOpenSongs} />;
 
   return (
