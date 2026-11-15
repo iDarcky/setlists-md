@@ -164,12 +164,12 @@
    Full width when `fill`, a red ring and a line under it for an
    error, a quiet line for a hint, dimmed when disabled. The
    bench's centred demo layout is untouched. */
-.lbi[data-fill] { display: block; width: 100%; padding-top: 8px; }
+.lbi[data-fill] { display: block; place-items: normal; width: 100%; padding-top: 8px; }
 .lbi[data-fill] .lbi-box { max-width: 100%; }
-.lbi[data-error] .lbi-ring path { stroke: var(--danger-text); }
+.lbi[data-error][data-error] .lbi-ring path { stroke: var(--danger-text); }
 .lbi[data-error] .lbi-label { color: var(--danger-text); }
 .lbi[data-disabled] { opacity: 0.6; }
-.lbi-note { margin: 6px 2px 0; font-size: 14px; line-height: 20px; color: var(--muted-foreground); }
+.lbi-note { text-align: left; margin: 6px 2px 0; font-size: 14px; line-height: 20px; color: var(--muted-foreground); }
 .lbi-note[data-tone="error"] { color: var(--danger-text); }
 /* the app gives every button a 36px floor; the eye is 30 and centred by margin */
 .lbi-eye { min-height: 0; }

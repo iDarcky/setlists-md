@@ -57,6 +57,8 @@ autoFocus,
 inputMode: inputModeProp,
 onKeyDown,
 onFocus: onFocusProp,
+maxLength,
+autoCapitalize: capProp,
 id: idProp,
 /* the field's corner, px — at half the height it is a pill */
 corner = 8, /* Setlists.md: our control corner (was 20) */
@@ -156,7 +158,7 @@ showcase = false, } = {}) {
        rather than by the type — named so Safari takes it for
        a search, and marked off for the managers that read
        their own attribute. A real use keeps the real types. */
-    type={showcase ? "text" : secret && !show ? "password" : secret ? "text" : kind} name={showcase ? "search-preview" : name} data-1p-ignore={showcase || undefined} data-lpignore={showcase ? "true" : undefined} data-bwignore={showcase || undefined} data-form-type={showcase ? "other" : undefined} autoCorrect="off" autoCapitalize={kind === "text" ? "sentences" : "off"} value={value} onChange={(e) => { setValue(e.target.value); onChange?.(e); }} onFocus={(e) => { setFocus(true); onFocusProp?.(e); }} onBlur={() => setFocus(false)} autoComplete={showcase ? "off" : autoComplete} spellCheck={kind === "text" && !showcase} required={required} disabled={disabled} autoFocus={autoFocus} onKeyDown={onKeyDown} aria-invalid={error ? true : undefined} aria-describedby={describe} 
+    type={showcase ? "text" : secret && !show ? "password" : secret ? "text" : kind} name={showcase ? "search-preview" : name} data-1p-ignore={showcase || undefined} data-lpignore={showcase ? "true" : undefined} data-bwignore={showcase || undefined} data-form-type={showcase ? "other" : undefined} autoCorrect="off" autoCapitalize={capProp || (kind === "text" ? "sentences" : "off")} maxLength={maxLength} value={value} onChange={(e) => { setValue(e.target.value); onChange?.(e); }} onFocus={(e) => { setFocus(true); onFocusProp?.(e); }} onBlur={() => setFocus(false)} autoComplete={showcase ? "off" : autoComplete} spellCheck={kind === "text" && !showcase} required={required} disabled={disabled} autoFocus={autoFocus} onKeyDown={onKeyDown} aria-invalid={error ? true : undefined} aria-describedby={describe} 
     /* ── no keyboard, when it is only being shown ─────
        In a feed you are scrolling on a phone, a tap that
        lands on the field threw the keyboard up over the

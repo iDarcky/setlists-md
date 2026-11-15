@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { LabelInput } from '@/ui/blocks/LabelInput';
 import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
@@ -172,11 +173,11 @@ export function ProfileView({
         {me?.email && <span className="text-small text-muted-foreground">{me.email}</span>}
       </div>
 
-      <GroupLabel>Your name</GroupLabel>
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (dirty) onSaveName?.(); }}>
-        <label htmlFor={`${uid}-name`} className="sr-only">Your name</label>
-        <Input id={`${uid}-name`} autoComplete="name" maxLength={80} value={nameDraft} onChange={e => onNameDraft?.(e.target.value)} className="flex-1" />
-        {(dirty || nameBusy) && <Button type="submit" loading={nameBusy} disabled={!nameDraft?.trim()}>Save</Button>}
+      <form className="flex items-end gap-2 pt-3" onSubmit={(e) => { e.preventDefault(); if (dirty) onSaveName?.(); }}>
+        <div className="min-w-0 flex-1">
+          <LabelInput fill label="Your name" id={`${uid}-name`} autoComplete="name" maxLength={80} value={nameDraft} onChange={e => onNameDraft?.(e.target.value)} />
+        </div>
+        {(dirty || nameBusy) && <Button type="submit" className="h-[52px] sm:h-[52px]" loading={nameBusy} disabled={!nameDraft?.trim()}>Save</Button>}
       </form>
       {nameSaved && !dirty && <Note>Saved.</Note>}
 
@@ -213,10 +214,8 @@ export function PasswordSheet({ open, onOpenChange, onSave, busy = false, error 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) { setA(''); setB(''); } onOpenChange?.(o); }} title="Change password" className="h-auto sm:max-w-[440px]">
       <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (ok) onSave?.(a); }}>
-        <label htmlFor={`${uid}-a`} className="text-small font-medium">New password</label>
-        <Input id={`${uid}-a`} type="password" autoComplete="new-password" value={a} onChange={e => setA(e.target.value)} />
-        <label htmlFor={`${uid}-b`} className="text-small font-medium">Type it again</label>
-        <Input id={`${uid}-b`} type="password" autoComplete="new-password" value={b} onChange={e => setB(e.target.value)} />
+        <LabelInput fill label="New password" type="password" id={`${uid}-a`} autoComplete="new-password" value={a} onChange={e => setA(e.target.value)} />
+        <LabelInput fill label="Type it again" type="password" id={`${uid}-b`} autoComplete="new-password" value={b} onChange={e => setB(e.target.value)} />
         {(short || mismatch || error) && (
           <Alert variant="danger">{error || (short ? 'At least 8 characters.' : 'The two don’t match.')}</Alert>
         )}
@@ -236,8 +235,7 @@ export function DeleteAccountSheet({ open, onOpenChange, onDelete, busy = false,
         <p className="m-0 text-body leading-[22px] text-muted-foreground">
           This can’t be undone. Your login, profile, private notes and anything only you can see are removed. Songs and setlists in your church stay with the church.
         </p>
-        <label htmlFor={`${uid}-w`} className="text-small font-medium">Type DELETE to confirm</label>
-        <Input id={`${uid}-w`} autoComplete="off" autoCapitalize="characters" value={word} onChange={e => setWord(e.target.value)} />
+        <LabelInput fill label="Type DELETE to confirm" id={`${uid}-w`} autoComplete="off" autoCapitalize="characters" value={word} onChange={e => setWord(e.target.value)} />
         {error && <Alert variant="danger">{error}</Alert>}
         <Button variant="destructive" className="mt-1" disabled={word.trim() !== 'DELETE'} loading={busy} onClick={onDelete}>Delete my account</Button>
       </div>

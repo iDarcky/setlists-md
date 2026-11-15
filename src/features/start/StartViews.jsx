@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { LabelInput } from '@/ui/blocks/LabelInput';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
 import { Alert } from '@/ui/shadcn/alert';
@@ -70,16 +71,12 @@ export function RequestView({ kind = 'church', values, onChange, tried, onSubmit
       />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); onSubmit(); }} noValidate>
         <FieldGroup className="gap-6">
-          <Field>
-            <FieldLabel htmlFor={`${uid}-name`}>{band ? 'Band or group name' : 'Church name'}</FieldLabel>
-            <Input id={`${uid}-name`} autoComplete="organization" maxLength={120} value={values.church} onChange={set('church')} aria-invalid={tried && missing.church} />
-            {tried && missing.church && <FieldError>Add the name your {band ? 'band' : 'church'} goes by.</FieldError>}
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={`${uid}-place`}>City and country</FieldLabel>
-            <Input id={`${uid}-place`} autoComplete="address-level2" maxLength={120} value={values.place} onChange={set('place')} aria-invalid={tried && missing.place} />
-            {tried && missing.place && <FieldError>Add where it is, so we can tell it apart.</FieldError>}
-          </Field>
+          <div className="flex flex-col gap-3">
+            <LabelInput fill label={band ? 'Band or group name' : 'Church name'} autoComplete="organization" maxLength={120} value={values.church} onChange={set('church')}
+              error={tried && missing.church ? `Add the name your ${band ? 'band' : 'church'} goes by.` : null} />
+            <LabelInput fill label="City and country" autoComplete="address-level2" maxLength={120} value={values.place} onChange={set('place')}
+              error={tried && missing.place ? 'Add where it is, so we can tell it apart.' : null} />
+          </div>
           <FieldSet>
             <FieldLegend>How many people play or sing?</FieldLegend>
             <div className="mt-1 grid grid-cols-2 gap-2">
@@ -88,11 +85,8 @@ export function RequestView({ kind = 'church', values, onChange, tried, onSubmit
               ))}
             </div>
           </FieldSet>
-          <Field>
-            <FieldLabel htmlFor={`${uid}-note`}>Anything we should know? <span className="font-normal text-muted-foreground">(optional)</span></FieldLabel>
-            <Input id={`${uid}-note`} maxLength={600} value={values.note} onChange={set('note')} />
-            <FieldDescription>{band ? 'For example: the youth band at our church.' : 'For example: two services on Sunday.'}</FieldDescription>
-          </Field>
+          <LabelInput fill label="Anything we should know? (optional)" maxLength={600} value={values.note} onChange={set('note')}
+            hint={band ? 'For example: the youth band at our church.' : 'For example: two services on Sunday.'} />
         </FieldGroup>
       </form>
       {message && <Alert variant="danger">{message}</Alert>}
@@ -170,12 +164,8 @@ export function InviteLinkView({ value, onChange, onSubmit, onBack, message, emb
     <AuthLayout embedded={embedded} onBack={onBack}>
       <AuthHeader title="Open your invite link" sub="Your leader sent you a link that starts with setlists.md/join. Tap it in your messages, or paste it here." />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); onSubmit(); }} noValidate>
-        <Field>
-          <FieldLabel htmlFor={`${uid}-link`}>Invite link</FieldLabel>
-          <Input id={`${uid}-link`} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="setlists.md/join/…"
-            value={value} onChange={e => onChange(e.target.value)} aria-invalid={!!message} />
-          {message && <FieldError>{message}</FieldError>}
-        </Field>
+        <LabelInput fill label="Invite link" inputMode="url" autoCapitalize="none" autoComplete="off"
+          value={value} onChange={e => onChange(e.target.value)} error={message || null} hint="It starts with setlists.md/join/" />
       </form>
       <AuthActions className="gap-1.5">
         <Button type="submit" form={`${uid}-form`} disabled={!value.trim()}>Join</Button>

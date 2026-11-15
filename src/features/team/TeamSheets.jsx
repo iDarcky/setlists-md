@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { LabelInput } from '@/ui/blocks/LabelInput';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
@@ -182,12 +183,9 @@ export function ChurchBody({ team, onSave, onLogo, missingColumns = false }) {
       {FIELDS.map(f => {
         const off = missingColumns && ['address', 'website', 'ccli_licence'].includes(f.id);
         return (
-          <label key={f.id} className="flex flex-col gap-1.5">
-            <span className="text-small font-medium">{f.label}</span>
-            <Input value={form[f.id]} required={f.required} placeholder={f.placeholder} inputMode={f.inputMode} disabled={off}
-              onChange={(e) => setForm(prev => ({ ...prev, [f.id]: e.target.value }))} />
-            {f.hint && <span className="text-small text-muted-foreground">{f.hint}</span>}
-          </label>
+          <LabelInput key={f.id} fill label={f.label} value={form[f.id]} required={f.required} inputMode={f.inputMode} disabled={off}
+            hint={f.hint || (f.placeholder ? f.placeholder.replace(/^e.g. /, 'For example: ') : null)}
+            onChange={(e) => setForm(prev => ({ ...prev, [f.id]: e.target.value }))} />
         );
       })}
       {missingColumns && <p className="m-0 text-small text-muted-foreground">Address, website and licence need a database update first.</p>}

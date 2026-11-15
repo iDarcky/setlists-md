@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { LabelInput } from '@/ui/blocks/LabelInput';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
 import { Alert } from '@/ui/shadcn/alert';
@@ -52,11 +53,8 @@ export function AboutYouView({ church, name, onNameChange, parts, onPartsChange,
       <AuthHeader mark={badge(church)} eyebrow={`Joining ${church?.name || 'the church'}`} title="Tell the leader who you are" />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); onSubmit(); }} noValidate>
         <FieldGroup className="gap-6">
-          <Field>
-            <FieldLabel htmlFor={`${uid}-name`}>Your name</FieldLabel>
-            <Input id={`${uid}-name`} autoComplete="name" maxLength={80} placeholder="First and last name"
-              value={name} onChange={e => onNameChange(e.target.value)} />
-          </Field>
+          <LabelInput fill label="Your name" autoComplete="name" maxLength={80} hint="First and last name"
+            value={name} onChange={e => onNameChange(e.target.value)} />
           <FieldSet>
             <FieldLegend>What do you play or sing?</FieldLegend>
             <FieldDescription>Pick all that fit.</FieldDescription>
