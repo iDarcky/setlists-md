@@ -277,3 +277,7 @@
   box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px rgba(var(--ink-rgb), 0.4);}
 
 
+
+/* Setlists.md: in a page row the frame is the row, and the object grows
+   from the row's start rather than from its middle. */
+.sek[data-inline="true"] { place-items: center start; }

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Search } from '@/ui/blocks/Search';
 import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
-import { Input } from '@/ui/shadcn/input';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useLongPress } from '@/lib/useLongPress';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -19,9 +19,6 @@ import { PlusIcon, ChevronDownIcon, CheckIcon } from '@/app/navIcons';
 // often and when it was last played, and its key. Leaders long-press (or tap
 // Select) to tag, delete, or move/copy to another church they lead.
 
-const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-);
 const SlidersIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
 );
@@ -29,7 +26,6 @@ const SlidersIcon = () => (
 const Svg = ({ size = 20, children }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 );
-const XIcon = () => <Svg size={16}><path d="M6 6l12 12M18 6 6 18" /></Svg>;
 const TagIcon = () => <Svg><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z" /><circle cx="7.5" cy="7.5" r="1.5" /></Svg>;
 const MoveIcon = () => <Svg><path d="M5 12h14M13 6l6 6-6 6" /></Svg>;
 const CopyIcon = () => <Svg><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></Svg>;
@@ -179,6 +175,16 @@ export default function SongsView({
   const [pickedId, setPickedId] = useState(null);
   const picked = rows.find(r => r.song.id === pickedId) || rows[0] || null;
   const [sheet, setSheet] = useState(false);
+  const rowRef = useRef(null);
+  const [rowWidth, setRowWidth] = useState(320);
+  const [searchOpen, setSearchOpen] = useState(!!query);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([e]) => setRowWidth(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [total]);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const nFilters = filterCount(filters);
@@ -232,20 +238,15 @@ export default function SongsView({
           </div>
         ) : (
           <>
-            <div className={cn('flex flex-col gap-3', wide && 'flex-row items-center gap-2.5')}>
-            <label className={cn('relative block', wide && 'w-[340px] shrink-0')}>
-              <span className="sr-only">Search songs</span>
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"><SearchIcon /></span>
-              <Input type="text" inputMode="search" enterKeyHint="search" value={query} onChange={(e) => onQuery?.(e.target.value)} placeholder="Search title, artist, lyrics" className="pl-10 pr-11" />
-              {query && (
-                <button type="button" aria-label="Clear search" onClick={() => onQuery?.('')}
-                  className="absolute right-1.5 top-1/2 flex size-8 min-h-0 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-0 bg-raised p-0 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-                  <XIcon />
-                </button>
-              )}
-            </label>
+            {/* Our Search block (src/ui/blocks): a lens at the start of the
+                chips row that opens into the field and takes the row. */}
+            <div ref={rowRef} className="relative flex min-h-12 items-center gap-2">
+              <div className={cn(searchOpen ? 'absolute inset-0 z-10 bg-background' : 'w-12 shrink-0')}>
+                <Search inline keyboard value={query} onValueChange={onQuery} onOpenChange={setSearchOpen}
+                  placeholder="Search title, artist, lyrics" width={rowWidth} />
+              </div>
             {!selecting && (
-              <div className={cn('flex gap-1.5', wide ? 'flex-wrap' : '-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0')}>
+              <div className={cn('flex min-w-0 flex-1 gap-1.5', wide ? 'flex-wrap' : '-mr-4 overflow-x-auto pr-4 [scrollbar-width:none] sm:mr-0 sm:pr-0')}>
                 {options.keys.length > 0 && (
                   <ChipDrop label={chipKey} title="Key" active={filters.keys.length > 0} onClear={() => onFilters?.({ ...filters, keys: [] })}>
                     <KeyGrid keys={options.keys} picked={filters.keys} onFlip={(k) => onFilters?.(flipIn(filters, 'keys', k))} />

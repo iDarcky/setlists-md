@@ -247,7 +247,16 @@ spring = 25, /* Setlists.md: 25, as asked (was 20) */
    number invented for one screen. */
 width, 
 /* the field's own corner, 0..24 */
-corner = 8, /* Setlists.md: our control corner (was fully round) */ } = {}) {
+corner = 8, /* Setlists.md: our control corner (was fully round) */ 
+/* Setlists.md: an app search, not a block on a wall. `value` +
+   `onValueChange` make it controlled; `placeholder` names what it
+   searches; `keyboard` raises the phone's keyboard (the wall keeps it
+   down, see the note on inputMode below). */
+value: given, onValueChange, placeholder = "Search", keyboard = false, 
+/* Setlists.md: `inline` drops the wall's frame (26px of air, a centred
+   box) for a page row: the frame is the row, the object grows from the
+   left. `onOpenChange` tells the page, so it can give the field the row. */
+inline = false, onOpenChange, } = {}) {
     /* ── narrow, and it can change under you ────────────────
        A phone rotates and a desktop window gets dragged narrow;
        read once at mount and the frame would be wrong for the
@@ -279,9 +288,12 @@ corner = 8, /* Setlists.md: our control corner (was fully round) */ } = {}) {
     const field = useRef(null);
     const beat = useRef(0);
     const rest = useRef(0);
-    const [open, setOpen] = useState(false);
+    const [own, setOwn] = useState("");
+    const value = given ?? own;
+    const setValue = (v) => { if (given === undefined) setOwn(v); onValueChange?.(v); };
+    const [open, setOpen] = useState(() => !!value);
     const [press, setPress] = useState(false);
-    const [value, setValue] = useState("");
+    useEffect(() => { onOpenChange?.(open); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
     const [busy, setBusy] = useState(false);
     const [lean, setLean] = useState({ x: 0, y: 0 });
     const still = stillness();
@@ -401,7 +413,7 @@ corner = 8, /* Setlists.md: our control corner (was fully round) */ } = {}) {
         window.clearTimeout(rest.current);
         rest.current = window.setTimeout(() => setBusy(false), 340);
     };
-    return (<div className="sek" ref={frame} data-open={open} data-press={press} data-busy={busy} data-flat={still || undefined} style={{
+    return (<div className="sek" ref={frame} data-inline={inline || undefined} data-open={open} data-press={press} data-busy={busy} data-flat={still || undefined} style={{
             "--sek-r": `${clamp(corner, 0, CORNER)}px`,
             "--w": `${w.toFixed(2)}px`,
             "--p": p.toFixed(3),
@@ -426,8 +438,8 @@ corner = 8, /* Setlists.md: our control corner (was fully round) */ } = {}) {
                does the rest. It still never moves during an
                interaction: this changes with a knob, not with the
                open/shut state, which is what the magnet needs. */
-            "--frame": `${Math.max(SHUT, span) + 26}px`,
-            "--frameh": `${SHUT + 40}px`,
+            "--frame": inline ? "100%" : `${Math.max(SHUT, span) + 26}px`,
+            "--frameh": inline ? `${SHUT}px` : `${SHUT + 40}px`,
         }}>
       <div className="sek-skin">
         {/* Drawn rather than imported. The lens has to take a
@@ -439,7 +451,7 @@ corner = 8, /* Setlists.md: our control corner (was fully round) */ } = {}) {
           <path d="M11.6 11.6 L15.4 15.4"/>
         </svg>
 
-        <input ref={field} className="sek-field" type="text" value={value} placeholder="Search" aria-label="Search" 
+        <input ref={field} className="sek-field" type="text" value={value} placeholder={placeholder} aria-label={placeholder} enterKeyHint="search" 
     /* ── NO SOFTWARE KEYBOARD ON A TOUCH SCREEN ──────
        This is a block on a wall, not a search anybody is
        performing: tapping it threw up the keyboard, which
@@ -457,7 +469,7 @@ corner = 8, /* Setlists.md: our control corner (was fully round) */ } = {}) {
        none means "I am focusable, I have a caret, do not
        raise the on-screen one", which is exactly the
        difference being asked for. */
-    inputMode={touch ? "none" : undefined} tabIndex={open ? 0 : -1} onChange={(e) => { setValue(e.target.value); tapped(); }} onBlur={away} onKeyDown={(e) => {
+    inputMode={keyboard ? "search" : touch ? "none" : undefined} tabIndex={open ? 0 : -1} onChange={(e) => { setValue(e.target.value); tapped(); }} onBlur={away} onKeyDown={(e) => {
             if (e.key !== "Escape")
                 return;
             e.preventDefault();
