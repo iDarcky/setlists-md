@@ -201,6 +201,7 @@ export default function ScheduleView({
   leader = false, tab = 'upcoming', onTab, showBand = false, filter = 'all', onFilter, counts = {},
   groups = [], clockFormat = '12h', onOpen, onAnswer, onNew, onAvailability,
   canPlay, onAnswerDay, band = null, embedded = false, layout = 'auto', onBack,
+  title = 'Schedule', newLabel = 'New',
 }) {
   const past = tab === 'past';
   const isBand = tab === 'band' && band;
@@ -227,14 +228,14 @@ export default function ScheduleView({
           </button>
         )}
         <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
-          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Schedule</h1>
+          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>{title}</h1>
           <div className="flex gap-2">
             {onAvailability && (
               <Button variant="outline" size="sm" onClick={onAvailability} aria-label="My availability">
                 <CalendarIcon size={16} /><span className={cn(leader && onNew && 'sr-only sm:not-sr-only')}>My availability</span>
               </Button>
             )}
-            {leader && onNew && <Button size="sm" onClick={onNew}><PlusIcon size={16} />New</Button>}
+            {leader && onNew && <Button size="sm" onClick={onNew}><PlusIcon size={16} />{newLabel}</Button>}
           </div>
         </header>
         {!past && !isBand && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}
@@ -242,7 +243,7 @@ export default function ScheduleView({
           value={tab}
           onChange={onTab}
           options={[
-            { value: 'upcoming', label: leader ? 'Setlists' : 'Coming up' },
+            { value: 'upcoming', label: 'Upcoming' },
             ...(showBand ? [{ value: 'band', label: 'Band' }] : []),
             { value: 'past', label: 'Past' },
           ]}
