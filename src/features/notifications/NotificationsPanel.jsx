@@ -62,7 +62,7 @@ function Item({ it, now, onAnswer, onApprove, onDecline, onOpen }) {
 }
 
 const Label = ({ children }) => (
-  <div className="px-1 pb-2 pt-4 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</div>
+  <div className="px-1 pb-2 pt-4 text-label text-muted-foreground">{children}</div>
 );
 const Group = ({ children }) => <div className="overflow-hidden rounded-card material-base">{children}</div>;
 

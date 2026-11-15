@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
@@ -25,7 +26,7 @@ export const Group = ({ children, className }) => (
   <div className={cn('overflow-hidden rounded-card material-base', className)}>{children}</div>
 );
 export const GroupLabel = ({ children }) => (
-  <div className="px-1 pb-2 pt-6 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground first:pt-2">{children}</div>
+  <SectionLabel as="div" className="px-1 pb-2 pt-6 first:pt-2">{children}</SectionLabel>
 );
 const Note = ({ children }) => <p className="m-0 px-1 pt-2 text-[13px] leading-[18px] text-muted-foreground">{children}</p>;
 
@@ -363,7 +364,7 @@ export function PlanView({ church, plan, billingLive = false, onSubscribe, onMan
   return (
     <SettingsShell title="Subscription" onBack={onBack} embedded={embedded}>
       <Group className="mt-2 p-5">
-        <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{church?.name}</div>
+        <div className="text-label text-muted-foreground">{church?.name}</div>
         <div className="flex items-center justify-between gap-3 pt-1">
           <b className="text-[22px] font-semibold tracking-[-0.4px]">{plan?.label}</b>
           <span className={cn('rounded-full px-2.5 py-1 text-[12px] font-semibold', plan?.tone === 'bad' ? 'bg-danger-fill text-danger-text' : 'bg-selected text-link')}>{plan?.status}</span>

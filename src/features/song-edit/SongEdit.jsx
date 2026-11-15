@@ -77,7 +77,7 @@ function LineView({ line }) {
     const instr = TAB_INSTRUMENTS[line.instrument || instrumentForStrings(line.strings?.length)]?.label || 'Guitar';
     return (
       <span className="flex flex-col gap-1 rounded-card material-base px-3 py-2">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{line.savedName ? `Saved tab · ${line.savedName}` : `Tab · ${instr}`}{line.time ? ` · ${line.time}` : ''}</span>
+        <span className="text-label text-muted-foreground">{line.savedName ? `Saved tab · ${line.savedName}` : `Tab · ${instr}`}{line.time ? ` · ${line.time}` : ''}</span>
         <pre className="m-0 overflow-x-auto font-mono text-[12px] leading-4 text-foreground">{(line.strings || []).map(x => `${x.note}|${x.content}`).join('\n') || 'Empty tab'}</pre>
       </span>
     );
@@ -474,7 +474,7 @@ function OrderBar({ order, names, onChange, styleOf, vertical = false, onJump = 
   const { shown, drag, props } = useChipDrag(order, onChange);
   return (
     <div className={vertical ? 'flex flex-col gap-1' : 'flex flex-wrap items-center gap-1'}>
-      {!vertical && <span className="shrink-0 pr-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order</span>}
+      {!vertical && <span className="shrink-0 pr-1 text-label text-muted-foreground">Order</span>}
       {shown.map(({ name, i }, k) => (
         <Popover key={`${name}${i}`} open={!drag && open === i} onOpenChange={(o) => setOpen(o ? i : null)}>
           <PopoverTrigger asChild>
@@ -699,7 +699,7 @@ function InfoForm({ song, arr, onSong, onArr, onOldEditor, sameTitle, artists = 
   const [more, setMore] = useState(false);
   const f = (k, max = 300) => ({ value: song[k] ?? '', maxLength: max, onChange: (e) => onSong({ ...song, [k]: e.target.value }) });
   const a = (k, num) => ({ value: arr[k] ?? '', onChange: (e) => onArr({ ...arr, [k]: num ? (e.target.value === '' ? null : Number(e.target.value.replace(/\D/g, '')) || null) : e.target.value }) });
-  const grp = 'm-0 pt-3 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
+  const grp = 'm-0 pt-3 text-label text-muted-foreground';
   const ph = 'placeholder:text-muted-foreground/50';
   const tagsText = Array.isArray(song.tags) ? song.tags.join(', ') : (song.tags || '');
   return (
@@ -920,7 +920,7 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className="flex w-[260px] flex-col p-1.5">
-            <span className="px-2.5 pb-1 pt-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Arrangements</span>
+            <span className="px-2.5 pb-1 pt-1.5 text-label text-muted-foreground">Arrangements</span>
             {arrangements.map(a => (
               <button key={a.id} type="button" aria-pressed={a.id === arr.id} className={cn(menuRow, a.id === arr.id && 'font-semibold')} onClick={() => { setMenu(false); if (a.id !== arr.id) onPick(a.id); }}>
                 <span className="w-4 shrink-0 text-[var(--chord)]">{a.id === arr.id ? '✓' : ''}</span>
@@ -1292,7 +1292,7 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
           setTab('chart');
           requestAnimationFrame(() => document.querySelector(`[data-slot="song-edit"] [data-sec="${i}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         };
-        const head = 'm-0 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
+        const head = 'm-0 text-label text-muted-foreground';
         return (
           <div className="flex min-h-0 flex-1">
             {wide && (

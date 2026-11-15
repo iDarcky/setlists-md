@@ -214,9 +214,9 @@ function AddSong({ open, onOpenChange, songs, setlist, setlists, at, onAdd }) {
         <Input type="search" inputMode="search" placeholder="Search your songs" value={q} onChange={e => setQ(e.target.value)} />
         {!q.trim() && suggested.length > 0 && (
           <>
-            <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Suggested</span>
+            <span className="text-label text-muted-foreground">Suggested</span>
             <div className="rounded-card material-base px-4">{suggested.map(x => row(x.song, x.why))}</div>
-            <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">All songs</span>
+            <span className="pt-1 text-label text-muted-foreground">All songs</span>
           </>
         )}
         <div className="rounded-card material-base px-4">
@@ -312,7 +312,7 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
             <span className="text-[14px] font-medium text-link">Change</span>
           </button>
 
-          <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Order · drag ⠿ or tap a row</span>
+          <span className="pt-1 text-label text-muted-foreground">Order · drag ⠿ or tap a row</span>
           <div ref={listRef} className="flex flex-col @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:px-3">
             {order.rows.map((r, i) => (
               <div key={i} data-drag-row style={rowStyle(i)}
@@ -343,7 +343,7 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
         <aside className="hidden @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-3 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
           {pickedItem ? (
             <>
-              <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{pickedItem.type === 'break' ? 'Moment' : pickedSong?.title || 'Song'}</span>
+              <span className="text-label text-muted-foreground">{pickedItem.type === 'break' ? 'Moment' : pickedSong?.title || 'Song'}</span>
               {fields}
               <MoveButtons index={picked} count={items.length} onMove={move} onRemove={remove} />
             </>

@@ -84,7 +84,7 @@ export default function BandView({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{range}</span>
+        <span className="text-label text-muted-foreground">{range}</span>
         <div className="flex gap-1">
           <button type="button" aria-label="Earlier setlists" disabled={!canPrev} onClick={onPrev} className={navBtn}><ChevronLeftIcon /></button>
           <button type="button" aria-label="Later setlists" disabled={!canNext} onClick={onNext} className={navBtn}><ChevronRightIcon /></button>

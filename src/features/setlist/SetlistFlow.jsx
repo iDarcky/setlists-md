@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { cn } from '@/ui/shadcn/utils';
 import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Button } from '@/ui/shadcn/button';
@@ -37,10 +38,7 @@ const sub = (cb) => { const m = window.matchMedia(WIDE); m.addEventListener('cha
 const useWide = () => useSyncExternalStore(sub, () => window.matchMedia(WIDE).matches, () => false);
 
 const Caps = ({ children, right, className }) => (
-  <div className={cn('flex items-center justify-between', className)}>
-    <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</span>
-    {right}
-  </div>
+  <SectionLabel as="span" action={right} className={className}>{children}</SectionLabel>
 );
 const Field = ({ label, children }) => (
   <div className="flex min-h-[52px] items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
@@ -137,7 +135,7 @@ function ChartPreview({ view, transpose = 0 }) {
     <div className="flex flex-col gap-4 text-[14px] leading-[1.35]">
       {sections.slice(0, 8).map((s, i) => (
         <div key={i} className="flex flex-col">
-          <span className="mb-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-link">{s.type}</span>
+          <span className="mb-1 text-label text-link">{s.type}</span>
           {(s.lines || []).filter(l => typeof l === 'string' && l.trim() && !l.startsWith('>')).slice(0, 8).map((l, j) => (
             <div key={j} className="flex flex-wrap items-end">
               {parseLine(l).map((p, k) => (
@@ -195,7 +193,7 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
       )}
       {groups.map(({ label, list }) => (list.length > 0 || !label) && (
         <div key={label || 'results'} className="flex flex-col gap-2">
-          {label && <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>}
+          {label && <span className="pt-1 text-label text-muted-foreground">{label}</span>}
           <div className="rounded-card material-base">
             {list.map(s => {
               const lp = lastPlayed(s.id, setlists, today, draft.id);

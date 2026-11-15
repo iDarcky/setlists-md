@@ -21,7 +21,7 @@ import { Grip } from './SetlistEdit';
 
 const Caps = ({ children, right }) => (
   <div className="flex items-center justify-between pt-2">
-    <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</span>
+    <span className="text-label text-muted-foreground">{children}</span>
     {right}
   </div>
 );

@@ -32,7 +32,7 @@ export function CanYouPlay({ tiles, onPick, onAll, title = 'Can you play?' }) {
   return (
     <section aria-label={title} className="flex flex-col gap-2">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{title}</span>
+        <span className="text-label text-muted-foreground">{title}</span>
         {onAll && (
           <button type="button" onClick={onAll} className="flex min-h-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link hover:underline">
             All dates<ChevronRightIcon size={16} />

@@ -94,7 +94,7 @@ function ChipDrop({ label, active, title, onClear, children }) {
       </PopoverTrigger>
       <PopoverContent className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{title}</span>
+          <span className="text-label text-muted-foreground">{title}</span>
           {active && <button type="button" onClick={onClear} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[13px] font-medium text-link">Clear</button>}
         </div>
         {children}
@@ -106,7 +106,7 @@ function ChipDrop({ label, active, title, onClear, children }) {
 /** Sort and filter, in one sheet. Changes apply as you tap; the button closes. */
 export function FilterSheet({ open, onOpenChange, sort, onSort, filters, onFilters, options, shown }) {
   const flip = (group, v) => onFilters?.(flipIn(filters, group, v));
-  const head = 'm-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground';
+  const head = 'm-0 text-label text-muted-foreground';
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Sort and filter" className="h-auto max-h-[calc(100dvh-64px)] sm:max-w-[440px]">
       <div className="flex flex-col gap-4">

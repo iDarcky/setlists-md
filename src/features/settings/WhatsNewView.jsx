@@ -33,7 +33,7 @@ function ReleaseNotes({ release }) {
       {sections.map((s, i) => (
         <section key={s.name + i} className="flex flex-col gap-2">
           {s.name && (
-            <h3 className="m-0 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+            <h3 className="m-0 text-label text-muted-foreground">
               {sectionLabel(s.name)}
             </h3>
           )}

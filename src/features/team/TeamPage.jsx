@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow } from '@/ui/shadcn/list-row';
 import QRCode from 'qrcode';
 import { cn } from '@/ui/shadcn/utils';
@@ -40,12 +41,7 @@ export function ChurchMark({ name, url, size = 48 }) {
 }
 
 const SectionTitle = ({ children, count, action }) => (
-  <div className="flex items-center justify-between gap-3 pt-3">
-    <h2 className="m-0 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-      {children}{count != null && <span className="font-medium normal-case tracking-normal">{count}</span>}
-    </h2>
-    {action}
-  </div>
+  <SectionLabel count={count} action={action} className="pt-3">{children}</SectionLabel>
 );
 
 /** Logo, name, city and the facts. Owner gets Edit. */

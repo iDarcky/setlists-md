@@ -264,7 +264,7 @@ export default function ScheduleView({
           </div>
         ) : shownGroups.map(g => (
           <section key={g.month} aria-label={g.month} className="flex flex-col gap-2">
-            <h2 className="m-0 px-0.5 pt-1.5 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{g.month}</h2>
+            <h2 className="m-0 px-0.5 pt-1.5 text-label text-muted-foreground">{g.month}</h2>
             <div className="overflow-hidden rounded-card material-base">
               {g.rows.map(r => (
                 <Row key={r.setlist.id} row={r} leader={leader} past={past} clockFormat={clockFormat} onOpen={onOpen} onAnswer={onAnswer} />

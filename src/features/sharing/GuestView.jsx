@@ -37,7 +37,7 @@ export default function GuestView({ setlist, order, church, when, onPlay, onGetA
         </div>
 
         <div className="flex flex-col gap-2 pt-2">
-          {when && <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{when}</span>}
+          {when && <span className="text-label text-muted-foreground">{when}</span>}
           <h1 className="m-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] sm:text-[32px] sm:leading-10 sm:tracking-[-1px]">{setlist.name || 'Untitled setlist'}</h1>
         </div>
 

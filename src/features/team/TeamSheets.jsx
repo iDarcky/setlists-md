@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
@@ -26,7 +27,7 @@ const ANSWER = {
 
 const savedTokens = (m) => Array.from(new Set((m?.instruments || []).map(normalize).filter(Boolean)));
 
-const Label = ({ children }) => <h3 className="m-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</h3>;
+const Label = ({ children }) => <SectionLabel as="h3">{children}</SectionLabel>;
 
 /**
  * Body of the person pop-up. `canManage`: may change their role and remove

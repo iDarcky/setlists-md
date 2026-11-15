@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
@@ -32,7 +33,7 @@ const clock = (t, fmt) => (t ? formatClockTime(t, fmt) : '');
 // ── Small parts ─────────────────────────────────────────────────────────────
 
 const Label = ({ children, className }) => (
-  <h2 className={cn('m-0 text-[12px] font-semibold uppercase leading-4 tracking-[0.06em] text-muted-foreground', className)}>{children}</h2>
+  <SectionLabel className={className}>{children}</SectionLabel>
 );
 
 function Section({ label, action, children, className }) {
@@ -235,7 +236,7 @@ function NextUp({ next, leader, clockFormat, onOpen, onPlay, onMarkReady }) {
       <Card className="flex flex-col gap-3.5 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-[12px] font-semibold uppercase leading-4 tracking-[0.06em] text-link">{when}</span>
+            <span className="text-label text-link">{when}</span>
             <h3 className="m-0 truncate text-[18px] font-semibold leading-[26px] tracking-[-0.2px]">{sl.name || 'Service'}</h3>
             <p className="m-0 truncate text-[14px] leading-5 text-muted-foreground">{sub}</p>
           </div>

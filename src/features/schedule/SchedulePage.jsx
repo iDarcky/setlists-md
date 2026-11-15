@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { cn } from '@/ui/shadcn/utils';
 import { formatClockTime } from '@/lib/dateFormat';
@@ -21,7 +22,7 @@ const ANSWERS = [
 ];
 
 function Label({ children }) {
-  return <h2 className="m-0 px-0.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</h2>;
+  return <SectionLabel className="px-0.5">{children}</SectionLabel>;
 }
 
 function Invite({ invite, clockFormat, onAnswer }) {

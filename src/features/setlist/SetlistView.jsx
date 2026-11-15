@@ -185,7 +185,7 @@ export default function SetlistView({
             <Button variant="ghost" size="icon" className="-ml-2.5 shrink-0" aria-label={backLabel} title={backLabel} onClick={onBack}><BackIcon /></Button>
             <div className="flex min-w-0 flex-1 flex-col gap-1.5 pt-1.5">
               <div className="flex items-center gap-2">
-                {head.date && <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{head.date}</span>}
+                {head.date && <span className="text-label text-muted-foreground">{head.date}</span>}
                 <Chip className={ready ? 'bg-selected text-link' : 'bg-raised text-muted-foreground'}>{ready ? 'Ready' : 'Draft'}</Chip>
               </div>
               <h1 className="m-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] @min-[640px]:text-[32px] @min-[640px]:leading-10 @min-[640px]:tracking-[-1px]">{setlist.name || 'Untitled setlist'}</h1>
@@ -239,7 +239,7 @@ export default function SetlistView({
         <div className="hidden @min-[1024px]:col-start-1 @min-[1024px]:row-start-2 @min-[1024px]:block @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:px-4 @min-[1024px]:py-1">{orderEl}</div>
 
         <aside className="hidden @min-[1024px]:col-start-2 @min-[1024px]:row-start-2 @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-2 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
-          <div className="flex items-center justify-between pb-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          <div className="flex items-center justify-between pb-1 text-label text-muted-foreground">
             <span>Band{band.length ? ` · ${band.filter(b => b.status === 'available').length} of ${band.length} said yes` : ''}</span>
           </div>
           {bandEl}

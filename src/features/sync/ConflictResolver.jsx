@@ -21,7 +21,7 @@ function summarize(kind, item) {
 
 const Side = ({ label, text }) => (
   <div className="flex flex-col gap-1 rounded-card border border-border bg-raised p-3.5">
-    <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>
+    <span className="text-label text-muted-foreground">{label}</span>
     <span className="text-[14px] leading-5 text-foreground">{text}</span>
   </div>
 );

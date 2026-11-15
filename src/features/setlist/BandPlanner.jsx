@@ -19,7 +19,7 @@ const STATUS = {
   notsent: ['Not sent', 'bg-warning/15 text-warning-text'],
 };
 
-const Caps = ({ children }) => <span className="pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</span>;
+const Caps = ({ children }) => <span className="pt-2 text-label text-muted-foreground">{children}</span>;
 
 /**
  * @param {Array} slots        from bandSlots()

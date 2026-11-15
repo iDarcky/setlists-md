@@ -3,6 +3,7 @@ import { Toaster, sileo } from 'sileo';
 import { Plus, Play, Trash2, User, Settings, Moon, ExternalLink } from 'lucide-react';
 import { Button } from '@/ui/shadcn/button';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
+import { SectionLabel, SectionAction } from '@/ui/shadcn/section-label';
 import { ToastStack } from '@/ui/blocks/ToastStack';
 import '@/ui/blocks/tokens.css';
 
@@ -153,6 +154,21 @@ export default function DesignPreview() {
               </div>
             ))}
             <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
+          </div>
+        </Section>
+
+        <Section title="Section label" note="The small heading above a group. 12px, semibold, uppercase, muted, the same everywhere. It can carry a count and one word on the right.">
+          <div className="flex flex-col gap-2">
+            <SectionLabel className="px-1">App</SectionLabel>
+            <div className="material-base flex flex-col overflow-hidden rounded-card">
+              <ListRow size="compact" weight="regular" onClick={() => {}} title="What's new" chevron />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <SectionLabel className="px-1" count={8} action={<SectionAction>Invite</SectionAction>}>Band</SectionLabel>
+            <div className="material-base flex flex-col overflow-hidden rounded-card">
+              <ListRow onClick={() => {}} title="Estera P." sub="Vocals" chevron />
+            </div>
           </div>
         </Section>
 

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
@@ -86,7 +87,7 @@ const Group = ({ children }) => (
   <div className="overflow-hidden rounded-card material-base">{children}</div>
 );
 const GroupLabel = ({ children }) => (
-  <div className="px-1 pb-2 pt-5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</div>
+  <SectionLabel as="div" className="px-1 pb-2 pt-5">{children}</SectionLabel>
 );
 
 const UNLOCK_TAPS = 7;

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { Toggle } from '@/ui/shadcn/toggle';
 import { Alert } from '@/ui/shadcn/alert';
 import { Button } from '@/ui/shadcn/button';
@@ -6,7 +7,7 @@ import { Sheet } from '@/ui/shadcn/sheet';
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 
 const Label = ({ children }) => (
-  <div className="px-1 pb-2 pt-5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground first:pt-0">{children}</div>
+  <SectionLabel as="div" className="px-1 pb-2 pt-5 first:pt-0">{children}</SectionLabel>
 );
 
 /**
