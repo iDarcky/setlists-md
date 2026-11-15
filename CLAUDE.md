@@ -205,7 +205,7 @@ src/
 │   │                     #   MetadataPanel, PreviewPanel, ChordAutocomplete, TabGridEditorV2,
 │   │                     #   PasteReview, StructureControl …
 │   ├── import/           # AddSongModal (Labs) · NewSongModal (legacy) · BrowseTab · ImportTab
-│   ├── dashboard/        # Dashboard.jsx
+│   ├── home/             # Home.jsx + HomeView.jsx (the old Dashboard was deleted 2026-11-15)
 │   ├── setlists/         # Setlists.jsx (library), SetlistCard, SetlistFilters, SetlistCardRow
 │   ├── setlist-editor/   # SetlistBuilder + SetlistItemRow, SetlistIdentityCard,
 │   │                     #   SetlistMetaForm, SetlistSongPicker, RecommendedNextPanel,
@@ -219,12 +219,12 @@ src/
 │   ├── sharing/          # ShareSetlistDialog, SharedSetlistViewer, ExportSetlistDialog
 │   ├── settings/         # Settings.jsx, Account.jsx, AccountWall, AccountPanel,
 │   │                     #   SyncSettings, SyncDoctor, ChartStylePanel, WhatsNewPanel …
-│   ├── team/             # TeamScreen, TeamBanner, ActivityFeed
+│   ├── team/             # TeamScreen, TeamBanner
 │   ├── scheduling/       # Schedule, SchedulingGrid, ScheduleCalendarView/ListView,
 │   │                     #   DateStatusModal, RecurringPicker
 │   ├── notifications/    # NotificationTray, NotificationsPage, NotificationItems
 │   ├── legal/            # LegalPage, HelpPage, FeedbackButton
-│   ├── onboarding/       # OnboardingFlow + screens/, ProgressChecklist, ChordLine,
+│   ├── onboarding/       # OnboardingFlow + screens/, ChordLine,
 │   │                     #   FounderNote, IOSInstallHint
 │   ├── auth/             # AuthScreen, AuthCallback, RecoveryScreen, GoogleDriveCallback
 │   ├── sync/             # SyncStatus, ConflictResolver (the sync engine's UI)
@@ -428,7 +428,7 @@ We utilize standard Vercel Geist design tokens mapped via Tailwind CSS configura
 
 ### "modes" Theme Variant
 
-A page-level visual variant, opted-in via `data-theme-variant="modes"` on the page root (currently applied to `Dashboard.jsx`). It mirrors the mobile drawer aesthetic: dark radial gradient (teal top-left + plum bottom-right on near-black base) with translucent card surfaces.
+A page-level visual variant, opted-in via `data-theme-variant="modes"` on the page root (was applied to the old `Dashboard.jsx`, deleted 2026-11-15; nothing uses it now). It mirrors the mobile drawer aesthetic: dark radial gradient (teal top-left + plum bottom-right on near-black base) with translucent card surfaces.
 
 Tokens exposed inside a `[data-theme-variant="modes"]` subtree:
 - `--modes-surface` / `--modes-surface-strong` — translucent white fills for cards
@@ -534,7 +534,7 @@ The Teams/Church tier adds these additional tables:
   `status` (available|unavailable|maybe), `notes`. Unique on
   `(team_id, user_id, date)`. Standalone date-based availability,
   independent of any setlist. Members write only their own row; any team
-  member can read everyone's. Used by `CalendarWidget` (member opts in by
+  member can read everyone's. Used by the Schedule (member opts in by
   tapping empty days) and by `BandPanel` (leader sorts/filters candidates
   by who's available on the setlist's date).
 
