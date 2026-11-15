@@ -163,6 +163,21 @@ follows `settings.theme` (`default` = OS).
 - Screens not yet rebuilt still use the older Geist `--ds-*` tokens in
   `styles/index.css`. Don't extend that system; rebuild the screen instead.
 
+## Conventions
+
+- Tailwind classes on the new components (shadcn + tokens); no CSS modules or
+  styled-components. Older screens still use inline styles.
+- Auth error copy goes through `friendlyAuthError(err)` (checks
+  `navigator.onLine` first); add new cases there. The last-used email lives in
+  `localStorage['setlists-md:last-email']`, written only on success.
+- Tab and modulate objects in `section.lines[]` are found with
+  `typeof line === 'object' && line.type === 'tab' | 'modulate'`; check the
+  type before calling `.trim()`.
+- Never call `toLocaleDateString` / `localeCompare` with options per row in a
+  long list; use the cached formatters in `lib/dateFormat.js`.
+- Team-scoped fetch hooks on tab screens seed from `hooks/teamRowsCache.js`,
+  and nav-pill tabs are not lazy-loaded (tab switches must be instant).
+
 ## Where things are written down
 
 | Doc | What it holds |
