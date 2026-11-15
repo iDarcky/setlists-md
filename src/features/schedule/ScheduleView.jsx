@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyState } from '@/ui/shadcn/empty-state';
 import { Plus, Calendar, CalendarDays, SearchX } from 'lucide-react';
 import { Search } from '@/ui/blocks/Search';
@@ -11,7 +12,6 @@ import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime, dateFormatter } from '@/lib/dateFormat';
-import { ChevronLeftIcon } from '@/app/navIcons';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 
 // Schedule, built from zero (canvas → Schedule page). Pure view: Schedule.jsx
@@ -222,19 +222,12 @@ export default function ScheduleView({
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       {past && <BackToTop />}
       <div className={cn('mx-auto flex w-full flex-col gap-3 pb-8', wide ? 'max-w-[1180px]' : 'max-w-[680px]', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
-        {/* Schedule opens from Home (it left the nav pill on 2026-11-15), so it
-            says where Back goes. */}
-        {onBack && (
-          <button type="button" onClick={onBack} className="-ml-1 flex min-h-0 w-fit cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-1 py-1 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-            <ChevronLeftIcon />Home
-          </button>
-        )}
-        {/* Pinned while the list scrolls; search and + like Songs and Home. */}
-        <header ref={headRef} className={cn('sticky top-0 z-sticky flex min-h-14 items-center justify-between gap-2 bg-background py-1', layout === 'phone' ? '-mx-4 px-4' : '-mx-4 px-4 sm:-mx-6 sm:px-6')}>
-          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-title')}>{title}</h1>
-          <div className="flex items-center gap-2">
+        {/* Pinned while the list scrolls; search and + like Songs and Home.
+            Opened from Home, so ← says where Back goes. */}
+        <PageHeader ref={headRef} sticky title={title} onBack={onBack} backLabel="Home" wide={layout === 'auto' ? undefined : wide}
+          className={layout === 'phone' ? '-mx-4 px-4' : '-mx-4 px-4 sm:-mx-6 sm:px-6'}>
             {searchable && (
-              <div className={cn(searchOpen ? cn('absolute inset-y-0 z-10 flex items-center bg-background', layout === 'phone' ? 'inset-x-4' : 'inset-x-4 sm:inset-x-6') : 'shrink-0')}>
+              <div data-search="header" className={cn(searchOpen ? cn('absolute inset-y-0 z-10 flex items-center bg-background', layout === 'phone' ? 'inset-x-4' : 'inset-x-4 sm:inset-x-6') : 'shrink-0')}>
                 <Search inline keyboard give={30} spring={30} value={query} onValueChange={setQuery} onOpenChange={setSearchOpen}
                   placeholder="Search setlists" width={headWidth} />
               </div>
@@ -245,8 +238,7 @@ export default function ScheduleView({
               </Button>
             )}
             {leader && onNew && <Button size="icon" className="size-11 shrink-0 rounded-control" aria-label={newLabel} onClick={onNew}><Plus size={20} strokeWidth={2} aria-hidden="true" /></Button>}
-          </div>
-        </header>
+        </PageHeader>
         {!past && !isBand && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}
         <Segmented
           value={tab}

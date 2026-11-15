@@ -1,9 +1,9 @@
 import { useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { cn } from '@/ui/shadcn/utils';
 import { formatClockTime } from '@/lib/dateFormat';
-import { ChevronLeftIcon } from '@/app/navIcons';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 import { Segmented } from './ScheduleView';
 
@@ -130,12 +130,7 @@ export default function SchedulePage({
   return (
     <div data-slot="schedule" className="bg-background font-sans text-foreground">
       <div className={cn('mx-auto flex w-full flex-col gap-4 px-4 pb-8 pt-1 sm:px-6 sm:pt-6', wide ? 'max-w-[1180px]' : 'max-w-[680px]')}>
-        {onBack && (
-          <button type="button" onClick={onBack} className="-ml-1 flex min-h-0 w-fit cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-1 py-1 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-            <ChevronLeftIcon />Home
-          </button>
-        )}
-        <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Schedule</h1>
+        <PageHeader title="Schedule" onBack={onBack} backLabel="Home" wide={wide} />
         {showBand && wide ? (
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] items-start gap-6">
             {me}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
@@ -516,26 +517,23 @@ export default function HomeView({
 }) {
   const wideScreen = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'auto' ? wideScreen : layout === 'wide';
+  // The shared page header (owner, 2026-11-15: Home, Setlists and Songs the
+  // same); the date and sync line sit under it.
   const hello = (
-    <header className="flex items-start justify-between gap-3 pt-1">
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className={cn('m-0 truncate font-semibold tracking-[-0.5px]', wide ? 'text-[28px] leading-9' : 'text-[24px] leading-8')}>Hi {name}</h1>
-        <div className="flex flex-wrap items-center gap-x-2 text-[14px] leading-5 text-muted-foreground">
-          <span>{dateLabel}</span>
-          <SyncLine sync={sync} />
-        </div>
-      </div>
+    <PageHeader
+      title={`Hi ${name}`}
+      wide={layout === 'auto' ? undefined : wide}
+      sub={<><span>{dateLabel}</span><SyncLine sync={sync} /></>}
+    >
       {/* Schedule's door (owner, 2026-11-15): a calendar button beside the +,
           not a row in the two weeks. Schedule is not a nav tab. */}
-      <div className="flex shrink-0 items-center gap-2">
-        {onOpenSchedule && (
-          <Button variant="outline" size="icon" aria-label="Schedule" title="Schedule" onClick={onOpenSchedule} className="size-11 rounded-control">
-            <Calendar size={20} strokeWidth={STROKE} aria-hidden="true" />
-          </Button>
-        )}
-        <CreateButton items={create} />
-      </div>
-    </header>
+      {onOpenSchedule && (
+        <Button variant="outline" size="icon" aria-label="Schedule" title="Schedule" onClick={onOpenSchedule} className="size-11 rounded-control">
+          <Calendar size={20} strokeWidth={STROKE} aria-hidden="true" />
+        </Button>
+      )}
+      <CreateButton items={create} />
+    </PageHeader>
   );
   const setupEl = setup && <SetupCard {...setup} />;
   const nextEl = <NextUp next={next} leader={leader} clockFormat={clockFormat} onOpen={onOpenSetlist} onPlay={onPlaySetlist} onMarkReady={onMarkReady} />;

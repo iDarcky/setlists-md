@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyState } from '@/ui/shadcn/empty-state';
 import { Plus, Music, SearchX } from 'lucide-react';
 import { chipClass } from '@/ui/shadcn/chip';
@@ -194,13 +195,10 @@ export default function SongsView({
       {!wide && !selecting && <BackToTop />}
       <div className={cn('mx-auto flex w-full flex-col gap-3', wide ? 'max-w-[1180px]' : 'max-w-[680px]', selecting ? 'pb-40' : 'pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         {/* Pinned while the list scrolls: title, search, + (like Home). */}
-        <header ref={rowRef} className={cn('sticky top-0 z-sticky flex min-h-14 items-center justify-between gap-2 bg-background py-1', layout === 'phone' ? '-mx-4 px-4' : '-mx-4 px-4 sm:-mx-6 sm:px-6')}>
-          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-title')}>
-            Songs {total > 0 && <span className="text-small font-medium tracking-normal text-muted-foreground">{total}</span>}
-          </h1>
-          <div className="flex items-center gap-2">
+        <PageHeader ref={rowRef} sticky title="Songs" count={total > 0 ? total : null} wide={layout === 'auto' ? undefined : wide}
+          className={layout === 'phone' ? '-mx-4 px-4' : '-mx-4 px-4 sm:-mx-6 sm:px-6'}>
             {total > 0 && !selecting && (
-              <div className={cn(searchOpen ? cn('absolute inset-y-0 z-10 flex items-center bg-background', layout === 'phone' ? 'inset-x-4' : 'inset-x-4 sm:inset-x-6') : 'shrink-0')}>
+              <div data-search="header" className={cn(searchOpen ? cn('absolute inset-y-0 z-10 flex items-center bg-background', layout === 'phone' ? 'inset-x-4' : 'inset-x-4 sm:inset-x-6') : 'shrink-0')}>
                 <Search inline keyboard give={30} spring={30} value={query} onValueChange={onQuery} onOpenChange={setSearchOpen}
                   placeholder="Search title, artist, lyrics" width={rowWidth} />
               </div>
@@ -210,8 +208,7 @@ export default function SongsView({
             ) : leader && onAdd ? (
               <Button size="icon" aria-label="Add a song" className="size-11 shrink-0 rounded-control" onClick={onAdd}><Plus size={20} strokeWidth={2} aria-hidden="true" /></Button>
             ) : null}
-          </div>
-        </header>
+        </PageHeader>
 
         {toCheck > 0 && !selecting && onCheckNext && (
           <div role="status" className="flex items-center gap-3 rounded-card material-base px-4 py-3">

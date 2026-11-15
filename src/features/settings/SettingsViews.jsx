@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { SectionLabel } from '@/ui/shadcn/section-label';
@@ -81,10 +82,10 @@ export function SettingsShell({ title, onBack, backLabel = 'Back', children, emb
   return (
     <div data-slot="settings-page" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       <div className="mx-auto flex w-full max-w-[600px] flex-col px-4 pb-12 sm:px-6 sm:pt-6">
-        {/* Back is a small ← on the title row, everywhere (QA 2026-11-11). */}
-        <div className="flex min-h-14 items-center gap-1 pb-2 pt-3" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
-          {onBack && <button type="button" onClick={onBack} aria-label={backLabel} title={backLabel} className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>}
-          <h1 className="m-0 min-w-0 text-[26px] font-semibold tracking-[-0.5px]">{title}</h1>
+        {/* Back is a small ← on the title row, everywhere (QA 2026-11-11);
+            the shared page header since 2026-11-15. */}
+        <div className="pb-2 pt-2" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
+          <PageHeader title={title} onBack={onBack} backLabel={backLabel} />
         </div>
         {children}
       </div>

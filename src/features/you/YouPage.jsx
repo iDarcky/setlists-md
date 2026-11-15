@@ -150,8 +150,8 @@ export default function YouPage({
         <div className="flex items-center gap-4 pb-1 pt-1 sm:pt-4">
           <Avatar name={church ? church.name : me?.name} url={church ? church.logoUrl : me?.url} size={64} />
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="m-0 truncate text-[22px] font-semibold tracking-[-0.4px]">{church ? church.name : me?.name}</h1>
-            <div className="flex min-w-0 items-center gap-2 text-[14px] text-muted-foreground">
+            <h1 className="m-0 truncate text-title font-semibold tracking-[-0.5px]">{church ? church.name : me?.name}</h1>
+            <div className="flex min-w-0 items-center gap-2 text-small text-muted-foreground">
               <span className="truncate">{church ? me?.name : me?.email}</span>
               {church?.role && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{church.role}</span>}
             </div>
