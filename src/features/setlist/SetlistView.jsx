@@ -15,7 +15,7 @@ const ANSWER = {
   available: { label: 'Yes', cls: 'bg-selected text-link' },
   maybe: { label: 'Maybe', cls: 'bg-warning/15 text-warning-text' },
   unavailable: { label: 'Can’t', cls: 'bg-danger/15 text-danger' },
-  pending: { label: 'Asked', cls: 'bg-warning/15 text-warning-text' },
+  pending: { label: 'Invited', cls: 'bg-warning/15 text-warning-text' },
 };
 
 const Chip = ({ className, children }) => (

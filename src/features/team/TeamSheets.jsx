@@ -21,7 +21,7 @@ const ANSWER = {
   available: { label: 'Said yes', cls: 'bg-selected text-link' },
   maybe: { label: 'Maybe', cls: 'bg-warning/15 text-warning-text' },
   unavailable: { label: 'Can’t', cls: 'bg-danger/15 text-danger' },
-  pending: { label: 'Asked', cls: 'bg-warning/15 text-warning-text' },
+  pending: { label: 'Invited', cls: 'bg-warning/15 text-warning-text' },
 };
 
 const savedTokens = (m) => Array.from(new Set((m?.instruments || []).map(normalize).filter(Boolean)));

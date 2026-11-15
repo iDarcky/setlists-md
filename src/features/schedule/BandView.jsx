@@ -26,7 +26,7 @@ function Cell({ cell, person, column, onTap }) {
   const c = CELL[cell.state];
   const add = cell.planned === 'add';
   const remove = cell.planned === 'remove';
-  const label = `${person.name}, ${day(column.setlist.date, { weekday: 'long', day: 'numeric', month: 'long' })}: ${c.label}${add ? ', invite not sent yet' : ''}${remove ? ', taking off' : ''}`;
+  const label = `${person.name}, ${day(column.setlist.date, { weekday: 'long', day: 'numeric', month: 'long' })}: ${c.label}${add ? ', invite not sent yet' : ''}${remove ? ', taking off' : ''}${cell.warn ? `, ${cell.warn}` : ''}`;
   return (
     <button
       type="button"
@@ -47,6 +47,9 @@ function Cell({ cell, person, column, onTap }) {
         {add ? '+' : c.mark}
         {add && <span aria-hidden="true" className="absolute -right-1 -top-1 size-2.5 rounded-full bg-warning-text" />}
         {remove && <span aria-hidden="true" className="absolute inset-x-1 top-1/2 h-0.5 -translate-y-1/2 rounded bg-danger" />}
+        {cell.warn && !remove && (
+          <span aria-hidden="true" title={cell.warn} className="absolute -bottom-1.5 -right-1.5 flex size-4 items-center justify-center rounded-full bg-warning-text text-[10px] font-bold text-background">3</span>
+        )}
       </span>
     </button>
   );
@@ -156,6 +159,7 @@ export default function BandView({
           </span>
         ))}
         <span className="inline-flex items-center gap-1.5"><span className="flex size-4 items-center justify-center rounded-[4px] border-2 border-warning-text text-[10px] font-bold text-warning-text">+</span>Not sent yet</span>
+        <span className="inline-flex items-center gap-1.5"><span className="flex size-4 items-center justify-center rounded-full bg-warning-text text-[10px] font-bold text-background">3</span>3rd week in a row</span>
       </div>
       <p className="m-0 text-[13px] text-muted-foreground">Tap an empty square to invite someone, or a filled one to take them off. Nothing is sent until you tap Send.</p>
     </div>

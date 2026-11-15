@@ -99,9 +99,9 @@ export default function Schedule({
   const [sendError, setSendError] = useState(null);
   const upcoming = useMemo(() => groupByMonth(setlists, { now }).flatMap(g => g.setlists), [setlists, now]);
   const grid = useMemo(() => bandGrid({
-    setlists: upcoming, members: members || [], schedules, setlistMap, availability, plan,
+    setlists: upcoming, allSetlists: setlists, members: members || [], schedules, setlistMap, availability, plan,
     nameOf: (m) => m.profile?.display_name || m.profile?.email?.split('@')[0] || 'Member',
-  }), [upcoming, members, schedules, setlistMap, availability, plan]);
+  }), [upcoming, setlists, members, schedules, setlistMap, availability, plan]);
   const pages = Math.max(1, Math.ceil(upcoming.length / pageSize));
   const at = Math.min(page, pages - 1) * pageSize;
   const shown = grid.columns.slice(at, at + pageSize);
