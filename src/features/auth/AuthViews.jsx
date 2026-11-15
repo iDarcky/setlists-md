@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { LabelInput } from '@/ui/blocks/LabelInput';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
 import { Alert } from '@/ui/shadcn/alert';
@@ -154,21 +155,16 @@ export function LogInView({ values, onChange, onSubmit, onBack, onForgot, onCrea
         sub={joining ? null : 'Log in to see this week’s songs.'}
       />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (ready) onSubmit(); }} noValidate>
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor={`${uid}-email`}>Email</FieldLabel>
-            <Input id={`${uid}-email`} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com"
-              value={values.email} onChange={e => onChange('email', e.target.value)} onFocus={scrollFieldIntoView} />
-          </Field>
-          <Field>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor={`${uid}-password`}>Password</FieldLabel>
-              <span className="text-caption"><Button variant="link" className="min-h-8" onClick={onForgot}>Forgot password?</Button></span>
-            </div>
-            <PasswordInput id={`${uid}-password`} autoComplete="current-password" value={values.password}
-              onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView} />
-          </Field>
-        </FieldGroup>
+        {/* The floating-label field (Bencho LabelInput, owner 2026-11-16). */}
+        <div className="flex flex-col gap-3">
+          <LabelInput fill label="Email" type="email" inputMode="email" autoComplete="email" name="email"
+            value={values.email} onChange={e => onChange('email', e.target.value)} onFocus={scrollFieldIntoView} />
+          <LabelInput fill label="Password" type="password" autoComplete="current-password" name="password"
+            value={values.password} onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView} />
+          <div className="-mt-1 flex justify-end">
+            <Button variant="link" className="min-h-8 text-small" onClick={onForgot}>Forgot password?</Button>
+          </div>
+        </div>
       </form>
       <Message message={message} />
       <AuthActions>
