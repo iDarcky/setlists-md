@@ -1,3 +1,6 @@
+/* Phone sheets (ui/shadcn/bottom-sheet.jsx), in their own layer so Tailwind utilities win. */
+@layer scrollsheet;
+@import "scrollsheet/styles.css" layer(scrollsheet);
 @import "tailwindcss";
 @import "./print.css";
 @import "./ds.css";
