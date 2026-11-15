@@ -1,16 +1,12 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { useMediaQuery } from '@/lib/useMediaQuery';
-import { parseImportFiles, IMPORT_ACCEPT } from '@/lib/importFiles';
-import { markToCheck, needsCheck } from '@/lib/importCheck';
-import { matchSongByTitle } from '@/lib/setlistLinks';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { needsCheck } from '@/lib/importCheck';
 import { searchSongs } from '@/lib/search';
 import {
   playStats, nextSetlistSongs, playLine, sortSongs, filterSongs, filterOptions, songKey, NO_FILTERS,
 } from '@/lib/songsData';
 import SongsView from './SongsView';
-import { AddSongSheet, TagSheet, ChurchPickerSheet } from './SongsSheets';
-import { libraryArtists } from '@/features/song-edit/newSongDetails';
-import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
+import { TagSheet, ChurchPickerSheet } from './SongsSheets';
+import AddSongFlow from './AddSongFlow';
 
 // Songs: works out the rows from the library and the setlists, and hands them
 // to SongsView. Members read; leaders add, tag, delete, and move or copy songs
@@ -19,62 +15,19 @@ import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
 export default function Songs({
   songs = [], setlists = [], readOnly = false, onOpenSong, onEditSong,
   onSearchCatalog, onImportSongs, onImportSetlistFile, onEditImported, onCheckNext, onBlank, onTagSongs, onDeleteSongs, onMoveSongs, onCopySongs, otherChurches = [],
-  intent = null, onIntentUsed,
 }) {
   const [now] = useState(() => Date.now());
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('az');
   const [filters, setFilters] = useState(NO_FILTERS);
-  // Home's + menu can open Songs with a sheet already up. The intent is used
-  // once: App forgets it on arrival, so Back to this page doesn't reopen it.
-  const [addOpen, setAddOpen] = useState(() => intent === 'add' && !readOnly);
+  const [adding, setAdding] = useState(null); // null | 'add' | 'import'
   const [tagIds, setTagIds] = useState(null);
   const [moveCopy, setMoveCopy] = useState(null); // { action, ids }
   const q = useDeferredValue(query);
-  const wide = useMediaQuery('(min-width: 640px)');
-  const fileRef = useRef(null);
-  // Import from Home always opens the picker sheet: a phone's file dialog
-  // needs a tap, and the sheet's button gives it one.
-  const [pickOpen, setPickOpen] = useState(() => intent === 'import' && !readOnly && !!onImportSongs);
-  useEffect(() => { if (intent) onIntentUsed?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [reading, setReading] = useState(false);
-  const [importError, setImportError] = useState('');
-  const [review, setReview] = useState(null); // { items, failed, source }
-
-  // A phone has no drag and drop, so Import goes straight to the file picker.
-  const startImport = () => {
-    setImportError('');
-    if (wide) setPickOpen(true); else fileRef.current?.click();
-  };
-  const readFiles = async (fileList) => {
-    const files = Array.from(fileList || []);
-    if (!files.length) return;
-    setReading(true);
-    setImportError('');
-    try {
-      const { songs: parsed, setlistFile, failed, error } = await parseImportFiles(files);
-      if (setlistFile) { setPickOpen(false); onImportSetlistFile?.(setlistFile); return; }
-      if (!parsed.length) { setImportError(error || 'No songs found in those files.'); if (!wide) setPickOpen(true); return; }
-      setPickOpen(false);
-      // One song: no list to tick, so open it in the editor to check before it
-      // is added (nothing is saved until Add).
-      if (parsed.length === 1 && !failed.length && onEditImported) { onEditImported(parsed[0]); return; }
-      setReview({
-        items: parsed.map(song => ({ song, existing: matchSongByTitle(songs, song.title) || null })),
-        failed,
-        source: files.length === 1 ? files[0].name : `${files.length} files`,
-      });
-    } catch {
-      setImportError('Could not read one or more files.');
-    } finally {
-      setReading(false);
-    }
-  };
 
   const stats = useMemo(() => playStats(setlists, now), [setlists, now]);
   const next = useMemo(() => nextSetlistSongs(setlists, now), [setlists, now]);
   const options = useMemo(() => filterOptions(songs), [songs]);
-  const artists = useMemo(() => libraryArtists(songs), [songs]);
   const allTags = useMemo(() => [...new Set(songs.flatMap(s => s.tags || []))].sort(), [songs]);
 
   const rows = useMemo(() => {
@@ -109,7 +62,7 @@ export default function Songs({
         onEdit={leader ? onEditSong : null}
         toCheck={leader && onCheckNext ? songs.filter(needsCheck).length : 0}
         onCheckNext={onCheckNext}
-        onAdd={leader ? () => setAddOpen(true) : null}
+        onAdd={leader ? () => setAdding('add') : null}
         onTag={leader && onTagSongs ? (ids) => setTagIds(ids) : null}
         onDelete={leader ? onDeleteSongs : null}
         onMove={canMoveCopy && onMoveSongs ? (ids) => setMoveCopy({ action: 'move', ids }) : null}
@@ -117,25 +70,15 @@ export default function Songs({
       />
       {leader && (
         <>
-          <AddSongSheet open={addOpen} onOpenChange={setAddOpen} onSearch={onSearchCatalog} onImport={onImportSongs ? startImport : null} onBlank={onBlank} songs={songs} artists={artists} />
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            accept={IMPORT_ACCEPT}
-            className="hidden"
-            onChange={(e) => { const f = e.target.files; readFiles(f).finally(() => { e.target.value = ''; }); }}
-          />
-          <ImportPickSheet open={pickOpen} onOpenChange={setPickOpen} onFiles={readFiles} onChoose={() => fileRef.current?.click()} busy={reading} error={importError} />
-          <ImportReviewSheet
-            key={review ? review.source + review.items.length : 'none'}
-            open={!!review}
-            onOpenChange={(o) => { if (!o) setReview(null); }}
-            items={review?.items}
-            failed={review?.failed}
-            source={review?.source}
-            onAdd={(list) => onImportSongs?.(list.map(markToCheck))}
-            onEditFirst={onEditImported}
+          <AddSongFlow
+            mode={adding}
+            onMode={setAdding}
+            songs={songs}
+            onSearchCatalog={onSearchCatalog}
+            onImportSongs={onImportSongs}
+            onImportSetlistFile={onImportSetlistFile}
+            onEditImported={onEditImported}
+            onBlank={onBlank}
           />
           <TagSheet
             open={!!tagIds}

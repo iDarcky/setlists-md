@@ -373,7 +373,6 @@ export default function App() {
   // Lifted to App so it participates in the back-button history stack.
   const [settingsPanel, setSettingsPanel] = useState('hub');
   // 'add' | 'import' | null: which Songs sheet to open on arrival (Home's + menu).
-  const [songsIntent, setSongsIntent] = useState(null);
   // Wake-lock explainer is now state-driven (was render-condition-driven) so
   // it can participate in the history stack.
   // Session metrics handed off from the reader to the finale.
@@ -1258,14 +1257,13 @@ export default function App() {
   // Switch a top-level page (Home / Library / Setlists / Settings / Account /
   // Help / Design). Now pushes history so hardware Back navigates within the
   // app instead of exiting the PWA.
-  const goToMainView = async (viewName, { settingsPanel: targetPanel, songsIntent: intent = null } = {}) => {
+  const goToMainView = async (viewName, { settingsPanel: targetPanel } = {}) => {
     const samePanel = !targetPanel || targetPanel === settingsPanel;
-    if (view === viewName && samePanel && !intent) return;
+    if (view === viewName && samePanel) return;
     if (!(await confirmDiscardSetlist())) return;
     pushHistory(snapshot());
     const apply = () => {
       setView(viewName);
-      setSongsIntent(intent);
       setCurrentSong(null);
       setCurrentSetlist(null);
       // Clear the docked pane's selection so it doesn't auto-reopen when
@@ -1384,7 +1382,6 @@ export default function App() {
 
   const goLibrary = () => goToMainView('library');
   // Home's + menu: open Songs with its Add-a-song or Import sheet already up.
-  const goLibraryWith = (intent) => goToMainView('library', { songsIntent: intent });
 
   // Safety net: if a member ends up on an editing surface in a read-only team
   // library (e.g. they switched into the workspace while the editor was open),
@@ -2694,8 +2691,11 @@ export default function App() {
               onOpenSong={goChart}
               onOpenSongs={goLibrary}
               onOpenSchedule={goSchedule}
-              onNewSong={isTeamReadOnly ? null : () => goLibraryWith('add')}
-              onImportSongs={isTeamReadOnly ? null : () => goLibraryWith('import')}
+              canAddSongs={!isTeamReadOnly}
+              onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
+              onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
+              onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
+              onBlank={isTeamReadOnly ? null : (details) => goEditor(null, null, '', details || null)}
               onOpenTeam={goTeam}
               onNotFound={showNotFound}
               onRetrySync={() => triggerSyncRef.current?.({ silent: false })}
@@ -2703,8 +2703,6 @@ export default function App() {
           )}
           {view === 'library' && (
             <Songs
-              intent={songsIntent}
-              onIntentUsed={() => setSongsIntent(null)}
               songs={songs}
               setlists={setlists}
               readOnly={isTeamReadOnly}
