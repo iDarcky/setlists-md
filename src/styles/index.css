@@ -939,6 +939,13 @@
    right, offset above the nav pill below 1024px (AppToaster). */
 .app-toaster [data-sileo-viewport][data-position] { z-index: 600; } /* = z-toast */
 .app-toaster [data-sileo-viewport][data-position^=top] { top: env(safe-area-inset-top, 0px); }
+/* Phones: 85% size (owner, 15 Nov: "a bit too big for mobile"). Scaled from
+   the corner the toast sits in, so it stays put. */
+@media (max-width: 639px) {
+  .app-toaster [data-sileo-viewport] { transform: scale(0.85); }
+  .app-toaster [data-sileo-viewport][data-position=bottom-right] { transform-origin: bottom right; }
+  .app-toaster [data-sileo-viewport][data-position=top-center] { transform-origin: top center; }
+}
 .app-toaster [data-sileo-toast] { cursor: pointer; }
 .app-toaster [data-sileo-title] {
   color: #fff;
