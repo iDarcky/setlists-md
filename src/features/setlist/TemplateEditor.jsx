@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { menuItemClass } from '@/ui/shadcn/menu';
 import { createPortal } from 'react-dom';
 import { cn } from '@/ui/shadcn/utils';
 import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
@@ -144,10 +145,10 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
                   <PlusIcon size={16} />Add to band<span aria-hidden="true" className="ml-auto text-muted-foreground">▾</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="z-[150] max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
+              <PopoverContent className="max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
                 {ADDABLE_PARTS.filter(p => !partRows.some(x => x.part === p)).map(p => (
                   <button key={p} type="button" onClick={() => { set({ parts: [...(t.parts || []), p] }); setAddPart(false); }}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-control border-0 bg-transparent px-3 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
+                    className={menuItemClass}>
                     {partName(p)}
                   </button>
                 ))}

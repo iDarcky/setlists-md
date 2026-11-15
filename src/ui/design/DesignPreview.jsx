@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Toaster, sileo } from 'sileo';
-import { Plus, Play, Trash2, User, Settings, Moon, ExternalLink } from 'lucide-react';
+import { Plus, Play, Trash2, User, Settings, Moon, ExternalLink, Music, ListMusic, Copy, Pencil } from 'lucide-react';
 import { Button } from '@/ui/shadcn/button';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { SectionLabel, SectionAction } from '@/ui/shadcn/section-label';
+import { MenuItem, MenuSeparator, MenuLabel } from '@/ui/shadcn/menu';
 import { ToastStack } from '@/ui/blocks/ToastStack';
 import '@/ui/blocks/tokens.css';
 
@@ -154,6 +155,27 @@ export default function DesignPreview() {
               </div>
             ))}
             <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
+          </div>
+        </Section>
+
+        <Section title="Menu" note="One menu item everywhere: 44px on phones, 40px from the iPad up, text 16 / 14 like the buttons, icon 18 muted. Picked = selected + check. Delete = red, last, after a line.">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex w-60 flex-col rounded-card material-menu p-1">
+              <MenuItem icon={<Music strokeWidth={1.8} />}>New song</MenuItem>
+              <MenuItem icon={<ListMusic strokeWidth={1.8} />}>New setlist</MenuItem>
+              <MenuSeparator />
+              <MenuItem icon={<Copy strokeWidth={1.8} />}>Duplicate</MenuItem>
+              <MenuItem icon={<Pencil strokeWidth={1.8} />} disabled>Move up</MenuItem>
+              <MenuSeparator />
+              <MenuItem icon={<Trash2 strokeWidth={1.8} />} danger>Delete section</MenuItem>
+            </div>
+            <div className="flex w-64 flex-col rounded-card material-menu p-1">
+              <MenuLabel>View</MenuLabel>
+              <MenuItem selected sub="96 BPM · default" trailing={<span className="font-mono text-small font-semibold text-[var(--chord)]">G</span>}>Sunday</MenuItem>
+              <MenuItem selected={false} sub="72 BPM · capo 2" trailing={<span className="font-mono text-small font-semibold text-[var(--chord)]">A</span>}>Acoustic</MenuItem>
+              <MenuSeparator />
+              <MenuItem icon={<Plus strokeWidth={1.8} />}>New arrangement</MenuItem>
+            </div>
           </div>
         </Section>
 

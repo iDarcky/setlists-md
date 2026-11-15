@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { menuItemClass, MenuSeparator } from '@/ui/shadcn/menu';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -59,7 +60,7 @@ const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justi
 const headIn = 'h-6 w-full min-w-0 max-w-[420px] truncate rounded-[6px] border-0 bg-transparent px-1.5 text-center font-sans outline-none placeholder:text-muted-foreground/70 hover:bg-raised focus:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 // One compact control in the details row over the chart.
 const pill = 'inline-flex h-9 min-h-0 shrink-0 cursor-pointer items-center gap-1 rounded-control border border-border bg-transparent px-2 font-sans text-[14px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
-const menuRow = 'flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised disabled:cursor-default disabled:opacity-40';
+const menuRow = menuItemClass;
 const tool = 'flex h-10 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent px-2.5 font-sans text-[13px] font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
 // Sections keep the colours the chart gives them (music.js → sectionStyle,
@@ -358,11 +359,11 @@ function SectionMenu({ section, index, count, onText, onMove, onDuplicate, onDel
         <button type="button" className={menuRow} onClick={run(onTab)}>Add tab</button>
         {saved.map(name => <button key={name} type="button" className={menuRow} onClick={run(() => onSaved(name))}>Add saved tab: {name}</button>)}
         <button type="button" className={menuRow} onClick={run(onText)}>Edit as text</button>
-        <div className="mx-1 my-1 h-px bg-border" />
+        <MenuSeparator />
         <button type="button" className={menuRow} disabled={index === 0} onClick={run(() => onMove(-1))}>Move up</button>
         <button type="button" className={menuRow} disabled={index === count - 1} onClick={run(() => onMove(1))}>Move down</button>
         <button type="button" className={menuRow} onClick={run(onDuplicate)}>Duplicate</button>
-        <div className="mx-1 my-1 h-px bg-border" />
+        <MenuSeparator />
         <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={run(onDelete)}>Delete section</button>
       </PopoverContent>
     </Popover>
@@ -929,7 +930,7 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
               </button>
             ))}
             {onNew && <button type="button" className={menuRow} onClick={() => { setMenu(false); onNew(); }}><PlusIcon size={14} />New arrangement<span className="text-[12px] text-muted-foreground">a copy</span></button>}
-            <div className="mx-1 my-1 h-px bg-border" />
+            <MenuSeparator />
             <button type="button" className={menuRow} onClick={() => { setMenu(false); setNaming(arr.name || ''); }}>Rename {arr.name}</button>
             {arrangements.length > 1 && arr.id !== defaultId && <button type="button" className={cn(menuRow, 'h-auto min-h-11 flex-col items-start gap-0 py-2')} onClick={() => { setMenu(false); onDefault(); }}>Make default<span className="text-[12px] font-normal text-muted-foreground">Opens first, and new setlists use it</span></button>}
             {arrangements.length > 1 && <button type="button" className={cn(menuRow, 'text-danger-text')} onClick={() => { setMenu(false); onDelete(); }}>Delete {arr.name}</button>}

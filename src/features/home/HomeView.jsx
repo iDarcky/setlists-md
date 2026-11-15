@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { menuContent, menuItemClass, MenuSeparator } from '@/ui/shadcn/menu';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { AnimatePresence, motion as Motion } from 'motion/react';
@@ -136,7 +137,7 @@ function CreateButton({ items }) {
       </PopoverTrigger>
       <AnimatePresence>
         {open && (
-          <PopoverContent forceMount asChild align="end" sideOffset={8} className="w-[236px] p-1.5">
+          <PopoverContent forceMount asChild align="end" sideOffset={8} className={cn(menuContent, 'w-[236px]')}>
             <Motion.div
               initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -146,13 +147,14 @@ function CreateButton({ items }) {
             >
               {items.map((it, i) => (
                 <div key={it.label}>
-                  {it.divider && i > 0 && <div className="mx-1.5 my-1 h-px bg-border" />}
+                  {it.divider && i > 0 && <MenuSeparator />}
                   <button
                     type="button"
                     onClick={() => { setOpen(false); it.onSelect(); }}
-                    className="flex h-9 w-full min-h-0 cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[14px] font-medium text-foreground outline-none hover:bg-raised focus-visible:bg-raised"
+                    role="menuitem"
+                    className={menuItemClass}
                   >
-                    <it.icon size={18} strokeWidth={STROKE} aria-hidden="true" />
+                    <it.icon size={18} strokeWidth={STROKE} aria-hidden="true" className="shrink-0 text-muted-foreground" />
                     {it.label}
                   </button>
                 </div>

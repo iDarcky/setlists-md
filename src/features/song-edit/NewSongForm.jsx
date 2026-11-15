@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { menuItemClass } from '@/ui/shadcn/menu';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -12,7 +13,7 @@ import { normalizeText } from '@/lib/search';
 // gets the whole screen), and the editor's own first step when a new song is
 // opened from anywhere else.
 
-const menuRow = 'flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised';
+const menuRow = menuItemClass;
 const ph = 'placeholder:text-muted-foreground/50';
 
 export function Field({ label, children, hint, required = false }) {

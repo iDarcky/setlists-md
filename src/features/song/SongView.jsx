@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { menuContent, MenuItem, MenuSeparator } from '@/ui/shadcn/menu';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -6,7 +7,7 @@ import { Sheet } from '@/ui/shadcn/sheet';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { youtubeId } from '@/lib/coverArt';
-import { ChevronDownIcon, CheckIcon, PlusIcon, BackIcon } from '@/app/navIcons';
+import { ChevronDownIcon, PlusIcon, BackIcon } from '@/app/navIcons';
 import { Cover, Fact, MetaLine, Played, SongMap } from './SongParts';
 
 // The song page, built from zero (canvas → "Song, edit and chart"). Pure view:
@@ -115,7 +116,7 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew, onR
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent className="flex w-[260px] flex-col p-1.5">
+      <PopoverContent className={cn(menuContent, 'w-[260px]')}>
         {naming != null ? (
           <form className="flex flex-col gap-2 p-1.5" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); setOpen(false); }}>
             <label className="flex flex-col gap-1.5 text-[13px] font-medium text-muted-foreground">Arrangement name
@@ -128,30 +129,21 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew, onR
           </form>
         ) : (<>
         {arrangements.map(a => (
-          <button key={a.id} type="button" onClick={() => { onPick?.(a.id); setOpen(false); }}
-            className={cn('flex h-12 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised', a.id === cur.id && 'bg-selected hover:bg-selected')}>
-            <span className="w-4 shrink-0 text-link">{a.id === cur.id && <CheckIcon size={16} />}</span>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[15px] font-medium">{a.name}</span>
-              <span className="truncate text-[12px] text-muted-foreground">{[a.tempo && `${a.tempo} BPM`, a.capo ? `capo ${a.capo}` : null, a.isDefault && 'default'].filter(Boolean).join(' · ')}</span>
-            </span>
-            <span className="font-mono text-[14px] font-semibold text-warning-text">{a.key}</span>
-          </button>
+          <MenuItem key={a.id} onClick={() => { onPick?.(a.id); setOpen(false); }}
+            selected={a.id === cur.id}
+            sub={[a.tempo && `${a.tempo} BPM`, a.capo ? `capo ${a.capo}` : null, a.isDefault && 'default'].filter(Boolean).join(' · ')}
+            trailing={a.key ? <span className="font-mono text-small font-semibold text-[var(--chord)]">{a.key}</span> : null}>
+            {a.name}
+          </MenuItem>
         ))}
         {onNew && (
           <>
-            <div className="mx-1 my-1 h-px bg-border" />
-            <button type="button" onClick={() => { onNew(); setOpen(false); }}
-              className="flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] font-medium text-link outline-none hover:bg-raised focus-visible:bg-raised">
-              <span className="w-4"><PlusIcon size={16} /></span>New arrangement
-            </button>
+            <MenuSeparator />
+            <MenuItem icon={<PlusIcon size={18} />} onClick={() => { onNew(); setOpen(false); }}>New arrangement</MenuItem>
           </>
         )}
         {onRename && (
-          <button type="button" onClick={() => setNaming(cur.name || '')}
-            className="flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] font-medium text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
-            <span className="w-4" />Rename “{cur.name}”
-          </button>
+          <MenuItem icon={<EditIcon size={18} />} onClick={() => setNaming(cur.name || '')}>Rename “{cur.name}”</MenuItem>
         )}
         </>)}
       </PopoverContent>
