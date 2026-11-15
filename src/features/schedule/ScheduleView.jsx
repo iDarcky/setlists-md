@@ -86,7 +86,7 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
   };
   const asked = !leader && !past && me?.kind === 'asked';
   return (
-    <div className={cn('flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-border px-4 py-3 first:border-t-0', row.selected && 'bg-selected')}>
+    <div className={cn('flex min-h-14 flex-wrap items-start gap-x-3 gap-y-2 border-t border-border px-4 py-3 first:border-t-0', row.selected && 'bg-selected')}>
       <button
         type="button"
         onClick={() => onOpen?.(sl)}
@@ -97,16 +97,16 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
           <span className={cn('mt-1 text-[22px] font-semibold tracking-[-0.5px]', past && 'text-muted-foreground')}>{day(sl.date, { day: 'numeric' })}</span>
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[15px] font-semibold">{sl.name || 'Setlist'}</span>
-          {meta && <span className="text-[13px] text-muted-foreground">{meta}</span>}
-          {rehearsal && <span className="text-[13px] text-muted-foreground">{rehearsal}</span>}
+          <span className="truncate text-body font-semibold">{sl.name || 'Setlist'}</span>
+          {meta && <span className="text-small text-muted-foreground">{meta}</span>}
+          {rehearsal && <span className="text-small text-muted-foreground">{rehearsal}</span>}
           {leader && !past && (
             summary.total === 0 ? (
-              <span className="text-[13px] font-medium text-danger">No band yet{summary.free ? ` · ${summary.free} free that day` : ''}</span>
+              <span className="text-small font-medium text-danger">No band yet{summary.free ? ` · ${summary.free} free that day` : ''}</span>
             ) : (
               <span className="mt-1 flex items-center gap-2">
                 <Faces band={faces} />
-                <span className="text-[13px] text-muted-foreground">
+                <span className="text-small text-muted-foreground">
                   {summary.yes === summary.total ? 'All in' : `${summary.yes} of ${summary.total} said yes`}
                 </span>
               </span>
@@ -125,7 +125,7 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
               type="button"
               disabled={busy}
               onClick={() => answer(a.value)}
-              className="h-8 min-h-0 cursor-pointer rounded-full border border-input bg-card px-3 font-sans text-[13px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="h-8 min-h-0 cursor-pointer rounded-full border border-input bg-card px-3 font-sans text-small font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               {a.label}
             </button>

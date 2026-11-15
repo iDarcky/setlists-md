@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ListRow } from '@/ui/shadcn/list-row';
 import QRCode from 'qrcode';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
@@ -89,15 +90,14 @@ export function ChurchCard({ team, peopleCount, services = [], onEdit }) {
 function PersonRow({ member, sub, onOpen, me = false }) {
   const name = memberName(member);
   return (
-    <button type="button" onClick={() => onOpen?.(member)}
-      className="flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent py-2 text-left font-sans text-foreground outline-none first:border-t-0 hover:bg-raised/50 focus-visible:ring-2 focus-visible:ring-ring">
-      <Avatar name={name} url={member.profile?.avatar_url} size={36} />
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[15px] font-medium">{name}{me && <span className="font-normal text-muted-foreground"> (you)</span>}</span>
-        {sub && <span className="truncate text-[13px] text-muted-foreground">{sub}</span>}
-      </span>
-      <span className="text-muted-foreground"><ChevronRightIcon /></span>
-    </button>
+    <ListRow
+      onClick={() => onOpen?.(member)}
+      inset={false}
+      leading={<Avatar name={name} url={member.profile?.avatar_url} size={36} />}
+      title={<>{name}{me && <span className="font-normal text-muted-foreground"> (you)</span>}</>}
+      sub={sub}
+      chevron
+    />
   );
 }
 

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ListRow, KeyBadge, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Avatar } from '@/app/AppTopBar';
@@ -35,14 +36,14 @@ function OrderRow({ row, onOpen, now = false }) {
           {now ? <span className="self-center"><NowDot /></span> : <span aria-hidden="true" className="w-[3px] rounded-full bg-border" />}
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="text-[14px] font-medium italic text-muted-foreground">{row.title}</span>
-          <span className="truncate text-[13px] text-muted-foreground">
+          <span className="text-small font-medium italic text-muted-foreground">{row.title}</span>
+          <span className="truncate text-small text-muted-foreground">
             {row.minutes ? `${row.minutes} min` : 'Moment'}{row.note && <> · <span className="text-foreground">{firstLine(row.note)}</span></>}
           </span>
         </span>
       </>
     );
-    const cls = cn('flex min-h-[48px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-1.5 text-left font-sans text-foreground first:border-t-0', now && 'bg-selected');
+    const cls = cn(listRowShell('compact', false), now && 'bg-selected');
     // A moment with a note opens it; one without has nothing more to show.
     return row.note
       ? <button type="button" onClick={() => onOpen(row)} className={cn(cls, 'cursor-pointer outline-none focus-visible:bg-raised')}>{body}<ChevronRightIcon /></button>
@@ -50,33 +51,29 @@ function OrderRow({ row, onOpen, now = false }) {
   }
   if (row.placeholder) {
     return (
-      <div className="flex min-h-[58px] w-full items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 font-sans first:border-t-0">
-        <span className="flex w-5 shrink-0 justify-end text-[13px] tabular-nums text-muted-foreground">{row.n}</span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[15px] font-semibold text-muted-foreground">{row.title}</span>
-          <span className="text-[13px] text-muted-foreground">To be chosen</span>
-        </span>
-      </div>
+      <ListRow
+        inset={false}
+        weight="strong"
+        leading={<span className="flex w-5 justify-end text-small tabular-nums">{row.n}</span>}
+        title={row.title}
+        titleClassName="text-muted-foreground"
+        sub="To be chosen"
+      />
     );
   }
   const sub = [row.tempo ? `${row.tempo} BPM` : '', row.leads && `${row.leads} leads`, row.time, row.capo ? `capo ${row.capo}` : ''].filter(Boolean).join(' · ');
   return (
-    <button
-      type="button"
+    <ListRow
       onClick={() => onOpen?.(row)}
-      className={cn('flex min-h-[58px] w-full min-w-0 cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised', now && 'bg-selected')}
-    >
-      <span className="flex w-5 shrink-0 justify-end text-[13px] tabular-nums text-muted-foreground">{now ? <NowDot /> : row.n}</span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className={cn('truncate text-[15px] font-semibold', row.missing && 'italic text-muted-foreground')}>{row.title}</span>
-        {(sub || row.note) && (
-          <span className="truncate text-[13px] text-muted-foreground">
-            {sub}{sub && row.note && ' · '}{row.note && <span className="text-foreground">{firstLine(row.note)}</span>}
-          </span>
-        )}
-      </span>
-      {row.key && <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-md bg-raised font-mono text-[13px] font-semibold text-[var(--chord)]">{row.key}</span>}
-    </button>
+      inset={false}
+      selected={now}
+      weight="strong"
+      leading={<span className="flex w-5 justify-end text-small tabular-nums">{now ? <NowDot /> : row.n}</span>}
+      title={row.title}
+      titleClassName={cn(row.missing && 'italic text-muted-foreground')}
+      sub={(sub || row.note) ? <>{sub}{sub && row.note && ' · '}{row.note && <span className="text-foreground">{firstLine(row.note)}</span>}</> : null}
+      trailing={row.key ? <KeyBadge>{row.key}</KeyBadge> : null}
+    />
   );
 }
 
@@ -114,17 +111,20 @@ function Band({ band, leader, onBand, myId = null, onChangeMine = null }) {
         // Your own row is the "you're on Vocals" card now (QA 11 Nov): a soft
         // highlight and a Change link, instead of a banner above the order.
         return (
-          <div key={b.id} className={cn('flex min-h-14 items-center gap-3 border-t border-border py-2 first:border-t-0', mine && '-mx-2 rounded-control border-t-transparent bg-selected px-2')}>
-            <Avatar name={b.name} url={b.url} size={32} />
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[15px] font-medium">{b.name}{mine && <span className="font-normal text-muted-foreground"> · you</span>}</span>
-              {b.part && <span className="truncate text-[13px] text-muted-foreground">{b.part}</span>}
-            </span>
-            {mine && onChangeMine && b.status !== 'pending' && (
-              <Button variant="link" size="sm" className="h-8 px-1 text-[14px] text-link" onClick={onChangeMine}>Change</Button>
-            )}
-            <Chip className={a.cls}>{a.label}</Chip>
-          </div>
+          <ListRow
+            key={b.id}
+            inset={false}
+            className={cn(mine && '-mx-2 w-[calc(100%+16px)] rounded-control border-t-transparent bg-selected px-2')}
+            leading={<Avatar name={b.name} url={b.url} size={32} />}
+            title={<>{b.name}{mine && <span className="font-normal text-muted-foreground"> · you</span>}</>}
+            sub={b.part}
+            trailing={<>
+              {mine && onChangeMine && b.status !== 'pending' && (
+                <Button variant="link" size="sm" className="h-8 px-1 text-small text-link" onClick={onChangeMine}>Change</Button>
+              )}
+              <Chip className={a.cls}>{a.label}</Chip>
+            </>}
+          />
         );
       })}
     </div>

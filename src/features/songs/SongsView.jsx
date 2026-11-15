@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { Search } from '@/ui/blocks/Search';
 import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
@@ -38,32 +39,24 @@ function Row({ row, nextLabel, selecting, selected, onOpen, onToggle, onLongPres
   const { bind, consumeClick } = useLongPress(onLongPress);
   const { song, keyName, line, next } = row;
   return (
-    <button
-      type="button"
+    <ListRow
       {...bind}
       onClick={() => { if (consumeClick()) return; (selecting ? onToggle : onOpen)?.(song); }}
       aria-pressed={selecting ? selected : undefined}
-      className={cn(
-        'flex min-h-[60px] w-full cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent px-4 py-2.5 text-left font-sans text-foreground outline-none first:border-t-0 hover:bg-raised focus-visible:bg-raised',
-        selected && 'bg-selected hover:bg-selected',
-      )}
-    >
-      {selecting && (
-        <span aria-hidden="true" className={cn('flex size-[22px] shrink-0 items-center justify-center rounded-[6px] border-[1.5px] border-input', selected && 'border-foreground bg-foreground text-background')}>
+      selected={selected}
+      weight="strong"
+      leading={selecting ? (
+        <span aria-hidden="true" className={cn('flex size-[22px] items-center justify-center rounded-[6px] border-[1.5px] border-input text-background', selected && 'border-foreground bg-foreground')}>
           {selected && <CheckIcon size={14} />}
         </span>
-      )}
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[15px] font-semibold">{song.title || 'Untitled'}</span>
-        <span className="truncate text-[13px] text-muted-foreground">
-          {song.artist ? `${song.artist} · ` : ''}<span className={cn(line.stale && 'text-[var(--chord)]')}>{line.text}</span>
-        </span>
-      </span>
-      <span className="flex shrink-0 items-center gap-2">
-        {next && nextLabel && <span className="flex h-6 items-center rounded-full bg-selected px-2.5 text-[12px] font-semibold text-link">{nextLabel}</span>}
-        {keyName && <span className="flex h-7 min-w-9 items-center justify-center rounded-[6px] bg-raised px-1.5 font-mono text-[13px] font-semibold text-[var(--chord)]">{keyName}</span>}
-      </span>
-    </button>
+      ) : null}
+      title={song.title || 'Untitled'}
+      sub={<>{song.artist ? `${song.artist} · ` : ''}<span className={cn(line.stale && 'text-[var(--chord)]')}>{line.text}</span></>}
+      trailing={(next && nextLabel) || keyName ? <>
+        {next && nextLabel && <span className="flex h-6 items-center rounded-full bg-selected px-2.5 text-caption font-semibold text-link">{nextLabel}</span>}
+        {keyName && <KeyBadge>{keyName}</KeyBadge>}
+      </> : null}
+    />
   );
 }
 

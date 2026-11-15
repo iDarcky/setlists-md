@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -9,7 +10,7 @@ import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Avatar } from '@/app/AppTopBar';
 import { PartsPicker } from '@/features/team/PartsPicker';
 import {
-  BackIcon, ChevronRightIcon, UserIcon, BellIcon, CalendarIcon, ClockIcon, CloseIcon, PlusIcon,
+  BackIcon, UserIcon, BellIcon, CalendarIcon, ClockIcon, CloseIcon, PlusIcon,
 } from '@/app/navIcons';
 
 // Settings (owner, 2026-10-25; reworked 2026-11-14): this device, the
@@ -28,18 +29,24 @@ export const GroupLabel = ({ children }) => (
 );
 const Note = ({ children }) => <p className="m-0 px-1 pt-2 text-[13px] leading-[18px] text-muted-foreground">{children}</p>;
 
-const rowBase = 'flex min-h-[56px] w-full items-center gap-3.5 border-0 border-t border-border bg-transparent px-4 py-2.5 text-left font-sans text-foreground first:border-t-0';
+const rowBase = cn(listRowShell('compact'), 'py-2.5');
 
 /** A row that opens a page. */
 export function NavRow({ icon, label, detail, badge, onClick, danger = false }) {
   return (
-    <button type="button" onClick={onClick} className={cn(rowBase, 'cursor-pointer outline-none hover:bg-raised focus-visible:bg-raised', danger && 'text-danger-text')}>
-      {icon && <span className={danger ? 'text-danger-text' : 'text-muted-foreground'}>{icon}</span>}
-      <span className="min-w-0 flex-1 truncate text-[16px] sm:text-[15px]">{label}</span>
-      {detail && <span className="max-w-[45%] truncate text-[14px] text-muted-foreground">{detail}</span>}
-      {badge && <span className="rounded-full bg-selected px-2 py-0.5 text-[12px] font-semibold text-link">{badge}</span>}
-      {!danger && <span className="text-input"><ChevronRightIcon /></span>}
-    </button>
+    <ListRow
+      onClick={onClick}
+      danger={danger}
+      size="compact"
+      weight="regular"
+      leading={icon || null}
+      title={label}
+      trailing={(detail || badge) ? <>
+        {detail && <span className="max-w-[45vw] truncate text-small text-muted-foreground">{detail}</span>}
+        {badge && <span className="rounded-full bg-selected px-2 py-0.5 text-caption font-semibold text-link">{badge}</span>}
+      </> : null}
+      chevron={!danger}
+    />
   );
 }
 
@@ -48,8 +55,8 @@ export function Row({ label, sub, children, stack = false }) {
   return (
     <div className={cn(rowBase, stack && 'flex-col items-stretch gap-2.5 py-3.5')}>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[16px] sm:text-[15px]">{label}</span>
-        {sub && <span className="text-[13px] leading-[18px] text-muted-foreground">{sub}</span>}
+        <span className="text-body">{label}</span>
+        {sub && <span className="text-small text-muted-foreground">{sub}</span>}
       </span>
       {children}
     </div>

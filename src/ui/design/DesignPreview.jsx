@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Toaster, sileo } from 'sileo';
-import { Plus, Play, Trash2 } from 'lucide-react';
+import { Plus, Play, Trash2, User, Settings, Moon, ExternalLink } from 'lucide-react';
 import { Button } from '@/ui/shadcn/button';
+import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { ToastStack } from '@/ui/blocks/ToastStack';
 import '@/ui/blocks/tokens.css';
 
@@ -152,6 +153,24 @@ export default function DesignPreview() {
               </div>
             ))}
             <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
+          </div>
+        </Section>
+
+        <Section title="List row" note="One row for every list. Title 16, line under it 14 muted. Strong (600) for what the list is made of (songs, setlists), medium for people, regular for settings. 48px one line, 56px two lines. Divider on top, none on the first row. Hover and focus = raised; picked = selected.">
+          <div className="material-base flex flex-col overflow-hidden rounded-card">
+            <ListRow weight="strong" onClick={() => {}} title="Amazing Grace" sub="Chris Tomlin · Played 3 weeks ago" trailing={<KeyBadge>G</KeyBadge>} />
+            <ListRow weight="strong" onClick={() => {}} title="Goodness of God" sub="Bethel · Next Sunday" trailing={<><span className="flex h-6 items-center rounded-full bg-selected px-2.5 text-caption font-semibold text-link">Sun</span><KeyBadge>A</KeyBadge></>} />
+            <ListRow weight="strong" selected onClick={() => {}} title="Way Maker" sub="Picked (selected)" trailing={<KeyBadge>E</KeyBadge>} />
+          </div>
+          <div className="material-base flex flex-col overflow-hidden rounded-card">
+            <ListRow onClick={() => {}} leading={<span className="flex size-9 items-center justify-center rounded-full bg-raised text-small font-semibold text-foreground">DM</span>} title="Daniel M." sub="Leader · Keys, Vocals" chevron />
+            <ListRow onClick={() => {}} leading={<span className="flex size-9 items-center justify-center rounded-full bg-raised text-small font-semibold text-foreground">EP</span>} title="Estera P." sub="Vocals" chevron />
+          </div>
+          <div className="material-base flex flex-col overflow-hidden rounded-card">
+            <ListRow size="compact" weight="regular" onClick={() => {}} leading={<User className="size-5" strokeWidth={1.8} />} title="Account" chevron />
+            <ListRow size="compact" weight="regular" onClick={() => {}} leading={<Settings className="size-5" strokeWidth={1.8} />} title="Settings" trailing={<span className="text-small text-muted-foreground">Dark</span>} chevron />
+            <ListRow size="compact" weight="regular" onClick={() => {}} leading={<Moon className="size-5" strokeWidth={1.8} />} title="What's new" trailing={<span className="rounded-full bg-selected px-2 py-0.5 text-caption font-semibold text-link">New</span>} chevron />
+            <ListRow size="compact" weight="regular" onClick={() => {}} leading={<ExternalLink className="size-5" strokeWidth={1.8} />} title="Sign out" danger />
           </div>
         </Section>
 

@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
+import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Avatar } from '@/app/AppTopBar';
 import {
-  BackIcon, ChevronRightIcon, UserIcon, TeamIcon, GearIcon, MoonIcon, HelpIcon,
+  BackIcon, UserIcon, TeamIcon, GearIcon, MoonIcon, HelpIcon,
   SparkIcon, PhoneIcon, SignOutIcon,
 } from '@/app/navIcons';
 import WebSheet from '@/features/legal/WebSheet';
@@ -26,27 +27,25 @@ const ExternalIcon = () => <Svg size={16}><path d="M15 3h6v6M10 14 21 3M18 13v6a
 
 function Row({ icon, label, sub, detail, badge, onClick, danger = false, external = false, chevron = true }) {
   return (
-    <button
-      type="button"
+    <ListRow
       onClick={onClick}
-      className={cn(
-        'flex min-h-[52px] w-full cursor-pointer items-center gap-3.5 border-0 border-t border-border bg-transparent px-4 py-2 text-left font-sans text-[16px] outline-none first:border-t-0 hover:bg-raised focus-visible:bg-raised sm:min-h-12 sm:text-[15px]',
-        danger ? 'text-danger-text' : 'text-foreground',
-      )}
-    >
-      <span className={danger ? 'text-danger-text' : 'text-muted-foreground'}>{icon}</span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate">{label}</span>
-        {sub && <span className="truncate text-[13px] text-muted-foreground">{sub}</span>}
-      </span>
-      {detail && <span className="text-small text-muted-foreground">{detail}</span>}
-      {badge != null && badge !== 0 && badge !== false && (
-        typeof badge === 'number'
-          ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[12px] font-semibold text-white">{badge}</span>
-          : <span className="rounded-full bg-selected px-2 py-0.5 text-[12px] font-semibold text-link">{badge}</span>
-      )}
-      {external ? <span className="text-input"><ExternalIcon /></span> : chevron && <span className="text-input"><ChevronRightIcon /></span>}
-    </button>
+      danger={danger}
+      size={sub ? 'default' : 'compact'}
+      weight="regular"
+      leading={icon}
+      title={label}
+      sub={sub}
+      trailing={(detail || (badge != null && badge !== 0 && badge !== false) || external) ? <>
+        {detail && <span className="text-small text-muted-foreground">{detail}</span>}
+        {badge != null && badge !== 0 && badge !== false && (
+          typeof badge === 'number'
+            ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-caption font-semibold text-white">{badge}</span>
+            : <span className="rounded-full bg-selected px-2 py-0.5 text-caption font-semibold text-link">{badge}</span>
+        )}
+        {external && <span className="text-muted-foreground"><ExternalIcon /></span>}
+      </> : null}
+      chevron={!external && chevron}
+    />
   );
 }
 
@@ -59,9 +58,9 @@ const THEMES = [
 function ThemeRow({ theme, onChange }) {
   const current = theme === 'midnight' ? 'dark' : (theme || 'dark');
   return (
-    <div className="flex min-h-[52px] items-center gap-3.5 px-4 sm:min-h-12">
-      <span className="text-muted-foreground"><MoonIcon /></span>
-      <span id="you-theme" className="flex-1 text-[16px] sm:text-[15px]">Theme</span>
+    <div className={listRowShell('compact')}>
+      <span className="flex shrink-0 items-center text-muted-foreground"><MoonIcon /></span>
+      <span id="you-theme" className="flex-1 text-body">Theme</span>
       <div role="radiogroup" aria-labelledby="you-theme" className="flex gap-0.5 rounded-control bg-raised p-0.5">
         {THEMES.map(t => (
           <button
