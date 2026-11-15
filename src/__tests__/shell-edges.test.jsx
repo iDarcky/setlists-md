@@ -1,8 +1,8 @@
 // Two iPad bugs that had nothing to do with each other except the edge of the
 // screen. Owner, 2026-08-24, on an installed iPad app:
 //
-//   1. *"you can scroll left/right on the dashboard because of the customize
-//      button, or I think that's the reason"* — it was.
+//   1. (The dashboard header overflow. Its test went with the old Dashboard,
+//      deleted 2026-11-15.)
 //   2. *"All 3 pages, dashboard, setlists, and songs have like a black bar at
 //      the bottom of the page."*
 //
@@ -13,36 +13,6 @@
 import { describe, it, expect } from 'vitest';
 
 const read = (f) => import('node:fs').then(fs => fs.readFileSync(f, 'utf8'));
-
-describe('the dashboard header cannot push the page sideways', () => {
-  // Measured in Chromium, `main.scrollWidth - main.clientWidth` on the
-  // dashboard, before the fix:
-  //
-  //   744  ok        820  OVERFLOW 14px   ← iPad portrait
-  //   768  OVERFLOW 66px                  1000+ ok
-  //
-  // and the overflowing node at 820 was `div.items-center.gap-2.mt-2` — the
-  // group holding New Song, New Setlist and Customize — ending in the Customize
-  // button itself. From `md:` up the header is a ROW of two things that both
-  // refuse to shrink: a 565px group of non-wrapping buttons and a 40px display
-  // heading with no `min-w-0`.
-  //
-  // ⚠ `<main>` is `overflow-y-auto`, and `overflow-y: auto` computes
-  // `overflow-x` to `auto` too — so an overflow inside it is a horizontal
-  // SCROLL, not a clip. html/body are `overflow: hidden`, which is why the
-  // document itself never showed it and only the page slid.
-  it('wraps instead, and both halves can give first', async () => {
-    const src = await read('src/features/dashboard/Dashboard.jsx');
-    const header = src.slice(src.indexOf('Header: Welcome + Search + Actions'),
-      src.indexOf('Reorderable widgets'));
-    expect(header).toContain('md:flex-row flex-wrap');
-    // The greeting and the action group, each able to shrink before the wrap.
-    expect(header).toContain('<div className="min-w-0">');
-    expect(header).toContain('min-w-0 flex flex-col sm:flex-row');
-    // And the widest fixed thing in the group — the search box.
-    expect(header).toContain('w-full sm:w-72 min-w-0');
-  });
-});
 
 describe('nothing shows through under the shell', () => {
   // ⚠ THE SEAM. `<main>` paints `--ds-background-100`; body was
