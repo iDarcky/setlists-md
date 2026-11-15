@@ -84,7 +84,7 @@ function ThemeRow({ theme, onChange }) {
 }
 
 const Group = ({ children }) => (
-  <div className="overflow-hidden rounded-card border border-border bg-card">{children}</div>
+  <div className="overflow-hidden rounded-card material-base">{children}</div>
 );
 const GroupLabel = ({ children }) => (
   <div className="px-1 pb-2 pt-5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</div>

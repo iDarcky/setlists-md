@@ -76,7 +76,7 @@ function LineView({ line }) {
   if (typeof line === 'object' && line?.type === 'tab') {
     const instr = TAB_INSTRUMENTS[line.instrument || instrumentForStrings(line.strings?.length)]?.label || 'Guitar';
     return (
-      <span className="flex flex-col gap-1 rounded-card border border-border bg-card px-3 py-2">
+      <span className="flex flex-col gap-1 rounded-card material-base px-3 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{line.savedName ? `Saved tab · ${line.savedName}` : `Tab · ${instr}`}{line.time ? ` · ${line.time}` : ''}</span>
         <pre className="m-0 overflow-x-auto font-mono text-[12px] leading-4 text-foreground">{(line.strings || []).map(x => `${x.note}|${x.content}`).join('\n') || 'Empty tab'}</pre>
       </span>
@@ -588,7 +588,7 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
           ) : (
             <div key={ri} className="px-1"><LineView line={r.obj} /></div>
           )))}
-          <div className="sticky bottom-2 z-10 flex flex-wrap items-center gap-1 rounded-card border border-border bg-card p-1.5 shadow-[0_4px_16px_rgba(0,0,0,.18)]">
+          <div className="sticky bottom-2 z-sticky flex flex-wrap items-center gap-1 rounded-card material-medium p-1.5">
             <span className="flex-1" />
             <Button size="sm" onClick={() => setWords(null)}>Done</Button>
           </div>

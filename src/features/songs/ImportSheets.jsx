@@ -89,7 +89,7 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
             </button>
           </div>
         )}
-        <div className="overflow-hidden rounded-card border border-border bg-card">
+        <div className="overflow-hidden rounded-card material-base">
           {items.map((it, i) => {
             const on = !off.has(i);
             const k = songKey(it.song);
@@ -116,7 +116,7 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
         {failed.length > 0 && (
           <>
             <div className="px-0.5 pt-1 text-[13px] text-muted-foreground">Couldn’t read {failed.length === 1 ? '1 file' : `${failed.length} files`}</div>
-            <div className="overflow-hidden rounded-card border border-border bg-card">
+            <div className="overflow-hidden rounded-card material-base">
               {failed.map(f => (
                 <div key={f} className="border-t border-border px-4 py-3 text-[14px] first:border-t-0">{f}</div>
               ))}

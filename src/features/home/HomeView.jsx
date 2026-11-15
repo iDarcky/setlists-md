@@ -48,7 +48,7 @@ function Section({ label, action, children, className }) {
 }
 
 const Card = ({ className, children, ...props }) => (
-  <div className={cn('overflow-hidden rounded-card border border-border bg-card', className)} {...props}>{children}</div>
+  <div className={cn('overflow-hidden rounded-card material-base', className)} {...props}>{children}</div>
 );
 
 const TextLink = ({ onClick, children }) => (

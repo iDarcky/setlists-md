@@ -25,7 +25,7 @@ function Filter({ label, value, onChange, options }) {
 }
 
 const Stat = ({ n, label }) => (
-  <div className="flex flex-1 flex-col gap-0.5 rounded-card border border-border bg-card px-3.5 py-3">
+  <div className="flex flex-1 flex-col gap-0.5 rounded-card material-base px-3.5 py-3">
     <span className="text-[22px] font-semibold leading-7 tabular-nums">{n}</span>
     <span className="text-[13px] text-muted-foreground">{label}</span>
   </div>

@@ -219,7 +219,7 @@ export default function SongsView({
         </header>
 
         {toCheck > 0 && !selecting && onCheckNext && (
-          <div role="status" className="flex items-center gap-3 rounded-card border border-border bg-card px-4 py-3">
+          <div role="status" className="flex items-center gap-3 rounded-card material-base px-4 py-3">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <b className="text-[15px] font-semibold">{toCheck === 1 ? '1 imported song to check' : `${toCheck} imported songs to check`}</b>
               <span className="text-[13px] text-muted-foreground">Open each one, fix what came out wrong, and keep it.</span>
@@ -229,7 +229,7 @@ export default function SongsView({
         )}
 
         {total === 0 ? (
-          <div className="mt-6 flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
+          <div className="mt-6 flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
             <b className="text-[17px]">{leader ? 'Your song library is empty' : 'No songs yet'}</b>
             <p className="m-0 max-w-[300px] text-[15px] leading-[21px] text-muted-foreground">
               {leader ? 'Add the songs your church sings: import the files you already have, or type one in.' : 'When your leaders add songs, they show up here.'}
@@ -276,7 +276,7 @@ export default function SongsView({
               </span>
             </div>
             {rows.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
+              <div className="flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
                 <b className="text-[17px]">No songs match</b>
                 <p className="m-0 text-[15px] text-muted-foreground">Try fewer filters or another search.</p>
               </div>
@@ -296,7 +296,7 @@ export default function SongsView({
                 <SongPreview row={picked} nextLabel={nextLabel} onOpen={onOpen} onEdit={leader ? onEdit : null} />
               </div>
             ) : (
-              <div className="overflow-hidden rounded-card border border-border bg-card">
+              <div className="overflow-hidden rounded-card material-base">
                 {shownRows.map(r => (
                   <Row
                     key={r.song.id}
@@ -317,7 +317,7 @@ export default function SongsView({
       </div>
 
       {selecting && (
-        <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+84px)] z-30 mx-auto flex max-w-[656px] flex-col gap-2 rounded-[16px] border border-border bg-card p-2.5 shadow-[0_8px_30px_rgba(0,0,0,.35)] sm:bottom-6">
+        <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+84px)] z-chrome mx-auto flex max-w-[656px] flex-col gap-2 rounded-card material-medium p-2.5 sm:bottom-6">
           <div className="flex items-center justify-between px-1 text-[14px] font-semibold">
             <span>{selected.size} selected</span>
             <button type="button" onClick={stopSelect} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link">Cancel</button>

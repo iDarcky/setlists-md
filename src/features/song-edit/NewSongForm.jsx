@@ -82,7 +82,7 @@ export function ArtistInput({ value, onChange, artists, className }) {
         onChange={(e) => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} />
       {open && hits.length > 0 && (
-        <div role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 flex flex-col rounded-control border border-border bg-card p-1.5 shadow-lg">
+        <div role="listbox" className="absolute inset-x-0 top-full z-menu mt-1 flex flex-col rounded-card material-menu p-1.5">
           {hits.map(a => <button key={a} type="button" role="option" aria-selected="false" className={menuRow} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(a)}>{a}</button>)}
         </div>
       )}

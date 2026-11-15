@@ -26,7 +26,7 @@ const PasteIcon = () => <Svg><path d="M9 4h6v3H9z" /><path d="M15 5h2a2 2 0 0 1 
 function Option({ icon, title, text, onClick, disabled }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className="flex w-full cursor-pointer items-center gap-3.5 rounded-card border border-border bg-card px-4 py-3.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-60">
+      className="flex w-full cursor-pointer items-center gap-3.5 rounded-card material-base px-4 py-3.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-60">
       <span className="text-muted-foreground">{icon}</span>
       <span className="flex min-w-0 flex-col gap-0.5">
         <b className="text-[15px] font-semibold">{title}</b>

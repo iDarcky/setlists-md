@@ -166,7 +166,7 @@ function Listen({ url, title, open, onOpen, onClose, compact }) {
   if (!open) {
     return (
       <button type="button" onClick={onOpen}
-        className="flex min-h-0 w-full cursor-pointer items-center gap-3 rounded-card border border-border bg-card p-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+        className="flex min-h-0 w-full cursor-pointer items-center gap-3 rounded-card material-base p-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
         <span className={cn('relative flex shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-raised bg-cover bg-center text-white', compact ? 'h-12 w-20' : 'h-14 w-24')}
           style={{ backgroundImage: `url(https://i.ytimg.com/vi/${id}/mqdefault.jpg)` }}>
           <span className="absolute inset-0 bg-black/30" /><span className="relative"><PlayFill /></span>
@@ -179,7 +179,7 @@ function Listen({ url, title, open, onOpen, onClose, compact }) {
     );
   }
   return (
-    <div className="overflow-hidden rounded-card border border-border bg-card">
+    <div className="overflow-hidden rounded-card material-base">
       <div className="relative aspect-video min-h-[200px] w-full bg-black">
         <iframe
           title={`${title} on YouTube`}
@@ -202,7 +202,7 @@ function About({ rows }) {
   return (
     <>
       <h2 className={group}>Credits</h2>
-      <div className="overflow-hidden rounded-card border border-border bg-card">
+      <div className="overflow-hidden rounded-card material-base">
         {rows.map(([k, v]) => (
           <div key={k} className="flex min-h-12 items-center gap-3 border-t border-border px-4 py-2.5 first:border-t-0">
             <span className="w-[92px] shrink-0 text-[14px] text-muted-foreground">{k}</span>
@@ -341,7 +341,7 @@ export default function SongView({
       {song.notes && (
         <>
           <h2 className={group}>Notes for the band</h2>
-          <p className="m-0 whitespace-pre-wrap rounded-card border border-border bg-card px-4 py-3 text-[15px] leading-[22px]">{song.notes}</p>
+          <p className="m-0 whitespace-pre-wrap rounded-card material-base px-4 py-3 text-[15px] leading-[22px]">{song.notes}</p>
         </>
       )}
       <About rows={about} />

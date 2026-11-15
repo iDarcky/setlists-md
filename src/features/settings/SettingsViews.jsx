@@ -21,7 +21,7 @@ import {
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
 export const Group = ({ children, className }) => (
-  <div className={cn('overflow-hidden rounded-card border border-border bg-card', className)}>{children}</div>
+  <div className={cn('overflow-hidden rounded-card material-base', className)}>{children}</div>
 );
 export const GroupLabel = ({ children }) => (
   <div className="px-1 pb-2 pt-6 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground first:pt-2">{children}</div>

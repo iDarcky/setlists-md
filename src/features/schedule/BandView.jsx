@@ -67,7 +67,7 @@ export default function BandView({
 }) {
   if (!columns.length) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
         <b className="text-[17px]">Nothing to plan yet</b>
         <p className="m-0 max-w-[320px] text-[15px] leading-[21px] text-muted-foreground">Make a setlist with a date, then pick its band here.</p>
       </div>
@@ -91,7 +91,7 @@ export default function BandView({
         </div>
       </div>
 
-      <div role="grid" aria-label="Band" className="overflow-hidden rounded-card border border-border bg-card">
+      <div role="grid" aria-label="Band" className="overflow-hidden rounded-card material-base">
         <div role="row" className="grid border-b border-border bg-raised" style={{ gridTemplateColumns: cols }}>
           <span role="columnheader" className="flex items-center px-3 text-[13px] text-muted-foreground">{people.length} {people.length === 1 ? 'person' : 'people'}</span>
           {columns.map(c => (
@@ -135,7 +135,7 @@ export default function BandView({
       </div>
 
       {(pending > 0 || error) && (
-        <div className="flex flex-col gap-2 rounded-card border border-border bg-card p-3">
+        <div className="flex flex-col gap-2 rounded-card material-base p-3">
           {pending > 0 && (
             <>
               <p className="m-0 text-[14px] text-muted-foreground">

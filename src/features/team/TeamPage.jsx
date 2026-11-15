@@ -56,7 +56,7 @@ export function ChurchCard({ team, peopleCount, services = [], onEdit }) {
     team.ccli_licence && { d: ICONS.licence, text: `CCLI ${team.ccli_licence}`, label: 'Licence number' },
   ].filter(Boolean);
   return (
-    <section aria-label="Church info" className="flex flex-col gap-4 rounded-card border border-border bg-card p-4 sm:p-5">
+    <section aria-label="Church info" className="flex flex-col gap-4 rounded-card material-base p-4 sm:p-5">
       <div className="flex items-center gap-3.5">
         <ChurchMark name={team.name} url={team.logo_url} size={52} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -166,7 +166,7 @@ export function Waiting({ requests = [], onApprove, onDecline, onApproveAll, bus
 export function UsageEntry({ summary, onOpen }) {
   return (
     <button type="button" onClick={onOpen}
-      className="flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-card border border-border bg-card px-4 py-3 text-left font-sans text-foreground outline-none hover:bg-raised/50 focus-visible:ring-2 focus-visible:ring-ring">
+      className="flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-card material-base px-4 py-3 text-left font-sans text-foreground outline-none hover:bg-raised/50 focus-visible:ring-2 focus-visible:ring-ring">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-raised"><Icon d={ICONS.chart} size={18} /></span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-[15px] font-semibold">Song usage</span>
@@ -199,7 +199,7 @@ export function InviteCard({ teamName, url, enabled = true, loading = false, err
   };
 
   return (
-    <section aria-label="Invite people" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 sm:p-5">
+    <section aria-label="Invite people" className="flex flex-col gap-3 rounded-card material-base p-4 sm:p-5">
       <div className="flex flex-col gap-1">
         <h2 className="m-0 text-[17px] font-semibold">Invite people</h2>
         <p className="m-0 text-[14px] leading-5 text-muted-foreground">Anyone with the link can ask to join. You let them in.</p>

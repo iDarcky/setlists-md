@@ -107,7 +107,7 @@ export default function AvailabilitySheet({
   );
   // On the Schedule page the month sits in a card (2026-11-15); elsewhere it
   // is a sheet.
-  if (inline) return <div className="rounded-card border border-border bg-card p-4">{body}</div>;
+  if (inline) return <div className="rounded-card material-base p-4">{body}</div>;
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) setPicked(null); onOpenChange?.(o); }} title="My availability" className="h-auto sm:max-w-[440px]">
       {body}

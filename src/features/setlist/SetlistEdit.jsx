@@ -215,11 +215,11 @@ function AddSong({ open, onOpenChange, songs, setlist, setlists, at, onAdd }) {
         {!q.trim() && suggested.length > 0 && (
           <>
             <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Suggested</span>
-            <div className="rounded-card border border-border bg-card px-4">{suggested.map(x => row(x.song, x.why))}</div>
+            <div className="rounded-card material-base px-4">{suggested.map(x => row(x.song, x.why))}</div>
             <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">All songs</span>
           </>
         )}
-        <div className="rounded-card border border-border bg-card px-4">
+        <div className="rounded-card material-base px-4">
           {list.length ? list.map(s => row(s)) : <p className="m-0 py-6 text-center text-[14px] text-muted-foreground">No song matches “{q}”.</p>}
         </div>
       </div>

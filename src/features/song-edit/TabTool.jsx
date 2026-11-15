@@ -146,7 +146,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-3 py-3">
-          <div className="inline-block rounded-card border border-border bg-card px-2 py-2.5">
+          <div className="inline-block rounded-card material-base px-2 py-2.5">
             <div className="flex" style={{ marginLeft: 22 }}>
               {Array.from({ length: total }, (_, p) => (
                 <div key={p} className={cn('shrink-0 text-center font-mono', p % cpb === 0 ? 'text-[10px] font-bold text-muted-foreground' : 'text-[9px] text-muted-foreground/60')}

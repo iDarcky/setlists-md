@@ -26,7 +26,7 @@ function Choice({ icon, title, body, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-0 w-full cursor-pointer items-center gap-3.5 rounded-card border border-border bg-card p-4 text-left font-sans text-foreground outline-none transition-colors hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex min-h-0 w-full cursor-pointer items-center gap-3.5 rounded-card material-base p-4 text-left font-sans text-foreground outline-none transition-colors hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Square>{icon}</Square>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -138,7 +138,7 @@ export function WaitingApprovalView({ church, email, sentLabel, onChange, onSign
         <Step state="now" title={`We set up ${church}`} sub="Usually within two days" />
         <Step title="You invite your band with one link" />
       </ol>
-      <p className="m-0 rounded-card border border-border bg-card px-4 py-3.5 text-small text-muted-foreground">
+      <p className="m-0 rounded-card material-base px-4 py-3.5 text-small text-muted-foreground">
         <b className="font-semibold text-foreground">While you wait:</b> add Setlists.md to your Home Screen, so it opens full screen and works offline.{' '}
         <a className="text-link" href="https://setlists.md/help#install" target="_blank" rel="noreferrer">Show me how</a>
       </p>

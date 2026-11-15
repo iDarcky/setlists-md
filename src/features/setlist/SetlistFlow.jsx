@@ -85,7 +85,7 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-card border border-border bg-card">
+      <div className="rounded-card material-base">
         <Field label="Name">
           <Input value={draft.name || ''} maxLength={80} placeholder="Sunday Morning" aria-label="Setlist name"
             onChange={e => { setNameTouched(true); setDraft(d => ({ ...d, name: e.target.value })); }}
@@ -105,7 +105,7 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
 
       <Caps className="pt-2" right={<Switch label="Rehearsal" on={rehearsal} onChange={setRehearsal} />}>Rehearsal</Caps>
       {rehearsal && (
-        <div className="rounded-card border border-border bg-card">
+        <div className="rounded-card material-base">
           <Field label="Date">
             {rDates.map(d => <Chip key={d} on={draft.rehearsalDate === d} className="h-8 px-3 text-[13px]" onClick={() => setDraft(x => ({ ...x, rehearsalDate: d }))}>{longDay(d)}</Chip>)}
             <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setSheet('rDate')}>Other…</Chip>
@@ -196,7 +196,7 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
       {groups.map(({ label, list }) => (list.length > 0 || !label) && (
         <div key={label || 'results'} className="flex flex-col gap-2">
           {label && <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>}
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             {list.map(s => {
               const lp = lastPlayed(s.id, setlists, today, draft.id);
               const v = resolveSongView(s);
@@ -427,7 +427,7 @@ export default function SetlistFlow({
   };
 
   const orderList = (
-    <div ref={listRef} className="flex flex-col overflow-hidden rounded-card border border-border bg-card">
+    <div ref={listRef} className="flex flex-col overflow-hidden rounded-card material-base">
       {order.rows.map((r, i) => {
         const it = items[i];
         const isSlot = isPlaceholder(it);
@@ -507,7 +507,7 @@ export default function SetlistFlow({
         <Chip onClick={addMoment}><PlusIcon size={16} />Add moment</Chip>
       </div>
       {canReady && (
-        <div className="mt-2 flex items-center gap-3 rounded-card border border-border bg-card px-4 py-3">
+        <div className="mt-2 flex items-center gap-3 rounded-card material-base px-4 py-3">
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-[15px] font-medium">Mark ready when I save</span>
             <span className="text-[12px] text-muted-foreground">{asks ? 'The band hears it’s final once they’re asked.' : 'The band hears it’s final.'}</span>
@@ -529,7 +529,7 @@ export default function SetlistFlow({
     <div className="flex flex-col gap-3">
       <Caps>Band</Caps>
       {team ? (
-        <div className="rounded-card border border-border bg-card px-4">
+        <div className="rounded-card material-base px-4">
           <BandSection
             key={isNew ? 'plan' : 'live'}
             setlist={draft} setlists={setlists} schedules={schedules} setlistMap={setlistMap}

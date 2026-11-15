@@ -60,7 +60,7 @@ function Invite({ invite, clockFormat, onAnswer }) {
 
 function Plays({ plays, clockFormat, onOpen }) {
   return (
-    <div className="overflow-hidden rounded-card border border-border bg-card">
+    <div className="overflow-hidden rounded-card material-base">
       {plays.map(({ setlist: sl, schedule }) => (
         <button
           key={schedule.id}
@@ -107,7 +107,7 @@ export default function SchedulePage({
       {invites.length > 0 && (
         <section aria-label="Can you play?" className="flex flex-col gap-2">
           <Label>Can you play? · {invites.length}</Label>
-          <div className="overflow-hidden rounded-card border border-border bg-card">
+          <div className="overflow-hidden rounded-card material-base">
             {invites.map(i => <Invite key={i.schedule.id} invite={i} clockFormat={clockFormat} onAnswer={onAnswer} />)}
           </div>
         </section>

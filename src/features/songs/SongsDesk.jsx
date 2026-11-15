@@ -19,7 +19,7 @@ const COLS = 'grid-cols-[minmax(0,2.2fr)_minmax(0,1.4fr)_48px_52px_minmax(0,1fr)
 export function SongsTable({ rows = [], picked, selecting, selected, onPick, onOpen, onToggle, sort, onSort }) {
   const head = 'flex h-10 min-h-0 items-center border-0 bg-transparent p-0 text-left font-sans text-[12px] font-semibold text-muted-foreground';
   return (
-    <div role="table" aria-label="Songs" className="overflow-hidden rounded-card border border-border bg-card">
+    <div role="table" aria-label="Songs" className="overflow-hidden rounded-card material-base">
       <div role="row" className={cn('grid items-center gap-3 bg-raised px-4', selecting && 'pl-12', COLS)}>
         <button type="button" role="columnheader" onClick={() => onSort?.('az')} className={cn(head, 'cursor-pointer')}>Title{sort === 'az' ? ' ↑' : ''}</button>
         <span role="columnheader" className={head}>Artist</span>
@@ -96,7 +96,7 @@ export function SongPreview({ row, nextLabel, onOpen, onEdit, customSectionTypes
   const lines = firstLines(arr);
   const facts = { plays: stat?.plays || 0, last: stat?.last ? short(stat.last) : null, usualKey: mostPlayedKey(song.keyHistory) || '' };
   return (
-    <aside aria-label="Song preview" className="sticky top-4 flex flex-col gap-3.5 rounded-card border border-border bg-card p-5">
+    <aside aria-label="Song preview" className="sticky top-4 flex flex-col gap-3.5 rounded-card material-base p-5">
       <div className="flex items-center gap-4">
         <Cover song={song} size={72} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">

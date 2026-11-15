@@ -91,7 +91,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-4 pb-16 pt-4">
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             <Row label="Name"><Input value={t.templateName || ''} maxLength={60} placeholder="Sunday Morning" onChange={e => set({ templateName: e.target.value })} className="h-10" /></Row>
             <Row label="Day">{WEEKDAYS.map((d, i) => <Chip key={d} on={t.weekday === i} className="h-8 px-2.5 text-[13px]" onClick={() => set({ weekday: i })}>{d}</Chip>)}</Row>
             <Row label="Time"><TimeInput aria-label="Service time" value={t.time} onChange={v => set({ time: v })} /></Row>
@@ -100,7 +100,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
 
           <Caps right={<Switch label="Rehearsal" on={t.rehearsalOn !== false && !!t.rehearsalOn} onChange={v => set({ rehearsalOn: v })} />}>Rehearsal</Caps>
           {t.rehearsalOn && (
-            <div className="rounded-card border border-border bg-card">
+            <div className="rounded-card material-base">
               <Row label="Day">
                 {rehearsalDays.map(([n, l]) => <Chip key={n} on={!t.rehearsalPick && (Number(t.rehearsalOffset) || 0) === n} className="h-8 px-3 text-[13px]" onClick={() => set({ rehearsalOffset: n, rehearsalPick: false })}>{l}</Chip>)}
                 <Chip on={!!t.rehearsalPick} dashed={!t.rehearsalPick} className="h-8 px-3 text-[13px]" onClick={() => set({ rehearsalPick: true })}>Pick each week</Chip>
@@ -112,7 +112,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
 
           <Caps right={<Switch label="Number the setlists" on={numbered} onChange={v => { setTyped(null); set(v ? { namePattern: defaultPattern, nameCustom: false, namePad: 1, startNumber: 1 } : { namePattern: '', nameCustom: false }); }} />}>Number the setlists</Caps>
           {numbered ? (
-            <div className="rounded-card border border-border bg-card">
+            <div className="rounded-card material-base">
               <Row label="Next one">
                 <Input value={typed ?? formatName(effPattern, next, width)} maxLength={60} aria-label="Next setlist's name" aria-invalid={!typedOk || undefined}
                   onChange={e => typeName(e.target.value)} onBlur={() => { if (typedOk) setTyped(null); }} className="h-10 font-mono" />
@@ -128,7 +128,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           )}
 
           <Caps>Band</Caps>
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             {partRows.map(({ part, n }) => (
               <div key={part} className="flex min-h-[52px] items-center gap-3 border-t border-border px-4 py-1.5 first:border-t-0">
                 <span className="flex-1 text-[15px] font-medium">{partName(part)}</span>
@@ -156,7 +156,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           </div>
 
           <Caps>Order</Caps>
-          <div ref={listRef} className="rounded-card border border-border bg-card px-2 py-1">
+          <div ref={listRef} className="rounded-card material-base px-2 py-1">
             {items.map((it, i) => (
               <div key={i} data-drag-row style={rowStyle(i)} className={cn('my-1 flex min-h-12 items-center gap-2 rounded-control bg-card pr-1', isPlaceholder(it) ? 'border border-dashed border-input' : 'border border-transparent')}>
                 <Grip {...gripProps(i)} />
@@ -196,7 +196,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
 export function TemplatesList({ templates = [], onEdit, onNew }) {
   return (
     <div className="flex flex-col gap-3 font-sans">
-      <div className="rounded-card border border-border bg-card">
+      <div className="rounded-card material-base">
         {templates.map(t => (
           <button key={t.id} type="button" onClick={() => onEdit(t)}
             className="flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-solid border-border bg-transparent px-4 py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised">
@@ -255,19 +255,19 @@ export function TemplateView({ template: t, onEdit, onClose, embedded = false })
           <p className="m-0 text-[14px] text-muted-foreground">Template{numbered ? ` · setlists are numbered (${formatName(t.namePattern, Number(t.startNumber) || 1, t.namePad)} …)` : ''}</p>
 
           <Caps>When</Caps>
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             <Info label="Service" value={[serviceDay != null && WEEKDAYS[serviceDay], t.time].filter(Boolean).join(' ')} />
             {t.rehearsalOn && <Info label="Rehearsal" value={[rehearsalDay, t.rehearsalTime].filter(Boolean).join(' ')} />}
             <Info label="Place" value={t.location} />
           </div>
 
           <Caps>Band</Caps>
-          <div className="rounded-card border border-border bg-card px-4 py-3 text-[15px]">
+          <div className="rounded-card material-base px-4 py-3 text-[15px]">
             {parts.length ? parts.map(x => (x.n > 1 ? `${x.n} ${partName(x.part)}` : partName(x.part))).join(', ') : <span className="text-muted-foreground">No parts picked</span>}
           </div>
 
           <Caps>Order of service</Caps>
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             {items.length ? items.map((it, i) => (
               <div key={i} className="flex min-h-11 items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
                 <span className="w-5 text-[13px] text-muted-foreground">{i + 1}</span>
