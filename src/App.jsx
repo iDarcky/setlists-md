@@ -32,6 +32,7 @@ import { createBackupMirror } from '@/sync/backup';
 import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
+import { markOrigin } from '@/sync/provenance';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
@@ -423,6 +424,13 @@ export default function App() {
     });
   };
   const isSwitchingLibraryRef = useRef(false);
+  // Bumped on every Space switch. A sync started in one Space must never land
+  // in another: its result is that Space's songs, and adopting it into the
+  // next Space's state makes them look like local edits there, which the next
+  // push uploads. On 2026-11-14 that copied a Personal library into a church
+  // (31 songs created, 5 overwritten) right after a sign-in on a new browser:
+  // Personal's first pull resolved after the switch to the church.
+  const libraryEpochRef = useRef(0);
   // Tracks which user we've already applied the "home Space" default for, so we
   // do it once per sign-in and never override a later manual switch.
   const defaultSpaceAppliedForRef = useRef(null);
@@ -720,7 +728,11 @@ export default function App() {
       setSyncState(prev => ({ ...prev, state: 'offline', provider: providerId }));
       return;
     }
-    const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
+    const epoch = libraryEpochRef.current;
+    const engine = syncEngineRef.current;
+    const result = await engine.fullSync(songs, setlists, tombstones);
+    // The Space changed while this sync ran: the result belongs to the old one.
+    if (epoch !== libraryEpochRef.current || engine !== syncEngineRef.current) return;
     adoptSyncResult(result, songs, setlists, tombstones);
     if (result.errors?.length > 0) {
       const first = result.errors[0];
@@ -768,6 +780,7 @@ export default function App() {
   // Load data on mount or when active library changes
   useEffect(() => {
     isSwitchingLibraryRef.current = true;
+    libraryEpochRef.current += 1;
     let ignore = false;
     
     // Clear stale data immediately to avoid "ghost" content during load
@@ -812,6 +825,10 @@ export default function App() {
         savedSetlists = healSetlistLinks(savedSetlists, savedSongs).setlists;
       }
 
+      // Stamp what was read for this Space, so no other Space's engine can
+      // ever upload it (sync/provenance.js).
+      markOrigin(savedSongs, activeLibrary);
+      markOrigin(savedSetlists || [], activeLibrary);
       setSongs(savedSongs);
       setSetlists(savedSetlists || []);
 
@@ -879,6 +896,10 @@ export default function App() {
         // Force the provider state for team libraries
         await setActiveProvider(providerId, { connected: true }, activeLibrary);
       }
+      // Another switch may have started during the awaits above; by now
+      // syncEngineRef holds THAT Space's engine, and handing it this Space's
+      // songs would push them there.
+      if (ignore) return;
 
       if (providerId) {
         setSyncState({ state: 'idle', lastSync: storedSync?.lastSyncTime, provider: providerId });
@@ -1684,7 +1705,9 @@ export default function App() {
       const targetSongs = await loadSongs(targetLibraryId);
       // Clean up its old ID if it exists in the new library to avoid duplicates
       const filteredTargetSongs = targetSongs.filter(s => s.id !== song.id);
-      filteredTargetSongs.push(song);
+      // A new object: the original is stamped with the Space it leaves, and the
+      // target's engine refuses another Space's objects (sync/provenance.js).
+      filteredTargetSongs.push({ ...song });
       await saveSongs(filteredTargetSongs, targetLibraryId);
 
       // Trigger a background sync on the target library so the cloud gets the file

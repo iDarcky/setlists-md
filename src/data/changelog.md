@@ -2,6 +2,18 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.25.2 — Songs stay in their own Space
+*November 2026*
+
+### Fixed
+- **Signing in on a new browser no longer copies your Personal songs into your church.** If the app switched from Personal to the church before Personal finished loading, those songs could be added to the church, or replace church copies of the same song.
+
+## 0.25.1 — Other in the band
+*November 2026*
+
+### Fixed
+- **Other shows up in a setlist's band and in service templates**, so a leader can add the sax player (or anyone the list doesn't name) to Sunday's band. Other is also in the reader's Your instrument menu.
+
 ## 0.25.0 — Faster, roomier, easier to update
 *November 2026*
 

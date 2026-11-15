@@ -93,7 +93,7 @@ the surface you're on.
 `OfflineBanner` · `UpdatePrompt`
 
 **Data display** — `Highlight` (search matches, accent-correct) · `NoteContent` ·
-`NotesStack` · `Avatar` / `AvatarUploader` · `CalendarWidget`
+`NotesStack` · `Avatar` / `AvatarUploader`
 
 **Menus & controls** — `ColumnsMenu` · `CardFieldsMenu` · `SelectionBar` ·
 `Tabs` · `EdgeNavArrows` · `FloatingNavPill` · `FloatingStructure`

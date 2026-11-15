@@ -1,4 +1,4 @@
-import { normalize, labelFor } from '@/data/instruments';
+import { normalize, labelFor, INSTRUMENT_IDS } from '@/data/instruments';
 import { bandFor } from '@/lib/homeData';
 
 // The leader's band picker on the setlist page: one row per part, filled by
@@ -6,7 +6,11 @@ import { bandFor } from '@/lib/homeData';
 // A part is a top-level instrument id: 'drums', 'keys', 'vocals'…
 
 const DAY = 86400000;
-const ORDER = ['vocals', 'keys', 'piano', 'acoustic-guitar', 'electric-guitar', 'bass-guitar', 'drums'];
+// The order parts are listed in. Any instrument this list forgets is appended
+// from `INSTRUMENT_IDS`, so a new instrument can never go missing from the band
+// picker again: "Other" did (2026-11-14) because this list was hand-written.
+const ORDER = ['vocals', 'keys', 'piano', 'acoustic-guitar', 'electric-guitar', 'bass-guitar', 'drums', 'other'];
+for (const id of INSTRUMENT_IDS) if (!ORDER.includes(id)) ORDER.push(id);
 
 /** Any stored role or instrument → its top-level part id, or null. */
 export function partOf(token) {

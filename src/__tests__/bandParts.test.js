@@ -50,3 +50,14 @@ describe('candidates', () => {
     expect(g.cant.map(p => p.name)).toEqual(['Kim']);
   });
 });
+
+describe('ADDABLE_PARTS', () => {
+  // "Other" was missing from the band picker (P0, 2026-11-14): the part list
+  // was hand-written and forgot the new instrument.
+  it('offers every instrument, Other included', async () => {
+    const { ADDABLE_PARTS } = await import('@/lib/bandParts');
+    const { INSTRUMENT_IDS } = await import('@/data/instruments');
+    for (const id of INSTRUMENT_IDS) expect(ADDABLE_PARTS).toContain(id);
+    expect(ADDABLE_PARTS).toContain('other');
+  });
+});
