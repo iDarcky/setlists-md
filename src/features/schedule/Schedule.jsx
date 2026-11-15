@@ -16,7 +16,12 @@ import BandView from './BandView';
 export default function Schedule({
   setlists = [], schedules = [], updateSchedule, createSchedule, deleteSchedule, setlistMap = {},
   onOpenSetlist, onNewSetlist, onBack, clockFormat = '12h', firstDayOfWeek = 'sunday',
+  mode = 'schedule',
 }) {
+  // mode 'setlists' is the Setlists tab (2026-11-15): the same list with only
+  // Upcoming / Past. No Band grid, no "Can you play?" strip, no availability:
+  // those stay on Schedule, opened from Home, until Schedule is redesigned.
+  const setlistsOnly = mode === 'setlists';
   const { user } = useAuth();
   const { team, members, isAdmin, canManageBand } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
@@ -156,10 +161,12 @@ export default function Schedule({
     <>
       <ScheduleView
         onBack={onBack}
+        title={setlistsOnly ? 'Setlists' : 'Schedule'}
+        newLabel={setlistsOnly ? 'New setlist' : 'New'}
         leader={leader}
         tab={tab}
         onTab={setTab}
-        showBand={leader && !!createSchedule}
+        showBand={!setlistsOnly && leader && !!createSchedule}
         band={tab === 'band' ? (
           <BandView
             {...bandPage}
@@ -180,11 +187,11 @@ export default function Schedule({
         onOpen={onOpenSetlist}
         onAnswer={answerAsk}
         onNew={leader ? onNewSetlist : null}
-        onAvailability={team ? () => setSheet(true) : null}
-        canPlay={canPlay}
+        onAvailability={team && !setlistsOnly ? () => setSheet(true) : null}
+        canPlay={setlistsOnly ? null : canPlay}
         onAnswerDay={(tile, value) => answerDay(tile.date, value)}
       />
-      {team && (
+      {team && !setlistsOnly && (
         <AvailabilitySheet
           open={sheet}
           onOpenChange={setSheet}

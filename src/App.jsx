@@ -2699,7 +2699,24 @@ export default function App() {
               otherChurches={ledChurches.filter(t => t.id !== activeLibrary)}
             />
           )}
-          {view === 'setlists' && (
+          {/* A church's Setlists tab is the Schedule list with only Upcoming /
+              Past (2026-11-15). Personal keeps the old library page. */}
+          {view === 'setlists' && activeLibrary !== 'personal' && (
+            <Schedule
+              mode="setlists"
+              setlists={setlists}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              createSchedule={null}
+              deleteSchedule={deleteSchedule}
+              setlistMap={teamSetlistMap}
+              onOpenSetlist={goSetlistView}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              clockFormat={settings?.clockFormat || '12h'}
+              firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
+            />
+          )}
+          {view === 'setlists' && activeLibrary === 'personal' && (
             <Setlists
             songs={songs}
               setlists={setlists}

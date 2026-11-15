@@ -9,6 +9,9 @@ export const HomeIcon = ({ size = 22 }) => (
 export const CalendarIcon = ({ size = 22 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><rect x="3" y="4.5" width="18" height="17" rx="3" /><path d="M8 2.5v4M16 2.5v4M3 10h18" /></svg>
 );
+export const SetlistIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M7.5 8h9M7.5 12h9M7.5 16h5" /></svg>
+);
 export const MusicIcon = ({ size = 22 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" strokeWidth="1.8" {...base}><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>
 );
