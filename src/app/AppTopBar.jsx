@@ -1,4 +1,5 @@
 import { cn } from '@/ui/shadcn/utils';
+import { SYNC_DOT } from '@/lib/syncStatus';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -58,7 +59,7 @@ const iconButton = 'relative flex size-11 min-h-0 cursor-pointer items-center ju
  * @param {React.ReactNode} [pill]     the nav pill, shown from 1024px
  * @param {'auto'|'compact'|'wide'} [layout]
  */
-export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications, notifications, me, meBadge = 0, onOpenYou, add, pill, layout = 'auto', className }) {
+export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications, notifications, me, meBadge = 0, sync, onOpenYou, add, pill, layout = 'auto', className }) {
   const L = LAYOUTS[layout] || LAYOUTS.auto;
   const wide = useMediaQuery('(min-width: 640px)');
   const bell = (onClick) => (
@@ -132,8 +133,10 @@ export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications,
             </>
           )
         ) : onOpenNotifications && bell(onOpenNotifications)}
-        <button type="button" onClick={onOpenYou} aria-label="You: profile and settings" className={iconButton}>
+        <button type="button" onClick={onOpenYou} aria-label={sync ? `You: profile and settings. ${sync.label}` : 'You: profile and settings'} title={sync?.label} className={iconButton}>
           <Avatar name={me?.name} url={me?.url} />
+          {/* Sync lives here, not on Home (owner, 2026-11-15). */}
+          {sync && <span aria-hidden="true" className={cn('absolute bottom-[6px] right-[6px] size-2.5 rounded-full shadow-[0_0_0_2px_var(--background)]', SYNC_DOT[sync.state], sync.state === 'pending' && 'animate-pulse')} />}
           {meBadge > 0 && <span aria-hidden="true" className="absolute right-[7px] top-[7px] size-2.5 rounded-full bg-danger shadow-[0_0_0_2px_var(--background)]" />}
         </button>
       </div>

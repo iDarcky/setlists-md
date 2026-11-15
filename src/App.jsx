@@ -1,4 +1,5 @@
 import { applyReaderLook, READER_LOOK_FLAG } from '@/lib/readerLook';
+import { syncStatus } from '@/lib/syncStatus';
 import AppToaster from "@/ui/AppToaster";
 import { toast } from "@/ui/use-toast";
 import { showUndoToast } from "@/lib/undoToast";
@@ -385,6 +386,8 @@ export default function App() {
   const [sessionStats, setSessionStats] = useState(null);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  // The dot on the profile photo (sync moved off Home, owner 2026-11-15).
+  const topSync = useMemo(() => syncStatus(syncState, syncState.lastSync ? new Date(syncState.lastSync).getTime() : 0, isOnline), [syncState, isOnline]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -2533,6 +2536,7 @@ export default function App() {
       }}
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
+      sync={topSync}
       onOpenYou={leaveEditing(() => navigate('you'))}
       pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
     />
@@ -2984,6 +2988,9 @@ export default function App() {
             <YouPage
               me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
               signedIn={isSignedIn}
+              syncState={syncState}
+              online={isOnline}
+              onSyncNow={syncState.provider ? () => triggerSyncRef.current?.({ silent: false }) : undefined}
               church={activeLibrary !== 'personal' ? {
                 name: currentWorkspaceName,
                 logoUrl: team?.logo_url || null,

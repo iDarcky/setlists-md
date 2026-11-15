@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { syncStatus, SYNC_DOT } from '@/lib/syncStatus';
 import { Segmented } from '@/ui/shadcn/segmented';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
@@ -25,6 +26,7 @@ const Svg = ({ children, size = 20 }) => (
 const CrownIcon = () => <Svg><path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 11H5z" /></Svg>;
 const SendIcon = () => <Svg><path d="m22 2-7 20-4-9-9-4z" /><path d="M22 2 11 13" /></Svg>;
 const DocIcon = () => <Svg><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></Svg>;
+const SyncIcon = () => <Svg><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5M3 21v-5h5" /></Svg>;
 const ExternalIcon = () => <Svg size={16}><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></Svg>;
 
 function Row({ icon, label, sub, detail, badge, onClick, danger = false, external = false, chevron = true }) {
@@ -123,7 +125,7 @@ const LEGAL = [
  * @param {{ label: string }} [subscription]  only for the church's owner
  */
 export default function YouPage({
-  me, signedIn = true, church, teamBadge = 0, subscription, userId = null,
+  me, signedIn = true, syncState = null, online = true, onSyncNow, church, teamBadge = 0, subscription, userId = null,
   onBack, onProfile, onTeam, onSubscription, onSettings, theme, onThemeChange,
   onWhatsNew, hasNewChangelog = false, onInstall, onSignOut, onLogIn,
   version = __APP_VERSION__, labsUnlocked = false, onUnlockLabs, sendFeedback,
@@ -132,6 +134,10 @@ export default function YouPage({
   const [web, setWeb] = useState(null);
   const [legalOpen, setLegalOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // Sync status lives here and as the dot on the profile photo, not on Home
+  // (owner, 2026-11-15). Tap to sync now.
+  const [now] = useState(() => Date.now());
+  const sync = syncStatus(syncState, now, online);
   return (
     <div
       data-slot="you-page"
@@ -168,6 +174,14 @@ export default function YouPage({
 
         <GroupLabel>App</GroupLabel>
         <Group>
+          <Row
+            icon={<SyncIcon />}
+            label="Sync"
+            sub={sync.state === 'local' ? 'Only on this device' : sync.state === 'error' ? 'Tap to try again' : null}
+            detail={<span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className={cn('size-2 rounded-full', SYNC_DOT[sync.state], sync.state === 'pending' && 'animate-pulse')} />{sync.state === 'local' ? 'Off' : sync.label}</span>}
+            onClick={onSyncNow}
+            chevron={false}
+          />
           <ThemeRow theme={theme} onChange={onThemeChange} />
           {onInstall && <Row icon={<PhoneIcon />} label="Put the app on your phone" onClick={onInstall} />}
           {onWhatsNew && <Row icon={<SparkIcon />} label="What’s new" badge={hasNewChangelog ? 'New' : 0} onClick={onWhatsNew} />}

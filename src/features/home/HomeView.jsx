@@ -105,16 +105,6 @@ function Face({ name, url, you = false, size = 32, ring = false, className }) {
   );
 }
 
-function SyncLine({ sync }) {
-  if (!sync) return null;
-  const tone = { ok: 'text-success-text', pending: 'text-warning-text', offline: 'text-muted-foreground', error: 'text-danger-text' }[sync.state] || 'text-muted-foreground';
-  return (
-    <span className={cn('inline-flex items-center gap-1.5', tone)}>
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-      {sync.label}
-    </span>
-  );
-}
 
 // ── Create (the + by the hello) ─────────────────────────────────────────────
 
@@ -498,7 +488,6 @@ function NothingPlanned({ onBrowse }) {
  * @param {object} p
  * @param {string} p.name                 first name for "Hi …"
  * @param {string} p.dateLabel            "Sunday 15 November"
- * @param {{state, label}} [p.sync]
  * @param {{onRetry}} [p.syncProblem]     sync failing for minutes
  * @param {{title, steps, onStep, onHide}} [p.setup]  the one-time checklist
  * @param {boolean} [p.leader]
@@ -510,7 +499,7 @@ function NothingPlanned({ onBrowse }) {
  * @param {Array} [p.create]              the + menu: [{ icon, label, onSelect, divider }]
  */
 export default function HomeView({
-  name, dateLabel, sync, syncProblem, setup, leader = false, clockFormat = '12h',
+  name, dateLabel, syncProblem, setup, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onPlaySetlist, onMarkReady,
   strip, onOpenSchedule, activity, now, onOpenActivity, onOpenSongs,
   showNothingPlanned = false, create = [], startChurch = null, embedded = false, layout = 'auto',
@@ -518,12 +507,13 @@ export default function HomeView({
   const wideScreen = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'auto' ? wideScreen : layout === 'wide';
   // The shared page header (owner, 2026-11-15: Home, Setlists and Songs the
-  // same); the date and sync line sit under it.
+  // same); the date sits under it. Sync status moved to the profile photo
+  // and You (owner, 2026-11-15).
   const hello = (
     <PageHeader
       title={`Hi ${name}`}
       wide={layout === 'auto' ? undefined : wide}
-      sub={<><span>{dateLabel}</span><SyncLine sync={sync} /></>}
+      sub={<span>{dateLabel}</span>}
     >
       {/* Schedule's door (owner, 2026-11-15): a calendar button beside the +,
           not a row in the two weeks. Schedule is not a nav tab. */}
