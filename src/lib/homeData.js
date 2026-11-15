@@ -271,7 +271,7 @@ export function setupSteps({
   }
   return [
     { id: 'parts', title: 'Pick what you play', sub: 'Your charts open on your part', done: hasParts },
-    ...(push?.supported ? [{ id: 'push', title: 'Turn on notifications', sub: 'Hear when a leader asks you to play', done: !!push.subscribed }] : []),
+    ...(push?.supported ? [{ id: 'push', title: 'Turn on notifications', sub: 'Hear when a leader invites you to play', done: !!push.subscribed }] : []),
     { id: 'answer', title: 'Answer your first ask', sub: 'Say if you can play on a date', done: answered },
   ];
 }

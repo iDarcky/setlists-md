@@ -19,7 +19,7 @@ const clsFor = (status) => STATUS.find(s => s.value === status)?.cls || '';
 
 export default function AvailabilitySheet({
   open, onOpenChange, mine = {}, busyDates = new Set(), onSet, onClear,
-  firstDay = 'sunday', now = Date.now(),
+  firstDay = 'sunday', now = Date.now(), inline = false,
 }) {
   const today = new Date(now); today.setHours(0, 0, 0, 0);
   const todayStr = toDateStr(today);
@@ -39,8 +39,7 @@ export default function AvailabilitySheet({
   };
   const navBtn = 'flex size-8 min-h-0 cursor-pointer items-center justify-center rounded-full border border-border bg-transparent p-0 text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40';
 
-  return (
-    <Sheet open={open} onOpenChange={(o) => { if (!o) setPicked(null); onOpenChange?.(o); }} title="My availability" className="h-auto sm:max-w-[440px]">
+  const body = (
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="text-[15px] font-semibold">{title}</span>
@@ -49,7 +48,7 @@ export default function AvailabilitySheet({
             <button type="button" aria-label="Next month" onClick={() => setMonth(m => m + 1)} className={navBtn}><ChevronRightIcon /></button>
           </div>
         </div>
-        <p className="m-0 text-[14px] text-muted-foreground">Tap a day to say if you can play. Dots are setlists.</p>
+        <p className="m-0 text-[14px] text-muted-foreground">Tap a day to say if you can play. One answer covers every service that day. Dots are setlists.</p>
         <div className="grid grid-cols-7 gap-1 text-center">
           {weekdayLabels(firstDay).map((w, i) => (
             <span key={i} className="pb-1 text-[11px] font-semibold text-muted-foreground">{w.slice(0, 1)}</span>
@@ -101,10 +100,17 @@ export default function AvailabilitySheet({
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => act(() => onClear?.(picked))}>Clear this day</Button>
             )}
           </div>
-        ) : (
+        ) : !inline && (
           <Button variant="outline" onClick={() => onOpenChange?.(false)}>Done</Button>
         )}
       </div>
+  );
+  // On the Schedule page the month sits in a card (2026-11-15); elsewhere it
+  // is a sheet.
+  if (inline) return <div className="rounded-card border border-border bg-card p-4">{body}</div>;
+  return (
+    <Sheet open={open} onOpenChange={(o) => { if (!o) setPicked(null); onOpenChange?.(o); }} title="My availability" className="h-auto sm:max-w-[440px]">
+      {body}
     </Sheet>
   );
 }

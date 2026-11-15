@@ -356,7 +356,7 @@ function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onO
   const sel = days.find(d => d.date === selected) || null;
   const lines = sel
     ? [
-        ...sel.services.map(sl => ({ sl, title: sl.name || 'Service', sub: [clock(sl.time, clockFormat), sel.play ? 'You play' : sel.asked ? 'You’re asked' : null].filter(Boolean).join(' · ') })),
+        ...sel.services.map(sl => ({ sl, title: sl.name || 'Service', sub: [clock(sl.time, clockFormat), sel.play ? 'You play' : sel.asked ? 'You’re invited' : null].filter(Boolean).join(' · ') })),
         ...sel.rehearsals.map(sl => ({ sl, title: `Rehearsal · ${sl.name || 'Service'}`, sub: [clock(sl.rehearsalTime, clockFormat), sl.rehearsalLocation].filter(Boolean).join(' · ') })),
       ]
     : [];
@@ -369,7 +369,6 @@ function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onO
         <div className="flex items-center gap-1">
           <button type="button" aria-label="Earlier" disabled={offset <= 0} onClick={() => onOffset?.(offset - 1)} className={arrow}><ChevronLeft size={16} strokeWidth={2} /></button>
           <button type="button" aria-label="Later" onClick={() => onOffset?.(offset + 1)} className={arrow}><ChevronRight size={16} strokeWidth={2} /></button>
-          {onOpenSchedule && <TextLink onClick={onOpenSchedule}>Schedule</TextLink>}
         </div>
       )}
     >
@@ -379,7 +378,7 @@ function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onO
             {week.map(d => {
               const on = d.date === selected;
               const busy = d.services.length || d.rehearsals.length;
-              const aria = `${d.weekday} ${d.day}${d.play ? ', you play' : d.asked ? ', asked' : ''}${busy ? '' : ', nothing on'}`;
+              const aria = `${d.weekday} ${d.day}${d.play ? ', you play' : d.asked ? ', invited' : ''}${busy ? '' : ', nothing on'}`;
               return (
                 <button
                   key={d.date}
@@ -419,10 +418,19 @@ function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onO
             ))}
           </div>
         )}
+        {/* Schedule's only door (owner, 2026-11-15): a full row, not a small
+            link, so people find where to say when they can play. */}
+        {onOpenSchedule && (
+          <button type="button" onClick={onOpenSchedule} className={cn(row, tappable, '-mx-2.5 mt-1 w-[calc(100%+20px)] border-t')}>
+            <Tile icon={Calendar} />
+            <Lines title="Schedule" sub="Your availability, invites and who plays when" />
+            <Chevron />
+          </button>
+        )}
       </Card>
       <div className="flex flex-wrap gap-x-3.5 gap-y-1 px-0.5 text-[12px] leading-4 text-muted-foreground" aria-hidden="true">
         <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-link" />You play</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-warning-text" />Asked</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-warning-text" />Invited</span>
         <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-input" />Something on</span>
       </div>
     </Section>
@@ -484,7 +492,7 @@ function NothingPlanned({ onBrowse }) {
     <Card className="flex flex-col items-center gap-2 px-5 py-7 text-center">
       <span className="flex size-10 items-center justify-center rounded-control bg-raised text-muted-foreground"><Calendar size={20} strokeWidth={STROKE} aria-hidden="true" /></span>
       <h2 className="m-0 text-[16px] font-semibold leading-6">Nothing planned for you yet</h2>
-      <p className="m-0 max-w-[340px] text-[14px] leading-5 text-muted-foreground">When a leader asks you to play, it shows up here. You can still open any song.</p>
+      <p className="m-0 max-w-[340px] text-[14px] leading-5 text-muted-foreground">When a leader invites you to play, it shows up here. You can still open any song.</p>
       {onBrowse && <Button variant="outline" className="mt-2 w-full max-w-[340px]" onClick={onBrowse}>Browse songs</Button>}
     </Card>
   );

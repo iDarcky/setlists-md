@@ -27,12 +27,12 @@ function tileState(t) {
   return { label: 'Tap', cls: 'border border-dashed border-input text-muted-foreground' };
 }
 
-export function CanYouPlay({ tiles, onPick, onAll }) {
+export function CanYouPlay({ tiles, onPick, onAll, title = 'Can you play?' }) {
   if (!tiles?.length) return null;
   return (
-    <section aria-label="Can you play?" className="flex flex-col gap-2">
+    <section aria-label={title} className="flex flex-col gap-2">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Can you play?</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{title}</span>
         {onAll && (
           <button type="button" onClick={onAll} className="flex min-h-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link hover:underline">
             All dates<ChevronRightIcon size={16} />
@@ -48,14 +48,14 @@ export function CanYouPlay({ tiles, onPick, onAll }) {
               key={t.date}
               type="button"
               onClick={() => onPick?.(t)}
-              aria-label={`${t.weekday} ${t.day}${t.names.length ? `, ${t.names.join(' and ')}` : ''}: ${asked ? 'you are asked to play' : st.label}`}
+              aria-label={`${t.weekday} ${t.day}${t.names.length ? `, ${t.names.join(' and ')}` : ''}: ${asked ? 'you are invited to play' : st.label}`}
               className={cn(
                 'relative flex w-[92px] min-h-0 shrink-0 snap-start cursor-pointer flex-col items-center gap-0.5 rounded-card border border-border bg-card px-2 pb-2 pt-2.5 font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
                 asked && 'border-warning-text shadow-[inset_0_0_0_1px_var(--warning-text)]',
               )}
             >
               {asked && (
-                <span className="absolute -top-2 left-1/2 flex h-4 -translate-x-1/2 items-center rounded-full bg-warning-text px-1.5 text-[10px] font-bold text-background">Asked</span>
+                <span className="absolute -top-2 left-1/2 flex h-4 -translate-x-1/2 items-center rounded-full bg-warning-text px-1.5 text-[10px] font-bold text-background">Invited</span>
               )}
               <span className="text-[11px] font-semibold uppercase text-muted-foreground">{t.weekday}</span>
               <span className="text-[22px] font-semibold leading-[26px] tracking-[-0.5px]">{t.day}</span>
@@ -91,7 +91,7 @@ export function AnswerDay({ tile, onClose, onAnswer, clockFormat }) {
                   <li key={sl.id}>
                     <span className="font-medium text-foreground">{sl.name || 'Setlist'}</span>
                     {sl.time ? ` · ${clock(sl.time, clockFormat)}` : ''}
-                    {ask ? ` · you’re asked${part ? ` for ${part}` : ''}` : ''}
+                    {ask ? ` · you’re invited${part ? ` for ${part}` : ''}` : ''}
                   </li>
                 );
               })}

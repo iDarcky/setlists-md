@@ -6,14 +6,14 @@ import { labelFor } from '@/data/instruments';
 
 // Band: the leader's people × setlists grid (canvas → Schedule → Band).
 // Tapping a cell only fills a plan: an empty cell becomes an ask, a filled one
-// is taken off. Nothing is sent until "Send asks", so a leader can lay out a
+// is taken off. Nothing is sent until "Send invites", so a leader can lay out a
 // whole month and send it in one go. Pure view: Schedule.jsx owns the plan.
 
 const day = (dateStr, opts) => new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-GB', opts);
 
 const CELL = {
   in: { cls: 'bg-link text-background', mark: '✓', label: 'in the band' },
-  asked: { cls: 'border-2 border-link text-link', mark: '…', label: 'asked' },
+  asked: { cls: 'border-2 border-link text-link', mark: '…', label: 'invited' },
   maybe: { cls: 'bg-warning/20 text-warning-text', mark: '?', label: 'maybe' },
   cant: { cls: 'bg-danger/15 text-danger', mark: '×', label: 'can’t' },
   free: { cls: 'bg-selected', mark: '', label: 'free' },
@@ -26,7 +26,7 @@ function Cell({ cell, person, column, onTap }) {
   const c = CELL[cell.state];
   const add = cell.planned === 'add';
   const remove = cell.planned === 'remove';
-  const label = `${person.name}, ${day(column.setlist.date, { weekday: 'long', day: 'numeric', month: 'long' })}: ${c.label}${add ? ', ask not sent yet' : ''}${remove ? ', taking off' : ''}`;
+  const label = `${person.name}, ${day(column.setlist.date, { weekday: 'long', day: 'numeric', month: 'long' })}: ${c.label}${add ? ', invite not sent yet' : ''}${remove ? ', taking off' : ''}`;
   return (
     <button
       type="button"
@@ -74,7 +74,7 @@ export default function BandView({
   const pending = plan.adds + plan.removes;
   const navBtn = 'flex size-8 min-h-0 cursor-pointer items-center justify-center rounded-full border border-border bg-transparent p-0 text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40';
   const sendLabel = [
-    plan.adds && `Send ${plan.adds} ask${plan.adds === 1 ? '' : 's'}`,
+    plan.adds && `Send ${plan.adds} invite${plan.adds === 1 ? '' : 's'}`,
     plan.removes && `${plan.adds ? 'take' : 'Take'} ${plan.removes} off`,
   ].filter(Boolean).join(' · ');
 
@@ -136,7 +136,7 @@ export default function BandView({
           {pending > 0 && (
             <>
               <p className="m-0 text-[14px] text-muted-foreground">
-                {plan.adds ? 'Everyone you ask gets a notification to say yes or no.' : 'They come off the band for that setlist.'}
+                {plan.adds ? 'Everyone you invite gets a notification to say yes or no.' : 'They come off the band for that setlist.'}
               </p>
               <div className="flex gap-2">
                 <Button className="flex-1" disabled={sending} onClick={onSend}>{sending ? 'Sending…' : sendLabel}</Button>
@@ -157,7 +157,7 @@ export default function BandView({
         ))}
         <span className="inline-flex items-center gap-1.5"><span className="flex size-4 items-center justify-center rounded-[4px] border-2 border-warning-text text-[10px] font-bold text-warning-text">+</span>Not sent yet</span>
       </div>
-      <p className="m-0 text-[13px] text-muted-foreground">Tap an empty square to ask someone, or a filled one to take them off. Nothing is sent until you tap Send.</p>
+      <p className="m-0 text-[13px] text-muted-foreground">Tap an empty square to invite someone, or a filled one to take them off. Nothing is sent until you tap Send.</p>
     </div>
   );
 }
