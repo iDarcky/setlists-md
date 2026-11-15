@@ -2,7 +2,7 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { needsCheck } from '@/lib/importCheck';
 import { searchSongs } from '@/lib/search';
 import {
-  playStats, nextSetlistSongs, playLine, sortSongs, filterSongs, filterOptions, songKey, NO_FILTERS,
+  playStats, nextSetlistSongs, sortSongs, songKey, songTempo, lastPlayed,
 } from '@/lib/songsData';
 import SongsView from './SongsView';
 import { TagSheet, ChurchPickerSheet } from './SongsSheets';
@@ -19,7 +19,7 @@ export default function Songs({
   const [now] = useState(() => Date.now());
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('az');
-  const [filters, setFilters] = useState(NO_FILTERS);
+  const [checkOnly, setCheckOnly] = useState(false);
   const [adding, setAdding] = useState(null); // null | 'add' | 'import'
   const [tagIds, setTagIds] = useState(null);
   const [moveCopy, setMoveCopy] = useState(null); // { action, ids }
@@ -27,21 +27,27 @@ export default function Songs({
 
   const stats = useMemo(() => playStats(setlists, now), [setlists, now]);
   const next = useMemo(() => nextSetlistSongs(setlists, now), [setlists, now]);
-  const options = useMemo(() => filterOptions(songs), [songs]);
   const allTags = useMemo(() => [...new Set(songs.flatMap(s => s.tags || []))].sort(), [songs]);
+
+  const leader = !readOnly;
+  const toCheck = leader && onCheckNext ? songs.filter(needsCheck).length : 0;
+  const onlyCheck = checkOnly && toCheck > 0;
 
   const rows = useMemo(() => {
     const found = q.trim() ? searchSongs(songs, q) : sortSongs(songs, sort, stats);
-    return filterSongs(found, filters, stats, now).map(song => ({
-      song,
-      keyName: songKey(song),
-      line: playLine(stats[song.id], now),
-      stat: stats[song.id],
-      next: next.ids.has(song.id),
-    }));
-  }, [songs, q, sort, stats, filters, now, next]);
+    return found
+      .filter(song => !onlyCheck || needsCheck(song))
+      .map(song => ({
+        song,
+        keyName: songKey(song),
+        tempo: songTempo(song),
+        last: lastPlayed(stats[song.id], now, next.ids.has(song.id) ? next.label : ''),
+        check: leader && needsCheck(song),
+        stat: stats[song.id],
+        next: next.ids.has(song.id),
+      }));
+  }, [songs, q, sort, stats, now, next, onlyCheck, leader]);
 
-  const leader = !readOnly;
   const canMoveCopy = leader && otherChurches.length > 0;
 
   return (
@@ -55,12 +61,11 @@ export default function Songs({
         onQuery={setQuery}
         sort={sort}
         onSort={setSort}
-        filters={filters}
-        onFilters={setFilters}
-        options={options}
         onOpen={onOpenSong}
         onEdit={leader ? onEditSong : null}
-        toCheck={leader && onCheckNext ? songs.filter(needsCheck).length : 0}
+        toCheck={toCheck}
+        checkOnly={onlyCheck}
+        onCheckOnly={setCheckOnly}
         onCheckNext={onCheckNext}
         onAdd={leader ? () => setAdding('add') : null}
         onTag={leader && onTagSongs ? (ids) => setTagIds(ids) : null}

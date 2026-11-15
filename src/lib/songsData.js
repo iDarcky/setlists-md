@@ -119,3 +119,39 @@ export function filterOptions(songs) {
     themes: [...themes.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t),
   };
 }
+
+/**
+ * The right-hand line of a song row (Songs rebuild, 2026-11-15): when it was
+ * last played, in words. `soon` is the next setlist's short date when the song
+ * is on it. → { text, tone: 'next' | 'stale' | null }
+ */
+export function lastPlayed(stat, now = Date.now(), soon = '') {
+  if (soon) return { text: `On ${soon}`, tone: 'next' };
+  if (!stat?.last) return { text: 'Never played', tone: null };
+  const days = Math.max(0, Math.floor((now - new Date(`${stat.last}T12:00:00`).getTime()) / DAY));
+  const stale = days >= STALE_DAYS ? 'stale' : null;
+  if (days < 1) return { text: 'Today', tone: null };
+  if (days < 7) return { text: days === 1 ? 'Yesterday' : `${days} days ago`, tone: null };
+  if (days < 14) return { text: 'Last week', tone: null };
+  if (days < 60) return { text: `${Math.floor(days / 7)} weeks ago`, tone: null };
+  if (days < 365) return { text: `${Math.round(days / 30)} months ago`, tone: stale };
+  return { text: 'Over a year ago', tone: 'stale' };
+}
+
+/** The letter a title files under: diacritics folded (Î → I), digits and signs → '#'. */
+export function letterOf(title = '') {
+  const c = String(title).trim().charAt(0).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  return /[A-Z]/.test(c) ? c : '#';
+}
+
+/** Rows in A–Z order, cut into letter groups: [{ letter, rows }]. */
+export function groupByLetter(rows = []) {
+  const out = [];
+  for (const r of rows) {
+    const letter = letterOf(r.song?.title);
+    const last = out[out.length - 1];
+    if (last && last.letter === letter) last.rows.push(r);
+    else out.push({ letter, rows: [r] });
+  }
+  return out;
+}
