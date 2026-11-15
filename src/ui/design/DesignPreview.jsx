@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Toaster, sileo } from 'sileo';
-import { Plus, Play, Trash2, User, Settings, Moon, ExternalLink, Music, ListMusic, Copy, Pencil } from 'lucide-react';
+import { Plus, Play, Trash2, User, Settings, Moon, ExternalLink, Music, ListMusic, Copy, Pencil, SearchX } from 'lucide-react';
 import { Button } from '@/ui/shadcn/button';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { SectionLabel, SectionAction } from '@/ui/shadcn/section-label';
@@ -8,6 +8,7 @@ import { MenuItem, MenuSeparator, MenuLabel } from '@/ui/shadcn/menu';
 import { Segmented } from '@/ui/shadcn/segmented';
 import { Chip } from '@/ui/shadcn/chip';
 import { Badge } from '@/ui/shadcn/badge';
+import { EmptyState, EmptyNote } from '@/ui/shadcn/empty-state';
 import { ToastStack } from '@/ui/blocks/ToastStack';
 import '@/ui/blocks/tokens.css';
 
@@ -196,6 +197,12 @@ export default function DesignPreview() {
             ))}
             <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
           </div>
+        </Section>
+
+        <Section title="Empty state" note="When a page or list has nothing in it: an icon tile, a title (16 semibold), one or two lines that say what will show up or what to do (14 muted), at most one button. Inside a card or sheet, one quiet line instead.">
+          <EmptyState icon={<Music strokeWidth={1.8} />} title="Your song library is empty" action={<Button><Plus size={18} strokeWidth={2} />Add a song</Button>}>Add the songs your church sings: import the files you already have, or type one in.</EmptyState>
+          <EmptyState icon={<SearchX strokeWidth={1.8} />} title="No songs match">Try fewer filters or another search.</EmptyState>
+          <div className="material-base rounded-card"><EmptyNote>No templates yet.</EmptyNote></div>
         </Section>
 
         <Section title="Chip and badge" note="Chip = you tap it (filters, dates, tags): round, 36px on phones / 32px on iPad, green edge when on, same text weight both ways. Badge = a status you read (not tappable): 24px, 12px semibold, one colour per meaning everywhere.">

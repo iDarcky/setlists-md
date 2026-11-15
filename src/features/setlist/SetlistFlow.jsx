@@ -210,7 +210,7 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
                 </div>
               );
             })}
-            {empty && <p className="m-0 px-4 py-6 text-center text-[14px] text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
+            {empty && <p className="m-0 px-4 py-6 text-center text-small text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
           </div>
         </div>
       ))}
@@ -485,7 +485,7 @@ export default function SetlistFlow({
           </div>
         );
       })}
-      {!order.rows.length && <p className="m-0 py-8 text-center text-[14px] text-muted-foreground">Nothing here yet. Add songs below, or a moment.</p>}
+      {!order.rows.length && <p className="m-0 px-4 py-8 text-center text-small text-muted-foreground">Nothing here yet. Add songs below, or a moment.</p>}
     </div>
   );
 

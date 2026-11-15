@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
@@ -397,7 +398,7 @@ export function DeletedSongsView({ trash = [], onRestore, onPurge, onEmptyTrash,
   return (
     <SettingsShell title="Deleted songs" onBack={onBack} backLabel="Data" embedded={embedded}>
       {trash.length === 0 ? (
-        <Group className="mt-2 p-5 text-center text-[15px] text-muted-foreground">Nothing here.</Group>
+        <Group className="mt-2"><EmptyNote>Nothing here.</EmptyNote></Group>
       ) : (
         <>
           <Group>
@@ -426,7 +427,7 @@ export function LabsView({ flags = [], onFlag, onHide, onBack, embedded }) {
   return (
     <SettingsShell title="Labs" onBack={onBack} backLabel="Settings" embedded={embedded}>
       {flags.length === 0 ? (
-        <Group className="p-5 text-center text-[15px] text-muted-foreground">Nothing to try right now.</Group>
+        <Group><EmptyNote>Nothing to try right now.</EmptyNote></Group>
       ) : (
         <Group>
           {flags.map(f => (

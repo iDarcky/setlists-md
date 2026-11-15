@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Calendar } from 'lucide-react';
+import { EmptyState } from '@/ui/shadcn/empty-state';
+import { Plus, Calendar, CalendarDays, SearchX } from 'lucide-react';
 import { Search } from '@/ui/blocks/Search';
 import { chipClass } from '@/ui/shadcn/chip';
 import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
@@ -264,12 +265,10 @@ export default function ScheduleView({
           </div>
         )}
         {isBand ? band : groups.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
-            <b className="text-[17px]">{q ? 'No setlists match' : past ? 'Nothing played yet' : filter !== 'all' ? 'Nothing here' : 'Nothing planned yet'}</b>
-            <p className="m-0 max-w-[320px] text-[15px] leading-[21px] text-muted-foreground">
-              {q ? 'Try another name, place or date.' : past ? 'Setlists you have played show up here.' : leader ? 'Make a setlist with a date and it shows up here.' : 'When your church plans a setlist, it shows up here.'}
-            </p>
-          </div>
+          <EmptyState icon={q ? <SearchX strokeWidth={1.8} /> : <CalendarDays strokeWidth={1.8} />}
+            title={q ? 'No setlists match' : past ? 'Nothing played yet' : filter !== 'all' ? 'Nothing here' : 'Nothing planned yet'}>
+            {q ? 'Try another name, place or date.' : past ? 'Setlists you have played show up here.' : leader ? 'Make a setlist with a date and it shows up here.' : 'When your church plans a setlist, it shows up here.'}
+          </EmptyState>
         ) : shownGroups.map(g => (
           <section key={g.month} aria-label={g.month} className="flex flex-col gap-2">
             <h2 className="m-0 px-0.5 pt-1.5 text-label text-muted-foreground">{g.month}</h2>

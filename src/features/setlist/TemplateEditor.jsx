@@ -138,7 +138,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
                 <Button variant="outline" size="icon" className="size-9" aria-label={`One more ${partName(part)}`} onClick={() => setCount(part, n + 1)}>+</Button>
               </div>
             ))}
-            {!partRows.length && <p className="m-0 px-4 py-3 text-[14px] text-muted-foreground">Who you need each week, like 1 drums and 2 vocals.</p>}
+            {!partRows.length && <p className="m-0 px-4 py-3 text-center text-small text-muted-foreground">Who you need each week, like 1 drums and 2 vocals.</p>}
             <Popover open={addPart} onOpenChange={setAddPart}>
               <PopoverTrigger asChild>
                 <button type="button" className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent px-4 text-left font-sans text-[15px] font-medium text-link outline-none focus-visible:bg-raised">
@@ -174,7 +174,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
                 <Button variant="ghost" size="icon" className="size-9 text-danger" aria-label="Remove" onClick={() => setItems(xs => xs.filter((_, j) => j !== i))}>✕</Button>
               </div>
             ))}
-            {!items.length && <p className="m-0 py-4 text-center text-[14px] text-muted-foreground">An empty order. Add “Song” slots and moments.</p>}
+            {!items.length && <p className="m-0 px-4 py-4 text-center text-small text-muted-foreground">An empty order. Add “Song” slots and moments.</p>}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setItems(xs => [...xs, placeholderItem()])}><PlusIcon size={16} />Song</Button>
@@ -210,7 +210,7 @@ export function TemplatesList({ templates = [], onEdit, onNew }) {
             <ChevronRightIcon />
           </button>
         ))}
-        {!templates.length && <p className="m-0 px-4 py-5 text-[14px] text-muted-foreground">No templates yet.</p>}
+        {!templates.length && <p className="m-0 px-4 py-5 text-center text-small text-muted-foreground">No templates yet.</p>}
       </div>
       <Button onClick={onNew}><PlusIcon size={16} />New template</Button>
     </div>
@@ -279,7 +279,7 @@ export function TemplateView({ template: t, onEdit, onClose, embedded = false })
                   {it.type === 'break' ? (it.duration ? `${it.duration} min` : '') : it.songId ? 'Always this song' : isPlaceholder(it) ? 'Song to pick' : ''}
                 </span>
               </div>
-            )) : <p className="m-0 px-4 py-4 text-[14px] text-muted-foreground">Nothing in the order yet.</p>}
+            )) : <p className="m-0 px-4 py-4 text-center text-small text-muted-foreground">Nothing in the order yet.</p>}
           </div>
         </div>
       </div>

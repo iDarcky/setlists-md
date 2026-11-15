@@ -35,9 +35,9 @@ export default function VersionHistory({ songId, teamId, nameOf, onRestore, onCl
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-2" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))' }}>
           {list == null ? (
-            <p className="m-0 px-3 py-6 text-center text-[14px] text-muted-foreground">Loading…</p>
+            <p className="m-0 px-3 py-6 text-center text-small text-muted-foreground">Loading…</p>
           ) : list.length === 0 ? (
-            <p className="m-0 px-3 py-6 text-center text-[14px] text-muted-foreground">No earlier versions yet. Every save keeps one here.</p>
+            <p className="m-0 px-3 py-6 text-center text-small text-muted-foreground">No earlier versions yet. Every save keeps one here.</p>
           ) : (
             <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
               {list.map((v, i) => (

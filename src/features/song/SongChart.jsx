@@ -1,4 +1,5 @@
 import { Fragment, useMemo } from 'react';
+import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { cn } from '@/ui/shadcn/utils';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { buildSongFlow, repeatFirstIndex, repeatRuns } from '@/lib/songFlow';
@@ -56,7 +57,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
   const runs = useMemo(() => repeatRuns(ordered, repeats), [ordered, repeats]);
 
   if (!ordered.length) {
-    return <p className="m-0 px-3 py-6 text-[15px] text-muted-foreground">No chart yet.</p>;
+    return <EmptyNote>No chart yet.</EmptyNote>;
   }
 
   const blocks = [];

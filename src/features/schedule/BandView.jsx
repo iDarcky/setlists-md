@@ -1,4 +1,6 @@
 import { cn } from '@/ui/shadcn/utils';
+import { Users } from 'lucide-react';
+import { EmptyState } from '@/ui/shadcn/empty-state';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/navIcons';
@@ -67,10 +69,7 @@ export default function BandView({
 }) {
   if (!columns.length) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
-        <b className="text-[17px]">Nothing to plan yet</b>
-        <p className="m-0 max-w-[320px] text-[15px] leading-[21px] text-muted-foreground">Make a setlist with a date, then pick its band here.</p>
-      </div>
+      <EmptyState icon={<Users strokeWidth={1.8} />} title="Nothing to plan yet">Make a setlist with a date, then pick its band here.</EmptyState>
     );
   }
   const cols = `minmax(120px,1fr) repeat(${columns.length}, 52px)`;

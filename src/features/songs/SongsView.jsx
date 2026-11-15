@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { EmptyState } from '@/ui/shadcn/empty-state';
+import { Plus, Music, SearchX } from 'lucide-react';
 import { chipClass } from '@/ui/shadcn/chip';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { SectionLabel } from '@/ui/shadcn/section-label';
@@ -13,7 +14,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useRevealList } from '@/hooks/useRevealList';
 import { SongsTable, SongPreview } from './SongsDesk';
 import { SORTS, filterCount } from '@/lib/songsData';
-import { PlusIcon, CheckIcon } from '@/app/navIcons';
+import { CheckIcon } from '@/app/navIcons';
 
 // Songs, built from zero (canvas → Songs page). Pure view: Songs.jsx works out
 // the rows, /design renders this with samples.
@@ -223,13 +224,11 @@ export default function SongsView({
         )}
 
         {total === 0 ? (
-          <div className="mt-6 flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
-            <b className="text-[17px]">{leader ? 'Your song library is empty' : 'No songs yet'}</b>
-            <p className="m-0 max-w-[300px] text-[15px] leading-[21px] text-muted-foreground">
-              {leader ? 'Add the songs your church sings: import the files you already have, or type one in.' : 'When your leaders add songs, they show up here.'}
-            </p>
-            {leader && onAdd && <Button className="mt-1.5 w-full max-w-[300px]" onClick={onAdd}><PlusIcon size={16} />Add a song</Button>}
-          </div>
+          <EmptyState className="mt-6" icon={<Music strokeWidth={1.8} />}
+            title={leader ? 'Your song library is empty' : 'No songs yet'}
+            action={leader && onAdd ? <Button onClick={onAdd}><Plus size={18} strokeWidth={2} aria-hidden="true" />Add a song</Button> : null}>
+            {leader ? 'Add the songs your church sings: import the files you already have, or type one in.' : 'When your leaders add songs, they show up here.'}
+          </EmptyState>
         ) : (
           <>
             <div className="flex min-h-9 items-center justify-between px-0.5 text-small text-muted-foreground">
@@ -246,10 +245,7 @@ export default function SongsView({
               </span>
             </div>
             {rows.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
-                <b className="text-[17px]">No songs match</b>
-                <p className="m-0 text-[15px] text-muted-foreground">Try fewer filters or another search.</p>
-              </div>
+              <EmptyState icon={<SearchX strokeWidth={1.8} />} title="No songs match">Try fewer filters or another search.</EmptyState>
             ) : wide ? (
               <div className="grid grid-cols-[minmax(0,1fr)_360px] items-start gap-5">
                 <SongsTable

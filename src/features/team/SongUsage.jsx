@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
@@ -178,7 +179,7 @@ export default function SongUsage({ setlists = [], songs = [], nameOf = () => ''
             <div className="flex flex-col @min-[1024px]:hidden">{data.songs.map(r => <SongRow key={r.songId} row={r} max={max} nameOf={nameOf} onOpen={setOpen} />)}</div>
             <div className="hidden @min-[1024px]:block"><SongTable rows={data.songs} nameOf={nameOf} onOpen={setOpen} /></div>
           </>
-        ) : <p className="m-0 py-8 text-center text-[15px] text-muted-foreground">Nothing played in this time.</p>)}
+        ) : <EmptyNote className="py-8">Nothing played in this time.</EmptyNote>)}
 
         {tab === 'services' && (data.services.length
           ? <div className="flex flex-col">{data.services.map(s => <ServiceRow key={s.id} s={s} nameOf={nameOf} />)}</div>

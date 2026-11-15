@@ -220,7 +220,7 @@ function AddSong({ open, onOpenChange, songs, setlist, setlists, at, onAdd }) {
           </>
         )}
         <div className="rounded-card material-base px-4">
-          {list.length ? list.map(s => row(s)) : <p className="m-0 py-6 text-center text-[14px] text-muted-foreground">No song matches “{q}”.</p>}
+          {list.length ? list.map(s => row(s)) : <p className="m-0 px-4 py-6 text-center text-small text-muted-foreground">No song matches “{q}”.</p>}
         </div>
       </div>
     </Sheet>
@@ -332,7 +332,7 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
                 </button>
               </div>
             ))}
-            {!order.rows.length && <p className="m-0 py-8 text-center text-[14px] text-muted-foreground">Nothing here yet. Add a song or a moment.</p>}
+            {!order.rows.length && <p className="m-0 px-4 py-8 text-center text-small text-muted-foreground">Nothing here yet. Add a song or a moment.</p>}
           </div>
           <div className="hidden gap-2 @min-[1024px]:flex">
             <Button variant="outline" onClick={() => setAdding(true)}><PlusIcon size={16} />Add song</Button>
