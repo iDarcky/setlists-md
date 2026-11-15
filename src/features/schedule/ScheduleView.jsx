@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Search } from '@/ui/blocks/Search';
+import { chipClass } from '@/ui/shadcn/chip';
 import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { useRevealList } from '@/hooks/useRevealList';
 import BackToTop from '@/ui/BackToTop';
@@ -159,13 +161,10 @@ function FilterChip({ on, onClick, children, count }) {
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={cn(
-        'flex h-8 min-h-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-3 font-sans text-[13px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        on && 'border-transparent bg-selected font-semibold text-foreground',
-      )}
+      className={chipClass(on)}
     >
       {children}
-      {count > 0 && <span className="text-[12px] font-bold text-link">{count}</span>}
+      {count > 0 && <span className="text-caption font-semibold text-link">{count}</span>}
     </button>
   );
 }
@@ -184,8 +183,26 @@ export default function ScheduleView({
   leader = false, tab = 'upcoming', onTab, showBand = false, filter = 'all', onFilter, counts = {},
   groups = [], clockFormat = '12h', onOpen, onAnswer, onNew, onAvailability,
   canPlay, onAnswerDay, band = null, embedded = false, layout = 'auto', onBack,
-  title = 'Schedule', newLabel = 'New',
+  title = 'Schedule', newLabel = 'New', searchable = false,
 }) {
+  // Search (Setlists tab): same Bencho block as Songs, filters by name, place and date.
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const headRef = useRef(null);
+  const [headWidth, setHeadWidth] = useState(320);
+  useEffect(() => {
+    const el = headRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([e]) => setHeadWidth(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const q = query.trim().toLowerCase();
+  if (q) {
+    groups = groups
+      .map(g => ({ ...g, rows: g.rows.filter(r => [r.setlist.name, r.setlist.location, r.setlist.date, g.month].filter(Boolean).join(' ').toLowerCase().includes(q)) }))
+      .filter(g => g.rows.length);
+  }
   const past = tab === 'past';
   const isBand = tab === 'band' && band;
   const [picked, setPicked] = useState(null);
@@ -210,15 +227,22 @@ export default function ScheduleView({
             <ChevronLeftIcon />Home
           </button>
         )}
-        <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
-          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>{title}</h1>
-          <div className="flex gap-2">
+        {/* Pinned while the list scrolls; search and + like Songs and Home. */}
+        <header ref={headRef} className={cn('sticky top-0 z-sticky flex min-h-14 items-center justify-between gap-2 bg-background py-1', layout === 'phone' ? '-mx-4 px-4' : '-mx-4 px-4 sm:-mx-6 sm:px-6')}>
+          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-title')}>{title}</h1>
+          <div className="flex items-center gap-2">
+            {searchable && (
+              <div className={cn(searchOpen ? cn('absolute inset-y-0 z-10 flex items-center bg-background', layout === 'phone' ? 'inset-x-4' : 'inset-x-4 sm:inset-x-6') : 'shrink-0')}>
+                <Search inline keyboard give={30} spring={30} value={query} onValueChange={setQuery} onOpenChange={setSearchOpen}
+                  placeholder="Search setlists" width={headWidth} />
+              </div>
+            )}
             {onAvailability && (
-              <Button variant="outline" size="sm" onClick={onAvailability} aria-label="My availability">
-                <CalendarIcon size={16} /><span className={cn(leader && onNew && 'sr-only sm:not-sr-only')}>My availability</span>
+              <Button variant="outline" size="icon" className="size-12" onClick={onAvailability} aria-label="My availability">
+                <CalendarIcon size={20} />
               </Button>
             )}
-            {leader && onNew && <Button size="sm" onClick={onNew}><PlusIcon size={16} />{newLabel}</Button>}
+            {leader && onNew && <Button size="icon" className="size-12" aria-label={newLabel} onClick={onNew}><PlusIcon size={20} /></Button>}
           </div>
         </header>
         {!past && !isBand && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}
@@ -240,9 +264,9 @@ export default function ScheduleView({
         )}
         {isBand ? band : groups.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-card material-base px-5 py-7 text-center">
-            <b className="text-[17px]">{past ? 'Nothing played yet' : filter !== 'all' ? 'Nothing here' : 'Nothing planned yet'}</b>
+            <b className="text-[17px]">{q ? 'No setlists match' : past ? 'Nothing played yet' : filter !== 'all' ? 'Nothing here' : 'Nothing planned yet'}</b>
             <p className="m-0 max-w-[320px] text-[15px] leading-[21px] text-muted-foreground">
-              {past ? 'Setlists you have played show up here.' : leader ? 'Make a setlist with a date and it shows up here.' : 'When your church plans a setlist, it shows up here.'}
+              {q ? 'Try another name, place or date.' : past ? 'Setlists you have played show up here.' : leader ? 'Make a setlist with a date and it shows up here.' : 'When your church plans a setlist, it shows up here.'}
             </p>
           </div>
         ) : shownGroups.map(g => (
