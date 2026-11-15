@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { FileText, List, Music } from 'lucide-react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
-import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { useTeamActivity } from '@/hooks/useTeamActivity';
 import {
-  myAsks, myServices, nextUp, syncProblem, daysUntil, bandFor, twoWeeks, whoCanPlay, needsYou, recentActivity, activityFromSongs,
+  myAsks, myServices, nextUp, syncProblem, daysUntil, bandFor, twoWeeks, needsYou, recentActivity, activityFromSongs, setupSteps,
 } from '@/lib/homeData';
+import { needsCheck } from '@/lib/importCheck';
+import { usePushSubscription } from '@/push/usePushSubscription';
 import HomeView from './HomeView';
 import { partLabel, normalize } from '@/data/instruments';
 import { PartsSheet } from '@/features/team/PartsPicker';
@@ -32,13 +34,12 @@ function syncLine(syncState, now) {
 export default function Home({
   songs = [], setlists = [], settings, displayName, syncState,
   schedules = [], updateSchedule, setlistMap = {},
-  onOpenSetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady, onNewSetlist,
-  onRetrySync, onNotFound,
+  onOpenSetlist, onPlaySetlist, onOpenSong, onOpenSongs, onOpenSchedule, onOpenTeam, onEditSetlist, onMarkReady, onNewSetlist,
+  onNewSong, onImportSongs, onSetupDone, onRetrySync, onNotFound,
 }) {
   const { user } = useAuth();
   const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
-  const { availability } = useTeamAvailability(leader ? team?.id : null);
   const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
@@ -54,14 +55,15 @@ export default function Home({
     const n = nextUp({ setlists, schedules, userId, setlistMap, now, inTeam, leader });
     if (!n) return null;
     const rows = inTeam ? bandFor(n.setlist, schedules, setlistMap) : [];
+    const memberOf = (uid) => (members || []).find(x => x.user_id === uid);
     const nameOf = (uid) => {
-      const m = (members || []).find(x => x.user_id === uid);
+      const m = memberOf(uid);
       return m?.profile?.display_name || m?.profile?.email?.split('@')[0] || 'Member';
     };
     return {
       setlist: n.setlist,
       part: n.schedule ? partLabel(n.schedule) || null : null,
-      band: rows.map(r => ({ id: r.id, name: nameOf(r.user_id), yes: r.availability === 'available' })),
+      band: rows.map(r => ({ id: r.id, name: nameOf(r.user_id), avatarUrl: memberOf(r.user_id)?.profile?.avatar_url || null, yes: r.availability === 'available' })),
       days: daysUntil(n.setlist, now),
     };
   }, [setlists, schedules, userId, setlistMap, now, inTeam, leader, members]);
@@ -73,21 +75,24 @@ export default function Home({
   const firstBusy = days.find(d => !d.isPast && (d.play || d.asked || d.services.length || d.rehearsals.length));
   const selected = picked && days.some(d => d.date === picked) ? picked : (firstBusy || days.find(d => d.isToday) || days[0])?.date;
 
-  // What you play: a card until you've said (church only, once the roster is in).
+  // What you play: a step on the one-time checklist (church only, once the roster is in).
   const church = inTeam && team.kind !== 'personal';
   const myMember = church ? (members || []).find(m => m.user_id === userId) : null;
   const myParts = useMemo(() => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))), [myMember?.instruments]);
   const [partsOpen, setPartsOpen] = useState(false);
-  const showPartsCard = !!myMember && (myParts.length === 0 || partsOpen);
   // Leaders: who else hasn't said.
   const noParts = church && canSetParts
     ? membersWithoutParts((members || []).filter(m => m.user_id !== userId))
       .map(m => m.profile?.display_name || m.profile?.email?.split('@')[0] || 'Someone')
     : [];
 
-  const needs = leader ? needsYou({ joinRequests, setlists, schedules, setlistMap, now, noParts }) : [];
+  const toCheck = leader ? songs.filter(needsCheck).length : 0;
+  const needs = leader
+    ? [...needsYou({ joinRequests, setlists, schedules, setlistMap, now, noParts }), ...(toCheck ? [{ kind: 'check', count: toCheck }] : [])]
+    : [];
   const onNeed = (it) => {
-    if (it.kind === 'join' || it.kind === 'parts') onOpenTeam?.();
+    if (it.kind === 'check') onOpenSongs?.();
+    else if (it.kind === 'join' || it.kind === 'parts') onOpenTeam?.();
     else if (it.kind === 'nosongs') (onEditSetlist || onOpenSetlist)?.(it.setlist);
     else onOpenSetlist?.(it.setlist);
   };
@@ -97,7 +102,41 @@ export default function Home({
     const m = (members || []).find(x => x.user_id === uid);
     return m?.profile?.display_name || m?.profile?.email?.split('@')[0] || null;
   };
-  const activity = inTeam ? recentActivity(activityRows, { nameFor: nameOf, userId }) : activityFromSongs(songs);
+  const avatarOf = (uid) => (members || []).find(x => x.user_id === uid)?.profile?.avatar_url || null;
+  // Three rows show and the rest scroll inside the card, so hand it a dozen.
+  const activity = inTeam ? recentActivity(activityRows, { nameFor: nameOf, avatarFor: avatarOf, userId, limit: 12 }) : activityFromSongs(songs, 12);
+
+  // Get ready: once per account, in a church, until every step is done or
+  // it's hidden (owner, 2026-11-15: "should only be showed once").
+  const push = usePushSubscription();
+  const answered = useMemo(
+    () => !!userId && schedules.some(s => s.user_id === userId && s.availability && s.availability !== 'pending'),
+    [schedules, userId],
+  );
+  const steps = church && myMember && !settings?.homeSetupDone
+    ? setupSteps({ leader, songs, setlists, memberCount: (members || []).length, hasParts: myParts.length > 0, push, answered })
+    : null;
+  const allDone = !!steps && steps.every(s => s.done);
+  useEffect(() => { if (allDone) onSetupDone?.(); }, [allDone]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onStep = (id) => {
+    if (id === 'song') onNewSong?.();
+    else if (id === 'import') onImportSongs?.();
+    else if (id === 'parts') setPartsOpen(true);
+    else if (id === 'setlist') onNewSetlist?.();
+    else if (id === 'invite') onOpenTeam?.();
+    else if (id === 'push') push.enable?.();
+    else if (id === 'answer') onOpenSchedule?.();
+  };
+  const setup = steps && !allDone
+    ? { title: leader ? 'Get your band ready' : 'Get ready to play', steps, onStep, onHide: () => onSetupDone?.() }
+    : null;
+
+  // The + menu: the three ways to start something a leader has.
+  const create = [
+    onNewSong && { icon: Music, label: 'New song', onSelect: onNewSong },
+    onImportSongs && { icon: FileText, label: 'Import PDFs', onSelect: onImportSongs },
+    onNewSetlist && { icon: List, label: 'New setlist', onSelect: onNewSetlist, divider: true },
+  ].filter(Boolean);
   // Activity rows name the server row; find the local copy by row map, then by name.
   const openActivity = (it) => {
     if (it.kind === 'song') {
@@ -138,6 +177,7 @@ export default function Home({
       sync={syncLine(syncState, now)}
       syncProblem={syncProblem(syncState, ticking, typeof navigator === 'undefined' || navigator.onLine !== false)
         ? { onRetry: onRetrySync } : null}
+      setup={setup}
       leader={leader}
       clockFormat={settings?.clockFormat || '12h'}
       needs={needs}
@@ -146,17 +186,16 @@ export default function Home({
       onAnswer={(id, availabilityValue) => updateSchedule?.(id, { availability: availabilityValue })}
       next={next}
       onOpenSetlist={onOpenSetlist}
+      onPlaySetlist={onPlaySetlist}
       onMarkReady={onMarkReady}
       strip={{ days, offset, onOffset: setOffset, selected, onSelect: setPicked }}
-      whoCanPlay={leader ? whoCanPlay({ setlists, availability, schedules, setlistMap, memberCount: (members || []).length, now }) : null}
       onOpenSchedule={onOpenSchedule}
       activity={activity}
       now={now}
       onOpenActivity={openActivity}
       onOpenSongs={onOpenSongs}
       showNothingPlanned={!next && asks.length === 0}
-      onNewSetlist={onNewSetlist}
-      parts={showPartsCard ? { church: team?.name, onOpen: () => setPartsOpen(true) } : null}
+      create={leader || !inTeam ? create : []}
       startChurch={noChurch ? <StartChurchCard sent={churchSent} onStart={() => setChurchAsk(true)} /> : null}
     />
     {noChurch && !churchSent && (

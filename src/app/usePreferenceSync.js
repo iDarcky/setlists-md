@@ -46,6 +46,10 @@ export const PORTABLE_PREF_KEYS = [
   'clockFormat',
   'userName',
   'lastChangelogVersion',
+  // Home's "Get your band ready" list shows once per ACCOUNT (owner,
+  // 2026-11-15: "this one should only be showed once and that's all"), so a
+  // leader who hid it on the phone doesn't meet it again on the iPad.
+  'homeSetupDone',
   // ⚠ `performanceRail` and `navStyle` were here. Both were read ONLY by
   // PerformanceView / PracticeView, which stopped being referenced when the
   // reader flag graduated, and their Settings rows went with the Chart Defaults

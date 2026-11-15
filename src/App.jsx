@@ -371,6 +371,8 @@ export default function App() {
   // Settings sub-panel ('hub' | 'appearance' | 'chart' | 'sync' | 'data' | 'about')
   // Lifted to App so it participates in the back-button history stack.
   const [settingsPanel, setSettingsPanel] = useState('hub');
+  // 'add' | 'import' | null: which Songs sheet to open on arrival (Home's + menu).
+  const [songsIntent, setSongsIntent] = useState(null);
   // Wake-lock explainer is now state-driven (was render-condition-driven) so
   // it can participate in the history stack.
   // Session metrics handed off from the reader to the finale.
@@ -1235,13 +1237,14 @@ export default function App() {
   // Switch a top-level page (Home / Library / Setlists / Settings / Account /
   // Help / Design). Now pushes history so hardware Back navigates within the
   // app instead of exiting the PWA.
-  const goToMainView = async (viewName, { settingsPanel: targetPanel } = {}) => {
+  const goToMainView = async (viewName, { settingsPanel: targetPanel, songsIntent: intent = null } = {}) => {
     const samePanel = !targetPanel || targetPanel === settingsPanel;
-    if (view === viewName && samePanel) return;
+    if (view === viewName && samePanel && !intent) return;
     if (!(await confirmDiscardSetlist())) return;
     pushHistory(snapshot());
     const apply = () => {
       setView(viewName);
+      setSongsIntent(intent);
       setCurrentSong(null);
       setCurrentSetlist(null);
       // Clear the docked pane's selection so it doesn't auto-reopen when
@@ -1359,6 +1362,8 @@ export default function App() {
   ];
 
   const goLibrary = () => goToMainView('library');
+  // Home's + menu: open Songs with its Add-a-song or Import sheet already up.
+  const goLibraryWith = (intent) => goToMainView('library', { songsIntent: intent });
 
   // Safety net: if a member ends up on an editing surface in a read-only team
   // library (e.g. they switched into the workspace while the editor was open),
@@ -1507,7 +1512,9 @@ export default function App() {
   // it we surface a "limit reached / contact support" affordance instead.
   const eligibleToCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
   const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
-  const goSchedule = () => navigate('schedule');
+  // Schedule opens from Home now (it left the nav pill on 2026-11-15). A
+  // personal library has no schedule, so its dated setlists stand in.
+  const goSchedule = () => navigate(activeLibrary === 'personal' ? 'setlists' : 'schedule');
 
   // Song CRUD
   // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
@@ -2656,12 +2663,16 @@ export default function App() {
               ensureRow={ensureSetlistRow}
               setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
+              onPlaySetlist={(sl) => goSetlistRead(sl)}
+              onSetupDone={() => setSettings(prev => (prev && !prev.homeSetupDone ? { ...prev, homeSetupDone: true } : prev))}
               onEditSetlist={isTeamReadOnly ? null : goSetlistBuild}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onMarkReady={isTeamReadOnly ? null : markSetlistReady}
               onOpenSong={goChart}
               onOpenSongs={goLibrary}
               onOpenSchedule={goSchedule}
+              onNewSong={isTeamReadOnly ? null : () => goLibraryWith('add')}
+              onImportSongs={isTeamReadOnly ? null : () => goLibraryWith('import')}
               onOpenTeam={goTeam}
               onNotFound={showNotFound}
               onRetrySync={() => triggerSyncRef.current?.({ silent: false })}
@@ -2669,6 +2680,8 @@ export default function App() {
           )}
           {view === 'library' && (
             <Songs
+              intent={songsIntent}
+              onIntentUsed={() => setSongsIntent(null)}
               songs={songs}
               setlists={setlists}
               readOnly={isTeamReadOnly}
@@ -3058,6 +3071,7 @@ export default function App() {
               setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              onBack={() => goToMainView('home')}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />

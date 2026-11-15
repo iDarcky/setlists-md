@@ -1,7 +1,7 @@
 import { cn } from '@/ui/shadcn/utils';
 import { NAV_ITEMS } from './navItems';
 
-// The app's three places, as one pill (canvas "Signed out and joining" →
+// The app's two places (Home, Songs), as one pill (canvas "Signed out and joining" →
 // Navigation options, bar B). Below 1024px it floats at the bottom, within
 // thumb reach — phone and iPad portrait. From 1024px (iPad landscape,
 // desktop) the same pill sits in the middle of the top bar.

@@ -6,7 +6,7 @@ import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime, dateFormatter } from '@/lib/dateFormat';
-import { CalendarIcon, PlusIcon } from '@/app/navIcons';
+import { CalendarIcon, ChevronLeftIcon, PlusIcon } from '@/app/navIcons';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 
 // Schedule, built from zero (canvas → Schedule page). Pure view: Schedule.jsx
@@ -200,7 +200,7 @@ function FilterChip({ on, onClick, children, count }) {
 export default function ScheduleView({
   leader = false, tab = 'upcoming', onTab, showBand = false, filter = 'all', onFilter, counts = {},
   groups = [], clockFormat = '12h', onOpen, onAnswer, onNew, onAvailability,
-  canPlay, onAnswerDay, band = null, embedded = false, layout = 'auto',
+  canPlay, onAnswerDay, band = null, embedded = false, layout = 'auto', onBack,
 }) {
   const past = tab === 'past';
   const isBand = tab === 'band' && band;
@@ -219,6 +219,13 @@ export default function ScheduleView({
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       {past && <BackToTop />}
       <div className={cn('mx-auto flex w-full flex-col gap-3 pb-8', wide ? 'max-w-[1180px]' : 'max-w-[680px]', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
+        {/* Schedule opens from Home (it left the nav pill on 2026-11-15), so it
+            says where Back goes. */}
+        {onBack && (
+          <button type="button" onClick={onBack} className="-ml-1 flex min-h-0 w-fit cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-1 py-1 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+            <ChevronLeftIcon />Home
+          </button>
+        )}
         <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
           <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Schedule</h1>
           <div className="flex gap-2">
