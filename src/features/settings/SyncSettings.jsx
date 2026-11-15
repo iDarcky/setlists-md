@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 import { toast } from '@/ui/use-toast';
 import { useAuth } from '@/auth/useAuth';
 import {
@@ -102,7 +102,7 @@ export default function SyncSettings({
             Setlists.md cloud keeps your library on every signed-in device. A backup folder in
             Google Drive, Dropbox or OneDrive keeps a copy of it as files you own.
           </p>
-          <Button variant="brand" size="sm" onClick={onRequestSignIn} className="self-start">
+          <Button size="sm" onClick={onRequestSignIn} className="self-start">
             Sign in
           </Button>
         </div>
@@ -151,7 +151,7 @@ export default function SyncSettings({
                 </span>
               </>
             ) : cloudAllowed ? null : (
-              onUpgrade && <Button size="sm" variant="brand" onClick={onUpgrade}>Upgrade</Button>
+              onUpgrade && <Button size="sm" onClick={onUpgrade}>Upgrade</Button>
             )}
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function SyncSettings({
               revoked access). Backups are paused until you reconnect.
             </p>
             <div className="flex gap-2 mt-1">
-              <Button variant="brand" size="sm" onClick={() => handleConnect(backupName)} loading={busy === backupName}>
+              <Button size="sm" onClick={() => handleConnect(backupName)} loading={busy === backupName}>
                 Reconnect
               </Button>
               <Button variant="ghost" size="sm" onClick={handleDisconnect} loading={busy === '__disconnect'}>
@@ -248,17 +248,16 @@ export default function SyncSettings({
               <div className="flex items-center gap-2 mt-2 sm:mt-0">
                 {isActive ? (
                   <>
-                    <Button size="sm" variant="secondary" onClick={handleRestore} loading={busy === '__restore'} disabled={needsReconnect || busy != null && busy !== '__restore'}>
+                    <Button size="sm" variant="outline" onClick={handleRestore} loading={busy === '__restore'} disabled={needsReconnect || busy != null && busy !== '__restore'}>
                       Restore missing
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={handleDisconnect} loading={busy === '__disconnect'} disabled={busy != null && busy !== '__disconnect'}>
+                    <Button size="sm" variant="outline" onClick={handleDisconnect} loading={busy === '__disconnect'} disabled={busy != null && busy !== '__disconnect'}>
                       Disconnect
                     </Button>
                   </>
                 ) : (
                   <Button
                     size="sm"
-                    variant="brand"
                     onClick={() => handleConnect(p.name)}
                     loading={busy === p.name}
                     disabled={!p.configured || standalone || (backupName && backupName !== p.name) || busy != null}

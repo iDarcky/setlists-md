@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 import { Button as ShadButton } from '@/ui/shadcn/button';
 import { Input } from '@/ui/Input';
 import PageHeader from '@/ui/PageHeader';
@@ -157,11 +157,11 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
             </div>
           )}
 
-          <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !name.trim() || !timezone}>
+          <Button type="submit" className="w-full" disabled={busy || !name.trim() || !timezone}>
             {busy ? (billingLive ? 'Starting checkout…' : 'Creating…') : (billingLive ? 'Continue to checkout' : 'Create Space')}
           </Button>
           {onCancel && (
-            <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onCancel} disabled={busy}>
+            <Button type="button" variant="outline" className="w-full" onClick={onCancel} disabled={busy}>
               Cancel
             </Button>
           )}

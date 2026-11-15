@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Toaster, sileo } from 'sileo';
+import { Plus, Play, Trash2 } from 'lucide-react';
+import { Button } from '@/ui/shadcn/button';
 import { ToastStack } from '@/ui/blocks/ToastStack';
 import '@/ui/blocks/tokens.css';
 
@@ -134,6 +136,22 @@ export default function DesignPreview() {
                 <span className="font-mono text-caption text-muted-foreground">{cls} · {spec} · {use}</span>
               </div>
             ))}
+          </div>
+        </Section>
+
+        <Section title="Button" note="One button. Ink = the one main action on a screen. Outline = the other actions. Ghost = quiet (toolbars, Cancel). Destructive = only for delete. Link = inside a sentence. 48px on phones, 44px from the iPad up; sm is 36px to look at, 44px to tap.">
+          <div className="material-base flex flex-col gap-4 rounded-card p-4">
+            {[['default', 'Ink'], ['outline', 'Outline'], ['ghost', 'Ghost'], ['destructive', 'Destructive']].map(([v, label]) => (
+              <div key={v} className="flex flex-wrap items-center gap-2">
+                <span className="w-24 shrink-0 font-mono text-caption text-muted-foreground">{v}</span>
+                <Button variant={v}>{v === 'destructive' ? <Trash2 /> : v === 'default' ? <Play /> : null}{label}</Button>
+                <Button variant={v} size="sm">{v === 'default' ? <Plus /> : null}Small</Button>
+                <Button variant={v} size="icon" aria-label="Add"><Plus /></Button>
+                <Button variant={v} disabled>Disabled</Button>
+                <Button variant={v} loading>Saving</Button>
+              </div>
+            ))}
+            <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
           </div>
         </Section>
 

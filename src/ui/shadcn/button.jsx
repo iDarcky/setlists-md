@@ -17,7 +17,7 @@ const buttonVariants = cva(
         link: 'h-auto bg-transparent p-0 font-medium text-link underline-offset-4 hover:underline',
       },
       size: {
-        default: 'h-12 px-5 text-body sm:h-11 sm:text-[15px]',
+        default: 'h-12 px-5 text-body sm:h-11 sm:text-small',
         // 36px to look at, 44px to tap: the ::after stretches the hit area.
         sm: "relative h-9 min-h-0 px-3.5 text-small after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
         icon: 'size-11 p-0',
