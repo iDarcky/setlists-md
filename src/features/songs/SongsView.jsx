@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { chipClass } from '@/ui/shadcn/chip';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { Search } from '@/ui/blocks/Search';
 import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
-import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useLongPress } from '@/lib/useLongPress';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useRevealList } from '@/hooks/useRevealList';
 import { SongsTable, SongPreview } from './SongsDesk';
 import { SORTS, filterCount } from '@/lib/songsData';
-import { PlusIcon, ChevronDownIcon, CheckIcon } from '@/app/navIcons';
+import { PlusIcon, CheckIcon } from '@/app/navIcons';
 
 // Songs, built from zero (canvas → Songs page). Pure view: Songs.jsx works out
 // the rows, /design renders this with samples.
@@ -33,8 +33,6 @@ const MoveIcon = () => <Svg><path d="M5 12h14M13 6l6 6-6 6" /></Svg>;
 const CopyIcon = () => <Svg><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></Svg>;
 const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Svg>;
 
-const chipBase = chipClass(false);
-const chipOn = chipClass(true);
 
 function Row({ row, nextLabel, selecting, selected, onOpen, onToggle, onLongPress }) {
   const { bind, consumeClick } = useLongPress(onLongPress);
@@ -61,6 +59,19 @@ function Row({ row, nextLabel, selecting, selected, onOpen, onToggle, onLongPres
   );
 }
 
+// A–Z on a phone: one card per first letter (# for numbers and symbols).
+function groupRows(rows, sort) {
+  if (sort !== 'az') return [{ letter: null, rows }];
+  const out = [];
+  for (const r of rows) {
+    const c = (r.song.title || '').trim().charAt(0).normalize('NFD').charAt(0).toUpperCase();
+    const letter = /[A-Z]/.test(c) ? c : '#';
+    const last = out[out.length - 1];
+    if (last && last.letter === letter) last.rows.push(r); else out.push({ letter, rows: [r] });
+  }
+  return out;
+}
+
 const flipIn = (filters, group, v) => ({ ...filters, [group]: filters[group].includes(v) ? filters[group].filter(x => x !== v) : [...filters[group], v] });
 
 function KeyGrid({ keys, picked, onFlip }) {
@@ -68,7 +79,7 @@ function KeyGrid({ keys, picked, onFlip }) {
     <div className="grid grid-cols-6 gap-1.5">
       {keys.map(k => (
         <button key={k} type="button" aria-pressed={picked.includes(k)} onClick={() => onFlip(k)}
-          className={cn('h-9 min-h-0 cursor-pointer rounded-control border border-border bg-transparent font-mono text-[13px] font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', picked.includes(k) && 'border-link bg-selected text-link')}>
+          className={cn(chipClass(picked.includes(k)), 'px-0 font-mono font-semibold')}>
           {k}
         </button>
       ))}
@@ -80,69 +91,50 @@ function ChipSet({ values, picked, onFlip }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {values.map(t => (
-        <button key={t} type="button" aria-pressed={picked.includes(t)} onClick={() => onFlip(t)} className={cn(chipBase, picked.includes(t) && chipOn)}>{t}</button>
+        <button key={t} type="button" aria-pressed={picked.includes(t)} onClick={() => onFlip(t)} className={chipClass(picked.includes(t))}>{t}</button>
       ))}
     </div>
   );
 }
 
 /** A quick chip that drops down its own choices (Key, Theme). */
-function ChipDrop({ label, active, title, onClear, children }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button type="button" className={cn(chipBase, active && chipOn)}>{label}<ChevronDownIcon size={14} /></button>
-      </PopoverTrigger>
-      <PopoverContent className="flex flex-col gap-2.5">
-        <div className="flex items-center justify-between">
-          <span className="text-label text-muted-foreground">{title}</span>
-          {active && <button type="button" onClick={onClear} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[13px] font-medium text-link">Clear</button>}
-        </div>
-        {children}
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 /** Sort and filter, in one sheet. Changes apply as you tap; the button closes. */
 export function FilterSheet({ open, onOpenChange, sort, onSort, filters, onFilters, options, shown }) {
   const flip = (group, v) => onFilters?.(flipIn(filters, group, v));
-  const head = 'm-0 text-label text-muted-foreground';
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Sort and filter" className="h-auto max-h-[calc(100dvh-64px)] sm:max-w-[440px]">
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         <section className="flex flex-col gap-2">
-          <h4 className={head}>Sort by</h4>
-          <div role="radiogroup" aria-label="Sort by" className="flex flex-col overflow-hidden rounded-card border border-border">
+          <SectionLabel as="h4" className="px-1">Sort by</SectionLabel>
+          <div role="radiogroup" aria-label="Sort by" className="overflow-hidden rounded-card material-base">
             {SORTS.map(s => (
-              <button
-                key={s.value}
-                type="button"
-                role="radio"
-                aria-checked={sort === s.value}
-                onClick={() => onSort?.(s.value)}
-                className={cn('flex h-11 min-h-0 cursor-pointer items-center justify-between border-0 border-t border-border bg-transparent px-3.5 text-left font-sans text-[15px] text-foreground outline-none first:border-t-0 hover:bg-raised focus-visible:bg-raised', sort === s.value && 'font-semibold')}
-              >
-                {s.label}
-                {sort === s.value && <span className="text-link"><CheckIcon size={16} /></span>}
-              </button>
+              <ListRow key={s.value} size="compact" weight={sort === s.value ? 'medium' : 'regular'} role="radio" aria-checked={sort === s.value}
+                onClick={() => onSort?.(s.value)} title={s.label}
+                trailing={sort === s.value ? <span className="text-link"><CheckIcon size={18} /></span> : null} />
             ))}
+          </div>
+        </section>
+        <section className="flex flex-col gap-2">
+          <SectionLabel as="h4" className="px-1">Played</SectionLabel>
+          <div className="flex flex-wrap gap-1.5">
+            <button type="button" aria-pressed={!!filters.stale} onClick={() => onFilters?.({ ...filters, stale: !filters.stale })} className={chipClass(!!filters.stale)}>Not played lately</button>
           </div>
         </section>
         {options.keys.length > 0 && (
           <section className="flex flex-col gap-2">
-            <h4 className={head}>Key</h4>
+            <SectionLabel as="h4" className="px-1">Key</SectionLabel>
             <KeyGrid keys={options.keys} picked={filters.keys} onFlip={(k) => flip('keys', k)} />
           </section>
         )}
         {options.themes.length > 0 && (
           <section className="flex flex-col gap-2">
-            <h4 className={head}>Theme</h4>
+            <SectionLabel as="h4" className="px-1">Theme</SectionLabel>
             <ChipSet values={options.themes.slice(0, 16)} picked={filters.themes} onFlip={(t) => flip('themes', t)} />
           </section>
         )}
         <section className="flex flex-col gap-2">
-          <h4 className={head}>Tempo</h4>
+          <SectionLabel as="h4" className="px-1">Tempo</SectionLabel>
           <ChipSet values={['Slow', 'Mid', 'Fast']} picked={filters.tempos} onFlip={(t) => flip('tempos', t)} />
         </section>
         <div className="flex gap-2">
@@ -191,8 +183,6 @@ export default function SongsView({
   const stopSelect = () => { setSelecting(false); setSelected(new Set()); };
   const run = async (fn) => { await fn?.([...selected]); stopSelect(); };
   const sortLabel = SORTS.find(s => s.value === sort)?.label || 'A–Z';
-  const chipKey = filters.keys.length ? `Key: ${filters.keys.join(', ')}` : 'Key';
-  const chipTheme = filters.themes.length ? `Theme: ${filters.themes.join(', ')}` : 'Theme';
   // A screenful first, the rest as you scroll (see useRevealList).
   const { count: shown, more, sentinel } = useRevealList(rows.length, { resetKey: `${query}|${sort}|${JSON.stringify(filters)}` });
   const shownRows = shown < rows.length ? rows.slice(0, shown) : rows;
@@ -201,15 +191,24 @@ export default function SongsView({
     <div data-slot="songs" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       {!wide && !selecting && <BackToTop />}
       <div className={cn('mx-auto flex w-full flex-col gap-3', wide ? 'max-w-[1180px]' : 'max-w-[680px]', selecting ? 'pb-40' : 'pb-8', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
-        <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
-          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>
-            Songs {total > 0 && <span className="text-[15px] font-medium tracking-normal text-muted-foreground">{total}</span>}
+        {/* Pinned while the list scrolls: title, search, + (like Home). */}
+        <header ref={rowRef} className={cn('sticky top-0 z-sticky flex min-h-14 items-center justify-between gap-2 bg-background py-1', layout === 'phone' ? '-mx-4 px-4' : '-mx-4 px-4 sm:-mx-6 sm:px-6')}>
+          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-title')}>
+            Songs {total > 0 && <span className="text-small font-medium tracking-normal text-muted-foreground">{total}</span>}
           </h1>
-          {selecting ? (
-            <Button variant="outline" size="sm" onClick={stopSelect}>Done</Button>
-          ) : leader && onAdd ? (
-            <Button size="sm" onClick={onAdd}><PlusIcon size={16} />Add</Button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {total > 0 && !selecting && (
+              <div className={cn(searchOpen ? cn('absolute inset-y-0 z-10 flex items-center bg-background', layout === 'phone' ? 'inset-x-4' : 'inset-x-4 sm:inset-x-6') : 'shrink-0')}>
+                <Search inline keyboard give={30} spring={30} value={query} onValueChange={onQuery} onOpenChange={setSearchOpen}
+                  placeholder="Search title, artist, lyrics" width={rowWidth} />
+              </div>
+            )}
+            {selecting ? (
+              <Button variant="outline" size="sm" onClick={stopSelect}>Done</Button>
+            ) : leader && onAdd ? (
+              <Button size="icon" aria-label="Add a song" className="size-12" onClick={onAdd}><PlusIcon size={20} /></Button>
+            ) : null}
+          </div>
         </header>
 
         {toCheck > 0 && !selecting && onCheckNext && (
@@ -232,40 +231,16 @@ export default function SongsView({
           </div>
         ) : (
           <>
-            {/* Our Search block (src/ui/blocks): a lens at the start of the
-                chips row that opens into the field and takes the row. */}
-            <div ref={rowRef} className="relative flex min-h-12 items-center gap-2">
-              <div className={cn(searchOpen ? 'absolute inset-0 z-10 bg-background' : 'w-12 shrink-0')}>
-                <Search inline keyboard value={query} onValueChange={onQuery} onOpenChange={setSearchOpen}
-                  placeholder="Search title, artist, lyrics" width={rowWidth} />
-              </div>
-            {!selecting && (
-              <div className={cn('flex min-w-0 flex-1 gap-1.5', wide ? 'flex-wrap' : '-mr-4 overflow-x-auto pr-4 [scrollbar-width:none] sm:mr-0 sm:pr-0')}>
-                {options.keys.length > 0 && (
-                  <ChipDrop label={chipKey} title="Key" active={filters.keys.length > 0} onClear={() => onFilters?.({ ...filters, keys: [] })}>
-                    <KeyGrid keys={options.keys} picked={filters.keys} onFlip={(k) => onFilters?.(flipIn(filters, 'keys', k))} />
-                  </ChipDrop>
-                )}
-                {options.themes.length > 0 && (
-                  <ChipDrop label={chipTheme} title="Theme" active={filters.themes.length > 0} onClear={() => onFilters?.({ ...filters, themes: [] })}>
-                    <ChipSet values={options.themes.slice(0, 16)} picked={filters.themes} onFlip={(t) => onFilters?.(flipIn(filters, 'themes', t))} />
-                  </ChipDrop>
-                )}
-                <button type="button" aria-pressed={filters.stale} onClick={() => onFilters?.({ ...filters, stale: !filters.stale })} className={cn(chipBase, filters.stale && chipOn)}>Not played lately</button>
-                <button type="button" onClick={() => setSheet(true)} className={cn(chipBase, nFilters > 0 && chipOn)}>
-                  <SlidersIcon />Filters{nFilters > 0 && <span className="text-caption font-semibold text-link">{nFilters}</span>}
-                </button>
-              </div>
-            )}
-            </div>
-            <div className="flex items-center justify-between px-0.5 text-[13px] text-muted-foreground">
+            <div className="flex min-h-9 items-center justify-between px-0.5 text-small text-muted-foreground">
               <span>{rows.length === total ? `${total} song${total === 1 ? '' : 's'}` : `${rows.length} of ${total}`}</span>
               <span className="flex items-center gap-3">
                 {leader && !selecting && rows.length > 0 && (
-                  <button type="button" onClick={() => setSelecting(true)} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[13px] font-medium text-link">Select</button>
+                  <button type="button" onClick={() => setSelecting(true)} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-small font-medium text-link">Select</button>
                 )}
-                <button type="button" onClick={() => setSheet(true)} className="flex min-h-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-sans text-[13px] font-medium text-foreground">
-                  {sortLabel}<ChevronDownIcon size={14} />
+                {/* Sort and every filter live in one sheet (Key, Theme, Tempo, Not played lately). */}
+                <button type="button" onClick={() => setSheet(true)} aria-label={`Sort and filter: ${sortLabel}${nFilters ? `, ${nFilters} filters` : ''}`}
+                  className={cn(chipClass(nFilters > 0), 'gap-1.5 text-foreground')}>
+                  <SlidersIcon />{sortLabel}{nFilters > 0 && <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-link px-1.5 text-caption font-semibold text-background">{nFilters}</span>}
                 </button>
               </span>
             </div>
@@ -290,8 +265,11 @@ export default function SongsView({
                 <SongPreview row={picked} nextLabel={nextLabel} onOpen={onOpen} onEdit={leader ? onEdit : null} />
               </div>
             ) : (
+              groupRows(shownRows, sort).map(g => (
+              <section key={g.letter || 'all'} className="flex flex-col gap-2">
+              {g.letter && <SectionLabel as="h2" className="px-1 pt-1">{g.letter}</SectionLabel>}
               <div className="overflow-hidden rounded-card material-base">
-                {shownRows.map(r => (
+                {g.rows.map(r => (
                   <Row
                     key={r.song.id}
                     row={r}
@@ -304,6 +282,8 @@ export default function SongsView({
                   />
                 ))}
               </div>
+              </section>
+              ))
             )}
             {more && <div ref={sentinel} aria-hidden="true" className="h-px" />}
           </>
