@@ -28,6 +28,8 @@
   --muted-foreground: #A39C92;
   --border: #2E2A26;
   --input: #6B645B;
+  /* Outline-button edge: softer than --input, a bright edge on black reads as a heavier, bigger button. */
+  --control-edge: #4A453F;
   --chip-border: #3D3833;
   --primary: #F3EFE8;
   --primary-foreground: #121110;
@@ -83,6 +85,7 @@
   --muted-foreground: #6B655C;
   --border: #D3CCC0;
   --input: #8F887D;
+  --control-edge: #B9B1A5;
   --chip-border: #D3CCC0;
   --primary: #1C1A17;
   --primary-foreground: #F6F4EF;
@@ -131,6 +134,7 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-control-edge: var(--control-edge);
   --color-chip-border: var(--chip-border);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);

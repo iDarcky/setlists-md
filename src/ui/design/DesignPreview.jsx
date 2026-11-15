@@ -139,7 +139,7 @@ export default function DesignPreview() {
           </div>
         </Section>
 
-        <Section title="Button" note="One button. Ink = the one main action on a screen. Outline = the other actions. Ghost = quiet (toolbars, Cancel). Destructive = only for delete. Link = inside a sentence. 48px on phones, 44px from the iPad up; sm is 36px to look at, 44px to tap.">
+        <Section title="Button" note="One button. Ink = the one main action on a screen. Outline = the other actions. Ghost = quiet (toolbars, Cancel). Destructive = only for delete. Link = inside a sentence. 44px on phones, 40px from the iPad up; sm is 36px to look at, 44px to tap.">
           <div className="material-base flex flex-col gap-4 rounded-card p-4">
             {[['default', 'Ink'], ['outline', 'Outline'], ['ghost', 'Ghost'], ['destructive', 'Destructive']].map(([v, label]) => (
               <div key={v} className="flex flex-wrap items-center gap-2">
