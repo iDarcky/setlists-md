@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { DateTile } from '@/ui/shadcn/date-tile';
 import { PageHeader } from '@/ui/shadcn/page-header';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -69,10 +70,7 @@ function Plays({ plays, clockFormat, onOpen }) {
           onClick={() => onOpen?.(sl)}
           className="flex w-full min-h-0 cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent px-4 py-3 text-left font-sans text-foreground outline-none first:border-t-0 hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="flex w-10 shrink-0 flex-col items-center leading-none">
-            <span className="text-[11px] font-semibold uppercase text-muted-foreground">{day(sl.date, { weekday: 'short' })}</span>
-            <span className="mt-1 text-[18px] font-semibold">{day(sl.date, { day: 'numeric' })}</span>
-          </span>
+          <DateTile size="sm" weekday={day(sl.date, { weekday: 'short' })} day={day(sl.date, { day: 'numeric' })} />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[14px] font-medium">{sl.name || 'Setlist'}</span>
             <span className="text-[12px] leading-4 text-muted-foreground">{[clock(sl.time, clockFormat), schedule.role].filter(Boolean).join(' · ')}</span>

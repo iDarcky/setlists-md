@@ -57,8 +57,8 @@ export function CanYouPlay({ tiles, onPick, onAll, title = 'Can you play?' }) {
               {asked && (
                 <span className="absolute -top-2 left-1/2 flex h-4 -translate-x-1/2 items-center rounded-full bg-warning-text px-1.5 text-[10px] font-bold text-background">Invited</span>
               )}
-              <span className="text-[11px] font-semibold uppercase text-muted-foreground">{t.weekday}</span>
-              <span className="text-[22px] font-semibold leading-[26px] tracking-[-0.5px]">{t.day}</span>
+              <span className="text-caption font-semibold uppercase tracking-[.04em] text-muted-foreground">{t.weekday}</span>
+              <span className="text-title font-semibold tabular-nums leading-[26px] tracking-[-0.5px]">{t.day}</span>
               <span className="line-clamp-2 h-7 max-w-full text-center text-[11px] leading-[14px] text-muted-foreground">{t.names.join(' + ') || 'Nothing yet'}</span>
               <span className={cn('mt-1.5 flex h-[22px] w-full items-center justify-center rounded-[6px] text-[11px] font-semibold', st.cls)}>{st.label}</span>
             </button>

@@ -20,12 +20,11 @@ const ink = (size) => (
 function Avatar({ name, url, size = 32, tone = 'brand', ring = false, title, className }) {
   const box = cn(
     'relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-semibold leading-none',
-    ring && 'shadow-[0_0_0_2px_var(--card)]',
     className,
   );
   if (url) {
     return (
-      <span aria-hidden="true" title={title} className={box} style={{ width: size, height: size }}>
+      <span aria-hidden="true" title={title} className={cn(box, ring && 'shadow-[0_0_0_2px_var(--card)]')} style={{ width: size, height: size }}>
         <img src={url} alt="" className="size-full object-cover" />
         <span className="pointer-events-none absolute inset-0 rounded-full shadow-[inset_0_0_0_1px_rgba(255,255,255,.08)]" />
       </span>
@@ -35,7 +34,8 @@ function Avatar({ name, url, size = 32, tone = 'brand', ring = false, title, cla
     <span
       aria-hidden="true"
       title={title}
-      className={cn(box, ink(size), tone === 'quiet' ? 'bg-raised text-foreground' : 'bg-link text-background')}
+      className={cn(box, ink(size), tone === 'quiet' ? 'bg-raised text-foreground' : 'bg-link text-background',
+        ring ? (tone === 'quiet' ? 'shadow-[0_0_0_2px_var(--card),inset_0_0_0_1px_var(--border)]' : 'shadow-[0_0_0_2px_var(--card)]') : tone === 'quiet' && 'shadow-[inset_0_0_0_1px_var(--border)]')}
       style={{ width: size, height: size }}
     >
       {churchInitials(name)}

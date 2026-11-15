@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { AvatarStack } from '@/ui/shadcn/avatar';
+import { DateTile } from '@/ui/shadcn/date-tile';
 import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyState } from '@/ui/shadcn/empty-state';
 import { Plus, Calendar, CalendarDays, SearchX } from 'lucide-react';
@@ -10,7 +12,6 @@ import BackToTop from '@/ui/BackToTop';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
-import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime, dateFormatter } from '@/lib/dateFormat';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 
@@ -49,23 +50,7 @@ function myChip(me) {
 }
 
 function Faces({ band }) {
-  return (
-    <span className="flex">
-      {band.slice(0, 6).map((b, i) => (
-        <span
-          key={b.id}
-          title={b.name}
-          className={cn(
-            'flex size-[22px] items-center justify-center rounded-full border-2 border-card text-[9px] font-semibold',
-            i > 0 && '-ml-1.5',
-            b.yes ? 'bg-link text-background' : 'bg-raised text-foreground',
-          )}
-        >
-          {churchInitials(b.name)}
-        </span>
-      ))}
-    </span>
-  );
+  return <AvatarStack people={band.map(b => ({ id: b.id, name: b.name, url: b.url, on: b.yes }))} size={24} />;
 }
 
 const ANSWERS = [
@@ -97,10 +82,7 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
         onClick={() => onOpen?.(sl)}
         className="flex min-h-0 min-w-0 flex-1 cursor-pointer items-start gap-3 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="flex w-11 shrink-0 flex-col items-center pt-0.5 leading-none">
-          <span className="text-[11px] font-semibold uppercase text-muted-foreground">{day(sl.date, { weekday: 'short' })}</span>
-          <span className={cn('mt-1 text-[22px] font-semibold tracking-[-0.5px]', past && 'text-muted-foreground')}>{day(sl.date, { day: 'numeric' })}</span>
-        </span>
+        <DateTile weekday={day(sl.date, { weekday: 'short' })} day={day(sl.date, { day: 'numeric' })} muted={past} className="pt-0.5" />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate text-body font-semibold">{sl.name || 'Setlist'}</span>
           {meta && <span className="text-small text-muted-foreground">{meta}</span>}

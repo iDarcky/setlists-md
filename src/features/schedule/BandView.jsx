@@ -1,8 +1,9 @@
 import { cn } from '@/ui/shadcn/utils';
+import { Avatar } from '@/ui/shadcn/avatar';
+import { DateTile } from '@/ui/shadcn/date-tile';
 import { Users } from 'lucide-react';
 import { EmptyState } from '@/ui/shadcn/empty-state';
 import { Button } from '@/ui/shadcn/button';
-import { churchInitials } from '@/lib/joinLink';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/navIcons';
 import { labelFor } from '@/data/instruments';
 
@@ -102,15 +103,14 @@ export default function BandView({
               onClick={() => onOpen?.(c.setlist)}
               className="flex h-[52px] min-h-0 cursor-pointer flex-col items-center justify-center border-0 border-l border-border bg-transparent p-0 font-sans leading-none text-foreground outline-none hover:bg-card focus-visible:bg-card"
             >
-              <span className="text-[11px] font-semibold uppercase text-muted-foreground">{day(c.setlist.date, { weekday: 'short' })}</span>
-              <span className="mt-1 text-[17px] font-semibold">{day(c.setlist.date, { day: 'numeric' })}</span>
+              <DateTile size="sm" weekday={day(c.setlist.date, { weekday: 'short' })} day={day(c.setlist.date, { day: 'numeric' })} />
             </button>
           ))}
         </div>
         {people.map(p => (
           <div key={p.userId} role="row" className="grid border-b border-border" style={{ gridTemplateColumns: cols }}>
             <span role="rowheader" className="flex min-w-0 items-center gap-2 px-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-raised text-[10px] font-semibold">{churchInitials(p.name)}</span>
+              <Avatar name={p.name} url={p.url} size={28} tone="quiet" />
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-[14px] font-medium">{p.name}</span>
                 {p.part && <span className="truncate text-[12px] text-muted-foreground">{labelFor(p.part) || p.part}</span>}

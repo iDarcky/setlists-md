@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
+import { Avatar, AvatarStack } from '@/ui/shadcn/avatar';
+import { DateTile } from '@/ui/shadcn/date-tile';
+import { Search as SearchIcon, Plus as PlusIcon } from 'lucide-react';
 import { Toaster, sileo } from 'sileo';
 import { Plus, Play, Trash2, User, Settings, Moon, ExternalLink, Music, ListMusic, Copy, Pencil, SearchX } from 'lucide-react';
 import { Button } from '@/ui/shadcn/button';
@@ -196,6 +200,35 @@ export default function DesignPreview() {
               </div>
             ))}
             <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
+          </div>
+        </Section>
+
+        <Section title="Page header" note="One header on every tab and on the pages under You: a 56px row, title 24 (28 from 1024px), 44px buttons. Home's date line sits under the row. A song or setlist page keeps its own big title.">
+          <div className="flex flex-col gap-4 rounded-card material-base px-4 py-2">
+            <PageHeader title="Songs" count={128} wide={false}>
+              <Button variant="outline" size="icon" aria-label="Search" className="size-11 rounded-control"><SearchIcon size={20} strokeWidth={1.8} /></Button>
+              <Button size="icon" aria-label="Add" className="size-11 rounded-control"><PlusIcon size={20} strokeWidth={2} /></Button>
+            </PageHeader>
+            <PageHeader title="Settings" onBack={() => {}} wide={false} />
+          </div>
+        </Section>
+
+        <Section title="Avatar and date tile" note="Avatar: photo or initials, brand (you, the church, said yes) or quiet (everyone else). Initials on the type scale. Date tile: weekday 12 semibold uppercase over the day, 24 in lists, 18 in tight rows and grid columns.">
+          <div className="flex flex-col gap-5 rounded-card material-base p-4">
+            <div className="flex flex-wrap items-end gap-3">
+              {[24, 28, 32, 36, 40, 56, 64].map(n => <Avatar key={n} name="Dana Pop" size={n} />)}
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              {[24, 28, 32, 36, 40].map(n => <Avatar key={n} name="Levi Ionescu" size={n} tone="quiet" />)}
+              <AvatarStack people={[{ id: 1, name: 'Ana Maria', on: true }, { id: 2, name: 'Levi I', on: true }, { id: 3, name: 'Sam T' }, { id: 4, name: 'Estera B' }, { id: 5, name: 'Paul R', on: true }, { id: 6, name: 'Ioana C' }, { id: 7, name: 'Tim D' }]} />
+            </div>
+            <div className="flex items-start gap-6">
+              <DateTile weekday="Sun" day="15" />
+              <DateTile weekday="Wed" day="18" />
+              <DateTile weekday="Sun" day="8" muted />
+              <DateTile size="sm" weekday="Sun" day="22" />
+              <DateTile size="sm" weekday="Fri" day="27" />
+            </div>
           </div>
         </Section>
 
