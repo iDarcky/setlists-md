@@ -14,13 +14,13 @@ import { totalLabel } from '@/lib/setlistView';
 
 const ANSWER = {
   available: { label: 'Yes', cls: 'bg-selected text-link' },
-  maybe: { label: 'Maybe', cls: 'bg-warning/15 text-warning-text' },
-  unavailable: { label: 'Can’t', cls: 'bg-danger/15 text-danger' },
-  pending: { label: 'Invited', cls: 'bg-warning/15 text-warning-text' },
+  maybe: { label: 'Maybe', cls: 'bg-warning-fill text-warning-text' },
+  unavailable: { label: 'Can’t', cls: 'bg-danger-fill text-danger-text' },
+  pending: { label: 'Invited', cls: 'bg-warning-fill text-warning-text' },
 };
 
 const Chip = ({ className, children }) => (
-  <span className={cn('flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold', className)}>{children}</span>
+  <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold', className)}>{children}</span>
 );
 
 // The row the clock says is on now (service day only).

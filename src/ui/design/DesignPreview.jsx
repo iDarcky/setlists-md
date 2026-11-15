@@ -6,12 +6,36 @@ import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { SectionLabel, SectionAction } from '@/ui/shadcn/section-label';
 import { MenuItem, MenuSeparator, MenuLabel } from '@/ui/shadcn/menu';
 import { Segmented } from '@/ui/shadcn/segmented';
+import { Chip } from '@/ui/shadcn/chip';
+import { Badge } from '@/ui/shadcn/badge';
 import { ToastStack } from '@/ui/blocks/ToastStack';
 import '@/ui/blocks/tokens.css';
 
 // The design system on one page: materials, layers, type, colours (and, as
 // they are matched, every shared component in every place it is used).
 // Open the app with `?design`. Nothing in the app links here.
+
+function ChipDemo() {
+  const [on, setOn] = useState(['Not played lately']);
+  const flip = (t) => setOn(on.includes(t) ? on.filter(x => x !== t) : [...on, t]);
+  return (
+    <div className="material-base flex flex-col gap-4 rounded-card p-4">
+      <div className="flex flex-wrap gap-2">
+        {['Key', 'Not played lately', 'Fast', 'Christmas'].map(t => <Chip key={t} on={on.includes(t)} onClick={() => flip(t)}>{t}</Chip>)}
+        <Chip dashed>+ Other date</Chip>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="selected">Ready</Badge>
+        <Badge variant="selected">You play</Badge>
+        <Badge variant="neutral">Draft</Badge>
+        <Badge variant="warning">Invited</Badge>
+        <Badge variant="warning">Maybe</Badge>
+        <Badge variant="danger">Can’t</Badge>
+        <Badge variant="outline">Not sent</Badge>
+      </div>
+    </div>
+  );
+}
 
 function SegDemo() {
   const [a, setA] = useState('dark');
@@ -172,6 +196,10 @@ export default function DesignPreview() {
             ))}
             <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
           </div>
+        </Section>
+
+        <Section title="Chip and badge" note="Chip = you tap it (filters, dates, tags): round, 36px on phones / 32px on iPad, green edge when on, same text weight both ways. Badge = a status you read (not tappable): 24px, 12px semibold, one colour per meaning everywhere.">
+          <ChipDemo />
         </Section>
 
         <Section title="Segmented" note="Two to four choices in one pill. 40px in settings and sheets, 32px in toolbars. Picked = card fill with a hairline; text 14 medium in both states so nothing jumps. Full width when it switches the view (Me / Band).">

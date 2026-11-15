@@ -20,8 +20,8 @@ const ANSWERS = [
 // What the bottom of a tile says. An unanswered ask outranks everything.
 function tileState(t) {
   if (t.asks.length) return { label: 'Answer', cls: 'border border-dashed border-input text-muted-foreground' };
-  if (t.status === 'unavailable') return { label: 'Can’t', cls: 'bg-danger/15 text-danger' };
-  if (t.status === 'maybe') return { label: 'Maybe', cls: 'bg-warning/20 text-warning-text' };
+  if (t.status === 'unavailable') return { label: 'Can’t', cls: 'bg-danger-fill text-danger-text' };
+  if (t.status === 'maybe') return { label: 'Maybe', cls: 'bg-warning-fill text-warning-text' };
   if (t.playing) return { label: 'Playing', cls: 'bg-link text-background' };
   if (t.status === 'available') return { label: 'Free', cls: 'bg-selected text-link' };
   return { label: 'Tap', cls: 'border border-dashed border-input text-muted-foreground' };

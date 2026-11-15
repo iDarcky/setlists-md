@@ -77,7 +77,7 @@ function Plays({ plays, clockFormat, onOpen }) {
             <span className="truncate text-[14px] font-medium">{sl.name || 'Setlist'}</span>
             <span className="text-[12px] leading-4 text-muted-foreground">{[clock(sl.time, clockFormat), schedule.role].filter(Boolean).join(' · ')}</span>
           </span>
-          <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-selected px-2.5 text-[12px] font-semibold text-link">You play</span>
+          <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">You play</span>
         </button>
       ))}
     </div>

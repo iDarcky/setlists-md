@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Chip as SharedChip } from '@/ui/shadcn/chip';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
@@ -11,15 +12,8 @@ const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 const dayOf = (date) => new Date(`${date}T12:00:00`);
 
 /** A chip row value: one tap picks it. */
-export function Chip({ on, dashed, children, className, ...p }) {
-  return (
-    <button type="button" aria-pressed={on} {...p}
-      className={cn('flex h-9 min-h-0 shrink-0 cursor-pointer items-center whitespace-nowrap rounded-full border px-3.5 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        on ? 'border-link bg-selected text-foreground' : dashed ? 'border-dashed border-input bg-transparent text-muted-foreground' : 'border-border bg-card text-foreground',
-        className)}>
-      {children}
-    </button>
-  );
+export function Chip(props) {
+  return <SharedChip {...props} />;
 }
 
 const WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];

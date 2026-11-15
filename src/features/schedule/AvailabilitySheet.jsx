@@ -12,8 +12,8 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@/app/navIcons';
 
 const STATUS = [
   { value: 'available', label: 'Can play', cls: 'bg-selected text-link' },
-  { value: 'maybe', label: 'Maybe', cls: 'bg-warning/20 text-warning-text' },
-  { value: 'unavailable', label: 'Can’t', cls: 'bg-danger/15 text-danger' },
+  { value: 'maybe', label: 'Maybe', cls: 'bg-warning-fill text-warning-text' },
+  { value: 'unavailable', label: 'Can’t', cls: 'bg-danger-fill text-danger-text' },
 ];
 const clsFor = (status) => STATUS.find(s => s.value === status)?.cls || '';
 

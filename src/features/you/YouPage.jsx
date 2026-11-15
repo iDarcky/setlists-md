@@ -42,7 +42,7 @@ function Row({ icon, label, sub, detail, badge, onClick, danger = false, externa
         {badge != null && badge !== 0 && badge !== false && (
           typeof badge === 'number'
             ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-caption font-semibold text-white">{badge}</span>
-            : <span className="rounded-full bg-selected px-2 py-0.5 text-caption font-semibold text-link">{badge}</span>
+            : <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{badge}</span>
         )}
         {external && <span className="text-muted-foreground"><ExternalIcon /></span>}
       </> : null}
@@ -153,7 +153,7 @@ export default function YouPage({
             <h1 className="m-0 truncate text-[22px] font-semibold tracking-[-0.4px]">{church ? church.name : me?.name}</h1>
             <div className="flex min-w-0 items-center gap-2 text-[14px] text-muted-foreground">
               <span className="truncate">{church ? me?.name : me?.email}</span>
-              {church?.role && <span className="shrink-0 rounded-full bg-selected px-2 py-0.5 text-[12px] font-semibold text-link">{church.role}</span>}
+              {church?.role && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{church.role}</span>}
             </div>
           </div>
         </div>

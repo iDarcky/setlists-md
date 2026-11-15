@@ -14,8 +14,8 @@ const day = (dateStr, opts) => new Date(`${dateStr}T12:00:00`).toLocaleDateStrin
 const CELL = {
   in: { cls: 'bg-link text-background', mark: '✓', label: 'in the band' },
   asked: { cls: 'border-2 border-link text-link', mark: '…', label: 'invited' },
-  maybe: { cls: 'bg-warning/20 text-warning-text', mark: '?', label: 'maybe' },
-  cant: { cls: 'bg-danger/15 text-danger', mark: '×', label: 'can’t' },
+  maybe: { cls: 'bg-warning-fill text-warning-text', mark: '?', label: 'maybe' },
+  cant: { cls: 'bg-danger-fill text-danger-text', mark: '×', label: 'can’t' },
   free: { cls: 'bg-selected', mark: '', label: 'free' },
   none: { cls: 'border border-dashed border-input', mark: '', label: 'no answer' },
 };

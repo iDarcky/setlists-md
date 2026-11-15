@@ -25,15 +25,15 @@ const clock = (t, fmt) => (t ? formatClockTime(t, fmt) : '');
 
 const CHIP = {
   playing: 'bg-selected text-link',
-  asked: 'bg-warning/20 text-warning-text',
-  maybe: 'bg-warning/20 text-warning-text',
-  cant: 'bg-danger/15 text-danger',
+  asked: 'bg-warning-fill text-warning-text',
+  maybe: 'bg-warning-fill text-warning-text',
+  cant: 'bg-danger-fill text-danger-text',
   not: 'bg-raised text-muted-foreground',
   draft: 'bg-raised text-muted-foreground',
   ready: 'bg-selected text-link',
 };
 const Chip = ({ kind, children }) => (
-  <span className={cn('inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-[12px] font-semibold', CHIP[kind])}>{children}</span>
+  <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold', CHIP[kind])}>{children}</span>
 );
 
 function myChip(me) {

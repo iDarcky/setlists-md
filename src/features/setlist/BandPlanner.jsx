@@ -13,10 +13,10 @@ import { partName, ADDABLE_PARTS } from '@/lib/bandParts';
 
 const STATUS = {
   available: ['Yes', 'bg-selected text-link'],
-  maybe: ['Maybe', 'bg-warning/15 text-warning-text'],
-  unavailable: ['Can’t', 'bg-danger/15 text-danger'],
-  pending: ['Invited', 'bg-warning/15 text-warning-text'],
-  notsent: ['Not sent', 'bg-warning/15 text-warning-text'],
+  maybe: ['Maybe', 'bg-warning-fill text-warning-text'],
+  unavailable: ['Can’t', 'bg-danger-fill text-danger-text'],
+  pending: ['Invited', 'bg-warning-fill text-warning-text'],
+  notsent: ['Not sent', 'bg-warning-fill text-warning-text'],
 };
 
 const Caps = ({ children }) => <span className="pt-2 text-label text-muted-foreground">{children}</span>;
@@ -42,7 +42,7 @@ export function BandPlanner({ slots, person, note, onSlot, onAddPart, pending = 
                   <span className="truncate text-[15px] font-medium">{p.name}</span>
                   {s.warn && <span className="text-[12px] font-medium text-warning-text">⚠ {s.warn}</span>}
                 </span>
-                {st && <span className={cn('flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold', st[1])}>{st[0]}</span>}
+                {st && <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold', st[1])}>{st[0]}</span>}
               </>
             ) : (
               <span className="flex flex-1 items-center gap-2 text-[15px] font-semibold text-link"><PersonAddIcon />Pick someone</span>

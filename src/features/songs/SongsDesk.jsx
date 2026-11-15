@@ -103,7 +103,7 @@ export function SongPreview({ row, nextLabel, onOpen, onEdit, customSectionTypes
           <h2 className="m-0 text-[22px] font-semibold leading-[26px] tracking-[-0.3px]">{song.title || 'Untitled'}</h2>
           {song.artist && <span className="truncate text-[15px] text-muted-foreground">{song.artist}</span>}
         </div>
-        {next && nextLabel && <span className="flex h-6 shrink-0 items-center self-start rounded-full bg-selected px-2.5 text-[12px] font-semibold text-link">{nextLabel}</span>}
+        {next && nextLabel && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold self-start bg-selected text-link">{nextLabel}</span>}
       </div>
       <MetaLine>
         {arrs.length > 1 && <span className="inline-flex h-7 max-w-[160px] items-center truncate rounded-full border-[1.5px] border-foreground px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em]">{arr.name || 'Main'}</span>}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { chipClass } from '@/ui/shadcn/chip';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { Search } from '@/ui/blocks/Search';
 import BackToTop from '@/ui/BackToTop';
@@ -32,8 +33,8 @@ const MoveIcon = () => <Svg><path d="M5 12h14M13 6l6 6-6 6" /></Svg>;
 const CopyIcon = () => <Svg><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></Svg>;
 const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Svg>;
 
-const chipBase = 'flex h-8 min-h-0 shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border border-border bg-transparent px-3 font-sans text-[13px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
-const chipOn = 'border-transparent bg-selected font-semibold text-foreground';
+const chipBase = chipClass(false);
+const chipOn = chipClass(true);
 
 function Row({ row, nextLabel, selecting, selected, onOpen, onToggle, onLongPress }) {
   const { bind, consumeClick } = useLongPress(onLongPress);
@@ -53,7 +54,7 @@ function Row({ row, nextLabel, selecting, selected, onOpen, onToggle, onLongPres
       title={song.title || 'Untitled'}
       sub={<>{song.artist ? `${song.artist} · ` : ''}<span className={cn(line.stale && 'text-[var(--chord)]')}>{line.text}</span></>}
       trailing={(next && nextLabel) || keyName ? <>
-        {next && nextLabel && <span className="flex h-6 items-center rounded-full bg-selected px-2.5 text-caption font-semibold text-link">{nextLabel}</span>}
+        {next && nextLabel && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{nextLabel}</span>}
         {keyName && <KeyBadge>{keyName}</KeyBadge>}
       </> : null}
     />
@@ -252,7 +253,7 @@ export default function SongsView({
                 )}
                 <button type="button" aria-pressed={filters.stale} onClick={() => onFilters?.({ ...filters, stale: !filters.stale })} className={cn(chipBase, filters.stale && chipOn)}>Not played lately</button>
                 <button type="button" onClick={() => setSheet(true)} className={cn(chipBase, nFilters > 0 && chipOn)}>
-                  <SlidersIcon />Filters{nFilters > 0 && <span className="text-[12px] font-bold text-link">{nFilters}</span>}
+                  <SlidersIcon />Filters{nFilters > 0 && <span className="text-caption font-semibold text-link">{nFilters}</span>}
                 </button>
               </div>
             )}

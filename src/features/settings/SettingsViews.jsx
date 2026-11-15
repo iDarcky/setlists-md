@@ -45,7 +45,7 @@ export function NavRow({ icon, label, detail, badge, onClick, danger = false }) 
       title={label}
       trailing={(detail || badge) ? <>
         {detail && <span className="max-w-[45vw] truncate text-small text-muted-foreground">{detail}</span>}
-        {badge && <span className="rounded-full bg-selected px-2 py-0.5 text-caption font-semibold text-link">{badge}</span>}
+        {badge && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{badge}</span>}
       </> : null}
       chevron={!danger}
     />

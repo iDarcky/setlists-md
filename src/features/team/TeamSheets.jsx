@@ -20,9 +20,9 @@ const PICKS = ['leader', 'editor', 'member'];
 
 const ANSWER = {
   available: { label: 'Said yes', cls: 'bg-selected text-link' },
-  maybe: { label: 'Maybe', cls: 'bg-warning/15 text-warning-text' },
-  unavailable: { label: 'Can’t', cls: 'bg-danger/15 text-danger' },
-  pending: { label: 'Invited', cls: 'bg-warning/15 text-warning-text' },
+  maybe: { label: 'Maybe', cls: 'bg-warning-fill text-warning-text' },
+  unavailable: { label: 'Can’t', cls: 'bg-danger-fill text-danger-text' },
+  pending: { label: 'Invited', cls: 'bg-warning-fill text-warning-text' },
 };
 
 const savedTokens = (m) => Array.from(new Set((m?.instruments || []).map(normalize).filter(Boolean)));
@@ -124,7 +124,7 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
             {upcoming.map(u => (
               <div key={u.id} className="flex min-h-12 items-center gap-3 border-t border-border py-2 first:border-t-0">
                 <span className="min-w-0 flex-1 truncate text-[15px]">{u.label} · {u.name}</span>
-                {ANSWER[u.answer] && <span className={cn('flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold', ANSWER[u.answer].cls)}>{ANSWER[u.answer].label}</span>}
+                {ANSWER[u.answer] && <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold', ANSWER[u.answer].cls)}>{ANSWER[u.answer].label}</span>}
               </div>
             ))}
           </div>
