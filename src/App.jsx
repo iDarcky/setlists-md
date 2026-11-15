@@ -32,6 +32,7 @@ import { createBackupMirror } from '@/sync/backup';
 import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
+import { markOrigin } from '@/sync/provenance';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
@@ -812,6 +813,10 @@ export default function App() {
         savedSetlists = healSetlistLinks(savedSetlists, savedSongs).setlists;
       }
 
+      // Stamp what was read for this Space, so no other Space's engine can
+      // ever upload it (sync/provenance.js).
+      markOrigin(savedSongs, activeLibrary);
+      markOrigin(savedSetlists || [], activeLibrary);
       setSongs(savedSongs);
       setSetlists(savedSetlists || []);
 
@@ -1684,7 +1689,9 @@ export default function App() {
       const targetSongs = await loadSongs(targetLibraryId);
       // Clean up its old ID if it exists in the new library to avoid duplicates
       const filteredTargetSongs = targetSongs.filter(s => s.id !== song.id);
-      filteredTargetSongs.push(song);
+      // A new object: the original is stamped with the Space it leaves, and the
+      // target's engine refuses another Space's objects (sync/provenance.js).
+      filteredTargetSongs.push({ ...song });
       await saveSongs(filteredTargetSongs, targetLibraryId);
 
       // Trigger a background sync on the target library so the cloud gets the file
