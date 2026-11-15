@@ -1,6 +1,5 @@
 import { Sheet as Scroll } from 'scrollsheet';
 import { cn } from './utils';
-import { CloseIcon } from './dialog';
 
 // The phone's bottom sheet, on scrollsheet (MIT, scrollsheet.dev). The swipe is
 // the browser's own scroll snapping, so it keeps native momentum and stays
@@ -37,16 +36,10 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
         className="border-t border-float-border font-sans outline-none">
         <div className={cn('flex max-h-[calc(100dvh-64px)] flex-col', className)}>
           {dismissible ? <Scroll.Handle className="mx-auto mb-0 mt-2 block h-1 min-h-0 w-9 shrink-0 cursor-grab rounded-full bg-input p-0" /> : <div aria-hidden="true" className="h-2 shrink-0" />}
-          <div className={cn('flex shrink-0 items-center justify-between gap-2 py-2 pl-6 pr-3', !dismissible && 'pb-1 pr-6 pt-5')}>
-            <Scroll.Title className="m-0 text-heading">{title}</Scroll.Title>
-            {dismissible && (
-              <Scroll.Close asChild>
-                <button type="button" aria-label="Close"
-                  className="flex size-11 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
-                  <CloseIcon />
-                </button>
-              </Scroll.Close>
-            )}
+          {/* No ✕ on a phone sheet (owner, 15 Nov): the handle, a swipe down
+              and a tap outside close it. iPad/desktop dialogs keep theirs. */}
+          <div className={cn('flex shrink-0 items-center gap-2 px-6 py-2', !dismissible && 'pb-1 pt-5')}>
+            <Scroll.Title className="m-0 min-h-11 content-center text-heading">{title}</Scroll.Title>
           </div>
           {description && <Scroll.Description className="sr-only">{description}</Scroll.Description>}
           <div data-scrollsheet-nested-scroll className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-2">{children}</div>

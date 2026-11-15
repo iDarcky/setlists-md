@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { menuContent, menuItemClass, MenuSeparator } from '@/ui/shadcn/menu';
-import { SectionLabel } from '@/ui/shadcn/section-label';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
@@ -34,7 +32,7 @@ const clock = (t, fmt) => (t ? formatClockTime(t, fmt) : '');
 // ── Small parts ─────────────────────────────────────────────────────────────
 
 const Label = ({ children, className }) => (
-  <SectionLabel className={className}>{children}</SectionLabel>
+  <h2 className={cn('m-0 text-[12px] font-semibold uppercase leading-4 tracking-[0.06em] text-muted-foreground', className)}>{children}</h2>
 );
 
 function Section({ label, action, children, className }) {
@@ -50,7 +48,7 @@ function Section({ label, action, children, className }) {
 }
 
 const Card = ({ className, children, ...props }) => (
-  <div className={cn('overflow-hidden rounded-card material-base', className)} {...props}>{children}</div>
+  <div className={cn('overflow-hidden rounded-card border border-border bg-card', className)} {...props}>{children}</div>
 );
 
 const TextLink = ({ onClick, children }) => (
@@ -137,7 +135,7 @@ function CreateButton({ items }) {
       </PopoverTrigger>
       <AnimatePresence>
         {open && (
-          <PopoverContent forceMount asChild align="end" sideOffset={8} className={cn(menuContent, 'w-[236px]')}>
+          <PopoverContent forceMount asChild align="end" sideOffset={8} className="w-[236px] p-1.5">
             <Motion.div
               initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -147,14 +145,13 @@ function CreateButton({ items }) {
             >
               {items.map((it, i) => (
                 <div key={it.label}>
-                  {it.divider && i > 0 && <MenuSeparator />}
+                  {it.divider && i > 0 && <div className="mx-1.5 my-1 h-px bg-border" />}
                   <button
                     type="button"
                     onClick={() => { setOpen(false); it.onSelect(); }}
-                    role="menuitem"
-                    className={menuItemClass}
+                    className="flex h-9 w-full min-h-0 cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[14px] font-medium text-foreground outline-none hover:bg-raised focus-visible:bg-raised"
                   >
-                    <it.icon size={18} strokeWidth={STROKE} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+                    <it.icon size={18} strokeWidth={STROKE} aria-hidden="true" />
                     {it.label}
                   </button>
                 </div>
@@ -238,7 +235,7 @@ function NextUp({ next, leader, clockFormat, onOpen, onPlay, onMarkReady }) {
       <Card className="flex flex-col gap-3.5 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-label text-link">{when}</span>
+            <span className="text-[12px] font-semibold uppercase leading-4 tracking-[0.06em] text-link">{when}</span>
             <h3 className="m-0 truncate text-[18px] font-semibold leading-[26px] tracking-[-0.2px]">{sl.name || 'Service'}</h3>
             <p className="m-0 truncate text-[14px] leading-5 text-muted-foreground">{sub}</p>
           </div>

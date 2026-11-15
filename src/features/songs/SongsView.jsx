@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { chipClass } from '@/ui/shadcn/chip';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { SectionLabel } from '@/ui/shadcn/section-label';
@@ -206,7 +207,7 @@ export default function SongsView({
             {selecting ? (
               <Button variant="outline" size="sm" onClick={stopSelect}>Done</Button>
             ) : leader && onAdd ? (
-              <Button size="icon" aria-label="Add a song" className="size-12" onClick={onAdd}><PlusIcon size={20} /></Button>
+              <Button size="icon" aria-label="Add a song" className="size-11 shrink-0 rounded-control" onClick={onAdd}><Plus size={20} strokeWidth={2} aria-hidden="true" /></Button>
             ) : null}
           </div>
         </header>

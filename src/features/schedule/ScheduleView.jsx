@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Plus, Calendar } from 'lucide-react';
 import { Search } from '@/ui/blocks/Search';
 import { chipClass } from '@/ui/shadcn/chip';
 import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
@@ -9,7 +10,7 @@ import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime, dateFormatter } from '@/lib/dateFormat';
-import { CalendarIcon, ChevronLeftIcon, PlusIcon } from '@/app/navIcons';
+import { ChevronLeftIcon } from '@/app/navIcons';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 
 // Schedule, built from zero (canvas → Schedule page). Pure view: Schedule.jsx
@@ -238,11 +239,11 @@ export default function ScheduleView({
               </div>
             )}
             {onAvailability && (
-              <Button variant="outline" size="icon" className="size-12" onClick={onAvailability} aria-label="My availability">
-                <CalendarIcon size={20} />
+              <Button variant="outline" size="icon" className="size-11 rounded-control" onClick={onAvailability} aria-label="My availability">
+                <Calendar size={20} strokeWidth={1.8} aria-hidden="true" />
               </Button>
             )}
-            {leader && onNew && <Button size="icon" className="size-12" aria-label={newLabel} onClick={onNew}><PlusIcon size={20} /></Button>}
+            {leader && onNew && <Button size="icon" className="size-11 shrink-0 rounded-control" aria-label={newLabel} onClick={onNew}><Plus size={20} strokeWidth={2} aria-hidden="true" /></Button>}
           </div>
         </header>
         {!past && !isBand && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}

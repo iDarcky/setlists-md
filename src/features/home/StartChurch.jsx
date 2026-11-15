@@ -12,7 +12,7 @@ import { TeamIcon, CheckIcon } from '@/app/navIcons';
 export function StartChurchCard({ sent, onStart }) {
   if (sent) {
     return (
-      <section aria-label="Your church" className="flex items-start gap-3 rounded-card material-base p-4">
+      <section aria-label="Your church" className="flex items-start gap-3 rounded-card border border-border bg-card p-4">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-selected text-link"><CheckIcon size={22} /></span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h2 className="m-0 text-[16px] font-semibold leading-6">We’re setting up {sent.church || 'your church'}</h2>
@@ -24,7 +24,7 @@ export function StartChurchCard({ sent, onStart }) {
     );
   }
   return (
-    <section aria-label="Your church" className="flex flex-col gap-3 rounded-card material-base p-4 sm:flex-row sm:items-center sm:gap-5">
+    <section aria-label="Your church" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 sm:flex-row sm:items-center sm:gap-5">
       <div className="flex min-w-0 flex-1 items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-selected text-link"><TeamIcon size={22} /></span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
