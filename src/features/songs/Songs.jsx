@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { parseImportFiles, IMPORT_ACCEPT } from '@/lib/importFiles';
 import { markToCheck, needsCheck } from '@/lib/importCheck';
@@ -19,18 +19,24 @@ import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
 export default function Songs({
   songs = [], setlists = [], readOnly = false, onOpenSong, onEditSong,
   onSearchCatalog, onImportSongs, onImportSetlistFile, onEditImported, onCheckNext, onBlank, onTagSongs, onDeleteSongs, onMoveSongs, onCopySongs, otherChurches = [],
+  intent = null, onIntentUsed,
 }) {
   const [now] = useState(() => Date.now());
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('az');
   const [filters, setFilters] = useState(NO_FILTERS);
-  const [addOpen, setAddOpen] = useState(false);
+  // Home's + menu can open Songs with a sheet already up. The intent is used
+  // once: App forgets it on arrival, so Back to this page doesn't reopen it.
+  const [addOpen, setAddOpen] = useState(() => intent === 'add' && !readOnly);
   const [tagIds, setTagIds] = useState(null);
   const [moveCopy, setMoveCopy] = useState(null); // { action, ids }
   const q = useDeferredValue(query);
   const wide = useMediaQuery('(min-width: 640px)');
   const fileRef = useRef(null);
-  const [pickOpen, setPickOpen] = useState(false);
+  // Import from Home always opens the picker sheet: a phone's file dialog
+  // needs a tap, and the sheet's button gives it one.
+  const [pickOpen, setPickOpen] = useState(() => intent === 'import' && !readOnly && !!onImportSongs);
+  useEffect(() => { if (intent) onIntentUsed?.(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [reading, setReading] = useState(false);
   const [importError, setImportError] = useState('');
   const [review, setReview] = useState(null); // { items, failed, source }

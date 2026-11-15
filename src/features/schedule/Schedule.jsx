@@ -15,7 +15,7 @@ import BandView from './BandView';
 
 export default function Schedule({
   setlists = [], schedules = [], updateSchedule, createSchedule, deleteSchedule, setlistMap = {},
-  onOpenSetlist, onNewSetlist, clockFormat = '12h', firstDayOfWeek = 'sunday',
+  onOpenSetlist, onNewSetlist, onBack, clockFormat = '12h', firstDayOfWeek = 'sunday',
 }) {
   const { user } = useAuth();
   const { team, members, isAdmin, canManageBand } = useTeam();
@@ -155,6 +155,7 @@ export default function Schedule({
   return (
     <>
       <ScheduleView
+        onBack={onBack}
         leader={leader}
         tab={tab}
         onTab={setTab}

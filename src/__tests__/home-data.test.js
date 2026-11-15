@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  toDateStr, myAsks, myServices, nextUp, daysUntil, twoWeeks, whoCanPlay, needsYou, latestSongs, bandFor, recentActivity, activityFromSongs, timeAgo,
+  toDateStr, myAsks, myServices, nextUp, daysUntil, twoWeeks, whoCanPlay, needsYou, latestSongs, bandFor, recentActivity, activityFromSongs, timeAgo, setupSteps,
 } from '@/lib/homeData';
 
 // Sunday 25 October 2026, 09:00 local.
@@ -122,5 +122,37 @@ describe('homeData', () => {
     expect(items[1].removed).toBe(true);
     expect(activityFromSongs([{ id: 'a', title: 'A', updatedAt: 3 }])[0]).toMatchObject({ actor: 'You', verb: 'edited', object: 'A' });
     expect(timeAgo(NOW - 3 * 3600000, NOW)).toBe('3 h ago');
+  });
+});
+
+describe('setupSteps (Home, get ready once)', () => {
+  it('a leader: songs other than the demos, ten for the import step, setlist, band', () => {
+    const steps = setupSteps({
+      leader: true,
+      songs: [{ id: 'demo-amazing-grace' }, { id: 'a' }],
+      setlists: [],
+      memberCount: 1,
+      hasParts: true,
+    });
+    expect(steps.map(s => [s.id, s.done])).toEqual([
+      ['song', true], ['import', false], ['parts', true], ['setlist', false], ['invite', false],
+    ]);
+  });
+  it('demo songs alone are not your first song', () => {
+    const steps = setupSteps({ leader: true, songs: [{ id: 'demo-what-a-friend' }] });
+    expect(steps.find(s => s.id === 'song').done).toBe(false);
+  });
+  it('a member: no notification step where push is not supported', () => {
+    expect(setupSteps({ push: { supported: false } }).map(s => s.id)).toEqual(['parts', 'answer']);
+    const steps = setupSteps({ push: { supported: true, subscribed: true }, answered: true });
+    expect(steps.map(s => [s.id, s.done])).toEqual([['parts', false], ['push', true], ['answer', true]]);
+  });
+});
+
+describe('recentActivity photos', () => {
+  it('carries the actor photo when there is one', () => {
+    const rows = [{ id: 1, action: 'song_added', entity_id: 'r1', entity_name: 'Apă vie', actor_id: 'ana', created_at: '2026-11-15T08:00:00Z' }];
+    const [it] = recentActivity(rows, { nameFor: () => 'Ana', avatarFor: id => (id === 'ana' ? 'https://x/ana.webp' : null) });
+    expect(it.avatarUrl).toBe('https://x/ana.webp');
   });
 });
