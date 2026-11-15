@@ -1,0 +1,45 @@
+/* ── Bencho blocks → our tokens ───────────────────────────────────────────
+   The blocks in this folder are ported from bencho.dev (MIT, bencho.dev/licence).
+   Their CSS reads Bencho's own design tokens and never defines them. Each one
+   is mapped here to the token in src/styles/ds.css that does the same job,
+   and ONLY on the blocks' own roots, so nothing leaks into the rest of the app.
+
+     --ink, --fill-on      text            → --foreground
+     --fill-slab, --card   the raised slab → --card
+     --board, --bg         the ground      → --background
+     --pane                glass surface   → card at 80%, so blur shows through
+     --pane-edge           hairline        → --border
+     --signal              focus ring      → --ring (our green)
+     --font-ui             UI face         → --font-sans (Geist)
+     --ink-2 … --ink-5     a fading ramp of the text colour into the card
+     --on-ink              type on an ink fill → --background
+
+   The -rgb ones want three bare numbers (the CSS builds rgba() from them),
+   which a var() cannot give, so they are written out per theme. Keep them in
+   step with --foreground in ds.css. */
+
+.rct, .lbi, .crt-stage, .otp, .sek, .gdock, .tst, .blk-preview {
+  --ink: var(--foreground);
+  --fill-on: var(--foreground);
+  --fill-slab: var(--card);
+  --board: var(--background);
+  --bg: var(--background);
+  --pane: color-mix(in srgb, var(--card) 80%, transparent);
+  --pane-edge: var(--border);
+  --signal: var(--ring);
+  --font-ui: var(--font-sans);
+  --ink-2: color-mix(in srgb, var(--foreground) 82%, var(--card));
+  --ink-3: var(--muted-foreground);
+  --ink-4: color-mix(in srgb, var(--muted-foreground) 88%, var(--card));
+  --ink-5: color-mix(in srgb, var(--foreground) 22%, var(--card));
+  --on-ink: var(--background);
+  --ink-rgb: 243, 239, 232;
+  --fill-on-rgb: 243, 239, 232;
+  --shadow-rgb: 0, 0, 0;
+}
+
+[data-theme="light"] :is(.rct, .lbi, .crt-stage, .otp, .sek, .gdock, .tst, .blk-preview) {
+  --ink-rgb: 28, 26, 23;
+  --fill-on-rgb: 28, 26, 23;
+  --shadow-rgb: 28, 26, 23;
+}
