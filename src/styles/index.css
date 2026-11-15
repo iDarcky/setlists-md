@@ -933,7 +933,7 @@
    Green fill with white text in both themes; Refresh is a white button. */
 /* Phone: at the very top of the screen, over the top bar (user, 14 Nov).
    iPad/desktop: bottom right. The viewport adds 12px of padding. */
-.update-pill [data-sileo-viewport][data-position] { z-index: 60; }
+.update-pill [data-sileo-viewport][data-position] { z-index: 600; } /* = z-toast */
 .update-pill [data-sileo-viewport][data-position^=top] { top: env(safe-area-inset-top, 0px); }
 .update-pill [data-sileo-viewport][data-position^=bottom] { bottom: 12px; right: 12px; }
 .update-pill [data-sileo-toast] { cursor: pointer; }

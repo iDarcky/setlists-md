@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Toaster, sileo } from 'sileo';
+import { ToastStack } from '@/ui/blocks/ToastStack';
+import '@/ui/blocks/tokens.css';
 
 // The design system on one page: materials, layers, type, colours (and, as
 // they are matched, every shared component in every place it is used).
@@ -32,6 +35,15 @@ const TYPE = [
   ['text-small', '14 / 20 · 400–500', 'Rows, secondary text, buttons on iPad/desktop'],
   ['text-caption', '12 / 16 · 400–500', 'Metadata: key, BPM, dates, counts'],
   ['text-label', '12 / 16 · 600 UPPERCASE', 'Section labels'],
+];
+
+// Real messages from the app, one of each kind (see the toast inventory).
+const SAMPLE_TOASTS = [
+  { kind: 'success', title: 'Song added', description: 'Firm Foundation is in your songs.' },
+  { kind: 'action', title: 'Song deleted', description: 'Way Maker', button: 'Undo' },
+  { kind: 'error', title: "Couldn't make the link", description: 'Check your connection and try again.' },
+  { kind: 'warning', title: 'Offline', description: 'Changes save here and sync later.' },
+  { kind: 'info', title: 'Andrei is in', description: 'They can see songs and setlists.' },
 ];
 
 const COLOURS = ['background', 'card', 'raised', 'float', 'border', 'float-border', 'input', 'foreground', 'muted-foreground', 'link', 'selected', 'danger', 'warning', 'success', 'info'];
@@ -121,6 +133,30 @@ export default function DesignPreview() {
                 <span className="font-mono text-caption text-muted-foreground">{cls} · {spec} · {use}</span>
               </div>
             ))}
+          </div>
+        </Section>
+
+        <Section title="Toasts: A · Sileo" note="Tap a message to see it the way Sileo shows it (phone: top centre). Tap the toast to open it.">
+          <div className="flex flex-wrap gap-2">
+            {SAMPLE_TOASTS.map((t) => (
+              <button key={t.title} type="button" onClick={() => {
+                const fill = theme === 'light' ? '#1C1A17' : '#2A2724';
+                sileo[t.kind]({
+                  title: t.title, description: t.description, fill, position: 'top-center',
+                  styles: { title: '!text-[#F3EFE8] !normal-case !font-semibold', description: '!text-[#C9C2B8]' },
+                  ...(t.button ? { button: { title: t.button, onClick: () => {} } } : {}),
+                });
+              }} className="h-10 rounded-control border border-input bg-transparent px-3 text-small font-medium text-foreground">
+                {t.title}
+              </button>
+            ))}
+          </div>
+          <Toaster position="top-center" />
+        </Section>
+
+        <Section title="Toasts: B · Bencho stack" note="Messages pile up as a stack; tap to fan them out, × closes one, Retry fixes in place.">
+          <div className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-card border border-border bg-background p-6">
+            <ToastStack />
           </div>
         </Section>
 
