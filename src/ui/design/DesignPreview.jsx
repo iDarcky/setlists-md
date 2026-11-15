@@ -5,12 +5,28 @@ import { Button } from '@/ui/shadcn/button';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
 import { SectionLabel, SectionAction } from '@/ui/shadcn/section-label';
 import { MenuItem, MenuSeparator, MenuLabel } from '@/ui/shadcn/menu';
+import { Segmented } from '@/ui/shadcn/segmented';
 import { ToastStack } from '@/ui/blocks/ToastStack';
 import '@/ui/blocks/tokens.css';
 
 // The design system on one page: materials, layers, type, colours (and, as
 // they are matched, every shared component in every place it is used).
 // Open the app with `?design`. Nothing in the app links here.
+
+function SegDemo() {
+  const [a, setA] = useState('dark');
+  const [b, setB] = useState('me');
+  const [c, setC] = useState('chart');
+  const [d, setD] = useState('24h');
+  return (
+    <div className="material-base flex flex-col gap-4 rounded-card p-4">
+      <div className="flex items-center justify-between gap-3"><span className="text-body">Theme</span><Segmented size="sm" label="Theme" value={a} onChange={setA} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'default', label: 'Auto' }]} /></div>
+      <div className="flex items-center justify-between gap-3"><span className="text-body">Time</span><Segmented label="Time" value={d} onChange={setD} options={[{ value: '12h', label: '12-hour' }, { value: '24h', label: '24-hour' }]} /></div>
+      <Segmented tabs fill value={b} onChange={setB} options={[{ value: 'me', label: 'Me' }, { value: 'band', label: 'Band' }]} />
+      <Segmented tabs fill size="sm" className="w-[150px]" value={c} onChange={setC} options={[{ value: 'chart', label: 'Chart' }, { value: 'info', label: 'Info' }]} />
+    </div>
+  );
+}
 
 const MATERIALS = [
   { name: 'base', layer: '0', use: 'Resting card, list group', cls: 'material-base rounded-card' },
@@ -156,6 +172,10 @@ export default function DesignPreview() {
             ))}
             <p className="m-0 text-small text-muted-foreground">A <Button variant="link">link button</Button> sits inside a sentence.</p>
           </div>
+        </Section>
+
+        <Section title="Segmented" note="Two to four choices in one pill. 40px in settings and sheets, 32px in toolbars. Picked = card fill with a hairline; text 14 medium in both states so nothing jumps. Full width when it switches the view (Me / Band).">
+          <SegDemo />
         </Section>
 
         <Section title="Menu" note="One menu item everywhere: 44px on phones, 40px from the iPad up, text 16 / 14 like the buttons, icon 18 muted. Picked = selected + check. Delete = red, last, after a line.">

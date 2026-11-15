@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Segmented } from '@/ui/shadcn/segmented';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
@@ -62,23 +63,7 @@ function ThemeRow({ theme, onChange }) {
     <div className={listRowShell('compact')}>
       <span className="flex shrink-0 items-center text-muted-foreground"><MoonIcon /></span>
       <span id="you-theme" className="flex-1 text-body">Theme</span>
-      <div role="radiogroup" aria-labelledby="you-theme" className="flex gap-0.5 rounded-control bg-raised p-0.5">
-        {THEMES.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            role="radio"
-            aria-checked={current === t.id}
-            onClick={() => onChange?.(t.id)}
-            className={cn(
-              'h-[30px] min-h-0 cursor-pointer rounded-[6px] border-0 px-2.5 font-sans text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              current === t.id ? 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.15)]' : 'bg-transparent text-muted-foreground',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Segmented label="Theme" size="sm" value={current} options={THEMES} onChange={onChange} />
     </div>
   );
 }

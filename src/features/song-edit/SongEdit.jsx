@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { menuItemClass, MenuSeparator } from '@/ui/shadcn/menu';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
@@ -1266,12 +1267,7 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
       )}
       {(() => {
         const tabs = (
-          <div role="tablist" className="flex w-[150px] shrink-0 gap-0.5 rounded-[10px] bg-raised p-[3px]">
-            {[['chart', 'Chart'], ['info', 'Info']].map(([id, l]) => (
-              <button key={id} type="button" role="tab" aria-selected={tab === id && !(preview && !wide)} onClick={() => { setTab(id); closeAll(); if (!wide) setPreview(false); }}
-                className={cn('h-8 min-h-0 flex-1 cursor-pointer rounded-[7px] border-0 bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', tab === id && !(preview && !wide) && 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.18)]')}>{l}</button>
-            ))}
-          </div>
+          <Seg2 tabs fill size="sm" className="w-[150px]" value={preview && !wide ? null : tab} onChange={(id) => { setTab(id); closeAll(); if (!wide) setPreview(false); }} options={[{ value: 'chart', label: 'Chart' }, { value: 'info', label: 'Info' }]} />
         );
         const need = missing && (fresh || dirty) && <p className="m-0 text-[13px] text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>;
         const main = (

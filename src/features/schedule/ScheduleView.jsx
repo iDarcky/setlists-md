@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { useRevealList } from '@/hooks/useRevealList';
 import BackToTop from '@/ui/BackToTop';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -137,25 +138,7 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
 }
 
 export function Segmented({ value, options, onChange }) {
-  return (
-    <div role="tablist" className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-[10px] bg-raised p-[3px]">
-      {options.map(o => (
-        <button
-          key={o.value}
-          type="button"
-          role="tab"
-          aria-selected={value === o.value}
-          onClick={() => onChange?.(o.value)}
-          className={cn(
-            'h-[34px] min-h-0 cursor-pointer rounded-[8px] border-0 bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            value === o.value && 'bg-card font-semibold text-foreground shadow-[0_1px_2px_rgba(0,0,0,.2)]',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+  return <Seg2 tabs fill value={value} options={options} onChange={onChange} />;
 }
 
 // The first `n` rows across the month groups, months kept whole up to the cut.

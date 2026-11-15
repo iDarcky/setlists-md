@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { BottomActions } from '@/ui/shadcn/bottom-actions';
@@ -7,17 +8,12 @@ import {
   TECHNIQUES, DURATIONS, slotsPerMeasure, beatLabels, makeGrid, gridToAscii, gridFromTab,
 } from '@/lib/tabGrid';
 
-const seg = 'h-9 min-h-0 cursor-pointer rounded-[7px] border-0 bg-transparent px-2.5 font-sans text-[13px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
-const segOn = 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.18)]';
+const seg = 'h-9 min-h-0 cursor-pointer rounded-[7px] border-0 bg-transparent px-2.5 font-sans text-small font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
 const padKey = 'flex h-11 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-raised font-mono text-[16px] font-semibold text-foreground outline-none active:bg-selected focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40';
 
 function Seg({ items, value, onPick, label }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex gap-0.5 rounded-[10px] bg-raised p-[3px]">
-      {items.map(([v, l, title]) => (
-        <button key={v} type="button" role="radio" aria-checked={value === v} title={title} onClick={() => onPick(v)} className={cn(seg, value === v && segOn)}>{l}</button>
-      ))}
-    </div>
+    <Seg2 label={label} value={value} onChange={onPick} options={items.map(([v, l, title]) => ({ value: v, label: l, title }))} itemClassName="px-2.5" />
   );
 }
 

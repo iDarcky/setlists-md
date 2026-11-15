@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { fetchSharedSetlist, fetchShareStamp } from '@/lib/setlistShare';
 import { buildOrder } from '@/lib/setlistView';
 import { formatClockTime } from '@/lib/dateFormat';
@@ -162,16 +163,7 @@ export default function SharedSetlistViewer({ token, onExit, settings }) {
     return (
       <div className="flex h-[100dvh] flex-col bg-background font-sans">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
-          <div role="radiogroup" aria-label="What the chart shows" className="flex rounded-control bg-raised p-1">
-            {[['chords', 'Chords'], ['lyrics', 'Lyrics']].map(([v, label]) => (
-              <button key={v} type="button" role="radio" aria-checked={shows === v}
-                onClick={() => updateViewSetting('displayMode', v)}
-                className={cn('h-8 min-h-0 min-w-[84px] cursor-pointer rounded-[8px] border-0 px-3 font-sans text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  shows === v ? 'bg-background text-foreground shadow-sm' : 'bg-transparent text-muted-foreground')}>
-                {label}
-              </button>
-            ))}
-          </div>
+          <Seg2 label="What the chart shows" value={shows} onChange={(v) => updateViewSetting('displayMode', v)} options={[{ value: 'chords', label: 'Chords' }, { value: 'lyrics', label: 'Lyrics' }]} itemClassName="min-w-[84px]" />
           <div role="group" aria-label="Text size" className="flex rounded-control bg-raised p-1">
             {[[-2, 'A−', 'Smaller text', lyricSize <= 12], [2, 'A+', 'Larger text', lyricSize >= 36]].map(([step, label, aria, off]) => (
               <button key={label} type="button" aria-label={aria} disabled={off}

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
@@ -66,25 +67,7 @@ export function Row({ label, sub, children, stack = false }) {
 
 /** Two or three choices in one pill. */
 export function Segmented({ value, options, onChange, label }) {
-  return (
-    <div role="radiogroup" aria-label={label} className="flex shrink-0 gap-0.5 rounded-control bg-raised p-0.5">
-      {options.map(o => (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={value === o.id}
-          onClick={() => onChange?.(o.id)}
-          className={cn(
-            'h-[34px] min-h-0 cursor-pointer rounded-[7px] border-0 px-3 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            value === o.id ? 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.15)]' : 'bg-transparent text-muted-foreground',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+  return <Seg2 label={label} value={value} options={options} onChange={onChange} />;
 }
 
 /** On/off switch: the shared one. */

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { menuContent, MenuItem, MenuSeparator } from '@/ui/shadcn/menu';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
@@ -37,15 +38,7 @@ const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justi
 const SHOW = [['chords', 'Chords'], ['lyrics', 'Lyrics']];
 export function ShowSwitch({ value, onChange }) {
   return (
-    <div role="radiogroup" aria-label="Show" className="flex gap-1 rounded-control bg-raised p-1">
-      {SHOW.map(([id, name]) => (
-        <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange?.(id)}
-          className={cn('flex h-8 min-h-0 cursor-pointer items-center justify-center rounded-[7px] border-0 px-3.5 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            value === id ? 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,.25)]' : 'bg-transparent text-muted-foreground hover:text-foreground')}>
-          {name}
-        </button>
-      ))}
-    </div>
+    <Seg2 label="Show" size="sm" value={value} onChange={onChange} options={SHOW.map(([id, name]) => ({ value: id, label: name }))} />
   );
 }
 
