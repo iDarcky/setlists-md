@@ -13,11 +13,11 @@ const DrawerClose = DrawerPrimitive.Close;
 function DrawerContent({ className, children, ...props }) {
   return (
     <DrawerPrimitive.Portal>
-      <DrawerPrimitive.Overlay data-slot="drawer-overlay" className="fixed inset-0 z-[1000] bg-scrim" />
+      <DrawerPrimitive.Overlay data-slot="drawer-overlay" className="fixed inset-0 z-modal bg-scrim" />
       <DrawerPrimitive.Content
         data-slot="drawer-content"
         className={cn(
-          'fixed inset-x-0 bottom-0 z-[1000] flex max-h-[calc(100dvh-64px)] flex-col rounded-t-sheet border-t border-border bg-card font-sans text-card-foreground outline-none',
+          'fixed inset-x-0 bottom-0 z-modal flex max-h-[calc(100dvh-64px)] flex-col rounded-t-sheet border-t border-border bg-card font-sans text-card-foreground outline-none',
           className,
         )}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

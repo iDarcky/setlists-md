@@ -59,6 +59,19 @@
   --tone-bridge: #AE9FDB;
   --tone-instrumental: #8FAACB;
   --tone-tag: #D895AA;
+
+  /* Materials (2026-11-15, modelled on Vercel Geist Materials). Floating
+     surfaces (bars, menus, sheets) get a step-lighter fill and edge on dark,
+     because a shadow alone barely reads on warm black. */
+  --float: #1C1A18;
+  --float-border: #3A3631;
+  --float-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-large: 0 2px 4px rgba(0, 0, 0, 0.4), 0 16px 32px -8px rgba(0, 0, 0, 0.6);
+  --shadow-tooltip: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --shadow-menu: 0 4px 8px -2px rgba(0, 0, 0, 0.5), 0 16px 24px -8px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 8px 16px -4px rgba(0, 0, 0, 0.5), 0 24px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
 [data-theme="light"] {
@@ -97,6 +110,16 @@
   --tone-bridge: #5C4D93;
   --tone-instrumental: #3D5B80;
   --tone-tag: #8F3F5A;
+
+  --float: #FFFFFF;
+  --float-border: #D3CCC0;
+  --float-highlight: inset 0 0 0 0 transparent;
+  --shadow-small: 0 1px 2px rgba(28, 26, 23, 0.06);
+  --shadow-medium: 0 2px 4px rgba(28, 26, 23, 0.04), 0 8px 16px -4px rgba(28, 26, 23, 0.08);
+  --shadow-large: 0 2px 4px rgba(28, 26, 23, 0.04), 0 16px 32px -8px rgba(28, 26, 23, 0.12);
+  --shadow-tooltip: 0 2px 6px rgba(28, 26, 23, 0.12);
+  --shadow-menu: 0 4px 8px -2px rgba(28, 26, 23, 0.06), 0 16px 24px -8px rgba(28, 26, 23, 0.12);
+  --shadow-modal: 0 8px 16px -4px rgba(28, 26, 23, 0.08), 0 24px 48px -12px rgba(28, 26, 23, 0.2);
 }
 
 @theme inline {
@@ -127,6 +150,8 @@
   --color-info: var(--info);
   --color-info-fill: var(--info-fill);
   --color-info-text: var(--info-text);
+  --color-float: var(--float);
+  --color-float-border: var(--float-border);
 }
 
 @theme {
@@ -135,7 +160,10 @@
   --radius-card: 12px;
   --radius-sheet: 20px;
 
-  /* Five text sizes. Geist Sans comes from --font-sans in index.css. */
+  /* Five text sizes (2026-11-15): 24 / 18 / 16 / 14 / 12. Weights: 400
+     regular, 500 medium, 600 semibold; no bold in the UI (charts may bold
+     chords). Geist Sans comes from --font-sans in index.css.
+     `display` (32) is legacy: only the signed-out welcome uses it. */
   --text-display: 32px;
   --text-display--line-height: 40px;
   --text-display--letter-spacing: -1px;
@@ -144,10 +172,51 @@
   --text-title--line-height: 32px;
   --text-title--letter-spacing: -0.5px;
   --text-title--font-weight: 600;
+  --text-heading: 18px;
+  --text-heading--line-height: 24px;
+  --text-heading--letter-spacing: -0.2px;
+  --text-heading--font-weight: 600;
   --text-body: 16px;
   --text-body--line-height: 24px;
   --text-small: 14px;
   --text-small--line-height: 20px;
-  --text-caption: 13px;
-  --text-caption--line-height: 18px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
 }
+
+/* ── Materials ────────────────────────────────────────────────────────────────
+   One class per elevation: fill + edge + shadow. Pick by where the surface
+   sits, never hand-roll a shadow. Don't stack two on one element; lift a
+   child into its own, higher material instead. Corners stay on the component
+   (rounded-card 12 for all of them, rounded-control 8 for tooltip,
+   rounded-t-sheet 20 for a phone sheet, rounded-full for pills).
+
+     base        resting card, list group              layer 0
+     small       lifted row, picked tile, sticky head   layer 0 (z-sticky)
+     medium      nav pill, top bar, Save bar, sel. bar  z-chrome
+     large       floating panel, desktop preview        z-chrome
+     fullscreen  reader, live intro, takeovers          z-fullscreen
+     modal       sheet, dialog (over the scrim)         z-modal
+     menu        ⋮ menus, popovers, pickers             z-menu
+     tooltip     hints, inverted colours                z-tooltip
+     (toasts)    Sileo                                  z-toast        */
+@utility material-base { background-color: var(--card); border: 1px solid var(--border); box-shadow: none; }
+@utility material-small { background-color: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-small); }
+@utility material-medium { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-medium); }
+@utility material-large { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-large); }
+@utility material-fullscreen { background-color: var(--background); border: 0; box-shadow: none; }
+@utility material-modal { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-modal); }
+@utility material-menu { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-menu); }
+@utility material-tooltip { background-color: var(--foreground); color: var(--background); border: 0; box-shadow: var(--shadow-tooltip); }
+
+/* Layers. Every z-index in the app comes from this list. */
+@utility z-sticky { z-index: 10; }
+@utility z-chrome { z-index: 100; }
+@utility z-fullscreen { z-index: 200; }
+@utility z-modal { z-index: 300; }
+@utility z-menu { z-index: 400; }
+@utility z-tooltip { z-index: 500; }
+@utility z-toast { z-index: 600; }
+
+/* The 12px UPPERCASE section label. */
+@utility text-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }

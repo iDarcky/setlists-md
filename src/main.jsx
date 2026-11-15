@@ -12,6 +12,7 @@ import { initSentry } from './sentry';
 import { installAppViewport } from '@/lib/appViewport';
 import '@/styles/index.css';
 import { BlocksPreview, showBlocks } from '@/ui/blocks/lazyPreview';
+import { DesignPreview, showDesign } from '@/ui/design/lazyDesign';
 
 // Fire-and-forget — Sentry no-ops if VITE_SENTRY_DSN isn't set.
 initSentry();
@@ -36,10 +37,13 @@ window.addEventListener('vite:preloadError', (event) => {
   window.location.reload();
 });
 
-// `?blocks` shows the Bencho blocks on their own (src/ui/blocks).
+// `?blocks` shows the Bencho blocks on their own (src/ui/blocks); `?design`
+// shows the design system (src/ui/design).
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  showBlocks ? (
+  showDesign ? (
+    <React.Suspense fallback={null}><DesignPreview /></React.Suspense>
+  ) : showBlocks ? (
     <React.Suspense fallback={null}><BlocksPreview /></React.Suspense>
   ) : (
   <React.StrictMode>
