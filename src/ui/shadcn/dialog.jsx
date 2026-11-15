@@ -41,7 +41,7 @@ function DialogHeader({ className, children, hideClose = false, ...props }) {
 }
 
 function DialogTitle({ className, ...props }) {
-  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]', className)} {...props} />;
+  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('m-0 text-heading', className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }) {

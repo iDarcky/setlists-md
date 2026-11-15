@@ -42,7 +42,7 @@ function DrawerHeader({ className, children, hideClose = false, ...props }) {
 }
 
 function DrawerTitle({ className, ...props }) {
-  return <DrawerPrimitive.Title data-slot="drawer-title" className={cn('m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]', className)} {...props} />;
+  return <DrawerPrimitive.Title data-slot="drawer-title" className={cn('m-0 text-heading', className)} {...props} />;
 }
 
 function DrawerDescription({ className, ...props }) {

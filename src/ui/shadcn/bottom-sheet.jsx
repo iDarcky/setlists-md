@@ -9,17 +9,18 @@ import { CloseIcon } from './dialog';
 // Silk works the same way and felt best, but it is paid for commercial use
 // (owner, 2026-11-15: "Silk is not free").
 //
+// Material: `modal` (ds.css): the float fill, edge and modal shadow.
 // Colours come from our tokens through scrollsheet's CSS variables, so the
 // sheet follows the app's light/dark theme, not the OS.
 const THEME = {
-  '--scrollsheet-bg': 'var(--card)',
+  '--scrollsheet-bg': 'var(--float)',
   '--scrollsheet-fg': 'var(--card-foreground)',
-  '--scrollsheet-panel-bg': 'var(--card)',
+  '--scrollsheet-panel-bg': 'var(--float)',
   '--scrollsheet-backdrop': 'var(--scrim, rgb(0 0 0 / 0.5))',
   '--scrollsheet-handle': 'var(--input)',
   '--scrollsheet-handle-hover': 'var(--muted-foreground)',
   '--scrollsheet-radius': '20px',
-  '--scrollsheet-shadow': 'none',
+  '--scrollsheet-shadow': 'var(--float-highlight), var(--shadow-modal)',
   '--scrollsheet-focus-ring': 'var(--ring)',
 };
 
@@ -33,11 +34,11 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
   return (
     <Scroll.Root open={!!open} onOpenChange={(o) => onOpenChange?.(o)} dismissible={dismissible} keyboardExpands themeColorDimming>
       <Scroll.Content data-slot="bottom-sheet" style={THEME}
-        className="border-t border-border font-sans outline-none">
+        className="border-t border-float-border font-sans outline-none">
         <div className={cn('flex max-h-[calc(100dvh-64px)] flex-col', className)}>
           {dismissible ? <Scroll.Handle className="mx-auto mb-0 mt-2 block h-1 min-h-0 w-9 shrink-0 cursor-grab rounded-full bg-input p-0" /> : <div aria-hidden="true" className="h-2 shrink-0" />}
           <div className={cn('flex shrink-0 items-center justify-between gap-2 py-2 pl-6 pr-3', !dismissible && 'pb-1 pr-6 pt-5')}>
-            <Scroll.Title className="m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]">{title}</Scroll.Title>
+            <Scroll.Title className="m-0 text-heading">{title}</Scroll.Title>
             {dismissible && (
               <Scroll.Close asChild>
                 <button type="button" aria-label="Close"

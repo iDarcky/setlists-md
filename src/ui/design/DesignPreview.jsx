@@ -40,7 +40,7 @@ const TYPE = [
 // Real messages from the app, one of each kind (see the toast inventory).
 const SAMPLE_TOASTS = [
   { kind: 'success', title: 'Song added', description: 'Firm Foundation is in your songs.' },
-  { kind: 'action', title: 'Song deleted', description: 'Way Maker', button: 'Undo' },
+  { kind: 'action', title: 'Song deleted', description: 'Way Maker', button: 'Undo', danger: true },
   { kind: 'error', title: "Couldn't make the link", description: 'Check your connection and try again.' },
   { kind: 'warning', title: 'Offline', description: 'Changes save here and sync later.' },
   { kind: 'info', title: 'Andrei is in', description: 'They can see songs and setlists.' },
@@ -61,6 +61,7 @@ function Section({ title, note, children }) {
 }
 
 export default function DesignPreview() {
+  const [toastPos, setToastPos] = useState('bottom-right');
   const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'dark');
   const flip = () => {
     const next = theme === 'light' ? 'dark' : 'light';
@@ -136,14 +137,27 @@ export default function DesignPreview() {
           </div>
         </Section>
 
-        <Section title="Toasts: A · Sileo" note="Tap a message to see it the way Sileo shows it (phone: top centre). Tap the toast to open it.">
+        <Section title="Toasts: A · Sileo" note="Pick where they appear, then tap a message. Tap the toast to open it. The update pill alone stays at the top on phones.">
+          <div className="flex gap-2">
+            {['bottom-right', 'top-center'].map((p) => (
+              <button key={p} type="button" onClick={() => { sileo.clear(); setToastPos(p); }}
+                className={`h-9 rounded-full border px-3 text-small font-medium ${toastPos === p ? 'border-link bg-selected text-foreground' : 'border-input bg-transparent text-muted-foreground'}`}>
+                {p === 'bottom-right' ? 'Bottom right' : 'Top centre'}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-2">
             {SAMPLE_TOASTS.map((t) => (
               <button key={t.title} type="button" onClick={() => {
-                const fill = theme === 'light' ? '#1C1A17' : '#2A2724';
+                const fill = t.danger ? '#B4413A' : theme === 'light' ? '#1C1A17' : '#2A2724';
                 sileo[t.kind]({
-                  title: t.title, description: t.description, fill, position: 'top-center',
-                  styles: { title: '!text-[#F3EFE8] !normal-case !font-semibold', description: '!text-[#C9C2B8]' },
+                  title: t.title, description: t.description, fill, position: toastPos,
+                  styles: {
+                    title: '!text-[#F3EFE8] !normal-case !font-semibold',
+                    description: t.danger ? '!text-white/85' : '!text-[#C9C2B8]',
+                    badge: t.danger ? '!bg-white/20 !text-white' : undefined,
+                    button: t.danger ? '!bg-white !text-[#8A2F27] !font-semibold' : undefined,
+                  },
                   ...(t.button ? { button: { title: t.button, onClick: () => {} } } : {}),
                 });
               }} className="h-10 rounded-control border border-input bg-transparent px-3 text-small font-medium text-foreground">
@@ -151,7 +165,8 @@ export default function DesignPreview() {
               </button>
             ))}
           </div>
-          <Toaster position="top-center" />
+          {/* Below 1024px the nav pill is at the bottom, so toasts sit above it. */}
+          <Toaster position={toastPos} offset={{ bottom: window.matchMedia('(min-width: 1024px)').matches ? 12 : 'calc(88px + env(safe-area-inset-bottom, 0px))', top: 12, right: 12 }} />
         </Section>
 
         <Section title="Toasts: B · Bencho stack" note="Messages pile up as a stack; tap to fan them out, × closes one, Retry fixes in place.">
