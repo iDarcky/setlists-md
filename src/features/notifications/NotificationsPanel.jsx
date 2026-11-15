@@ -97,7 +97,7 @@ export default function NotificationsPanel({ data, now, push, onMarkAllRead, onA
         <div className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-8 text-center">
           <span className="flex size-12 items-center justify-center rounded-full bg-raised text-link"><BellIcon /></span>
           <b className="text-[17px]">You’re all caught up</b>
-          <p className="m-0 max-w-[280px] text-[15px] leading-[21px] text-muted-foreground">When someone asks you to play, or a setlist you’re on changes, it shows up here.</p>
+          <p className="m-0 max-w-[280px] text-[15px] leading-[21px] text-muted-foreground">When someone invites you to play, or a setlist you’re on changes, it shows up here.</p>
         </div>
       ) : (
         <>

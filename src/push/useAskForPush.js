@@ -11,7 +11,7 @@ export function useAskForPush(push) {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') return push.enable();
     const ok = await confirm({
       title: 'Get a buzz when you’re asked to play?',
-      description: 'We’ll let you know when a leader asks you to play, when a setlist is ready, and when it changes. Nothing else.\n\nYour phone will ask next. Tap Allow.',
+      description: 'We’ll let you know when a leader invites you to play, when a setlist is ready, and when it changes. Nothing else.\n\nYour phone will ask next. Tap Allow.',
       confirmLabel: 'Turn on',
       cancelLabel: 'Not now',
     });
