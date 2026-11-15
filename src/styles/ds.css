@@ -16,17 +16,21 @@
 :root,
 [data-theme="dark"],
 [data-theme="midnight"] {
-  --background: #11100E;
+  /* Dark surfaces "D: thin edge" (picked 2026-11-15 over B, which felt cheap
+     on a real phone: page too black, cards too bright). The page and the card
+     are a small step apart; the --border hairline does the separating, the
+     way Vercel's dark UI does. */
+  --background: #121110;
   --foreground: #F3EFE8;
-  --card: #1A1816;
+  --card: #171614;
   --card-foreground: #F3EFE8;
-  --raised: #23201D;
+  --raised: #22201D;
   --muted-foreground: #A39C92;
   --border: #2E2A26;
   --input: #6B645B;
   --chip-border: #3D3833;
   --primary: #F3EFE8;
-  --primary-foreground: #11100E;
+  --primary-foreground: #121110;
   --link: #7AA89C;
   --selected: rgba(122, 168, 156, 0.16);
   --ring: #7AA89C;
