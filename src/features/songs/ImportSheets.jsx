@@ -29,12 +29,12 @@ export function ImportPickSheet({ open, onOpenChange, onFiles, onChoose, busy = 
           className={cn('flex flex-col items-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-input px-5 py-9 text-center', over && 'border-link bg-selected')}
         >
           <span className="text-link"><FileIcon /></span>
-          <b className="text-[16px]">{busy ? 'Reading files…' : 'Drop files here'}</b>
-          <span className="text-[13px] text-muted-foreground">ChordPro, OpenSong, .md, text, PDF, or a .zip of many songs</span>
+          <b className="text-body">{busy ? 'Reading files…' : 'Drop files here'}</b>
+          <span className="text-small text-muted-foreground">ChordPro, OpenSong, .md, text, PDF, or a .zip of many songs</span>
           <Button size="sm" className="mt-1.5" disabled={busy} onClick={onChoose}>Choose files</Button>
         </div>
-        {error && <p role="alert" className="m-0 text-[13px] text-danger">{error}</p>}
-        <p className="m-0 text-[14px] text-muted-foreground">Next you’ll see every song before anything is added.</p>
+        {error && <p role="alert" className="m-0 text-small text-danger">{error}</p>}
+        <p className="m-0 text-small text-muted-foreground">Next you’ll see every song before anything is added.</p>
       </div>
     </Sheet>
   );
@@ -68,12 +68,12 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
     <Sheet open={open} onOpenChange={onOpenChange} title={title} className="sm:max-w-[560px]">
       <div className="flex min-h-full flex-col gap-3">
         {source && (
-          <p className="m-0 text-[14px] text-muted-foreground">
+          <p className="m-0 text-small text-muted-foreground">
             From <b className="font-medium text-foreground">{source}</b>.{n > 1 ? ' Untick any you don’t want.' : ''}
           </p>
         )}
         {dupes > 0 && (
-          <div className="flex gap-2.5 rounded-card bg-warning-fill px-3.5 py-3 text-[13px] leading-[18px]">
+          <div className="flex gap-2.5 rounded-card bg-warning-fill px-3.5 py-3 text-small leading-[18px]">
             <span aria-hidden="true">⚠</span>
             <span>
               <b className="font-semibold">{dupes === 1 ? '1 is already in your library.' : `${dupes} are already in your library.`}</b>{' '}
@@ -82,9 +82,9 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
           </div>
         )}
         {n > 1 && (
-          <div className="flex items-center justify-between px-0.5 text-[13px] text-muted-foreground">
+          <div className="flex items-center justify-between px-0.5 text-small text-muted-foreground">
             <span>{n} songs · {n - dupes} new</span>
-            <button type="button" onClick={() => setOff(allOff ? new Set() : new Set(items.map((_, i) => i)))} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[13px] font-medium text-link">
+            <button type="button" onClick={() => setOff(allOff ? new Set() : new Set(items.map((_, i) => i)))} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-small font-medium text-link">
               {allOff ? 'Tick all' : 'Untick all'}
             </button>
           </div>
@@ -103,22 +103,22 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
               >
                 {n > 1 && <Box on={on} />}
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-[15px] font-semibold">{it.song.title || 'Untitled'}</span>
-                  <span className={cn('truncate text-[13px] text-muted-foreground', it.existing && 'text-[var(--chord)]')}>
+                  <span className="truncate text-body font-semibold">{it.song.title || 'Untitled'}</span>
+                  <span className={cn('truncate text-small text-muted-foreground', it.existing && 'text-[var(--chord)]')}>
                     {it.existing ? 'Already in library · will update' : (it.song.artist || 'New song')}
                   </span>
                 </span>
-                {k && <span className="flex h-7 min-w-9 shrink-0 items-center justify-center rounded-[6px] bg-raised px-1.5 font-mono text-[13px] font-semibold text-[var(--chord)]">{k}</span>}
+                {k && <span className="flex h-7 min-w-9 shrink-0 items-center justify-center rounded-[6px] bg-raised px-1.5 font-mono text-small font-semibold text-[var(--chord)]">{k}</span>}
               </button>
             );
           })}
         </div>
         {failed.length > 0 && (
           <>
-            <div className="px-0.5 pt-1 text-[13px] text-muted-foreground">Couldn’t read {failed.length === 1 ? '1 file' : `${failed.length} files`}</div>
+            <div className="px-0.5 pt-1 text-small text-muted-foreground">Couldn’t read {failed.length === 1 ? '1 file' : `${failed.length} files`}</div>
             <div className="overflow-hidden rounded-card material-base">
               {failed.map(f => (
-                <div key={f} className="border-t border-border px-4 py-3 text-[14px] first:border-t-0">{f}</div>
+                <div key={f} className="border-t border-border px-4 py-3 text-small first:border-t-0">{f}</div>
               ))}
             </div>
           </>
@@ -130,7 +130,7 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
             </Button>
             {n === 1 && onEditFirst && <Button variant="outline" className="flex-1" onClick={() => { onOpenChange?.(false); onEditFirst(items[0].song); }}>Edit first</Button>}
           </div>
-          <span className="text-center text-[12px] text-muted-foreground">They’re tagged “To check”, so you can go through them one by one.</span>
+          <span className="text-center text-caption text-muted-foreground">They’re tagged “To check”, so you can go through them one by one.</span>
         </div>
       </div>
     </Sheet>

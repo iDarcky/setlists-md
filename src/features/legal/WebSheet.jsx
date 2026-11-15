@@ -49,7 +49,7 @@ export default function WebSheet({ page, onClose }) {
         <div className="-mx-6 -mb-6 -mt-2 flex h-full min-h-[60dvh] flex-col">
           <div className="flex justify-end px-4 pb-2">
             <a href={webPageUrl(page)} target="_blank" rel="noopener noreferrer"
-              className="inline-flex min-h-0 items-center gap-1.5 rounded-control px-2 py-1 text-[14px] font-medium text-link no-underline outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+              className="inline-flex min-h-0 items-center gap-1.5 rounded-control px-2 py-1 text-small font-medium text-link no-underline outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
               Open in browser <ExternalIcon />
             </a>
           </div>
@@ -66,7 +66,7 @@ export default function WebSheet({ page, onClose }) {
               />
             </div>
           ) : (
-            <p className="m-0 px-6 py-8 text-center text-[15px] text-muted-foreground">
+            <p className="m-0 px-6 py-8 text-center text-body text-muted-foreground">
               You’re offline. This page is on setlists.md, so it opens once you’re back online.
             </p>
           )}
@@ -83,7 +83,7 @@ export default function WebSheet({ page, onClose }) {
 export function WebRedirect({ page }) {
   useEffect(() => { window.location.replace(webPageUrl(page)); }, [page]);
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-background p-6 font-sans text-[15px] text-muted-foreground">
+    <div className="flex min-h-dvh items-center justify-center bg-background p-6 font-sans text-body text-muted-foreground">
       <a href={webPageUrl(page)} className="text-link">Opening {WEB_PAGES[page]?.title || 'setlists.md'}…</a>
     </div>
   );

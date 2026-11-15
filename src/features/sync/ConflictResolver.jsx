@@ -22,7 +22,7 @@ function summarize(kind, item) {
 const Side = ({ label, text }) => (
   <div className="flex flex-col gap-1 rounded-card border border-border bg-raised p-3.5">
     <span className="text-label text-muted-foreground">{label}</span>
-    <span className="text-[14px] leading-5 text-foreground">{text}</span>
+    <span className="text-small leading-5 text-foreground">{text}</span>
   </div>
 );
 
@@ -55,7 +55,7 @@ export default function ConflictResolver({ conflicts = [], onResolve, onResolveA
       className="h-auto sm:max-w-[480px]"
     >
       <div className="flex flex-col gap-4">
-        <p className="m-0 text-[15px] leading-[22px] text-muted-foreground">
+        <p className="m-0 text-body leading-[22px] text-muted-foreground">
           Someone else changed this {noun} while you were editing it on this device. Pick what to keep.
         </p>
         <div className="grid grid-cols-2 gap-2">
@@ -64,7 +64,7 @@ export default function ConflictResolver({ conflicts = [], onResolve, onResolveA
         </div>
         <div className="flex flex-col gap-2">
           <Button onClick={() => onResolve(conflict, 'both')}>Keep both</Button>
-          <p className="m-0 text-center text-[13px] text-muted-foreground">Yours is saved as a copy next to theirs.</p>
+          <p className="m-0 text-center text-small text-muted-foreground">Yours is saved as a copy next to theirs.</p>
           <div className="mt-1 grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => onResolve(conflict, 'mine')}>Keep mine</Button>
             <Button variant="outline" onClick={() => onResolve(conflict, 'cloud')}>Keep theirs</Button>
@@ -72,7 +72,7 @@ export default function ConflictResolver({ conflicts = [], onResolve, onResolveA
         </div>
         {remaining > 0 && (
           <div className="flex flex-col gap-2 border-t border-border pt-4">
-            <p className="m-0 text-center text-[13px] text-muted-foreground">
+            <p className="m-0 text-center text-small text-muted-foreground">
               {remaining} more like this.{onResolveAll ? ' Or decide them all at once:' : ''}
             </p>
             {onResolveAll && (

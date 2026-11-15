@@ -19,7 +19,7 @@ const ph = 'placeholder:text-muted-foreground/50';
 export function Field({ label, children, hint, required = false }) {
   return (
     <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="text-[13px] font-medium text-muted-foreground">{label}{required && <span aria-hidden className="text-foreground"> *</span>}{hint && <span className="font-normal"> · {hint}</span>}</span>
+      <span className="text-small font-medium text-muted-foreground">{label}{required && <span aria-hidden className="text-foreground"> *</span>}{hint && <span className="font-normal"> · {hint}</span>}</span>
       {children}
     </label>
   );
@@ -44,14 +44,14 @@ export function KeyGrid({ value, onPick }) {
     <div className="flex flex-col gap-2">
       <div role="radiogroup" aria-label="Key letter" className="grid grid-cols-[repeat(7,minmax(0,2.75rem))] gap-1.5">
         {['C', 'D', 'E', 'F', 'G', 'A', 'B'].map(l => (
-          <button key={l} type="button" role="radio" aria-checked={letter === l} {...chip(letter === l, 'min-w-0 px-0 text-[15px]')} onClick={() => put(l, acc, minor)}>{l}</button>
+          <button key={l} type="button" role="radio" aria-checked={letter === l} {...chip(letter === l, 'min-w-0 px-0 text-body')} onClick={() => put(l, acc, minor)}>{l}</button>
         ))}
       </div>
       <div className="flex flex-wrap gap-1.5">
         <div role="radiogroup" aria-label="Sharp or flat" className="flex gap-1.5">
           {[['', '♮', 'Natural'], ['b', '♭', 'Flat'], ['#', '♯', 'Sharp']].map(([a, sym, label]) => (
             <button key={label} type="button" role="radio" aria-checked={acc === a} aria-label={label} title={label} disabled={!!letter && a !== '' && NO_KEY.has(letter + a)}
-              {...chip(acc === a, 'text-[18px]')} onClick={() => { setAcc(a); put(letter, a, minor); }}>{sym}</button>
+              {...chip(acc === a, 'text-heading')} onClick={() => { setAcc(a); put(letter, a, minor); }}>{sym}</button>
           ))}
         </div>
         <span aria-hidden className="mx-1 w-px self-stretch bg-border" />
@@ -98,7 +98,7 @@ export function NewSongForm({ value, onChange, artists = [], sameTitle = null, a
   return (
     <div className="flex flex-col gap-3.5">
       <Field label="Name" required><Input value={value.title ?? ''} maxLength={120} onChange={set('title')} autoFocus={autoFocus && !value.title} placeholder="Amazing Grace" className={ph} /></Field>
-      {sameTitle && <p className="-mt-2 m-0 text-[13px] text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
+      {sameTitle && <p className="-mt-2 m-0 text-small text-[var(--chord)]">You already have {sameTitle.title}{sameTitle.artist ? ` by ${sameTitle.artist}` : ''}.</p>}
       <Field label="Artist" required><ArtistInput value={value.artist} artists={artists} className={ph} onChange={(artist) => onChange({ ...value, artist })} /></Field>
       <Field label="Original key" required><KeyGrid value={value.key || ''} onPick={(key) => onChange({ ...value, key })} /></Field>
       <div className="grid grid-cols-2 gap-2">
@@ -110,7 +110,7 @@ export function NewSongForm({ value, onChange, artists = [], sameTitle = null, a
         <div className="grid grid-cols-2 gap-2">
           <Field label="Length"><Input maxLength={5} value={value.duration ?? ''} placeholder="3:45" className={ph} onChange={set('duration')} /></Field>
           <div className="col-span-2"><Field label="YouTube link"><Input value={value.youtube ?? ''} maxLength={300} inputMode="url" placeholder="youtube.com/watch?v=…" className={ph} onChange={set('youtube')} /></Field></div>
-          <p className="col-span-2 m-0 text-[13px] text-muted-foreground">Credits, tags and the rest are on the Info tab, any time.</p>
+          <p className="col-span-2 m-0 text-small text-muted-foreground">Credits, tags and the rest are on the Info tab, any time.</p>
         </div>
       ) : (
         <Button type="button" variant="outline" className="self-start" onClick={() => setMore(true)}>More</Button>

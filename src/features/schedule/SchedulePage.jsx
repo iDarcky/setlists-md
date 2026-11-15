@@ -37,8 +37,8 @@ function Invite({ invite, clockFormat, onAnswer }) {
   return (
     <div className="flex flex-col gap-2.5 border-t border-border px-4 py-3 first:border-t-0">
       <div className="flex flex-col">
-        <span className="text-[14px] font-medium">Can you play {day(sl.date, { weekday: 'short', day: 'numeric', month: 'short' })}?</span>
-        <span className="text-[12px] leading-4 text-muted-foreground">{[sl.name || 'Setlist', clock(sl.time, clockFormat), part].filter(Boolean).join(' · ')}</span>
+        <span className="text-small font-medium">Can you play {day(sl.date, { weekday: 'short', day: 'numeric', month: 'short' })}?</span>
+        <span className="text-caption leading-4 text-muted-foreground">{[sl.name || 'Setlist', clock(sl.time, clockFormat), part].filter(Boolean).join(' · ')}</span>
       </div>
       <div role="group" aria-label={`Answer for ${sl.name || 'this setlist'}`} className="grid grid-cols-3 gap-2">
         {ANSWERS.map(a => (
@@ -48,7 +48,7 @@ function Invite({ invite, clockFormat, onAnswer }) {
             disabled={busy}
             onClick={() => answer(a.value)}
             className={cn(
-              'h-9 min-h-0 cursor-pointer rounded-control border font-sans text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+              'h-9 min-h-0 cursor-pointer rounded-control border font-sans text-small font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
               a.value === 'available' ? 'border-transparent bg-primary text-primary-foreground' : 'border-input bg-transparent text-foreground hover:bg-raised',
             )}
           >
@@ -72,8 +72,8 @@ function Plays({ plays, clockFormat, onOpen }) {
         >
           <DateTile size="sm" weekday={day(sl.date, { weekday: 'short' })} day={day(sl.date, { day: 'numeric' })} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[14px] font-medium">{sl.name || 'Setlist'}</span>
-            <span className="text-[12px] leading-4 text-muted-foreground">{[clock(sl.time, clockFormat), schedule.role].filter(Boolean).join(' · ')}</span>
+            <span className="truncate text-small font-medium">{sl.name || 'Setlist'}</span>
+            <span className="text-caption leading-4 text-muted-foreground">{[clock(sl.time, clockFormat), schedule.role].filter(Boolean).join(' · ')}</span>
           </span>
           <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">You play</span>
         </button>

@@ -131,7 +131,7 @@ export function PrintPreviewView({ title, kind, charts, build, onClose, embedded
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}><XIcon /></Button>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[16px] font-semibold">{title}</span>
+            <span className="truncate text-body font-semibold">{title}</span>
             <span className="text-caption text-muted-foreground">{kind || (charts ? 'Charts' : 'Order sheet')} · print or save as PDF</span>
           </div>
           <Button onClick={print}><PrintIcon />Print</Button>

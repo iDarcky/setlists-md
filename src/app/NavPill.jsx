@@ -41,8 +41,8 @@ export function NavPill({ placement = 'bottom', active, onSelect, embedded = fal
             className={cn(
               'flex min-h-0 cursor-pointer items-center justify-center rounded-full border-0 font-sans outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
               top
-                ? 'h-[38px] gap-2 pl-3 pr-4 text-[14px] [&_svg]:size-[18px]'
-                : 'h-[50px] w-[84px] flex-col gap-0.5 text-[11px] sm:h-[54px] sm:w-[104px] sm:text-[12px]',
+                ? 'h-[38px] gap-2 pl-3 pr-4 text-small [&_svg]:size-[18px]'
+                : 'h-[50px] w-[84px] flex-col gap-0.5 text-caption sm:h-[54px] sm:w-[104px] sm:text-caption',
               on
                 ? 'bg-selected font-semibold text-foreground [&_svg]:text-link'
                 : 'bg-transparent font-medium text-muted-foreground hover:text-foreground',

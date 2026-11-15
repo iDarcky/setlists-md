@@ -39,7 +39,7 @@ function ReleaseNotes({ release }) {
           )}
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {s.items.map((item, j) => (
-              <li key={j} className="relative pl-4 text-[15px] leading-[22px] text-muted-foreground">
+              <li key={j} className="relative pl-4 text-body leading-[22px] text-muted-foreground">
                 <span aria-hidden="true" className="absolute left-0.5 top-[9px] size-[5px] rounded-full bg-muted-foreground/60" />
                 <Inline text={item} />
               </li>
@@ -49,7 +49,7 @@ function ReleaseNotes({ release }) {
       ))}
       {total > BULLET_LIMIT && (
         <div>
-          <Button variant="link" className="text-[15px]" onClick={() => setAll((v) => !v)}>
+          <Button variant="link" className="text-body" onClick={() => setAll((v) => !v)}>
             {all ? 'Show less' : `Show all ${total}`}
           </Button>
         </div>
@@ -59,7 +59,7 @@ function ReleaseNotes({ release }) {
 }
 
 const Meta = ({ release }) => (
-  <span className="text-[13px] text-muted-foreground">
+  <span className="text-small text-muted-foreground">
     {release.version}{release.date && ` · ${release.date}`}
   </span>
 );
@@ -74,7 +74,7 @@ export function WhatsNewView({ releases, current = 0, error }) {
   const [shown, setShown] = useState(PAGE_SIZE);
 
   if (error) {
-    return <p className="m-0 px-1 pt-2 text-[15px] text-muted-foreground">{error}</p>;
+    return <p className="m-0 px-1 pt-2 text-body text-muted-foreground">{error}</p>;
   }
   if (!releases) {
     return (
@@ -94,7 +94,7 @@ export function WhatsNewView({ releases, current = 0, error }) {
     <div className="flex flex-col">
       <Group className="mt-2 flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-1">
-          <span className="text-[13px] text-muted-foreground">
+          <span className="text-small text-muted-foreground">
             You’re on {top.version}{top.date && ` · ${top.date}`}
           </span>
           <h2 className="m-0 text-[20px] font-semibold leading-[26px] tracking-[-0.2px]">{top.title}</h2>
@@ -119,7 +119,7 @@ export function WhatsNewView({ releases, current = 0, error }) {
                     className="flex min-h-[60px] w-full cursor-pointer items-center gap-3 border-0 bg-transparent px-4 py-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                   >
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="text-[15px] font-medium leading-[20px]">{r.title}</span>
+                      <span className="text-body font-medium leading-[20px]">{r.title}</span>
                       <Meta release={r} />
                     </span>
                     <span className={cn('shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-180')}>

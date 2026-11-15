@@ -31,7 +31,7 @@ export const Group = ({ children, className }) => (
 export const GroupLabel = ({ children }) => (
   <SectionLabel as="div" className="px-1 pb-2 pt-6 first:pt-2">{children}</SectionLabel>
 );
-const Note = ({ children }) => <p className="m-0 px-1 pt-2 text-[13px] leading-[18px] text-muted-foreground">{children}</p>;
+const Note = ({ children }) => <p className="m-0 px-1 pt-2 text-small leading-[18px] text-muted-foreground">{children}</p>;
 
 const rowBase = cn(listRowShell('compact'), 'py-2.5');
 
@@ -169,7 +169,7 @@ export function ProfileView({
     <SettingsShell title="Profile" onBack={onBack} embedded={embedded}>
       <div className="flex flex-col items-center gap-2 pb-2 pt-3">
         {photo || <Avatar name={me?.name} url={me?.url} size={88} />}
-        {me?.email && <span className="text-[14px] text-muted-foreground">{me.email}</span>}
+        {me?.email && <span className="text-small text-muted-foreground">{me.email}</span>}
       </div>
 
       <GroupLabel>Your name</GroupLabel>
@@ -213,9 +213,9 @@ export function PasswordSheet({ open, onOpenChange, onSave, busy = false, error 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) { setA(''); setB(''); } onOpenChange?.(o); }} title="Change password" className="h-auto sm:max-w-[440px]">
       <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (ok) onSave?.(a); }}>
-        <label htmlFor={`${uid}-a`} className="text-[14px] font-medium">New password</label>
+        <label htmlFor={`${uid}-a`} className="text-small font-medium">New password</label>
         <Input id={`${uid}-a`} type="password" autoComplete="new-password" value={a} onChange={e => setA(e.target.value)} />
-        <label htmlFor={`${uid}-b`} className="text-[14px] font-medium">Type it again</label>
+        <label htmlFor={`${uid}-b`} className="text-small font-medium">Type it again</label>
         <Input id={`${uid}-b`} type="password" autoComplete="new-password" value={b} onChange={e => setB(e.target.value)} />
         {(short || mismatch || error) && (
           <Alert variant="danger">{error || (short ? 'At least 8 characters.' : 'The two don’t match.')}</Alert>
@@ -233,10 +233,10 @@ export function DeleteAccountSheet({ open, onOpenChange, onDelete, busy = false,
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) setWord(''); onOpenChange?.(o); }} title="Delete your account?" className="h-auto sm:max-w-[440px]">
       <div className="flex flex-col gap-3">
-        <p className="m-0 text-[15px] leading-[22px] text-muted-foreground">
+        <p className="m-0 text-body leading-[22px] text-muted-foreground">
           This can’t be undone. Your login, profile, private notes and anything only you can see are removed. Songs and setlists in your church stay with the church.
         </p>
-        <label htmlFor={`${uid}-w`} className="text-[14px] font-medium">Type DELETE to confirm</label>
+        <label htmlFor={`${uid}-w`} className="text-small font-medium">Type DELETE to confirm</label>
         <Input id={`${uid}-w`} autoComplete="off" autoCapitalize="characters" value={word} onChange={e => setWord(e.target.value)} />
         {error && <Alert variant="danger">{error}</Alert>}
         <Button variant="destructive" className="mt-1" disabled={word.trim() !== 'DELETE'} loading={busy} onClick={onDelete}>Delete my account</Button>
@@ -303,12 +303,12 @@ export function NotificationsSettingsView({ push = {}, onPush, reminderOptions =
                 const next = new Set([...open.value, o.value]);
                 open.onChange?.(reminderOptions.map(x => x.value).filter(v => next.has(v)));
                 setAdding(null);
-              }} className={cn(rowBase, 'min-h-12 cursor-pointer text-[16px] outline-none hover:bg-raised focus-visible:bg-raised sm:text-[15px]')}>
+              }} className={cn(rowBase, 'min-h-12 cursor-pointer text-body outline-none hover:bg-raised focus-visible:bg-raised sm:text-body')}>
                 {o.long}
               </button>
             ))}
           </Group>
-        ) : <p className="m-0 text-[15px] text-muted-foreground">You already have every time.</p>)}
+        ) : <p className="m-0 text-body text-muted-foreground">You already have every time.</p>)}
       </Sheet>
     </SettingsShell>
   );
@@ -323,14 +323,14 @@ function ReminderList({ title, value = [], options, onRemove, onAdd }) {
       <Group>
         {picked.map(o => (
           <div key={o.value} className={cn(rowBase, 'min-h-12 py-1 pr-1.5')}>
-            <span className="flex-1 text-[16px] sm:text-[15px]">{o.long}</span>
+            <span className="flex-1 text-body sm:text-body">{o.long}</span>
             <Button size="icon" variant="ghost" className="text-muted-foreground" aria-label={`Remove ${o.long}`} onClick={() => onRemove?.(o.value)}><CloseIcon size={18} /></Button>
           </div>
         ))}
         {picked.length < options.length && (
           <button type="button" onClick={onAdd} className={cn(rowBase, 'min-h-12 cursor-pointer text-link outline-none hover:bg-raised focus-visible:bg-raised')}>
             <PlusIcon size={18} />
-            <span className="text-[16px] sm:text-[15px]">Add reminder</span>
+            <span className="text-body sm:text-body">Add reminder</span>
           </button>
         )}
       </Group>
@@ -352,11 +352,11 @@ export function PlanView({ church, plan, billingLive = false, onSubscribe, onMan
         <div className="text-label text-muted-foreground">{church?.name}</div>
         <div className="flex items-center justify-between gap-3 pt-1">
           <b className="text-[22px] font-semibold tracking-[-0.4px]">{plan?.label}</b>
-          <span className={cn('rounded-full px-2.5 py-1 text-[12px] font-semibold', plan?.tone === 'bad' ? 'bg-danger-fill text-danger-text' : 'bg-selected text-link')}>{plan?.status}</span>
+          <span className={cn('rounded-full px-2.5 py-1 text-caption font-semibold', plan?.tone === 'bad' ? 'bg-danger-fill text-danger-text' : 'bg-selected text-link')}>{plan?.status}</span>
         </div>
         {plan?.maxSeats ? (
           <>
-            <p className="m-0 pt-1 text-[14px] text-muted-foreground">{plan.usedSeats} of {plan.maxSeats} seats used</p>
+            <p className="m-0 pt-1 text-small text-muted-foreground">{plan.usedSeats} of {plan.maxSeats} seats used</p>
             <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuemin={0} aria-valuemax={plan.maxSeats} aria-valuenow={plan.usedSeats} aria-label="Seats used">
               <div className={cn('h-full rounded-full', pct >= 100 ? 'bg-danger' : 'bg-link')} style={{ width: `${pct}%` }} />
             </div>
@@ -377,12 +377,12 @@ export function PlanView({ church, plan, billingLive = false, onSubscribe, onMan
 export function DataView({ songCount = 0, setlistCount = 0, deletedCount = 0, onBackup, onDeleted, onBack, embedded }) {
   return (
     <SettingsShell title="Data" onBack={onBack} backLabel="Settings" embedded={embedded}>
-      <p className="m-0 pb-3 text-[15px] text-muted-foreground">{songCount} songs · {setlistCount} setlists</p>
+      <p className="m-0 pb-3 text-body text-muted-foreground">{songCount} songs · {setlistCount} setlists</p>
       <Group className="flex flex-col gap-3 p-4">
         <div className="flex items-start gap-3.5">
           <span className="pt-0.5 text-muted-foreground"><DownloadIcon /></span>
           <span className="flex flex-col gap-0.5">
-            <span className="text-[16px] sm:text-[15px]">Download a backup</span>
+            <span className="text-body sm:text-body">Download a backup</span>
           </span>
         </div>
         <Button variant="outline" onClick={onBackup}>Download backup</Button>
@@ -406,15 +406,15 @@ export function DeletedSongsView({ trash = [], onRestore, onPurge, onEmptyTrash,
             {trash.map(t => (
               <div key={t.id} className={rowBase}>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-[16px] font-medium sm:text-[15px]">{t.title || 'Untitled'}</span>
-                  <span className="truncate text-[13px] text-muted-foreground">{[t.artist, t.daysLeft === 1 ? '1 day left' : `${t.daysLeft} days left`].filter(Boolean).join(' · ')}</span>
+                  <span className="truncate text-body font-medium sm:text-body">{t.title || 'Untitled'}</span>
+                  <span className="truncate text-small text-muted-foreground">{[t.artist, t.daysLeft === 1 ? '1 day left' : `${t.daysLeft} days left`].filter(Boolean).join(' · ')}</span>
                 </span>
                 <Button size="sm" variant="outline" onClick={() => onRestore?.(t.id)}>Restore</Button>
                 <Button size="icon" variant="ghost" className="text-danger-text" onClick={() => onPurge?.(t.id)} aria-label={`Delete ${t.title} for good`}><TrashIcon /></Button>
               </div>
             ))}
           </Group>
-          <Button variant="link" className="mt-3 self-start text-[15px] text-danger-text" onClick={onEmptyTrash}>Delete all for good</Button>
+          <Button variant="link" className="mt-3 self-start text-body text-danger-text" onClick={onEmptyTrash}>Delete all for good</Button>
         </>
       )}
     </SettingsShell>
@@ -436,7 +436,7 @@ export function LabsView({ flags = [], onFlag, onHide, onBack, embedded }) {
           ))}
         </Group>
       )}
-      {onHide && <Button variant="link" className="mt-3 self-start text-[15px]" onClick={onHide}>Hide Labs again</Button>}
+      {onHide && <Button variant="link" className="mt-3 self-start text-body" onClick={onHide}>Hide Labs again</Button>}
     </SettingsShell>
   );
 }

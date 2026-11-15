@@ -21,10 +21,10 @@ import { useDragReorder, moveItem } from './useDragReorder';
 export const NOTE_MAX = 500;
 const LENGTHS = [1, 2, 5, 10];
 
-export const Label = ({ children }) => <span className="text-[13px] font-semibold text-muted-foreground">{children}</span>;
+export const Label = ({ children }) => <span className="text-small font-semibold text-muted-foreground">{children}</span>;
 export const Pill = ({ on, children, ...p }) => (
   <button type="button" {...p}
-    className={cn('flex h-9 min-h-0 cursor-pointer items-center rounded-full border px-3.5 font-sans text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    className={cn('flex h-9 min-h-0 cursor-pointer items-center rounded-full border px-3.5 font-sans text-small outline-none focus-visible:ring-2 focus-visible:ring-ring',
       on ? 'border-transparent bg-selected font-semibold text-foreground' : 'border-border bg-transparent font-medium text-muted-foreground')}>
     {children}
   </button>
@@ -58,7 +58,7 @@ function SongFields({ item, song, people, onChange }) {
           <div className="grid grid-cols-6 gap-1.5">
             {keys.map(k => (
               <button key={k.t} type="button" onClick={() => onChange({ transpose: k.t })} aria-pressed={k.t === t}
-                className={cn('flex h-9 min-h-0 cursor-pointer items-center justify-center rounded-control border font-mono text-[13px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                className={cn('flex h-9 min-h-0 cursor-pointer items-center justify-center rounded-control border font-mono text-small font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   k.t === t ? 'border-link bg-selected text-link' : k.t === 0 ? 'border-dashed border-input bg-transparent text-foreground' : 'border-border bg-transparent text-foreground')}>
                 {k.key}
               </button>
@@ -70,7 +70,7 @@ function SongFields({ item, song, people, onChange }) {
         <Label>Who leads it</Label>
         <div className="flex flex-wrap gap-1.5">
           {people.map(p => <Pill key={p.id} on={item.leadBy === p.id} onClick={() => onChange({ leadBy: item.leadBy === p.id ? undefined : p.id })}>{p.name}</Pill>)}
-          {!people.length && <span className="text-[13px] text-muted-foreground">Pick the band first; then you can choose who leads.</span>}
+          {!people.length && <span className="text-small text-muted-foreground">Pick the band first; then you can choose who leads.</span>}
         </div>
       </div>
       <label className="flex flex-col gap-2">
@@ -124,10 +124,10 @@ export function MomentFields({ item, onChange, onOpenNote }) {
       <div className="flex flex-col gap-2">
         <Label>Note</Label>
         <button type="button" onClick={onOpenNote}
-          className="flex min-h-[88px] cursor-pointer flex-col items-start rounded-control border border-input bg-transparent px-3 py-2.5 text-left font-sans text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          {item.note ? <Markdown text={item.note} className="line-clamp-4 text-[15px] leading-5" /> : <span className="text-muted-foreground">Add a note</span>}
+          className="flex min-h-[88px] cursor-pointer flex-col items-start rounded-control border border-input bg-transparent px-3 py-2.5 text-left font-sans text-body text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {item.note ? <Markdown text={item.note} className="line-clamp-4 text-body leading-5" /> : <span className="text-muted-foreground">Add a note</span>}
         </button>
-        <span className="text-right text-[12px] text-muted-foreground">{(item.note || '').length} / {NOTE_MAX}</span>
+        <span className="text-right text-caption text-muted-foreground">{(item.note || '').length} / {NOTE_MAX}</span>
       </div>
     </div>
   );
@@ -161,24 +161,24 @@ export function NoteEditor({ open, title, value, onDone, onCancel }) {
       <div className="flex min-h-14 items-center justify-center gap-2 border-b border-border px-4 py-2 sm:justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
         {/* Phone: Cancel and Done sit in the bar at the bottom, above the keyboard. */}
         <Button variant="ghost" className="hidden sm:inline-flex" onClick={onCancel}>Cancel</Button>
-        <b className="truncate text-[16px]">{title}</b>
+        <b className="truncate text-body">{title}</b>
         <Button className="hidden sm:inline-flex" onClick={() => onDone(text)}>Done</Button>
       </div>
       <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border px-4 py-2">
         {!preview && tools.map(([l, fn]) => (
           <button key={l} type="button" onMouseDown={e => e.preventDefault()} onClick={fn}
-            className={cn('flex h-9 min-h-0 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-transparent px-2.5 font-sans text-[14px] text-foreground', l === 'B' && 'font-bold', l === 'I' && 'italic')}>{l}</button>
+            className={cn('flex h-9 min-h-0 min-w-9 shrink-0 cursor-pointer items-center justify-center rounded-control border border-border bg-transparent px-2.5 font-sans text-small text-foreground', l === 'B' && 'font-bold', l === 'I' && 'italic')}>{l}</button>
         ))}
         <span className="flex-1" />
         <Pill on={preview} onClick={() => setPreview(p => !p)}>{preview ? 'Edit' : 'Preview'}</Pill>
       </div>
       <div className="mx-auto flex w-full max-w-[720px] min-h-0 flex-1 flex-col px-4 py-3">
         {preview
-          ? <Markdown text={text} className="overflow-y-auto text-[16px] leading-6" />
+          ? <Markdown text={text} className="overflow-y-auto text-body leading-6" />
           : <textarea ref={setEl} autoFocus value={text} maxLength={NOTE_MAX} onChange={e => setText(e.target.value)}
               placeholder={'# Title\n## Subtitle\nWhat happens here'}
-              className="min-h-0 flex-1 resize-none border-0 bg-transparent font-sans text-[16px] leading-6 text-foreground outline-none placeholder:text-muted-foreground" />}
-        <span className="pt-2 text-right text-[12px] text-muted-foreground">{text.length} / {NOTE_MAX}</span>
+              className="min-h-0 flex-1 resize-none border-0 bg-transparent font-sans text-body leading-6 text-foreground outline-none placeholder:text-muted-foreground" />}
+        <span className="pt-2 text-right text-caption text-muted-foreground">{text.length} / {NOTE_MAX}</span>
       </div>
       <BottomActions className="sm:hidden">
         <Button variant="outline" className="flex-1" onMouseDown={e => e.preventDefault()} onClick={onCancel}>Cancel</Button>
@@ -200,10 +200,10 @@ function AddSong({ open, onOpenChange, songs, setlist, setlists, at, onAdd }) {
     return (
       <div key={s.id + (why ? '-s' : '')} className="flex min-h-14 items-center gap-3 border-t border-border py-2 first:border-t-0">
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[15px] font-semibold">{s.title}</span>
-          <span className="truncate text-[13px] text-muted-foreground">{why ? <span className="text-warning-text">{why}</span> : [s.artist, added && 'Already in this setlist'].filter(Boolean).join(' · ')}</span>
+          <span className="truncate text-body font-semibold">{s.title}</span>
+          <span className="truncate text-small text-muted-foreground">{why ? <span className="text-warning-text">{why}</span> : [s.artist, added && 'Already in this setlist'].filter(Boolean).join(' · ')}</span>
         </span>
-        {v?.key && <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-md bg-raised font-mono text-[13px] font-semibold text-[var(--chord)]">{v.key}</span>}
+        {v?.key && <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-md bg-raised font-mono text-small font-semibold text-[var(--chord)]">{v.key}</span>}
         <Button size="sm" variant={added ? 'ghost' : 'outline'} disabled={added} onClick={() => onAdd(s)}>{added ? 'Added' : <><PlusIcon size={16} />Add</>}</Button>
       </div>
     );
@@ -297,7 +297,7 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
       <div className="mx-auto flex w-full max-w-[1180px] flex-col px-4 pb-36 @min-[640px]:px-6 @min-[1024px]:grid @min-[1024px]:grid-cols-[minmax(0,1fr)_380px] @min-[1024px]:gap-x-8 @min-[1024px]:pb-12">
         <div className="sticky top-0 z-10 -mx-4 mb-3 flex h-14 @min-[1024px]:col-span-2 items-center justify-between bg-background px-4 @min-[640px]:-mx-6 @min-[640px]:px-6" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', boxSizing: 'content-box' }}>
           <Button variant="ghost" className="-ml-3" onClick={onCancel}>Cancel</Button>
-          <b className="text-[17px] font-semibold">Edit setlist</b>
+          <b className="text-heading font-semibold">Edit setlist</b>
           {/* A new setlist is unsaved even untouched: Done creates it. */}
           <Button disabled={!dirty && !isNew} onClick={() => { onDirtyChange?.(false); onSave?.(draft); }}>Done</Button>
         </div>
@@ -306,10 +306,10 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
           <button type="button" onClick={() => setDetails(true)}
             className="flex cursor-pointer items-center gap-3 rounded-card border-0 bg-raised px-4 py-3 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <b className="truncate text-[15px] font-semibold">{draft.name || 'Untitled setlist'}</b>
-              <span className="truncate text-[13px] text-muted-foreground">{head || 'No date yet'}</span>
+              <b className="truncate text-body font-semibold">{draft.name || 'Untitled setlist'}</b>
+              <span className="truncate text-small text-muted-foreground">{head || 'No date yet'}</span>
             </span>
-            <span className="text-[14px] font-medium text-link">Change</span>
+            <span className="text-small font-medium text-link">Change</span>
           </button>
 
           <span className="pt-1 text-label text-muted-foreground">Order · drag ⠿ or tap a row</span>
@@ -320,14 +320,14 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
                 <Grip {...gripProps(i)} />
                 <button type="button" onClick={() => open(i)}
                   className="flex min-h-[58px] min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent py-2 text-left font-sans text-foreground outline-none focus-visible:bg-raised">
-                  <span className="w-4 shrink-0 text-right text-[13px] tabular-nums text-muted-foreground">{r.n || ''}</span>
+                  <span className="w-4 shrink-0 text-right text-small tabular-nums text-muted-foreground">{r.n || ''}</span>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className={cn('truncate text-[15px]', r.kind === 'moment' ? 'font-medium text-muted-foreground' : 'font-semibold')}>{r.kind === 'moment' && !items[i].label ? 'New moment' : r.title}</span>
-                    <span className="truncate text-[13px] text-muted-foreground">
+                    <span className={cn('truncate text-body', r.kind === 'moment' ? 'font-medium text-muted-foreground' : 'font-semibold')}>{r.kind === 'moment' && !items[i].label ? 'New moment' : r.title}</span>
+                    <span className="truncate text-small text-muted-foreground">
                       {r.kind === 'moment' ? ['Moment', r.minutes ? `${r.minutes} min` : ''].filter(Boolean).join(' · ') : [r.leads && `${r.leads} leads`, r.time].filter(Boolean).join(' · ') || ' '}
                     </span>
                   </span>
-                  {r.key && <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-md bg-raised font-mono text-[13px] font-semibold text-[var(--chord)]">{r.key}</span>}
+                  {r.key && <span className="flex h-7 w-9 shrink-0 items-center justify-center rounded-md bg-raised font-mono text-small font-semibold text-[var(--chord)]">{r.key}</span>}
                   <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground"><MoreIcon /></span>
                 </button>
               </div>
@@ -347,7 +347,7 @@ export default function SetlistEdit({ setlist, songs = [], setlists = [], people
               {fields}
               <MoveButtons index={picked} count={items.length} onMove={move} onRemove={remove} />
             </>
-          ) : <span className="text-[14px] text-muted-foreground">Pick a row to set its key, who leads it and a note.</span>}
+          ) : <span className="text-small text-muted-foreground">Pick a row to set its key, who leads it and a note.</span>}
         </aside>
       </div>
 

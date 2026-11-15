@@ -15,7 +15,7 @@ import { BellIcon, ChevronDownIcon, PlusIcon } from './navIcons';
 function ChurchMark({ name, logoUrl }) {
   if (logoUrl) return <img src={logoUrl} alt="" aria-hidden="true" className="size-[30px] rounded-[8px] object-cover" />;
   return (
-    <span aria-hidden="true" className="flex size-[30px] items-center justify-center rounded-[8px] bg-raised text-[12px] font-bold text-link">
+    <span aria-hidden="true" className="flex size-[30px] items-center justify-center rounded-[8px] bg-raised text-caption font-bold text-link">
       {churchInitials(name)}
     </span>
   );
@@ -90,12 +90,12 @@ export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications,
             type="button"
             onClick={onOpenChurches}
             aria-label={`${church?.name}. Switch church`}
-            className="flex h-11 min-h-0 min-w-0 cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-1.5 -ml-1.5 font-sans text-[16px] font-semibold tracking-[-0.2px] text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-11 min-h-0 min-w-0 cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-1.5 -ml-1.5 font-sans text-body font-semibold tracking-[-0.2px] text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
           >
             {churchInner}
           </button>
         ) : (
-          <div className="flex h-11 min-w-0 items-center gap-2.5 text-[16px] font-semibold tracking-[-0.2px]">{churchInner}</div>
+          <div className="flex h-11 min-w-0 items-center gap-2.5 text-body font-semibold tracking-[-0.2px]">{churchInner}</div>
         )}
       </div>
       {pill && <div className={L.pill}>{pill}</div>}
@@ -108,7 +108,7 @@ export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications,
             <button
               type="button"
               onClick={add.onClick}
-              className={cn('mr-1 h-9 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-primary px-3.5 font-sans text-[14px] font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring', L.addWide)}
+              className={cn('mr-1 h-9 min-h-0 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-primary px-3.5 font-sans text-small font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring', L.addWide)}
             >
               <PlusIcon size={16} />
               {add.label}
@@ -120,7 +120,7 @@ export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications,
             <Popover open={notifications.open} onOpenChange={notifications.onOpenChange}>
               <PopoverTrigger asChild>{bell(undefined)}</PopoverTrigger>
               <PopoverContent align="end" className="max-h-[min(640px,calc(100dvh-80px))] w-[400px] overflow-y-auto p-4">
-                <div className="pb-1 text-[17px] font-semibold">Notifications</div>
+                <div className="pb-1 text-heading font-semibold">Notifications</div>
                 {notifications.content}
               </PopoverContent>
             </Popover>

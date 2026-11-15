@@ -41,7 +41,7 @@ function Cell({ cell, person, column, onTap }) {
     >
       <span
         className={cn(
-          'relative flex size-8 items-center justify-center rounded-[8px] text-[14px] font-bold',
+          'relative flex size-8 items-center justify-center rounded-[8px] text-small font-bold',
           c.cls,
           add && 'border-warning-text text-warning-text',
           remove && 'opacity-35',
@@ -93,7 +93,7 @@ export default function BandView({
 
       <div role="grid" aria-label="Band" className="overflow-hidden rounded-card material-base">
         <div role="row" className="grid border-b border-border bg-raised" style={{ gridTemplateColumns: cols }}>
-          <span role="columnheader" className="flex items-center px-3 text-[13px] text-muted-foreground">{people.length} {people.length === 1 ? 'person' : 'people'}</span>
+          <span role="columnheader" className="flex items-center px-3 text-small text-muted-foreground">{people.length} {people.length === 1 ? 'person' : 'people'}</span>
           {columns.map(c => (
             <button
               key={c.setlist.id}
@@ -112,21 +112,21 @@ export default function BandView({
             <span role="rowheader" className="flex min-w-0 items-center gap-2 px-3">
               <Avatar name={p.name} url={p.url} size={28} tone="quiet" />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[14px] font-medium">{p.name}</span>
-                {p.part && <span className="truncate text-[12px] text-muted-foreground">{labelFor(p.part) || p.part}</span>}
+                <span className="truncate text-small font-medium">{p.name}</span>
+                {p.part && <span className="truncate text-caption text-muted-foreground">{labelFor(p.part) || p.part}</span>}
               </span>
             </span>
             {p.cells.map((cell, i) => <Cell key={cell.setlistId} cell={cell} person={p} column={columns[i]} onTap={onTap} />)}
           </div>
         ))}
         <div role="row" className="grid border-b border-border" style={{ gridTemplateColumns: cols }}>
-          <span role="rowheader" className="flex h-11 items-center px-3 text-[13px] text-muted-foreground">In the band</span>
-          {columns.map(c => <span key={c.setlist.id} className="flex items-center justify-center border-l border-border text-[14px] font-semibold">{c.inBand}</span>)}
+          <span role="rowheader" className="flex h-11 items-center px-3 text-small text-muted-foreground">In the band</span>
+          {columns.map(c => <span key={c.setlist.id} className="flex items-center justify-center border-l border-border text-small font-semibold">{c.inBand}</span>)}
         </div>
         <div role="row" className="grid" style={{ gridTemplateColumns: cols }}>
-          <span role="rowheader" className="flex min-h-11 items-center px-3 text-[13px] font-medium text-danger">Missing</span>
+          <span role="rowheader" className="flex min-h-11 items-center px-3 text-small font-medium text-danger">Missing</span>
           {columns.map(c => (
-            <span key={c.setlist.id} className={cn('flex flex-col items-center justify-center gap-0.5 border-l border-border px-0.5 py-2 text-center text-[11px] font-semibold leading-tight', c.missing?.length !== 0 ? 'text-danger' : 'text-muted-foreground')}>
+            <span key={c.setlist.id} className={cn('flex flex-col items-center justify-center gap-0.5 border-l border-border px-0.5 py-2 text-center text-caption font-semibold leading-tight', c.missing?.length !== 0 ? 'text-danger' : 'text-muted-foreground')}>
               {!c.rowId ? 'Not synced' : c.missing === null ? 'No band' : c.missing.length ? c.missing.map(m => <span key={m}>{m}</span>) : '–'}
             </span>
           ))}
@@ -137,7 +137,7 @@ export default function BandView({
         <div className="flex flex-col gap-2 rounded-card material-base p-3">
           {pending > 0 && (
             <>
-              <p className="m-0 text-[14px] text-muted-foreground">
+              <p className="m-0 text-small text-muted-foreground">
                 {plan.adds ? 'Everyone you invite gets a notification to say yes or no.' : 'They come off the band for that setlist.'}
               </p>
               <div className="flex gap-2">
@@ -146,11 +146,11 @@ export default function BandView({
               </div>
             </>
           )}
-          {error && <p role="alert" className="m-0 text-[14px] text-danger">{error}</p>}
+          {error && <p role="alert" className="m-0 text-small text-danger">{error}</p>}
         </div>
       )}
 
-      <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[12px] text-muted-foreground" aria-hidden="true">
+      <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-caption text-muted-foreground" aria-hidden="true">
         {LEGEND.map(k => (
           <span key={k} className="inline-flex items-center gap-1.5">
             <span className={cn('flex size-4 items-center justify-center rounded-[4px] text-[10px] font-bold', CELL[k].cls)}>{CELL[k].mark}</span>
@@ -160,7 +160,7 @@ export default function BandView({
         <span className="inline-flex items-center gap-1.5"><span className="flex size-4 items-center justify-center rounded-[4px] border-2 border-warning-text text-[10px] font-bold text-warning-text">+</span>Not sent yet</span>
         <span className="inline-flex items-center gap-1.5"><span className="flex size-4 items-center justify-center rounded-full bg-warning-text text-[10px] font-bold text-background">3</span>3rd week in a row</span>
       </div>
-      <p className="m-0 text-[13px] text-muted-foreground">Tap an empty square to invite someone, or a filled one to take them off. Nothing is sent until you tap Send.</p>
+      <p className="m-0 text-small text-muted-foreground">Tap an empty square to invite someone, or a filled one to take them off. Nothing is sent until you tap Send.</p>
     </div>
   );
 }

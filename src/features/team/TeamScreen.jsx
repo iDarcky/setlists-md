@@ -296,7 +296,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
   }
 
   const footer = (
-    <div className="flex flex-col items-start gap-3 pt-4 text-[14px]">
+    <div className="flex flex-col items-start gap-3 pt-4 text-small">
       {onToggleDefaultSpace && (
         <ShadButton variant="link" onClick={onToggleDefaultSpace}>{isDefaultSpace ? 'Opens here when the app starts' : 'Open this church when the app starts'}</ShadButton>
       )}

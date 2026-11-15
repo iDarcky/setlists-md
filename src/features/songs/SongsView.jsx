@@ -213,8 +213,8 @@ export default function SongsView({
         {toCheck > 0 && !selecting && onCheckNext && (
           <div role="status" className="flex items-center gap-3 rounded-card material-base px-4 py-3">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <b className="text-[15px] font-semibold">{toCheck === 1 ? '1 imported song to check' : `${toCheck} imported songs to check`}</b>
-              <span className="text-[13px] text-muted-foreground">Open each one, fix what came out wrong, and keep it.</span>
+              <b className="text-body font-semibold">{toCheck === 1 ? '1 imported song to check' : `${toCheck} imported songs to check`}</b>
+              <span className="text-small text-muted-foreground">Open each one, fix what came out wrong, and keep it.</span>
             </span>
             <Button size="sm" onClick={onCheckNext}>Check next</Button>
           </div>
@@ -286,9 +286,9 @@ export default function SongsView({
 
       {selecting && (
         <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+84px)] z-chrome mx-auto flex max-w-[656px] flex-col gap-2 rounded-card material-medium p-2.5 sm:bottom-6">
-          <div className="flex items-center justify-between px-1 text-[14px] font-semibold">
+          <div className="flex items-center justify-between px-1 text-small font-semibold">
             <span>{selected.size} selected</span>
-            <button type="button" onClick={stopSelect} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link">Cancel</button>
+            <button type="button" onClick={stopSelect} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-small font-medium text-link">Cancel</button>
           </div>
           <div className="grid auto-cols-fr grid-flow-col gap-1.5">
             {[[onTag, 'Tag', <TagIcon key="i" />], [onMove, 'Move', <MoveIcon key="i" />], [onCopy, 'Copy', <CopyIcon key="i" />], [onDelete, 'Delete', <TrashIcon key="i" />, true]]
@@ -299,7 +299,7 @@ export default function SongsView({
                   type="button"
                   disabled={!selected.size}
                   onClick={() => run(fn)}
-                  className={cn('flex h-14 min-h-0 min-w-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-control border-0 bg-raised px-1 font-sans text-[12px] font-semibold text-foreground outline-none hover:bg-selected focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40', danger && 'text-danger')}
+                  className={cn('flex h-14 min-h-0 min-w-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-control border-0 bg-raised px-1 font-sans text-caption font-semibold text-foreground outline-none hover:bg-selected focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40', danger && 'text-danger')}
                 >
                   {icon}{label}
                 </button>

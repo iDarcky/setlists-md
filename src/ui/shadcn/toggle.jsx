@@ -18,7 +18,7 @@ const toggleVariants = cva(
         // Same as ui/shadcn/chip: 36px (32 from the iPad up), round; the ::after
         // makes the tap area 44px tall.
         default: "relative h-9 min-h-0 px-3.5 text-small sm:h-8 sm:px-3 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
-        option: 'min-h-0 h-12 pl-3.5 pr-3 text-[15px] sm:h-11',
+        option: 'min-h-0 h-12 pl-3.5 pr-3 text-body sm:h-11',
       },
     },
     defaultVariants: { variant: 'chip', size: 'default' },

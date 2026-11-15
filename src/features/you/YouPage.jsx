@@ -105,10 +105,10 @@ function VersionLine({ version, labsUnlocked, onUnlockLabs }) {
   return (
     <div className="flex flex-col items-center gap-1 pt-6">
       <button type="button" onClick={tap}
-        className="min-h-0 cursor-default rounded-control border-0 bg-transparent px-3 py-2 font-sans text-[13px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        className="min-h-0 cursor-default rounded-control border-0 bg-transparent px-3 py-2 font-sans text-small text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
         Setlists.md · version {version}
       </button>
-      <span role="status" aria-live="polite" className="min-h-[18px] text-[13px] text-foreground">{hint}</span>
+      <span role="status" aria-live="polite" className="min-h-[18px] text-small text-foreground">{hint}</span>
     </div>
   );
 }

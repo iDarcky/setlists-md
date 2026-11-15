@@ -30,8 +30,8 @@ export function PrintBody({ choice, setChoice, onPrint }) {
             <button key={id} type="button" role="radio" aria-checked={on} onClick={() => set('mode', id)}
               className={`flex min-h-0 cursor-pointer items-center gap-3 rounded-card border bg-transparent p-3.5 text-left font-sans outline-none focus-visible:ring-2 focus-visible:ring-ring ${on ? 'border-foreground' : 'border-border'}`}>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <b className="text-[16px] font-semibold text-foreground">{title}</b>
-                <span className="text-[14px] leading-5 text-muted-foreground">{sub}</span>
+                <b className="text-body font-semibold text-foreground">{title}</b>
+                <span className="text-small leading-5 text-muted-foreground">{sub}</span>
               </span>
               <span className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-foreground' : 'border-input'}`}>
                 {on && <span className="size-2.5 rounded-full bg-foreground" />}

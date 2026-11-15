@@ -30,7 +30,7 @@ function Choice({ icon, title, body, onClick }) {
     >
       <Square>{icon}</Square>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[16px] font-semibold leading-6">{title}</span>
+        <span className="text-body font-semibold leading-6">{title}</span>
         <span className="text-small text-muted-foreground">{body}</span>
       </span>
       <span className="shrink-0 text-muted-foreground"><ChevronRightIcon size={20} /></span>
@@ -118,7 +118,7 @@ function Step({ state, title, sub }) {
         {state === 'done' && <CheckIcon size={14} />}
       </span>
       <span className="flex flex-col gap-0.5">
-        <span className="text-[15px] font-medium">{title}</span>
+        <span className="text-body font-medium">{title}</span>
         {sub && <span className="text-caption text-muted-foreground">{sub}</span>}
       </span>
     </li>

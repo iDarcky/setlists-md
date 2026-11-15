@@ -117,14 +117,14 @@ function Step({ n, done, title, body, action }) {
         aria-hidden="true"
         className={done
           ? 'mt-px flex size-6 shrink-0 items-center justify-center rounded-full bg-success-fill text-success-text'
-          : 'mt-px flex size-6 shrink-0 items-center justify-center rounded-full border border-input font-mono text-[12px] font-semibold text-muted-foreground'}
+          : 'mt-px flex size-6 shrink-0 items-center justify-center rounded-full border border-input font-mono text-caption font-semibold text-muted-foreground'}
       >
         {done
           ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
           : n}
       </span>
       <div className="flex flex-1 flex-col gap-1">
-        <span className="text-[15px] font-semibold">{title}</span>
+        <span className="text-body font-semibold">{title}</span>
         <span className="text-small text-muted-foreground">{body}</span>
         {action && <div className="mt-1.5">{action}</div>}
       </div>

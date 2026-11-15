@@ -34,7 +34,7 @@ export function CanYouPlay({ tiles, onPick, onAll, title = 'Can you play?' }) {
       <div className="flex items-center justify-between px-0.5">
         <span className="text-label text-muted-foreground">{title}</span>
         {onAll && (
-          <button type="button" onClick={onAll} className="flex min-h-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link hover:underline">
+          <button type="button" onClick={onAll} className="flex min-h-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-sans text-small font-medium text-link hover:underline">
             All dates<ChevronRightIcon size={16} />
           </button>
         )}
@@ -59,8 +59,8 @@ export function CanYouPlay({ tiles, onPick, onAll, title = 'Can you play?' }) {
               )}
               <span className="text-caption font-semibold uppercase tracking-[.04em] text-muted-foreground">{t.weekday}</span>
               <span className="text-title font-semibold tabular-nums leading-[26px] tracking-[-0.5px]">{t.day}</span>
-              <span className="line-clamp-2 h-7 max-w-full text-center text-[11px] leading-[14px] text-muted-foreground">{t.names.join(' + ') || 'Nothing yet'}</span>
-              <span className={cn('mt-1.5 flex h-[22px] w-full items-center justify-center rounded-[6px] text-[11px] font-semibold', st.cls)}>{st.label}</span>
+              <span className="line-clamp-2 h-7 max-w-full text-center text-caption leading-[14px] text-muted-foreground">{t.names.join(' + ') || 'Nothing yet'}</span>
+              <span className={cn('mt-1.5 flex h-[22px] w-full items-center justify-center rounded-[6px] text-caption font-semibold', st.cls)}>{st.label}</span>
             </button>
           );
         })}
@@ -83,7 +83,7 @@ export function AnswerDay({ tile, onClose, onAnswer, clockFormat }) {
       {tile && (
         <div className="flex flex-col gap-3">
           {tile.setlists?.length > 0 && (
-            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[14px] text-muted-foreground">
+            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-small text-muted-foreground">
               {tile.setlists.map(sl => {
                 const ask = tile.asks.find(a => a.setlist.id === sl.id);
                 const part = ask ? [ask.schedule.role, ask.schedule.vocal_part].filter(Boolean).join(' · ') : '';
@@ -110,7 +110,7 @@ export function AnswerDay({ tile, onClose, onAnswer, clockFormat }) {
               </Button>
             ))}
           </div>
-          <p className="m-0 text-[13px] text-muted-foreground">Your answer covers everything on that day.</p>
+          <p className="m-0 text-small text-muted-foreground">Your answer covers everything on that day.</p>
         </div>
       )}
     </Sheet>

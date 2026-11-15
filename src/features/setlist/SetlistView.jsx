@@ -81,12 +81,12 @@ const firstLine = (md) => String(md).split('\n').map(l => l.replace(/^#+\s*|\*\*
 
 export function Order({ order, onOpenRow, empty, nowIdx = null }) {
   if (!order.rows.length) {
-    return <p className="m-0 rounded-card border border-dashed border-border px-5 py-8 text-center text-[14px] text-muted-foreground">{empty}</p>;
+    return <p className="m-0 rounded-card border border-dashed border-border px-5 py-8 text-center text-small text-muted-foreground">{empty}</p>;
   }
   return (
     <>
       <div className="flex flex-col">{order.rows.map(r => <OrderRow key={r.idx} row={r} onOpen={onOpenRow} now={r.idx === nowIdx} />)}</div>
-      <div className="flex justify-between px-0.5 pt-1 text-[13px] text-muted-foreground">
+      <div className="flex justify-between px-0.5 pt-1 text-small text-muted-foreground">
         <span>{order.songCount} {order.songCount === 1 ? 'song' : 'songs'}</span>
         <span>{totalLabel(order.totalSeconds, order.estimated)}</span>
       </div>
@@ -97,7 +97,7 @@ export function Order({ order, onOpenRow, empty, nowIdx = null }) {
 function Band({ band, leader, onBand, myId = null, onChangeMine = null }) {
   if (!band.length) {
     return (
-      <div className="flex flex-col items-start gap-2 py-2 text-[14px] text-muted-foreground">
+      <div className="flex flex-col items-start gap-2 py-2 text-small text-muted-foreground">
         <span>Nobody is on this one yet.</span>
         {leader && onBand && <Button variant="outline" size="sm" onClick={onBand}>Pick the band</Button>}
       </div>
@@ -137,8 +137,8 @@ function Mine({ me, onAnswer }) {
     return (
       <div className="flex flex-col gap-2.5 rounded-card bg-warning/12 px-4 py-3">
         <span className="flex flex-col gap-0.5">
-          <b className="text-[15px] font-semibold">Can you play{me.part ? ` ${me.part}` : ''}?</b>
-          <span className="text-[13px] text-muted-foreground">Your answer goes to the leader.</span>
+          <b className="text-body font-semibold">Can you play{me.part ? ` ${me.part}` : ''}?</b>
+          <span className="text-small text-muted-foreground">Your answer goes to the leader.</span>
         </span>
         <div className="flex gap-2">
           {[['available', 'Yes'], ['maybe', 'Maybe'], ['unavailable', 'No']].map(([v, l], i) => (
@@ -189,7 +189,7 @@ export default function SetlistView({
                 <Chip className={ready ? 'bg-selected text-link' : 'bg-raised text-muted-foreground'}>{ready ? 'Ready' : 'Draft'}</Chip>
               </div>
               <h1 className="m-0 text-[26px] font-semibold leading-8 tracking-[-0.6px] @min-[640px]:text-[32px] @min-[640px]:leading-10 @min-[640px]:tracking-[-1px]">{setlist.name || 'Untitled setlist'}</h1>
-              <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[14px] text-muted-foreground">
+              <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-small text-muted-foreground">
                 {head.service && <span>{head.service}</span>}
                 {head.time && <span className="flex items-center gap-1.5"><ClockIcon size={16} />{head.time}</span>}
                 {head.place && <span className="flex items-center gap-1.5"><PinIcon size={16} />{head.place}</span>}
@@ -209,8 +209,8 @@ export default function SetlistView({
           <Mine me={me} onAnswer={onAnswer} />
           {changes.length > 0 && (
             <div className="flex flex-col gap-1 rounded-card bg-warning/12 px-4 py-3">
-              <b className="text-[15px] font-semibold">Changed since Ready</b>
-              <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5 text-[14px] text-muted-foreground">
+              <b className="text-body font-semibold">Changed since Ready</b>
+              <ul className="m-0 flex list-disc flex-col gap-0.5 pl-5 text-small text-muted-foreground">
                 {changes.slice(0, 5).map(c => <li key={c}>{c}</li>)}
                 {changes.length > 5 && <li>and {changes.length - 5} more</li>}
               </ul>
@@ -218,16 +218,16 @@ export default function SetlistView({
           )}
 
           <div className="flex gap-2">
-            <Button className="h-12 flex-1 text-[16px]" disabled={!order.songCount} onClick={() => onPlay?.(0)}><PlayIcon />Play</Button>
-            {leader && onEdit && <Button variant="outline" className="h-12 flex-1 text-[16px] @min-[1024px]:hidden" onClick={onEdit}>Edit</Button>}
+            <Button className="h-12 flex-1 text-body" disabled={!order.songCount} onClick={() => onPlay?.(0)}><PlayIcon />Play</Button>
+            {leader && onEdit && <Button variant="outline" className="h-12 flex-1 text-body @min-[1024px]:hidden" onClick={onEdit}>Edit</Button>}
           </div>
 
           {/* Style C (owner, 11 Nov): each tab takes half the width, green underline. */}
           <div role="tablist" className="-mx-4 grid grid-cols-2 border-b border-border @min-[640px]:-mx-6 @min-[1024px]:hidden">
             {tabs.map(([id, label, extra]) => (
               <button key={id} role="tab" aria-selected={tab === id} type="button" onClick={() => setTab(id)}
-                className={cn('-mb-px flex h-11 min-h-0 cursor-pointer items-center justify-center gap-1.5 border-0 border-b-2 border-solid bg-transparent px-0 font-sans text-[15px] font-semibold outline-none focus-visible:bg-raised', tab === id ? 'border-link text-foreground' : 'border-transparent text-muted-foreground')}>
-                {label}{extra !== '' && <span className="text-[12px] font-medium text-muted-foreground">{extra}</span>}
+                className={cn('-mb-px flex h-11 min-h-0 cursor-pointer items-center justify-center gap-1.5 border-0 border-b-2 border-solid bg-transparent px-0 font-sans text-body font-semibold outline-none focus-visible:bg-raised', tab === id ? 'border-link text-foreground' : 'border-transparent text-muted-foreground')}>
+                {label}{extra !== '' && <span className="text-caption font-medium text-muted-foreground">{extra}</span>}
               </button>
             ))}
           </div>
@@ -249,14 +249,14 @@ export default function SetlistView({
       {leader && !ready && onMarkReady && (
         <div className="fixed inset-x-0 bottom-0 z-20 flex flex-col gap-1.5 border-t border-border bg-background px-4 pt-3 @min-[1024px]:hidden" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
           <Button variant="outline" className="h-12 w-full" onClick={onMarkReady}>Mark ready</Button>
-          <span className="text-center text-[12px] text-muted-foreground">The band sees it’s final</span>
+          <span className="text-center text-caption text-muted-foreground">The band sees it’s final</span>
         </div>
       )}
       <Sheet open={!!moment} onOpenChange={(o) => { if (!o) setMoment(null); }} title={moment?.title || 'Moment'} className="h-auto max-h-[85dvh] sm:max-w-[520px]">
         {moment && (
           <div className="flex flex-col gap-3">
-            {moment.minutes > 0 && <span className="text-[13px] text-muted-foreground">{moment.minutes} min</span>}
-            <Markdown text={moment.note} className="text-[16px] leading-6" />
+            {moment.minutes > 0 && <span className="text-small text-muted-foreground">{moment.minutes} min</span>}
+            <Markdown text={moment.note} className="text-body leading-6" />
           </div>
         )}
       </Sheet>
