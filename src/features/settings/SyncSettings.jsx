@@ -50,7 +50,6 @@ export default function SyncSettings({
     try {
       await connectProvider(name);
       onBackupStateChange?.({ state: 'idle', provider: name, lastBackup: null });
-      toast({ title: 'Folder connected', description: `Backing up your library to ${providers.find(p => p.name === name)?.displayName}.` });
       // The first backup right away, so the folder is never connected and empty.
       try { await onBackupNow?.(); } catch { /* surfaced by the mirror's status */ }
     } catch (err) {
@@ -65,7 +64,6 @@ export default function SyncSettings({
     try {
       await disconnectProvider();
       onBackupStateChange?.({ state: 'idle', provider: null, lastBackup: null });
-      toast({ title: 'Folder disconnected', description: 'The files already in the folder stay there.' });
     } catch (err) {
       toast({ title: 'Disconnect failed', description: err?.message, variant: 'error' });
     } finally {

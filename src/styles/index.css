@@ -931,24 +931,24 @@
   100% { background-position: -200% 0; }
 }
 
-/* "Update available" pill (ui/UpdatePrompt, Sileo). Unlayered on purpose and
-   scoped to .update-pill so it outranks the styles Sileo injects at runtime.
-   Green fill with white text in both themes; Refresh is a white button. */
-/* Phone: at the very top of the screen, over the top bar (user, 14 Nov).
-   iPad/desktop: bottom right. The viewport adds 12px of padding. */
-.update-pill [data-sileo-viewport][data-position] { z-index: 600; } /* = z-toast */
-.update-pill [data-sileo-viewport][data-position^=top] { top: env(safe-area-inset-top, 0px); }
-.update-pill [data-sileo-viewport][data-position^=bottom] { bottom: 12px; right: 12px; }
-.update-pill [data-sileo-toast] { cursor: pointer; }
-.update-pill [data-sileo-title] {
+/* Every toast (ui/toast.jsx, Sileo). Unlayered on purpose and scoped to
+   .app-toaster so it outranks the styles Sileo injects at runtime. Ink, red
+   (undo) or green (update) fill with white text in both themes; the button is
+   white, its text colour comes from the toast (styles.button).
+   Update pill: very top on a phone (user, 14 Nov); every other toast bottom
+   right, offset above the nav pill below 1024px (AppToaster). */
+.app-toaster [data-sileo-viewport][data-position] { z-index: 600; } /* = z-toast */
+.app-toaster [data-sileo-viewport][data-position^=top] { top: env(safe-area-inset-top, 0px); }
+.app-toaster [data-sileo-toast] { cursor: pointer; }
+.app-toaster [data-sileo-title] {
   color: #fff;
   font-family: var(--font-sans, inherit);
   font-size: 14px;
   font-weight: 600;
   text-transform: none;
 }
-.update-pill [data-sileo-badge] { color: #fff; background: rgba(255, 255, 255, 0.18); }
-.update-pill [data-sileo-description] {
+.app-toaster [data-sileo-badge] { color: #fff; background: rgba(255, 255, 255, 0.18); }
+.app-toaster [data-sileo-description] {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -958,7 +958,7 @@
   font-size: 14px;
   line-height: 20px;
 }
-.update-pill [data-sileo-button] {
+.app-toaster [data-sileo-button] {
   height: 40px;
   margin-top: 10px;
   padding: 0 18px;
@@ -967,11 +967,11 @@
   border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #24623A;
+  color: #1C1A17;
   background: #fff;
   text-decoration: none;
 }
-.update-pill [data-sileo-button]:hover { background: rgba(255, 255, 255, 0.9); }
+.app-toaster [data-sileo-button]:hover { background: rgba(255, 255, 255, 0.9); }
 
 @keyframes pop-in {
   0% { opacity: 0; }
