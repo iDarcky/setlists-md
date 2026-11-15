@@ -133,7 +133,27 @@ export const planKey = (setlistId, userId) => `${setlistId}:${userId}`;
  * the parts the church's members play.
  * Returns { columns: [{ setlist, rowId, inBand, missing }], people: [{ userId, name, part, cells }] }.
  */
-export function bandGrid({ setlists = [], members = [], schedules = [], setlistMap = {}, availability = [], plan = {}, nameOf = (m) => m.user_id }) {
+const shiftDate = (date, days) => {
+  const d = new Date(`${date}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return toDateStr(d);
+};
+
+/**
+ * "3 Sundays in a row" (owner, 2026-11-15: show it everywhere). True when
+ * `uid` is on the band (or about to be invited) for a setlist on the same
+ * weekday one and two weeks before `date`. Same rule as bandParts.candidates.
+ */
+export function thirdInARow({ uid, date, setlists = [], schedules = [], setlistMap = {}, plan = {} }) {
+  if (!date) return false;
+  const onBandOn = (d) => setlists.some(o => o.date === d && (
+    plan[planKey(o.id, uid)] === 'add'
+    || bandFor(o, schedules, setlistMap).some(r => r.user_id === uid && r.availability !== 'unavailable' && plan[planKey(o.id, uid)] !== 'remove')
+  ));
+  return onBandOn(shiftDate(date, -7)) && onBandOn(shiftDate(date, -14));
+}
+
+export function bandGrid({ setlists = [], allSetlists = setlists, members = [], schedules = [], setlistMap = {}, availability = [], plan = {}, nameOf = (m) => m.user_id }) {
   const teamParts = PARTS.filter(p => members.some(m => (m.instruments || []).includes(p)));
   const people = members.map(m => ({ userId: m.user_id, name: nameOf(m), part: (m.instruments || [])[0] || '', parts: m.instruments || [], cells: [] }));
   const columns = setlists.map(sl => {
@@ -146,8 +166,10 @@ export function bandGrid({ setlists = [], members = [], schedules = [], setlistM
       const day = availability.find(a => a.user_id === p.userId && a.date === sl.date)?.status;
       const planned = plan[planKey(sl.id, p.userId)] || null;
       const state = planned === 'add' && !schedule ? 'asked' : cellState(schedule, day);
-      p.cells.push({ setlistId: sl.id, schedule, state, planned });
       const counts = planned !== 'remove' && (state === 'in' || (state === 'asked' && (schedule || planned === 'add')));
+      const warn = counts && thirdInARow({ uid: p.userId, date: sl.date, setlists: allSetlists, schedules, setlistMap, plan })
+        ? `3 ${new Date(`${sl.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' })}s in a row` : '';
+      p.cells.push({ setlistId: sl.id, schedule, state, planned, warn });
       if (counts) {
         anyone = true;
         if (state === 'in') inBand++;

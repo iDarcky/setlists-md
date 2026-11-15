@@ -15,7 +15,7 @@ const STATUS = {
   available: ['Yes', 'bg-selected text-link'],
   maybe: ['Maybe', 'bg-warning/15 text-warning-text'],
   unavailable: ['Can’t', 'bg-danger/15 text-danger'],
-  pending: ['Asked', 'bg-warning/15 text-warning-text'],
+  pending: ['Invited', 'bg-warning/15 text-warning-text'],
   notsent: ['Not sent', 'bg-warning/15 text-warning-text'],
 };
 
@@ -38,7 +38,10 @@ export function BandPlanner({ slots, person, note, onSlot, onAddPart, pending = 
             {p ? (
               <>
                 <Avatar name={p.name} url={p.url} size={28} />
-                <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{p.name}</span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[15px] font-medium">{p.name}</span>
+                  {s.warn && <span className="text-[12px] font-medium text-warning-text">⚠ {s.warn}</span>}
+                </span>
                 {st && <span className={cn('flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold', st[1])}>{st[0]}</span>}
               </>
             ) : (
