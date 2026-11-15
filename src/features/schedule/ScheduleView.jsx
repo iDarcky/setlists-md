@@ -37,7 +37,7 @@ const Chip = ({ kind, children }) => (
 
 function myChip(me) {
   if (me.kind === 'playing') return <Chip kind="playing">{me.part ? `You · ${me.part}` : 'You play'}</Chip>;
-  if (me.kind === 'asked') return <Chip kind="asked">Asked</Chip>;
+  if (me.kind === 'asked') return <Chip kind="asked">Invited</Chip>;
   if (me.kind === 'maybe') return <Chip kind="maybe">Maybe</Chip>;
   if (me.kind === 'cant') return <Chip kind="cant">Can’t</Chip>;
   return <Chip kind="not">Not playing</Chip>;
@@ -136,7 +136,7 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
   );
 }
 
-function Segmented({ value, options, onChange }) {
+export function Segmented({ value, options, onChange }) {
   return (
     <div role="tablist" className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-[10px] bg-raised p-[3px]">
       {options.map(o => (

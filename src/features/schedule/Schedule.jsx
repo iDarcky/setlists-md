@@ -6,6 +6,7 @@ import { bandFor, myAsks, myServices } from '@/lib/homeData';
 import { groupByMonth, myStatus, bandSummary, needsPeople, isDraft, canYouPlay, bandGrid, planKey, planSummary } from '@/lib/scheduleData';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import ScheduleView from './ScheduleView';
+import SchedulePage from './SchedulePage';
 import AvailabilitySheet from './AvailabilitySheet';
 import BandView from './BandView';
 
@@ -18,9 +19,10 @@ export default function Schedule({
   onOpenSetlist, onNewSetlist, onBack, clockFormat = '12h', firstDayOfWeek = 'sunday',
   mode = 'schedule',
 }) {
-  // mode 'setlists' is the Setlists tab (2026-11-15): the same list with only
-  // Upcoming / Past. No Band grid, no "Can you play?" strip, no availability:
-  // those stay on Schedule, opened from Home, until Schedule is redesigned.
+  // Two pages share this data (2026-11-15). mode 'setlists' is the Setlists
+  // tab: the list with only Upcoming / Past. mode 'schedule' is Schedule, who
+  // plays when: invites, Next Sundays, You play, My availability, and the Band
+  // grid for leaders (SchedulePage). Schedule opens from Home only.
   const setlistsOnly = mode === 'setlists';
   const { user } = useAuth();
   const { team, members, isAdmin, canManageBand } = useTeam();
@@ -29,7 +31,6 @@ export default function Schedule({
   const [now] = useState(() => Date.now());
   const [tab, setTab] = useState('upcoming');
   const [filter, setFilter] = useState('all');
-  const [sheet, setSheet] = useState(false);
   const userId = user?.id;
 
   const nameOf = (uid) => {
@@ -157,52 +158,56 @@ export default function Schedule({
 
   const busyDates = useMemo(() => new Set(setlists.map(sl => sl.date).filter(Boolean)), [setlists]);
 
-  return (
-    <>
-      <ScheduleView
+  const bandNode = leader && createSchedule ? (
+    <BandView
+      {...bandPage}
+      onTap={tapCell}
+      onOpen={onOpenSetlist}
+      plan={planSummary(plan)}
+      onSend={sendPlan}
+      onClear={() => { setPlan({}); setSendError(null); }}
+      sending={sending}
+      error={sendError}
+    />
+  ) : null;
+
+  if (!setlistsOnly) {
+    const args = { schedules, userId, setlists, setlistMap, now };
+    return (
+      <SchedulePage
         onBack={onBack}
-        title={setlistsOnly ? 'Setlists' : 'Schedule'}
-        newLabel={setlistsOnly ? 'New setlist' : 'New'}
         leader={leader}
-        tab={tab}
-        onTab={setTab}
-        showBand={!setlistsOnly && leader && !!createSchedule}
-        band={tab === 'band' ? (
-          <BandView
-            {...bandPage}
-            onTap={tapCell}
-            onOpen={onOpenSetlist}
-            plan={planSummary(plan)}
-            onSend={sendPlan}
-            onClear={() => { setPlan({}); setSendError(null); }}
-            sending={sending}
-            error={sendError}
-          />
+        invites={team ? myAsks(args) : []}
+        plays={team ? myServices(args) : []}
+        canPlay={canPlay}
+        calendar={team ? (
+          <AvailabilitySheet inline mine={mine} busyDates={busyDates} onSet={answerDay} onClear={(date) => clearStatus(date)} firstDay={firstDayOfWeek} now={now} />
         ) : null}
-        filter={filter}
-        onFilter={setFilter}
-        counts={counts}
-        groups={groups}
+        band={bandNode}
         clockFormat={clockFormat}
         onOpen={onOpenSetlist}
         onAnswer={answerAsk}
-        onNew={leader ? onNewSetlist : null}
-        onAvailability={team && !setlistsOnly ? () => setSheet(true) : null}
-        canPlay={setlistsOnly ? null : canPlay}
         onAnswerDay={(tile, value) => answerDay(tile.date, value)}
       />
-      {team && !setlistsOnly && (
-        <AvailabilitySheet
-          open={sheet}
-          onOpenChange={setSheet}
-          mine={mine}
-          busyDates={busyDates}
-          onSet={answerDay}
-          onClear={(date) => clearStatus(date)}
-          firstDay={firstDayOfWeek}
-          now={now}
-        />
-      )}
-    </>
+    );
+  }
+
+  // The Setlists tab: the list with only Upcoming / Past.
+  return (
+    <ScheduleView
+      title="Setlists"
+      newLabel="New setlist"
+      leader={leader}
+      tab={tab}
+      onTab={setTab}
+      filter={filter}
+      onFilter={setFilter}
+      counts={counts}
+      groups={groups}
+      clockFormat={clockFormat}
+      onOpen={onOpenSetlist}
+      onAnswer={answerAsk}
+      onNew={leader ? onNewSetlist : null}
+    />
   );
 }
