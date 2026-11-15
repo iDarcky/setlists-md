@@ -3,6 +3,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { churchInitials } from '@/lib/joinLink';
+import { Avatar } from '@/ui/shadcn/avatar';
 import { BellIcon, ChevronDownIcon, PlusIcon } from './navIcons';
 
 // The one top bar (canvas "Signed out and joining" → Navigation options):
@@ -19,18 +20,8 @@ function ChurchMark({ name, logoUrl }) {
   );
 }
 
-export function Avatar({ name, url, size = 32 }) {
-  if (url) return <img src={url} alt="" aria-hidden="true" className="rounded-full object-cover" style={{ width: size, height: size }} />;
-  return (
-    <span
-      aria-hidden="true"
-      className="flex items-center justify-center rounded-full bg-link font-semibold text-background"
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.375) }}
-    >
-      {churchInitials(name)}
-    </span>
-  );
-}
+// The shared avatar lives in ui/shadcn/avatar; re-exported for older imports.
+export { Avatar };
 
 // Below 1024px the bar is compact (two columns, + as an icon); from 1024px it
 // is wide (pill in the middle, "+ New song" spelled out). `layout` pins one of
