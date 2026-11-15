@@ -19,11 +19,11 @@ export function NavPill({ placement = 'bottom', active, onSelect, embedded = fal
       aria-label="Main"
       data-slot="nav-pill"
       className={cn(
-        'flex gap-0.5 rounded-full border border-border bg-card font-sans',
+        'flex gap-0.5 rounded-full font-sans',
         top
-          ? 'p-1'
+          ? 'border border-border bg-card p-1'
           : cn(
-            'z-[150] p-[5px] shadow-[0_12px_32px_rgba(0,0,0,0.35)] left-1/2 -translate-x-1/2',
+            'material-medium z-chrome p-[5px] left-1/2 -translate-x-1/2',
             embedded ? 'absolute' : 'fixed',
           ),
         className,

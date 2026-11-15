@@ -190,6 +190,8 @@
    child into its own, higher material instead. Corners stay on the component
    (rounded-card 12 for all of them, rounded-control 8 for tooltip,
    rounded-t-sheet 20 for a phone sheet, rounded-full for pills).
+   Materials sort AFTER Tailwind built-ins in the CSS, so trimming an edge
+   needs `!` (the phone drawer uses `!border-x-0 !border-b-0`).
 
      base        resting card, list group              layer 0
      small       lifted row, picked tile, sticky head   layer 0 (z-sticky)
