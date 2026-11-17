@@ -197,6 +197,7 @@ export default function Schedule({
     <ScheduleView
       title="Setlists"
       newLabel="New setlist"
+      searchable
       leader={leader}
       tab={tab}
       onTab={setTab}

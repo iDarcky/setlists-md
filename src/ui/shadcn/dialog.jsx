@@ -14,11 +14,11 @@ const DialogClose = DialogPrimitive.Close;
 function DialogContent({ className, children, ...props }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay data-slot="dialog-overlay" className="fixed inset-0 z-[1000] bg-scrim" />
+      <DialogPrimitive.Overlay data-slot="dialog-overlay" className="fixed inset-0 z-modal bg-scrim" />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed left-1/2 top-1/2 z-[1000] flex max-h-[min(720px,calc(100dvh-64px))] w-[calc(100%-48px)] max-w-[560px] -translate-x-1/2 -translate-y-1/2 flex-col rounded-card border border-border bg-card font-sans text-card-foreground shadow-2xl outline-none',
+          'fixed left-1/2 top-1/2 z-modal flex max-h-[min(720px,calc(100dvh-64px))] w-[calc(100%-48px)] max-w-[560px] -translate-x-1/2 -translate-y-1/2 flex-col rounded-card material-modal font-sans text-card-foreground outline-none',
           className,
         )}
         {...props}
@@ -41,7 +41,7 @@ function DialogHeader({ className, children, hideClose = false, ...props }) {
 }
 
 function DialogTitle({ className, ...props }) {
-  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]', className)} {...props} />;
+  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('m-0 text-heading', className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }) {

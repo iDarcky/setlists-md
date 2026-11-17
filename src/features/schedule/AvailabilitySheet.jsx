@@ -12,8 +12,8 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@/app/navIcons';
 
 const STATUS = [
   { value: 'available', label: 'Can play', cls: 'bg-selected text-link' },
-  { value: 'maybe', label: 'Maybe', cls: 'bg-warning/20 text-warning-text' },
-  { value: 'unavailable', label: 'Can’t', cls: 'bg-danger/15 text-danger' },
+  { value: 'maybe', label: 'Maybe', cls: 'bg-warning-fill text-warning-text' },
+  { value: 'unavailable', label: 'Can’t', cls: 'bg-danger-fill text-danger-text' },
 ];
 const clsFor = (status) => STATUS.find(s => s.value === status)?.cls || '';
 
@@ -42,16 +42,16 @@ export default function AvailabilitySheet({
   const body = (
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <span className="text-[15px] font-semibold">{title}</span>
+          <span className="text-body font-semibold">{title}</span>
           <div className="flex gap-1">
             <button type="button" aria-label="Previous month" disabled={month <= 0} onClick={() => setMonth(m => m - 1)} className={navBtn}><ChevronLeftIcon /></button>
             <button type="button" aria-label="Next month" onClick={() => setMonth(m => m + 1)} className={navBtn}><ChevronRightIcon /></button>
           </div>
         </div>
-        <p className="m-0 text-[14px] text-muted-foreground">Tap a day to say if you can play. One answer covers every service that day. Dots are setlists.</p>
+        <p className="m-0 text-small text-muted-foreground">Tap a day to say if you can play. One answer covers every service that day. Dots are setlists.</p>
         <div className="grid grid-cols-7 gap-1 text-center">
           {weekdayLabels(firstDay).map((w, i) => (
-            <span key={i} className="pb-1 text-[11px] font-semibold text-muted-foreground">{w.slice(0, 1)}</span>
+            <span key={i} className="pb-1 text-caption font-semibold text-muted-foreground">{w.slice(0, 1)}</span>
           ))}
           {cells.map((d, i) => {
             if (!d) return <span key={`x${i}`} />;
@@ -67,7 +67,7 @@ export default function AvailabilitySheet({
                 aria-label={`${d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}${status ? `, ${STATUS.find(s => s.value === status)?.label}` : ''}${busyDates.has(date) ? ', has a setlist' : ''}`}
                 onClick={() => setPicked(date)}
                 className={cn(
-                  'relative flex h-11 min-h-0 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent font-sans text-[15px] font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40',
+                  'relative flex h-11 min-h-0 cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent font-sans text-body font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-40',
                   status && `${clsFor(status)} font-semibold`,
                   date === todayStr && 'shadow-[inset_0_0_0_1.5px_var(--foreground)]',
                   picked === date && 'shadow-[inset_0_0_0_2px_var(--link)]',
@@ -79,14 +79,14 @@ export default function AvailabilitySheet({
             );
           })}
         </div>
-        <div className="flex flex-wrap gap-3.5 text-[12px] text-muted-foreground" aria-hidden="true">
+        <div className="flex flex-wrap gap-3.5 text-caption text-muted-foreground" aria-hidden="true">
           {STATUS.map(s => (
             <span key={s.value} className="inline-flex items-center gap-1.5"><span className={cn('size-3.5 rounded-[4px]', s.cls)} />{s.label}</span>
           ))}
         </div>
         {picked ? (
           <div className="flex flex-col gap-2 border-t border-border pt-3">
-            <span className="text-[14px] font-semibold">
+            <span className="text-small font-semibold">
               {new Date(`${picked}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </span>
             <div className="grid grid-cols-3 gap-2">
@@ -107,7 +107,7 @@ export default function AvailabilitySheet({
   );
   // On the Schedule page the month sits in a card (2026-11-15); elsewhere it
   // is a sheet.
-  if (inline) return <div className="rounded-card border border-border bg-card p-4">{body}</div>;
+  if (inline) return <div className="rounded-card material-base p-4">{body}</div>;
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) setPicked(null); onOpenChange?.(o); }} title="My availability" className="h-auto sm:max-w-[440px]">
       {body}

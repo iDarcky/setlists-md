@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
@@ -104,16 +105,6 @@ function Face({ name, url, you = false, size = 32, ring = false, className }) {
   );
 }
 
-function SyncLine({ sync }) {
-  if (!sync) return null;
-  const tone = { ok: 'text-success-text', pending: 'text-warning-text', offline: 'text-muted-foreground', error: 'text-danger-text' }[sync.state] || 'text-muted-foreground';
-  return (
-    <span className={cn('inline-flex items-center gap-1.5', tone)}>
-      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
-      {sync.label}
-    </span>
-  );
-}
 
 // ── Create (the + by the hello) ─────────────────────────────────────────────
 
@@ -497,7 +488,6 @@ function NothingPlanned({ onBrowse }) {
  * @param {object} p
  * @param {string} p.name                 first name for "Hi …"
  * @param {string} p.dateLabel            "Sunday 15 November"
- * @param {{state, label}} [p.sync]
  * @param {{onRetry}} [p.syncProblem]     sync failing for minutes
  * @param {{title, steps, onStep, onHide}} [p.setup]  the one-time checklist
  * @param {boolean} [p.leader]
@@ -509,33 +499,31 @@ function NothingPlanned({ onBrowse }) {
  * @param {Array} [p.create]              the + menu: [{ icon, label, onSelect, divider }]
  */
 export default function HomeView({
-  name, dateLabel, sync, syncProblem, setup, leader = false, clockFormat = '12h',
+  name, dateLabel, syncProblem, setup, leader = false, clockFormat = '12h',
   needs, onNeed, asks, onAnswer, next, onOpenSetlist, onPlaySetlist, onMarkReady,
   strip, onOpenSchedule, activity, now, onOpenActivity, onOpenSongs,
   showNothingPlanned = false, create = [], startChurch = null, embedded = false, layout = 'auto',
 }) {
   const wideScreen = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'auto' ? wideScreen : layout === 'wide';
+  // The shared page header (owner, 2026-11-15: Home, Setlists and Songs the
+  // same); the date sits under it. Sync status moved to the profile photo
+  // and You (owner, 2026-11-15).
   const hello = (
-    <header className="flex items-start justify-between gap-3 pt-1">
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className={cn('m-0 truncate font-semibold tracking-[-0.5px]', wide ? 'text-[28px] leading-9' : 'text-[24px] leading-8')}>Hi {name}</h1>
-        <div className="flex flex-wrap items-center gap-x-2 text-[14px] leading-5 text-muted-foreground">
-          <span>{dateLabel}</span>
-          <SyncLine sync={sync} />
-        </div>
-      </div>
+    <PageHeader
+      title={`Hi ${name}`}
+      wide={layout === 'auto' ? undefined : wide}
+      sub={<span>{dateLabel}</span>}
+    >
       {/* Schedule's door (owner, 2026-11-15): a calendar button beside the +,
           not a row in the two weeks. Schedule is not a nav tab. */}
-      <div className="flex shrink-0 items-center gap-2">
-        {onOpenSchedule && (
-          <Button variant="outline" size="icon" aria-label="Schedule" title="Schedule" onClick={onOpenSchedule} className="size-11 rounded-control">
-            <Calendar size={20} strokeWidth={STROKE} aria-hidden="true" />
-          </Button>
-        )}
-        <CreateButton items={create} />
-      </div>
-    </header>
+      {onOpenSchedule && (
+        <Button variant="outline" size="icon" aria-label="Schedule" title="Schedule" onClick={onOpenSchedule} className="size-11 rounded-control">
+          <Calendar size={20} strokeWidth={STROKE} aria-hidden="true" />
+        </Button>
+      )}
+      <CreateButton items={create} />
+    </PageHeader>
   );
   const setupEl = setup && <SetupCard {...setup} />;
   const nextEl = <NextUp next={next} leader={leader} clockFormat={clockFormat} onOpen={onOpenSetlist} onPlay={onPlaySetlist} onMarkReady={onMarkReady} />;

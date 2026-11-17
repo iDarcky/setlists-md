@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 
 const SparkleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -135,7 +135,7 @@ export function UpgradePill({ onUpgrade }) {
 
 export function SignInButton({ onSignIn }) {
   return (
-    <Button variant="brand" size="lg" className="w-full" onClick={onSignIn}>
+    <Button className="w-full" onClick={onSignIn}>
       Sign in
     </Button>
   );
@@ -143,7 +143,7 @@ export function SignInButton({ onSignIn }) {
 
 export function CreateAccountButton({ onCreateAccount }) {
   return (
-    <Button variant="secondary" size="md" className="w-full" onClick={onCreateAccount}>
+    <Button variant="outline" className="w-full" onClick={onCreateAccount}>
       Create account
     </Button>
   );

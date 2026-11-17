@@ -27,7 +27,7 @@ export function BottomActions({ fixed = false, className, style, children, ...pr
   const kb = useKeyboardInset();
   return (
     <div data-slot="bottom-actions" {...props}
-      className={cn('flex shrink-0 items-center gap-2 border-t border-border bg-background px-4 pt-2.5', fixed && 'fixed inset-x-0 bottom-0 z-20', className)}
+      className={cn('flex shrink-0 items-center gap-2 border-t border-border bg-background px-4 pt-2.5', fixed && 'fixed inset-x-0 bottom-0 z-chrome', className)}
       style={{
         // Over the keyboard the home indicator is not in the way any more.
         paddingBottom: kb ? 10 : 'max(env(safe-area-inset-bottom, 0px), 10px)',

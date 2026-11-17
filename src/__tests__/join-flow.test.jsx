@@ -71,7 +71,7 @@ describe('JoinFlow', () => {
       .mockResolvedValueOnce({ status: 'pending', request_id: 'r1', team_id: 't1' });
     render(<JoinFlow code={CODE} />);
     expect(await screen.findByText('Network down')).toBeInTheDocument();
-    const nameInput = screen.getByPlaceholderText('First and last name');
+    const nameInput = screen.getByLabelText('Your name');
     fireEvent.change(nameInput, { target: { value: 'Maria  Pop' } });
     fireEvent.click(screen.getByRole('button', { name: 'Drums' }));
     fireEvent.click(screen.getByRole('button', { name: 'Ask to join' }));

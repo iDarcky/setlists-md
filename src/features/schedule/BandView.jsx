@@ -1,6 +1,9 @@
 import { cn } from '@/ui/shadcn/utils';
+import { Avatar } from '@/ui/shadcn/avatar';
+import { DateTile } from '@/ui/shadcn/date-tile';
+import { Users } from 'lucide-react';
+import { EmptyState } from '@/ui/shadcn/empty-state';
 import { Button } from '@/ui/shadcn/button';
-import { churchInitials } from '@/lib/joinLink';
 import { ChevronLeftIcon, ChevronRightIcon } from '@/app/navIcons';
 import { labelFor } from '@/data/instruments';
 
@@ -14,8 +17,8 @@ const day = (dateStr, opts) => new Date(`${dateStr}T12:00:00`).toLocaleDateStrin
 const CELL = {
   in: { cls: 'bg-link text-background', mark: '✓', label: 'in the band' },
   asked: { cls: 'border-2 border-link text-link', mark: '…', label: 'invited' },
-  maybe: { cls: 'bg-warning/20 text-warning-text', mark: '?', label: 'maybe' },
-  cant: { cls: 'bg-danger/15 text-danger', mark: '×', label: 'can’t' },
+  maybe: { cls: 'bg-warning-fill text-warning-text', mark: '?', label: 'maybe' },
+  cant: { cls: 'bg-danger-fill text-danger-text', mark: '×', label: 'can’t' },
   free: { cls: 'bg-selected', mark: '', label: 'free' },
   none: { cls: 'border border-dashed border-input', mark: '', label: 'no answer' },
 };
@@ -38,7 +41,7 @@ function Cell({ cell, person, column, onTap }) {
     >
       <span
         className={cn(
-          'relative flex size-8 items-center justify-center rounded-[8px] text-[14px] font-bold',
+          'relative flex size-8 items-center justify-center rounded-[8px] text-small font-bold',
           c.cls,
           add && 'border-warning-text text-warning-text',
           remove && 'opacity-35',
@@ -67,10 +70,7 @@ export default function BandView({
 }) {
   if (!columns.length) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
-        <b className="text-[17px]">Nothing to plan yet</b>
-        <p className="m-0 max-w-[320px] text-[15px] leading-[21px] text-muted-foreground">Make a setlist with a date, then pick its band here.</p>
-      </div>
+      <EmptyState icon={<Users strokeWidth={1.8} />} title="Nothing to plan yet">Make a setlist with a date, then pick its band here.</EmptyState>
     );
   }
   const cols = `minmax(120px,1fr) repeat(${columns.length}, 52px)`;
@@ -84,16 +84,16 @@ export default function BandView({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{range}</span>
+        <span className="text-label text-muted-foreground">{range}</span>
         <div className="flex gap-1">
           <button type="button" aria-label="Earlier setlists" disabled={!canPrev} onClick={onPrev} className={navBtn}><ChevronLeftIcon /></button>
           <button type="button" aria-label="Later setlists" disabled={!canNext} onClick={onNext} className={navBtn}><ChevronRightIcon /></button>
         </div>
       </div>
 
-      <div role="grid" aria-label="Band" className="overflow-hidden rounded-card border border-border bg-card">
+      <div role="grid" aria-label="Band" className="overflow-hidden rounded-card material-base">
         <div role="row" className="grid border-b border-border bg-raised" style={{ gridTemplateColumns: cols }}>
-          <span role="columnheader" className="flex items-center px-3 text-[13px] text-muted-foreground">{people.length} {people.length === 1 ? 'person' : 'people'}</span>
+          <span role="columnheader" className="flex items-center px-3 text-small text-muted-foreground">{people.length} {people.length === 1 ? 'person' : 'people'}</span>
           {columns.map(c => (
             <button
               key={c.setlist.id}
@@ -103,31 +103,30 @@ export default function BandView({
               onClick={() => onOpen?.(c.setlist)}
               className="flex h-[52px] min-h-0 cursor-pointer flex-col items-center justify-center border-0 border-l border-border bg-transparent p-0 font-sans leading-none text-foreground outline-none hover:bg-card focus-visible:bg-card"
             >
-              <span className="text-[11px] font-semibold uppercase text-muted-foreground">{day(c.setlist.date, { weekday: 'short' })}</span>
-              <span className="mt-1 text-[17px] font-semibold">{day(c.setlist.date, { day: 'numeric' })}</span>
+              <DateTile size="sm" weekday={day(c.setlist.date, { weekday: 'short' })} day={day(c.setlist.date, { day: 'numeric' })} />
             </button>
           ))}
         </div>
         {people.map(p => (
           <div key={p.userId} role="row" className="grid border-b border-border" style={{ gridTemplateColumns: cols }}>
             <span role="rowheader" className="flex min-w-0 items-center gap-2 px-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-raised text-[10px] font-semibold">{churchInitials(p.name)}</span>
+              <Avatar name={p.name} url={p.url} size={28} tone="quiet" />
               <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[14px] font-medium">{p.name}</span>
-                {p.part && <span className="truncate text-[12px] text-muted-foreground">{labelFor(p.part) || p.part}</span>}
+                <span className="truncate text-small font-medium">{p.name}</span>
+                {p.part && <span className="truncate text-caption text-muted-foreground">{labelFor(p.part) || p.part}</span>}
               </span>
             </span>
             {p.cells.map((cell, i) => <Cell key={cell.setlistId} cell={cell} person={p} column={columns[i]} onTap={onTap} />)}
           </div>
         ))}
         <div role="row" className="grid border-b border-border" style={{ gridTemplateColumns: cols }}>
-          <span role="rowheader" className="flex h-11 items-center px-3 text-[13px] text-muted-foreground">In the band</span>
-          {columns.map(c => <span key={c.setlist.id} className="flex items-center justify-center border-l border-border text-[14px] font-semibold">{c.inBand}</span>)}
+          <span role="rowheader" className="flex h-11 items-center px-3 text-small text-muted-foreground">In the band</span>
+          {columns.map(c => <span key={c.setlist.id} className="flex items-center justify-center border-l border-border text-small font-semibold">{c.inBand}</span>)}
         </div>
         <div role="row" className="grid" style={{ gridTemplateColumns: cols }}>
-          <span role="rowheader" className="flex min-h-11 items-center px-3 text-[13px] font-medium text-danger">Missing</span>
+          <span role="rowheader" className="flex min-h-11 items-center px-3 text-small font-medium text-danger">Missing</span>
           {columns.map(c => (
-            <span key={c.setlist.id} className={cn('flex flex-col items-center justify-center gap-0.5 border-l border-border px-0.5 py-2 text-center text-[11px] font-semibold leading-tight', c.missing?.length !== 0 ? 'text-danger' : 'text-muted-foreground')}>
+            <span key={c.setlist.id} className={cn('flex flex-col items-center justify-center gap-0.5 border-l border-border px-0.5 py-2 text-center text-caption font-semibold leading-tight', c.missing?.length !== 0 ? 'text-danger' : 'text-muted-foreground')}>
               {!c.rowId ? 'Not synced' : c.missing === null ? 'No band' : c.missing.length ? c.missing.map(m => <span key={m}>{m}</span>) : '–'}
             </span>
           ))}
@@ -135,10 +134,10 @@ export default function BandView({
       </div>
 
       {(pending > 0 || error) && (
-        <div className="flex flex-col gap-2 rounded-card border border-border bg-card p-3">
+        <div className="flex flex-col gap-2 rounded-card material-base p-3">
           {pending > 0 && (
             <>
-              <p className="m-0 text-[14px] text-muted-foreground">
+              <p className="m-0 text-small text-muted-foreground">
                 {plan.adds ? 'Everyone you invite gets a notification to say yes or no.' : 'They come off the band for that setlist.'}
               </p>
               <div className="flex gap-2">
@@ -147,11 +146,11 @@ export default function BandView({
               </div>
             </>
           )}
-          {error && <p role="alert" className="m-0 text-[14px] text-danger">{error}</p>}
+          {error && <p role="alert" className="m-0 text-small text-danger">{error}</p>}
         </div>
       )}
 
-      <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[12px] text-muted-foreground" aria-hidden="true">
+      <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-caption text-muted-foreground" aria-hidden="true">
         {LEGEND.map(k => (
           <span key={k} className="inline-flex items-center gap-1.5">
             <span className={cn('flex size-4 items-center justify-center rounded-[4px] text-[10px] font-bold', CELL[k].cls)}>{CELL[k].mark}</span>
@@ -161,7 +160,7 @@ export default function BandView({
         <span className="inline-flex items-center gap-1.5"><span className="flex size-4 items-center justify-center rounded-[4px] border-2 border-warning-text text-[10px] font-bold text-warning-text">+</span>Not sent yet</span>
         <span className="inline-flex items-center gap-1.5"><span className="flex size-4 items-center justify-center rounded-full bg-warning-text text-[10px] font-bold text-background">3</span>3rd week in a row</span>
       </div>
-      <p className="m-0 text-[13px] text-muted-foreground">Tap an empty square to invite someone, or a filled one to take them off. Nothing is sent until you tap Send.</p>
+      <p className="m-0 text-small text-muted-foreground">Tap an empty square to invite someone, or a filled one to take them off. Nothing is sent until you tap Send.</p>
     </div>
   );
 }

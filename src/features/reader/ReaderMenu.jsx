@@ -297,7 +297,7 @@ function GroupTitle({ children }) {
     // muted, with a hairline ABOVE it closing the group before (none on the
     // first one). Was a 15px bold heading underlined in the panel's rule.
     <div className="mx-4 mt-4 pt-4 pb-0.5 border-t border-[var(--border-1)] first:mt-0 first:pt-2 first:border-t-0">
-      <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--text-2)]">{children}</div>
+      <div className="text-label text-[var(--text-2)]">{children}</div>
     </div>
   );
 }

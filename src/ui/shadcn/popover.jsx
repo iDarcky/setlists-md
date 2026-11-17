@@ -16,7 +16,7 @@ function PopoverContent({ className, align = 'start', sideOffset = 6, ...props }
         sideOffset={sideOffset}
         collisionPadding={12}
         className={cn(
-          'z-50 w-72 max-w-[calc(100vw-24px)] rounded-card border border-border bg-card p-3 font-sans text-foreground shadow-[0_8px_30px_rgba(0,0,0,.25)] outline-none',
+          'z-menu w-72 max-w-[calc(100vw-24px)] rounded-card material-menu p-3 font-sans text-foreground outline-none',
           className,
         )}
         {...props}

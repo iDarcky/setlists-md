@@ -155,8 +155,15 @@ follows `settings.theme` (`default` = OS).
 - Components: `src/ui/shadcn/` (button, card, dialog, drawer, sheet, field,
   input, popover, switch, toggle, bottom-actions …) and `src/ui/blocks/`
   (Bencho blocks: CreateMenu, ToastStack, Search, LabelInput …, MIT).
-- **Five text sizes** 24 / 18 / 16 / 14 / 12; section labels are 12px
-  UPPERCASE. Icons are lucide at stroke 1.8. Motion is tasteful, not much.
+- **Materials** (`ds.css`, Geist-style): every surface uses one of
+  `material-base/small/medium/large/modal/menu/tooltip/fullscreen` (fill +
+  edge + shadow), never a hand-rolled shadow; corners stay on the component.
+  **Layers**: every z-index is `z-sticky` 10 · `z-chrome` 100 ·
+  `z-fullscreen` 200 · `z-modal` 300 · `z-menu` 400 · `z-tooltip` 500 ·
+  `z-toast` 600. Preview everything with `?design`.
+- **Five text sizes** `text-title` 24 / `text-heading` 18 / `text-body` 16 /
+  `text-small` 14 / `text-caption` 12, plus `text-label` (12px semibold
+  UPPERCASE). Weights 400/500/600 only. Icons are lucide at stroke 1.8. Motion is tasteful, not much.
 - Phones: sheets from the bottom and Save/Cancel at the bottom
   (`BottomActions`). iPad/desktop: centred dialogs, the top-bar nav.
 - `--chord` (gold) is only for chords.

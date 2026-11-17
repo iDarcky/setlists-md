@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 import { supabase } from '@/auth/supabase';
 import { getSyncState } from '@/sync/tokens';
 import { canonicalSongHash, stableStringify } from '@/sync/canonical';
@@ -240,7 +240,7 @@ export default function SyncDoctor({ teamId, songs = [] }) {
             Compares every song on this device against the team cloud and names any differences.
           </div>
         </div>
-        <Button size="sm" variant="secondary" loading={busy} onClick={run}>
+        <Button size="sm" variant="outline" loading={busy} onClick={run}>
           {report ? 'Run again' : 'Run check'}
         </Button>
       </div>

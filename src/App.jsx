@@ -1,5 +1,6 @@
 import { applyReaderLook, READER_LOOK_FLAG } from '@/lib/readerLook';
-import { Toaster } from "@/ui/Toaster";
+import { syncStatus } from '@/lib/syncStatus';
+import AppToaster from "@/ui/AppToaster";
 import { toast } from "@/ui/use-toast";
 import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
@@ -385,6 +386,8 @@ export default function App() {
   const [sessionStats, setSessionStats] = useState(null);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  // The dot on the profile photo (sync moved off Home, owner 2026-11-15).
+  const topSync = useMemo(() => syncStatus(syncState, syncState.lastSync ? new Date(syncState.lastSync).getTime() : 0, isOnline), [syncState, isOnline]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -714,7 +717,7 @@ export default function App() {
   // ask for is noise at best — and if the library ever re-uploads in a loop it
   // reads as one "Synced" panel that never goes away. Failures always toast;
   // only user-initiated syncs ("Sync now") report success.
-  const triggerSync = useCallback(async ({ silent = true } = {}) => {
+  const triggerSync = useCallback(async ({ silent: _silent = true } = {}) => {
     if (isSwitchingLibraryRef.current) return;
     const state = await getSyncState(activeLibrary);
     void state;
@@ -744,15 +747,8 @@ export default function App() {
         description: `${first.kind}${where}: ${first.message}${more}`,
         variant: 'error',
       });
-    } else if (!silent) {
-      const parts = [];
-      if (result.uploaded?.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
-      if (result.uploaded?.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
-      toast({
-        title: 'Synced',
-        description: parts.length ? `Uploaded ${parts.join(', ')}.` : 'Everything is up to date.',
-      });
     }
+    // A successful sync shows in the sync dot; no toast.
   }, [songs, setlists, tombstones, activeLibrary, personalCloudId, adoptSyncResult]);
   triggerSyncRef.current = triggerSync;
 
@@ -1658,7 +1654,6 @@ export default function App() {
     // reopens on the saved copy, so it is no longer "new" and nothing is
     // unsaved. Editing an existing song still lands on its page.
     const stay = wasNew && view === 'editor';
-    if (stay) toast({ title: 'Song added' });
     navigate(stay ? 'editor' : 'song-hub', { song, replace: true });
     if (isNew && !user && !settings?.seenSaveAccountWall) {
       openAccountWall(
@@ -1724,10 +1719,6 @@ export default function App() {
         tempEngine.debouncedPush(filteredTargetSongs, targetSetlists, targetTombstones, () => {});
       }
 
-      toast({
-        title: 'Song moved',
-        description: `Successfully moved to ${targetLibraryId === 'personal' ? 'Personal' : 'Team'} library.`,
-      });
       setView('library');
     } catch (err) {
       console.error(err);
@@ -1899,7 +1890,6 @@ export default function App() {
     setSongs(prev => prev.some(s => s.id === id) ? prev : [...prev, entry.song]);
     setTrash(prev => prev.filter(e => e.song?.id !== id));
     setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => t.id !== id) }));
-    toast({ title: `Restored "${entry.song.title || 'song'}"` });
   };
 
   const handlePurgeSong = (id) => {
@@ -1961,8 +1951,7 @@ export default function App() {
       return { ...s, tags: next, updatedAt: Date.now() };
     }));
     if (changed > 0) {
-      const label = addList.length ? `Tagged ${changed} song${changed === 1 ? '' : 's'}` : `Untagged ${changed} song${changed === 1 ? '' : 's'}`;
-      toast({ title: label });
+      // The tag chips show it; no toast (design-basics/toasts-to-cut.md).
     }
   };
 
@@ -1993,7 +1982,6 @@ export default function App() {
       }
       return next;
     });
-    toast({ title: list.length === 1 ? `Added "${list[0].title || 'Untitled'}"` : `Added ${list.length} songs` });
   };
 
   // New song from a setlist's Add songs list. Unlike an import on Songs, a
@@ -2188,7 +2176,6 @@ export default function App() {
       arr[i] = { ...next, updatedAt: Date.now() };
       return arr;
     });
-    toast({ title: 'Saved as a new arrangement', description: 'The original is back the way it was.' });
   }, [isTeamReadOnly]);
 
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
@@ -2272,7 +2259,6 @@ export default function App() {
       items: (src.items || []).map(it => ({ ...it })),
     };
     setSetlists(prev => [...prev, copy]);
-    toast({ title: 'Setlist duplicated', description: copy.name });
   };
 
   // Service templates (New setlist → Edit templates). A template is a setlist
@@ -2289,7 +2275,6 @@ export default function App() {
       if (!from || !to || from === to) return next;
       return next.map(s => (!s.isTemplate && (s.service || '') === from ? { ...s, service: to, updatedAt: Date.now() } : s));
     });
-    toast({ title: 'Template saved', description: tpl.templateName || tpl.name });
   };
   const handleDeleteTemplate = async (id) => {
     const tpl = setlists.find(s => s.id === id);
@@ -2342,9 +2327,8 @@ export default function App() {
       changed++;
       return { ...s, tags: next, updatedAt: Date.now() };
     }));
-    if (changed > 0) {
-      toast({ title: `${addList.length ? 'Tagged' : 'Untagged'} ${changed} setlist${changed === 1 ? '' : 's'}` });
-    }
+    // The tag chips show the change; no toast (design-basics/toasts-to-cut.md).
+    void changed;
   };
 
   // Setlist export/import
@@ -2413,7 +2397,6 @@ export default function App() {
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
           <GoogleDriveCallback
             onDone={() => {
-              toast({ title: 'Google Drive connected', description: 'Your songs and setlists will sync to your Drive.' });
               goToMainView('home');
               // Trigger a sync immediately so it pulls the cloud state into the app
               triggerSync();
@@ -2553,6 +2536,7 @@ export default function App() {
       }}
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
+      sync={topSync}
       onOpenYou={leaveEditing(() => navigate('you'))}
       pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
     />
@@ -2612,7 +2596,7 @@ export default function App() {
     <WorkspaceProvider activeLibrary={activeLibrary}>
     <ErrorBoundary>
     <Suspense fallback={lazyFallback}>
-      <Toaster />
+      <AppToaster />
       <OfflineBanner />
       {/* Home only: nobody is mid-task there, so a reload never lands in a
           live set, a rehearsal or a half-typed song. */}
@@ -3004,6 +2988,9 @@ export default function App() {
             <YouPage
               me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
               signedIn={isSignedIn}
+              syncState={syncState}
+              online={isOnline}
+              onSyncNow={syncState.provider ? () => triggerSyncRef.current?.({ silent: false }) : undefined}
               church={activeLibrary !== 'personal' ? {
                 name: currentWorkspaceName,
                 logoUrl: team?.logo_url || null,
