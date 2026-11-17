@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './dialog';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from './drawer';
+import { BottomSheet } from './bottom-sheet';
 import { cn } from './utils';
 
 // One rule for every pop-up: a bottom drawer on a phone, a centred dialog from
@@ -32,13 +32,10 @@ function Sheet({ open, onOpenChange, title, description, children, className, di
     );
   }
   return (
-    <Drawer open={open} onOpenChange={onOpenChange} dismissible={dismissible}>
-      <DrawerContent className={cn('h-[calc(100dvh-64px)]', className)} {...noDescription}>
-        <DrawerHeader hideClose={!dismissible}><DrawerTitle>{title}</DrawerTitle></DrawerHeader>
-        {description && <DrawerDescription className="sr-only">{description}</DrawerDescription>}
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-2" data-vaul-no-drag>{children}</div>
-      </DrawerContent>
-    </Drawer>
+    <BottomSheet open={open} onOpenChange={onOpenChange} title={title} description={description}
+      className={cn('h-[calc(100dvh-64px)]', className)} dismissible={dismissible}>
+      {children}
+    </BottomSheet>
   );
 }
 
