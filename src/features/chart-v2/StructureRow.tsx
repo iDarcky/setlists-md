@@ -18,7 +18,7 @@ const tone = (type: string) => sectionTone(type) as { code: string; fg: string; 
 /** The red LIVE label that opens the pinned row (owner, 2026-11-17). */
 function LiveLabel({ compact }: { compact: boolean }) {
   if (compact) {
-    return <span role="status" aria-label="Live" className="mb-1 size-2 rounded-full bg-[#E5484D] shadow-[0_0_0_3px_rgba(229,72,77,.25)]" />;
+    return <span role="status" aria-label="Live" className="my-1 size-2 rounded-full bg-[#E5484D] shadow-[0_0_0_3px_rgba(229,72,77,.25)]" />;
   }
   return (
     <span role="status" className="mr-1.5 inline-flex h-6 shrink-0 items-center gap-[5px] rounded-[7px] bg-[#B4413A] px-2 text-[11px] font-semibold tracking-[0.04em] text-white">
@@ -50,7 +50,8 @@ export function StructureRow({ boxes, activeSlot, style, position, live, onJump 
         </button>
       );
     }
-    const text = `${t.code}${b.count > 1 ? ` ×${b.count}` : ''}`;
+    // Down a side there is no room for the space: "T×2".
+    const text = `${t.code}${b.count > 1 ? `${side ? '' : ' '}×${b.count}` : ''}`;
     if (style === 'chips') {
       return (
         <button {...common} className="h-7 min-h-0 shrink-0 rounded-full px-[11px] text-caption font-semibold" style={{ opacity: past ? 0.45 : 1, background: on ? t.fg : 'var(--raised)', color: on ? 'var(--background)' : t.fg }}>
@@ -59,12 +60,29 @@ export function StructureRow({ boxes, activeSlot, style, position, live, onJump 
       );
     }
     return (
-      <button {...common} className="h-6 min-h-0 shrink-0 rounded-[7px] border px-[7px] font-mono text-[11px] tracking-[0.06em]" style={{ opacity: past ? 0.45 : 1, background: on ? t.fg : 'transparent', borderColor: on ? t.fg : 'var(--border)', color: on ? 'var(--background)' : t.fg, fontWeight: on ? 600 : 500 }}>
+      <button {...common} className="h-6 min-h-0 shrink-0 whitespace-nowrap rounded-[7px] border px-[5px] font-mono text-[11px] tracking-[0.06em]" style={{ opacity: past ? 0.45 : 1, background: on ? t.fg : 'transparent', borderColor: on ? t.fg : 'var(--border)', color: on ? 'var(--background)' : t.fg, fontWeight: on ? 600 : 500 }}>
         {text}
       </button>
     );
   });
 
+  if (side && style === 'dots') {
+    // The mockup's floating pill: no column, the chart keeps its width.
+    return (
+      <nav
+        aria-label="Song structure"
+        className={`absolute top-1/2 z-chrome flex -translate-y-1/2 flex-col items-center gap-1 rounded-full border border-border bg-raised px-0.5 py-2 ${position === 'left' ? 'left-1.5' : 'right-1.5'}`}
+      >
+        {live && (
+          <>
+            <LiveLabel compact />
+            <span aria-hidden className="mb-1 h-px w-3 bg-border" />
+          </>
+        )}
+        {items}
+      </nav>
+    );
+  }
   if (side) {
     return (
       <nav aria-label="Song structure" className={`flex w-11 shrink-0 flex-col items-center gap-1.5 overflow-y-auto bg-background py-3 [scrollbar-width:none] ${position === 'left' ? 'border-r' : 'border-l'} border-border`}>
@@ -78,7 +96,7 @@ export function StructureRow({ boxes, activeSlot, style, position, live, onJump 
       {live && <LiveLabel compact={false} />}
       <div className={`flex min-w-0 flex-1 items-center overflow-x-auto [scrollbar-width:none] ${style === 'dots' ? 'gap-0.5' : 'gap-1.5'} justify-center-safe`}>
         {items}
-        {style === 'dots' && current && <span className="ml-2 shrink-0 text-caption font-semibold text-foreground">{tone(current.type).code}</span>}
+        {style === 'dots' && current && <span className="ml-2 shrink-0 text-caption font-semibold text-foreground">{current.type}{current.count > 1 ? ` ×${current.count}` : ''}</span>}
       </div>
     </nav>
   );

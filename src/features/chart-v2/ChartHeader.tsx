@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { Pause, X } from 'lucide-react';
 
 interface Props {
   title: string;
@@ -53,21 +53,49 @@ export function ChartHeader({ title, songKey, tempo, time, onClose, leading }: P
   );
 }
 
-/** The songs of the set, above the header; it scrolls away with it. */
-export function SetlistBar({ titles, current, onPick }: { titles: string[]; current: number; onPick: (i: number) => void }) {
+export interface BarItem { label: string; isBreak: boolean; songKey?: string }
+
+/**
+ * The whole set above the header (it scrolls away with it). Songs are
+ * numbered and carry their key; moments are not numbered, dashed and italic,
+ * so a 9-song set with two moments still reads as 9 songs. The current one is
+ * filled and kept in view.
+ */
+export function SetlistBar({ items, current, onPick }: { items: BarItem[]; current: number; onPick: (i: number) => void }) {
+  const active = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    active.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [current]);
+  const numbers = items.reduce<number[]>((acc, it) => [...acc, (acc[acc.length - 1] || 0) + (it.isBreak ? 0 : 1)], []);
   return (
-    <nav aria-label="Songs in this setlist" className="flex gap-1 overflow-x-auto px-2.5 pt-1.5 [scrollbar-width:none]">
-      {titles.map((t, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={() => onPick(i)}
-          aria-current={i === current ? 'true' : undefined}
-          className={`inline-flex h-[30px] shrink-0 items-center rounded-control px-2.5 text-[13px] ${i === current ? 'bg-raised font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}
-        >
-          {t}
-        </button>
-      ))}
+    <nav aria-label="Setlist" className="flex items-center gap-1.5 overflow-x-auto px-3 pt-2 pb-1 [scrollbar-width:none] [mask-image:linear-gradient(90deg,transparent,#000_12px,#000_calc(100%-12px),transparent)]">
+      {items.map((it, i) => {
+        const on = i === current;
+        const base = 'flex h-8 min-h-0 shrink-0 items-center gap-1.5 rounded-control px-2.5 text-caption whitespace-nowrap';
+        if (it.isBreak) {
+          return (
+            <button
+              key={i} ref={on ? active : undefined} type="button" onClick={() => onPick(i)}
+              aria-current={on ? 'true' : undefined} aria-label={`Moment: ${it.label}`}
+              className={`${base} border border-dashed italic ${on ? 'border-foreground font-semibold text-foreground' : 'border-border text-muted-foreground'}`}
+            >
+              <Pause size={11} strokeWidth={2.4} aria-hidden />
+              {it.label}
+            </button>
+          );
+        }
+        return (
+          <button
+            key={i} ref={on ? active : undefined} type="button" onClick={() => onPick(i)}
+            aria-current={on ? 'true' : undefined}
+            className={`${base} border ${on ? 'border-transparent bg-foreground font-semibold text-background' : 'border-border text-foreground'}`}
+          >
+            <span className={`font-mono font-semibold tabular-nums ${on ? 'text-background' : 'text-muted-foreground'}`}>{String(numbers[i]).padStart(2, '0')}</span>
+            {it.label}
+            {it.songKey && <span className={`font-mono font-semibold ${on ? 'text-background' : 'text-warning-text'}`}>{it.songKey}</span>}
+          </button>
+        );
+      })}
     </nav>
   );
 }

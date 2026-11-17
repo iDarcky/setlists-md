@@ -66,11 +66,18 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
   const transpose = Number(cur?.item.transpose) || 0;
   const shownKey = song?.key ? (transpose ? (transposeKey(song.key, transpose) as string) : song.key) : undefined;
 
-  const ribbonStyle = normalizeRibbonStyle(settings?.ribbonStyle) as RibbonStyle;
+  const storedStyle = normalizeRibbonStyle(settings?.ribbonStyle) as RibbonStyle;
   const stored = settings?.structurePosition as RibbonPosition;
   const position: RibbonPosition = POSITIONS.includes(stored) ? stored : 'top';
+  // Chips carry whole names and do not fit down a side: there they draw as Boxes.
+  const ribbonStyle: RibbonStyle = storedStyle === 'chips' && (position === 'left' || position === 'right') ? 'codes' : storedStyle;
   const setlistBarOn = settings?.readerTopBar === 'setlist';
   const showSetlistBar = setlistBarOn && total > 1;
+  const barItems = useMemo(() => slots.map(s => {
+    const t = Number(s.item.transpose) || 0;
+    const k = s.song?.key;
+    return { label: s.label, isBreak: s.isBreak, songKey: k ? (t ? (transposeKey(k, t) as string) : k) : undefined };
+  }), [slots]);
   const accidentals = String(settings?.accidentals || 'auto');
   // A preview from the settings popover wins until the chart closes.
   const [previewMode, setPreviewMode] = useState<ChartMode | null>(null);
@@ -82,6 +89,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
   const hasRow = position !== 'off' && boxes.length > 0;
   const rowOnTop = hasRow && position === 'top';
   const rowOnSide = hasRow && (position === 'left' || position === 'right');
+  const floatingDots = rowOnSide && ribbonStyle === 'dots';
 
   // ── Header slides away on scroll down, back on scroll up ──────────────
   const scroller = useRef<HTMLDivElement>(null);
@@ -196,7 +204,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
   return (
     <div className="fixed inset-0 z-fullscreen flex flex-col bg-background pt-[env(safe-area-inset-top)] text-foreground" data-chart="v2">
       <div className="flex min-h-0 flex-1">
-        {rowOnSide && position === 'left' && row}
+        {rowOnSide && !floatingDots && position === 'left' && row}
         <div className="relative min-w-0 flex-1">
           <div ref={scroller} onScroll={onScroll} className="absolute inset-0 overflow-y-auto overscroll-contain">
             {/* A spacer, not padding: a sticky heading measures its `top` from
@@ -213,7 +221,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
                 “{cur.label}” is not in this library.
               </div>
             ) : (
-              <SongBody plays={plays} songKey={song.key} transpose={transpose} accidentals={accidentals} stickyTop={pinned} sectionRef={sectionRef} />
+              <SongBody inset={floatingDots ? position : undefined} plays={plays} songKey={song.key} transpose={transpose} accidentals={accidentals} stickyTop={pinned} sectionRef={sectionRef} />
             )}
           </div>
           {/* The chrome sits over the scroller: the header part moves up out of
@@ -223,7 +231,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
             style={{ transform: `translateY(${hidden ? -headH : 0}px)` }}
           >
             <div ref={headRef} className="pointer-events-auto bg-background" aria-hidden={hidden || undefined} inert={hidden || undefined}>
-              {showSetlistBar && <SetlistBar titles={slots.map(s => s.label)} current={idx} onPick={go} />}
+              {showSetlistBar && <SetlistBar items={barItems} current={idx} onPick={go} />}
               <ChartHeader
                 title={cur.label}
                 songKey={shownKey}
@@ -232,7 +240,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
                 onClose={onBack}
                 leading={onUpdateSettings ? (
                   <ChartSettings
-                    style={ribbonStyle}
+                    style={storedStyle}
                     position={position}
                     setlistBar={setlistBarOn}
                     mode={mode}
@@ -244,8 +252,9 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
             </div>
             {rowOnTop && <div className="pointer-events-auto">{row}</div>}
           </div>
+          {floatingDots && row}
         </div>
-        {rowOnSide && position === 'right' && row}
+        {rowOnSide && !floatingDots && position === 'right' && row}
       </div>
       {hasRow && position === 'bottom' && row}
       <ChartFooter
