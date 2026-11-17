@@ -4,6 +4,7 @@ import { transposeKey } from '@/music';
 import { normalizeRibbonStyle } from '@/lib/readerConfig';
 import { ChartFooter } from './ChartFooter';
 import { ChartHeader, SetlistBar } from './ChartHeader';
+import { ChartSettings } from './ChartSettings';
 import { songPlays, structureBoxes } from './plays';
 import { SongBody } from './SongBody';
 import { StructureRow, type RibbonPosition, type RibbonStyle } from './StructureRow';
@@ -29,6 +30,7 @@ interface Props {
   songs: RawSong[];
   settings: Record<string, unknown> | null;
   mode?: ChartMode;
+  onUpdateSettings?: (key: string, value: unknown) => void;
   startIndex?: number;
   onBack: () => void;
   onFinish: (stats: { startTime: number; endTime: number }) => void;
@@ -54,7 +56,7 @@ function resolveSlot(it: SetlistItem, songs: RawSong[]): Slot {
   return { item: it, song, isBreak: false, label: song?.title || it.songTitle || 'Song' };
 }
 
-export default function ChartV2({ setlist, songs, settings, mode = 'practice', startIndex = 0, onBack, onFinish }: Props) {
+export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'practice', onUpdateSettings, startIndex = 0, onBack, onFinish }: Props) {
   const [startTime] = useState(() => Date.now());
   const slots = useMemo(() => (setlist?.items || []).map(it => resolveSlot(it, songs)), [setlist, songs]);
   const total = slots.length;
@@ -67,8 +69,12 @@ export default function ChartV2({ setlist, songs, settings, mode = 'practice', s
   const ribbonStyle = normalizeRibbonStyle(settings?.ribbonStyle) as RibbonStyle;
   const stored = settings?.structurePosition as RibbonPosition;
   const position: RibbonPosition = POSITIONS.includes(stored) ? stored : 'top';
-  const showSetlistBar = settings?.readerTopBar === 'setlist' && total > 1;
+  const setlistBarOn = settings?.readerTopBar === 'setlist';
+  const showSetlistBar = setlistBarOn && total > 1;
   const accidentals = String(settings?.accidentals || 'auto');
+  // A preview from the settings popover wins until the chart closes.
+  const [previewMode, setPreviewMode] = useState<ChartMode | null>(null);
+  const mode = previewMode ?? clockMode;
   const live = mode === 'live';
 
   const plays = useMemo(() => (song ? songPlays(song) : []), [song]);
@@ -166,10 +172,12 @@ export default function ChartV2({ setlist, songs, settings, mode = 'practice', s
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.key === 'ArrowRight' || e.key === 'PageDown') go(idx + 1);
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(idx - 1);
-      if (e.key === 'Escape') onBack();
+      // Esc first closes whatever is open over the chart (the settings popover).
+      if (e.key === 'Escape' && !document.querySelector('[data-slot="popover-content"]')) onBack();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Capture: runs before the popover's own Esc handler has removed it.
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [go, idx, onBack]);
 
   const row = hasRow ? (
@@ -222,6 +230,16 @@ export default function ChartV2({ setlist, songs, settings, mode = 'practice', s
                 tempo={song?.tempo}
                 time={song?.time}
                 onClose={onBack}
+                leading={onUpdateSettings ? (
+                  <ChartSettings
+                    style={ribbonStyle}
+                    position={position}
+                    setlistBar={setlistBarOn}
+                    mode={mode}
+                    onSetting={onUpdateSettings}
+                    onMode={setPreviewMode}
+                  />
+                ) : undefined}
               />
             </div>
             {rowOnTop && <div className="pointer-events-auto">{row}</div>}

@@ -2945,6 +2945,7 @@ export default function App() {
               setlist={freshSetlist(currentSetlist)}
               songs={songs}
               settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               mode={readerMode}
               startIndex={readerStartIndex}
               onBack={goBack}

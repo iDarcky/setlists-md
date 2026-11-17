@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 interface Props {
@@ -6,6 +7,8 @@ interface Props {
   tempo?: number | string;
   time?: string;
   onClose: () => void;
+  /** Left of the title; the ✕ sits on the right. */
+  leading?: ReactNode;
 }
 
 /**
@@ -13,15 +16,15 @@ interface Props {
  * small pills under it, and the ✕ that stays even live. No "2 of 6 ·
  * Practice" line: where you are in the set is the footer's job.
  */
-export function ChartHeader({ title, songKey, tempo, time, onClose }: Props) {
+export function ChartHeader({ title, songKey, tempo, time, onClose, leading }: Props) {
   const pills: Array<{ text: string; gold?: boolean; label: string }> = [];
   if (songKey) pills.push({ text: `Key ${songKey}`, gold: true, label: `Key ${songKey}` });
   if (Number(tempo) > 0) pills.push({ text: `${tempo} BPM`, label: `${tempo} beats per minute` });
   if (time) pills.push({ text: String(time), label: `Time ${time}` });
   return (
     <header className="flex h-16 items-center gap-0.5 px-1.5">
-      {/* Balances the ✕ so the title is centred on the screen, not on what is left. */}
-      <span aria-hidden className="size-11 shrink-0" />
+      {/* Same width as the ✕, so the title is centred on the screen. */}
+      {leading ?? <span aria-hidden className="size-11 shrink-0" />}
       <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
         <h1 className="max-w-full truncate text-body font-semibold text-foreground">{title}</h1>
         {pills.length > 0 && (
