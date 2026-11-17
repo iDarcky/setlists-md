@@ -40,11 +40,11 @@ export function StructureRow({ boxes, activeSlot, style, position, live, onJump 
     const on = i === activeIdx;
     const past = i < activeIdx;
     const label = `${b.type}${b.count > 1 ? `, ${b.count} times` : ''}`;
-    const common = { type: 'button' as const, key: b.slot, onClick: () => onJump(b.slot), 'aria-label': label, 'aria-current': on ? ('true' as const) : undefined };
+    const common = { type: 'button' as const, onClick: () => onJump(b.slot), 'aria-label': label, 'aria-current': on ? ('true' as const) : undefined };
     if (style === 'dots') {
       const size = on ? 11 : 7;
       return (
-        <button {...common} className={`flex min-h-0 shrink-0 items-center justify-center ${side ? 'h-[22px] w-7' : 'h-7 w-[22px]'}`} style={{ opacity: past ? 0.45 : 1 }}>
+        <button key={b.slot} {...common} className={`flex min-h-0 shrink-0 items-center justify-center ${side ? 'h-[22px] w-7' : 'h-7 w-[22px]'}`} style={{ opacity: past ? 0.45 : 1 }}>
           <span className="rounded-full" style={{ width: size, height: size, background: t.fg, boxShadow: on ? `0 0 0 2px var(--background), 0 0 0 3.5px ${t.fg}` : undefined }} />
         </button>
       );
@@ -53,13 +53,13 @@ export function StructureRow({ boxes, activeSlot, style, position, live, onJump 
     const text = `${t.code}${b.count > 1 ? `${side ? '' : ' '}×${b.count}` : ''}`;
     if (style === 'chips') {
       return (
-        <button {...common} className="h-7 min-h-0 shrink-0 rounded-full px-[11px] text-caption font-semibold" style={{ opacity: past ? 0.45 : 1, background: on ? t.fg : 'var(--raised)', color: on ? 'var(--background)' : t.fg }}>
+        <button key={b.slot} {...common} className="h-7 min-h-0 shrink-0 rounded-full px-[11px] text-caption font-semibold" style={{ opacity: past ? 0.45 : 1, background: on ? t.fg : 'var(--raised)', color: on ? 'var(--background)' : t.fg }}>
           {text}
         </button>
       );
     }
     return (
-      <button {...common} className="h-6 min-h-0 shrink-0 whitespace-nowrap rounded-[7px] border px-[5px] font-mono text-[11px] tracking-[0.06em]" style={{ opacity: past ? 0.45 : 1, background: on ? t.fg : 'transparent', borderColor: on ? t.fg : 'var(--border)', color: on ? 'var(--background)' : t.fg, fontWeight: on ? 600 : 500 }}>
+      <button key={b.slot} {...common} className="h-6 min-h-0 shrink-0 whitespace-nowrap rounded-[7px] border px-[5px] font-mono text-[11px] tracking-[0.06em]" style={{ opacity: past ? 0.45 : 1, background: on ? t.fg : 'transparent', borderColor: on ? t.fg : 'var(--border)', color: on ? 'var(--background)' : t.fg, fontWeight: on ? 600 : 500 }}>
         {text}
       </button>
     );

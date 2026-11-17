@@ -6,6 +6,9 @@ interface Props {
   songKey?: string;
   tempo?: number | string;
   time?: string;
+  capo?: number;
+  /** Opens the key, tempo and time sheet. */
+  onPills?: () => void;
   onClose: () => void;
   /** Left of the title; the ✕ sits on the right. */
   leading?: ReactNode;
@@ -16,11 +19,12 @@ interface Props {
  * small pills under it, and the ✕ that stays even live. No "2 of 6 ·
  * Practice" line: where you are in the set is the footer's job.
  */
-export function ChartHeader({ title, songKey, tempo, time, onClose, leading }: Props) {
+export function ChartHeader({ title, songKey, tempo, time, capo, onPills, onClose, leading }: Props) {
   const pills: Array<{ text: string; gold?: boolean; label: string }> = [];
   if (songKey) pills.push({ text: `Key ${songKey}`, gold: true, label: `Key ${songKey}` });
   if (Number(tempo) > 0) pills.push({ text: `${tempo} BPM`, label: `${tempo} beats per minute` });
   if (time) pills.push({ text: String(time), label: `Time ${time}` });
+  if (capo) pills.push({ text: `Capo ${capo}`, label: `Capo on fret ${capo}` });
   return (
     <header className="flex h-16 items-center gap-0.5 px-1.5">
       {/* Same width as the ✕, so the title is centred on the screen. */}
@@ -28,17 +32,22 @@ export function ChartHeader({ title, songKey, tempo, time, onClose, leading }: P
       <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
         <h1 className="max-w-full truncate text-body font-semibold text-foreground">{title}</h1>
         {pills.length > 0 && (
-          <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={onPills}
+            disabled={!onPills}
+            aria-label={`${pills.map(p => p.label).join(', ')}. Change key, tempo and time`}
+            className="flex min-h-0 gap-1 rounded-[8px] p-0 disabled:cursor-default"
+          >
             {pills.map(p => (
               <span
                 key={p.text}
-                aria-label={p.label}
                 className={`inline-flex h-6 items-center rounded-[6px] bg-raised px-2 text-caption font-semibold ${p.gold ? 'text-warning-text' : 'text-foreground'}`}
               >
                 {p.text}
               </span>
             ))}
-          </div>
+          </button>
         )}
       </div>
       <button

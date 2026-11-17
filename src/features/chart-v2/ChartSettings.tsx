@@ -1,23 +1,16 @@
-import type { ComponentType, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
-import * as PopoverJs from '@/ui/shadcn/popover';
-import { Segmented as SegmentedJs } from '@/ui/shadcn/segmented';
+import { Popover, PopoverContent, PopoverTrigger, Segmented } from './ui';
 import type { RibbonPosition, RibbonStyle } from './StructureRow';
 import type { ChartMode } from './types';
-
-// The shared JS parts, typed for the props this file passes.
-type AnyProps = { children?: ReactNode; [key: string]: unknown };
-const Popover = PopoverJs.Popover as unknown as ComponentType<AnyProps>;
-const PopoverTrigger = PopoverJs.PopoverTrigger as unknown as ComponentType<AnyProps>;
-const PopoverContent = PopoverJs.PopoverContent as unknown as ComponentType<AnyProps>;
-interface Option { value: string; label: string }
-const Segmented = SegmentedJs as unknown as ComponentType<{ value: string; options: Option[]; onChange: (v: string) => void; label: string; size?: string; fill?: boolean }>;
 
 interface Props {
   style: RibbonStyle;
   position: RibbonPosition;
   setlistBar: boolean;
   mode: ChartMode;
+  /** Shown only where two columns can fit. */
+  columns?: 1 | 2;
   onSetting: (key: string, value: unknown) => void;
   onMode: (mode: ChartMode) => void;
 }
@@ -37,7 +30,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
  * reader's Aa menu, so a choice here carries over. "Preview" is for testing
  * only: it never changes the setlist, and the clock still decides live.
  */
-export function ChartSettings({ style, position, setlistBar, mode, onSetting, onMode }: Props) {
+export function ChartSettings({ style, position, setlistBar, mode, columns, onSetting, onMode }: Props) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -71,6 +64,15 @@ export function ChartSettings({ style, position, setlistBar, mode, onSetting, on
             onChange={v => onSetting('readerTopBar', v)}
           />
         </Row>
+        {columns && (
+          <Row label="Columns">
+            <Segmented
+              label="Columns" size="sm" fill value={String(columns)}
+              options={[{ value: '1', label: 'One' }, { value: '2', label: 'Two' }]}
+              onChange={v => onSetting('defaultColumns', Number(v))}
+            />
+          </Row>
+        )}
         <Row label="Preview (testing)">
           <Segmented
             label="Preview mode" size="sm" fill value={mode}

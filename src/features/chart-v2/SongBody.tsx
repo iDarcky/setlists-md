@@ -20,6 +20,8 @@ interface Props {
   accidentals: string;
   /** Where sticky headings pin: the height of whatever is pinned above them. */
   stickyTop: number;
+  /** Two columns (iPad and up): read down the first, then the second. Headings do not pin there. */
+  columns?: 1 | 2;
   sectionRef: (slot: number, el: HTMLElement | null) => void;
   /** Room for the floating structure pill on its side. */
   inset?: 'pl-11' | 'pr-11' | 'pl-16' | 'pr-16' | string;
@@ -65,19 +67,19 @@ function Bars({ chords, notes, show }: { chords: string[]; notes: string[]; show
   );
 }
 
-export function SongBody({ inset, plays, songKey, transpose, accidentals, stickyTop, sectionRef }: Props) {
+export function SongBody({ inset, columns = 1, plays, songKey, transpose, accidentals, stickyTop, sectionRef }: Props) {
   return (
-    <div className={`flex flex-col gap-6 px-5 pt-4 pb-10 ${inset ?? ''}`}>
+    <div className={`px-5 pt-4 pb-10 ${columns === 2 ? 'mx-auto max-w-[1200px] columns-2 gap-x-10 [column-rule:1px_solid_var(--border)] sm:px-8' : 'flex flex-col gap-6'} ${inset ?? ''}`}>
       {plays.map(p => {
         const tone = sectionTone(p.section.type) as { fg: string };
         let offset = p.offset;
         return (
-          <section key={p.slot} ref={el => sectionRef(p.slot, el)} data-slot={p.slot} aria-label={playName(p)}>
+          <section key={p.slot} ref={el => sectionRef(p.slot, el)} data-slot={p.slot} aria-label={playName(p)} className={columns === 2 ? 'mb-6 break-inside-avoid' : undefined}>
             {/* Always sticky (owner, 2026-11-18: the setting goes). It pins under
                 whatever is pinned above, or the top of the screen if nothing is. */}
             <h2
-              className="sticky z-[1] -mx-5 flex h-8 items-center gap-2 bg-background px-5 text-[13px] font-semibold tracking-[0.02em] transition-[top] duration-200"
-              style={{ top: stickyTop, color: tone.fg }}
+              className={`${columns === 2 ? '' : 'sticky z-[1] -mx-5 px-5'} flex h-8 items-center gap-2 bg-background text-[13px] font-semibold tracking-[0.02em] transition-[top] duration-200`}
+              style={{ top: columns === 2 ? undefined : stickyTop, color: tone.fg }}
             >
               {playName(p)}
               {p.runCount > 1 && <span className="text-caption font-medium text-muted-foreground">plays {p.runCount} times</span>}

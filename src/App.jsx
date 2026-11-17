@@ -2946,6 +2946,7 @@ export default function App() {
               songs={songs}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              onUpdateSetlist={isTeamReadOnly ? null : handleUpdateSetlist}
               mode={readerMode}
               startIndex={readerStartIndex}
               onBack={goBack}
