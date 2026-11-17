@@ -1,6 +1,6 @@
+import { useState } from 'react';
 import { Sheet as Scroll } from 'scrollsheet';
 import { cn } from './utils';
-import { CloseIcon } from './dialog';
 
 // The phone's bottom sheet, on scrollsheet (MIT, scrollsheet.dev). The swipe is
 // the browser's own scroll snapping, so it keeps native momentum and stays
@@ -30,8 +30,17 @@ const THEME = {
  * @param {string} [className]  sizes the sheet (e.g. `h-auto`, a fixed height)
  */
 export function BottomSheet({ open, onOpenChange, title, description, children, className, dismissible = true }) {
+  // While you type, the sheet does not drag. A drag with the Android keyboard
+  // up moved the sheet while the keyboard was resizing the viewport under it,
+  // and it trembled (owner, 2026-11-17). Like an iOS sheet, touching the
+  // handle or title closes the keyboard first; the next drag moves the sheet.
+  const [typing, setTyping] = useState(false);
+  const onFocusCapture = (e) => setTyping(isTextField(e.target));
+  const onBlurCapture = () => setTyping(false);
+  const closeKeyboard = () => { if (typing && document.activeElement instanceof HTMLElement) document.activeElement.blur(); };
   return (
-    <Scroll.Root open={!!open} onOpenChange={(o) => onOpenChange?.(o)} dismissible={dismissible} keyboardExpands themeColorDimming>
+    <Scroll.Root open={!!open} onOpenChange={(o) => { if (!o) setTyping(false); onOpenChange?.(o); }}
+      dismissible={dismissible} disableDrag={typing} keyboardExpands themeColorDimming>
       <Scroll.Content data-slot="bottom-sheet" style={THEME}
         className="border-t border-border font-sans outline-none">
         {/* Never taller than what you can see. On Android the keyboard shrinks
@@ -41,18 +50,13 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
             finally dismissed itself (owner's recording, 2026-11-17).
             scrollsheet publishes the visible height as --scrollsheet-vv-height. */}
         <div className="flex max-h-[min(calc(100dvh-64px),calc(var(--scrollsheet-vv-height,100dvh)-8px))] flex-col">
-        <div className={cn('flex min-h-0 shrink flex-col', className)}>
-          {dismissible ? <Scroll.Handle className="mx-auto mb-0 mt-2 block h-1 min-h-0 w-9 shrink-0 cursor-grab rounded-full bg-input p-0" /> : <div aria-hidden="true" className="h-2 shrink-0" />}
-          <div className={cn('flex shrink-0 items-center justify-between gap-2 py-2 pl-6 pr-3', !dismissible && 'pb-1 pr-6 pt-5')}>
-            <Scroll.Title className="m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]">{title}</Scroll.Title>
-            {dismissible && (
-              <Scroll.Close asChild>
-                <button type="button" aria-label="Close"
-                  className="flex size-11 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
-                  <CloseIcon />
-                </button>
-              </Scroll.Close>
-            )}
+        <div className={cn('flex min-h-0 shrink flex-col', className)} onFocusCapture={onFocusCapture} onBlurCapture={onBlurCapture}>
+          {/* No ✕ (owner, 2026-11-17): swipe down, tap outside or Esc closes. */}
+          <div className="shrink-0" onPointerDown={closeKeyboard}>
+            {dismissible ? <Scroll.Handle className="mx-auto mb-0 mt-2 block h-1 min-h-0 w-9 shrink-0 cursor-grab rounded-full bg-input p-0" /> : <div aria-hidden="true" className="h-2" />}
+            <div className={cn('flex items-center px-6 pb-2 pt-3', !dismissible && 'pb-1 pt-5')}>
+              <Scroll.Title className="m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]">{title}</Scroll.Title>
+            </div>
           </div>
           {description && <Scroll.Description className="sr-only">{description}</Scroll.Description>}
           <div data-scrollsheet-nested-scroll className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-2">{children}</div>
@@ -61,4 +65,11 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
       </Scroll.Content>
     </Scroll.Root>
   );
+}
+
+const TEXT_INPUTS = new Set(['text', 'search', 'email', 'number', 'tel', 'url', 'password', '']);
+function isTextField(el) {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.isContentEditable || el.tagName === 'TEXTAREA') return true;
+  return el.tagName === 'INPUT' && TEXT_INPUTS.has((el.getAttribute('type') || '').toLowerCase());
 }

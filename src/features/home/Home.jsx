@@ -40,7 +40,7 @@ export default function Home({
   canAddSongs = false, onImportSongs, onImportSetlistFile, onEditImported, onBlank, onSetupDone, onRetrySync, onNotFound,
 }) {
   // New song and Import open their sheets here, on Home, not on Songs.
-  const [adding, setAdding] = useState(null); // null | 'add' | 'import'
+  const [adding, setAdding] = useState(null); // null | 'add' | 'new' | 'import'
   const { user } = useAuth();
   const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
@@ -125,7 +125,7 @@ export default function Home({
   const allDone = !!steps && steps.every(s => s.done);
   useEffect(() => { if (allDone) onSetupDone?.(); }, [allDone]); // eslint-disable-line react-hooks/exhaustive-deps
   const onStep = (id) => {
-    if (id === 'song' && canAddSongs) setAdding('add');
+    if (id === 'song' && canAddSongs) setAdding('new');
     else if (id === 'import' && canAddSongs) setAdding('import');
     else if (id === 'parts') setPartsOpen(true);
     else if (id === 'setlist') onNewSetlist?.();
@@ -139,7 +139,7 @@ export default function Home({
 
   // The + menu: the three ways to start something a leader has.
   const create = [
-    canAddSongs && { icon: Music, label: 'New song', onSelect: () => setAdding('add') },
+    canAddSongs && { icon: Music, label: 'New song', onSelect: () => setAdding('new') },
     canAddSongs && onImportSongs && { icon: FileText, label: 'Import PDFs', onSelect: () => setAdding('import') },
     onNewSetlist && { icon: List, label: 'New setlist', onSelect: onNewSetlist, divider: true },
   ].filter(Boolean);
