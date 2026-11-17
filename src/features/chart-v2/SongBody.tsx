@@ -21,8 +21,8 @@ interface Props {
   /** Where sticky headings pin: the height of whatever is pinned above them. */
   stickyTop: number;
   sectionRef: (slot: number, el: HTMLElement | null) => void;
-  /** Room for the floating dots on that side. */
-  inset?: 'left' | 'right' | string;
+  /** Room for the floating structure pill on its side. */
+  inset?: 'pl-11' | 'pr-11' | 'pl-16' | 'pr-16' | string;
 }
 
 function LyricLine({ view, show }: { view: Extract<LineView, { kind: 'lyrics' }>; show: (c: string) => string }) {
@@ -67,7 +67,7 @@ function Bars({ chords, notes, show }: { chords: string[]; notes: string[]; show
 
 export function SongBody({ inset, plays, songKey, transpose, accidentals, stickyTop, sectionRef }: Props) {
   return (
-    <div className={`flex flex-col gap-6 px-5 pt-4 pb-10 ${inset === 'right' ? 'pr-11' : inset === 'left' ? 'pl-11' : ''}`}>
+    <div className={`flex flex-col gap-6 px-5 pt-4 pb-10 ${inset ?? ''}`}>
       {plays.map(p => {
         const tone = sectionTone(p.section.type) as { fg: string };
         let offset = p.offset;

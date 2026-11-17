@@ -89,7 +89,11 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
   const hasRow = position !== 'off' && boxes.length > 0;
   const rowOnTop = hasRow && position === 'top';
   const rowOnSide = hasRow && (position === 'left' || position === 'right');
-  const floatingDots = rowOnSide && ribbonStyle === 'dots';
+  // Room for the floating pill (written out whole so Tailwind sees the classes).
+  const sideInset = !rowOnSide ? undefined
+    : position === 'left' ? (ribbonStyle === 'dots' ? 'pl-11' : 'pl-16')
+      : (ribbonStyle === 'dots' ? 'pr-11' : 'pr-16');
+
 
   // ── Header slides away on scroll down, back on scroll up ──────────────
   const scroller = useRef<HTMLDivElement>(null);
@@ -204,8 +208,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
   return (
     <div className="fixed inset-0 z-fullscreen flex flex-col bg-background pt-[env(safe-area-inset-top)] text-foreground" data-chart="v2">
       <div className="flex min-h-0 flex-1">
-        {rowOnSide && !floatingDots && position === 'left' && row}
-        <div className="relative min-w-0 flex-1">
+                <div className="relative min-w-0 flex-1">
           <div ref={scroller} onScroll={onScroll} className="absolute inset-0 overflow-y-auto overscroll-contain">
             {/* A spacer, not padding: a sticky heading measures its `top` from
                 inside the scroller's padding, so padding would double it. */}
@@ -221,7 +224,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
                 “{cur.label}” is not in this library.
               </div>
             ) : (
-              <SongBody inset={floatingDots ? position : undefined} plays={plays} songKey={song.key} transpose={transpose} accidentals={accidentals} stickyTop={pinned} sectionRef={sectionRef} />
+              <SongBody inset={sideInset} plays={plays} songKey={song.key} transpose={transpose} accidentals={accidentals} stickyTop={pinned} sectionRef={sectionRef} />
             )}
           </div>
           {/* The chrome sits over the scroller: the header part moves up out of
@@ -252,14 +255,15 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
             </div>
             {rowOnTop && <div className="pointer-events-auto">{row}</div>}
           </div>
-          {floatingDots && row}
+          {rowOnSide && row}
         </div>
-        {rowOnSide && !floatingDots && position === 'right' && row}
       </div>
       {hasRow && position === 'bottom' && row}
       <ChartFooter
         index={idx}
         total={total}
+        // With no structure row, LIVE has nowhere else to show.
+        live={live && !hasRow}
         prevTitle={slots[idx - 1]?.label}
         nextTitle={slots[idx + 1]?.label}
         onPrev={() => go(idx - 1)}

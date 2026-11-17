@@ -34,7 +34,6 @@ function LiveLabel({ compact }: { compact: boolean }) {
 export function StructureRow({ boxes, activeSlot, style, position, live, onJump }: Props) {
   const side = position === 'left' || position === 'right';
   const activeIdx = boxes.findIndex(b => b.slots.includes(activeSlot));
-  const current = boxes[activeIdx];
 
   const items = boxes.map((b, i) => {
     const t = tone(b.type);
@@ -66,12 +65,13 @@ export function StructureRow({ boxes, activeSlot, style, position, live, onJump 
     );
   });
 
-  if (side && style === 'dots') {
-    // The mockup's floating pill: no column, the chart keeps its width.
+  if (side) {
+    // A floating, frosted pill for Dots and Boxes alike (owner, 2026-11-18):
+    // no column, the chart keeps its width and shows through.
     return (
       <nav
         aria-label="Song structure"
-        className={`absolute top-1/2 z-chrome flex -translate-y-1/2 flex-col items-center gap-1 rounded-full border border-border bg-raised px-0.5 py-2 ${position === 'left' ? 'left-1.5' : 'right-1.5'}`}
+        className={`absolute top-1/2 z-chrome flex max-h-[calc(100%-16px)] -translate-y-1/2 flex-col items-center overflow-y-auto border border-border/70 bg-raised/60 shadow-[0_8px_24px_rgba(0,0,0,.25)] backdrop-blur-md backdrop-saturate-150 [scrollbar-width:none] ${style === 'dots' ? 'gap-1 rounded-full px-0.5 py-2' : 'gap-1.5 rounded-[14px] p-1.5'} ${position === 'left' ? 'left-1.5' : 'right-1.5'}`}
       >
         {live && (
           <>
@@ -83,20 +83,11 @@ export function StructureRow({ boxes, activeSlot, style, position, live, onJump 
       </nav>
     );
   }
-  if (side) {
-    return (
-      <nav aria-label="Song structure" className={`flex w-11 shrink-0 flex-col items-center gap-1.5 overflow-y-auto bg-background py-3 [scrollbar-width:none] ${position === 'left' ? 'border-r' : 'border-l'} border-border`}>
-        {live && <LiveLabel compact />}
-        {items}
-      </nav>
-    );
-  }
   return (
     <nav aria-label="Song structure" className={`flex h-10 items-center bg-background px-3 ${position === 'bottom' ? 'border-t' : 'border-b'} border-border`}>
       {live && <LiveLabel compact={false} />}
       <div className={`flex min-w-0 flex-1 items-center overflow-x-auto [scrollbar-width:none] ${style === 'dots' ? 'gap-0.5' : 'gap-1.5'} justify-center-safe`}>
         {items}
-        {style === 'dots' && current && <span className="ml-2 shrink-0 text-caption font-semibold text-foreground">{current.type}{current.count > 1 ? ` ×${current.count}` : ''}</span>}
       </div>
     </nav>
   );

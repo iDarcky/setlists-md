@@ -8,13 +8,14 @@ interface Props {
   onPrev: () => void;
   onNext: () => void;
   onFinish: () => void;
+  live?: boolean;
 }
 
 /**
  * Previous · "2 / 6" · Next, with how far through the set you are as a 3px
  * bar along its top edge (the old 2px line at the top was too thin to read).
  */
-export function ChartFooter({ index, total, prevTitle, nextTitle, onPrev, onNext, onFinish }: Props) {
+export function ChartFooter({ live, index, total, prevTitle, nextTitle, onPrev, onNext, onFinish }: Props) {
   const last = index >= total - 1;
   const pct = total > 0 ? ((index + 1) / total) * 100 : 0;
   return (
@@ -33,7 +34,14 @@ export function ChartFooter({ index, total, prevTitle, nextTitle, onPrev, onNext
           <ChevronLeft size={18} strokeWidth={1.8} className="shrink-0" />
           <span className="truncate">{prevTitle}</span>
         </button>
-        <span className="shrink-0 text-caption text-muted-foreground tabular-nums">{index + 1} / {total}</span>
+        <span className="flex shrink-0 items-center gap-2 text-caption text-muted-foreground tabular-nums">
+          {live && (
+            <span role="status" className="inline-flex h-6 items-center gap-[5px] rounded-[7px] bg-[#B4413A] px-2 text-[11px] font-semibold tracking-[0.04em] text-white">
+              <span className="size-1.5 rounded-full bg-white" />LIVE
+            </span>
+          )}
+          {index + 1} / {total}
+        </span>
         <div className="flex min-w-0 flex-1 basis-0 justify-end">
           <button
             type="button"
