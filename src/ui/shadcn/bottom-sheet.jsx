@@ -34,7 +34,14 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
     <Scroll.Root open={!!open} onOpenChange={(o) => onOpenChange?.(o)} dismissible={dismissible} keyboardExpands themeColorDimming>
       <Scroll.Content data-slot="bottom-sheet" style={THEME}
         className="border-t border-border font-sans outline-none">
-        <div className={cn('flex max-h-[calc(100dvh-64px)] flex-col', className)}>
+        {/* Never taller than what you can see. On Android the keyboard shrinks
+            only the visual viewport (dvh stays put), so a sheet sized in dvh
+            outgrew the space above the keyboard: the panel turned into a
+            second scroller, fought the swipe track, jumped up and down and
+            finally dismissed itself (owner's recording, 2026-11-17).
+            scrollsheet publishes the visible height as --scrollsheet-vv-height. */}
+        <div className="flex max-h-[min(calc(100dvh-64px),calc(var(--scrollsheet-vv-height,100dvh)-8px))] flex-col">
+        <div className={cn('flex min-h-0 shrink flex-col', className)}>
           {dismissible ? <Scroll.Handle className="mx-auto mb-0 mt-2 block h-1 min-h-0 w-9 shrink-0 cursor-grab rounded-full bg-input p-0" /> : <div aria-hidden="true" className="h-2 shrink-0" />}
           <div className={cn('flex shrink-0 items-center justify-between gap-2 py-2 pl-6 pr-3', !dismissible && 'pb-1 pr-6 pt-5')}>
             <Scroll.Title className="m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]">{title}</Scroll.Title>
@@ -49,6 +56,7 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
           </div>
           {description && <Scroll.Description className="sr-only">{description}</Scroll.Description>}
           <div data-scrollsheet-nested-scroll className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-2">{children}</div>
+        </div>
         </div>
       </Scroll.Content>
     </Scroll.Root>
