@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { Button } from '@/ui/shadcn/button';
+import { Button } from '@/ui/Button';
 import { Input } from '@/ui/Input';
 import { useConfirm } from '@/ui/useConfirmHook';
 import UpgradeGate from '@/ui/UpgradeGate';
@@ -171,7 +171,7 @@ function SectionsPanelInner({ settings, update }) {
           <h3 className="text-label-12 text-[var(--modes-text-dim)] uppercase tracking-wider font-semibold">
             Custom types
           </h3>
-          <Button size="sm" variant="outline" onClick={addCustom}>+ Add</Button>
+          <Button size="sm" variant="secondary" onClick={addCustom}>+ Add</Button>
         </div>
         {customTypes.length === 0 ? (
           <div className="modes-card p-5 text-center">

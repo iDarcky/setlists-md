@@ -106,6 +106,7 @@ export default function SetlistBuilder({ songs, setlist, onSave, onBack, onDelet
     const prev = undoStackRef.current.pop();
     if (prev !== undefined) {
       setItems(prev);
+      toast({ title: 'Undone', description: 'Reverted the last change.' });
     }
   }, []);
 

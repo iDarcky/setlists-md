@@ -90,8 +90,8 @@ function TrackTransport({ ytId, title, artist }) {
           </button>
 
           <div className="min-w-0">
-            <div className="text-small font-semibold text-[var(--text-1)] truncate">{title || 'Backing track'}</div>
-            <div className="text-caption text-[var(--text-2)] flex items-center gap-1 min-w-0">
+            <div className="text-[13px] font-semibold text-[var(--text-1)] truncate">{title || 'Backing track'}</div>
+            <div className="text-[11px] text-[var(--text-2)] flex items-center gap-1 min-w-0">
               {artist && <span className="truncate min-w-0">{artist}</span>}
               {artist && <span aria-hidden="true" className="opacity-60">·</span>}
               <span className="shrink-0">YouTube</span>
@@ -102,7 +102,7 @@ function TrackTransport({ ytId, title, artist }) {
 
         {/* Scrub bar — inline on the title's row at every width */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          <span className="text-caption tabular-nums text-[var(--text-2)] w-9 text-right shrink-0">{formatClock(displayPos)}</span>
+          <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 text-right shrink-0">{formatClock(displayPos)}</span>
           <input
             type="range"
             aria-label="Seek"
@@ -118,7 +118,7 @@ function TrackTransport({ ytId, title, artist }) {
             className="flex-1 min-w-0 h-1 cursor-pointer disabled:cursor-default"
             style={{ accentColor: 'var(--color-brand)' }}
           />
-          <span className="text-caption tabular-nums text-[var(--text-2)] w-9 shrink-0">{formatClock(duration)}</span>
+          <span className="text-[11px] tabular-nums text-[var(--text-2)] w-9 shrink-0">{formatClock(duration)}</span>
         </div>
       </div>
     </>

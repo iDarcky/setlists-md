@@ -414,6 +414,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
         setActiveArrangementId(newId);
         setMd(newMd);
         setSavedMd(newMd);
+        toast({ title: 'Arrangement added', description: name });
       },
     });
   }, [workingSong]);
@@ -700,6 +701,7 @@ export default function Editor({ song, onSave, onBack, onDirtyChange, importProg
       if (Object.keys(patch).length) {
         setMd((cur) => replaceFrontmatter(cur, serializeFrontmatterFields({ ...parseFrontmatterFields(splitMd(cur).frontmatter), ...patch })));
       }
+      toast({ title: 'Imported', description: 'Converted the pasted chart into the editor.' });
     } catch {
       toast({
         title: 'Clipboard unavailable',

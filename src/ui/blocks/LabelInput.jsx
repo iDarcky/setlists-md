@@ -36,63 +36,23 @@ const S = 0.78;
 /* the stroke sits half a stroke inside the box so none of it
    is clipped by the svg's own edge */
 const IN = 0.75;
-/* Setlists.md: a real field, not only the bench's Email / Password pair.
-   `label` and `type` name any field; `value` / `onChange` make it
-   controlled; `fill` measures the parent so it runs full width (the
-   SVG outline is drawn at the measured width); `error` / `hint` sit
-   under it. The bench still calls it with `field` alone. */
-export function LabelInput({ field = "Email",
-label: labelProp,
-type: typeProp,
-value: valueProp,
-onChange,
-fill = false,
-name,
-autoComplete,
-error,
-hint,
-required,
-disabled,
-autoFocus,
-inputMode: inputModeProp,
-onKeyDown,
-onFocus: onFocusProp,
-maxLength,
-autoCapitalize: capProp,
-id: idProp,
+export function LabelInput({ field = "Email", 
 /* the field's corner, px — at half the height it is a pill */
-corner = 8, /* Setlists.md: our control corner (was 20) */
+corner = 8, /* Setlists.md: our control corner (was 20) */ 
 /* a showcase, not a form: on a touch screen, keep the device's
    keyboard down. Off by default — a real field wants its
    keyboard — and the bench turns it on for its feed */
 showcase = false, } = {}) {
     const r = clamp(corner, 0, H / 2);
-    const kind = typeProp || (field === "Password" ? "password" : field === "Email" ? "email" : "text");
-    const secret = kind === "password";
-    const label = labelProp || (secret ? "Password" : field === "Email" ? "Email" : field);
-    const auto = `lbi-${useId().replace(/:/g, "")}`;
-    const id = idProp || auto;
+    const secret = field === "Password";
+    const label = secret ? "Password" : "Email";
+    const id = `lbi-${useId().replace(/:/g, "")}`;
     const [focus, setFocus] = useState(false);
     const [quiet] = useState(() => showcase && typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
-    const [own, setOwn] = useState("");
-    const controlled = valueProp !== undefined;
-    const value = controlled ? (valueProp ?? "") : own;
-    const setValue = (v) => { if (!controlled) setOwn(v); };
+    const [value, setValue] = useState("");
     const [show, setShow] = useState(false);
     const [flip, setFlip] = useState(0);
     const input = useRef(null);
-    /* Setlists.md: the width, measured when `fill` */
-    const host = useRef(null);
-    const [w, setW] = useState(W);
-    useLayoutEffect(() => {
-        if (!fill || !host.current) return;
-        const el = host.current;
-        const read = () => setW(Math.max(120, Math.round(el.clientWidth)));
-        read();
-        const ro = new ResizeObserver(read);
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, [fill]);
     /* the notch is the label's own width, so it is measured */
     const lab = useRef(null);
     const [lw, setLw] = useState(40);
@@ -103,10 +63,10 @@ showcase = false, } = {}) {
     /* a different kind of field starts empty — an email left in
        a password box would be shown in the clear */
     useEffect(() => {
-        if (!controlled) setOwn("");
+        setValue("");
         setShow(false);
-    }, [field, controlled]);
-    const up = focus || String(value).length > 0;
+    }, [field]);
+    const up = focus || value.length > 0;
     /* ── where the label sits, and the gap it leaves ─────────
        Never inside the corner's curve: the notch has to open on
        the straight part of the top edge, so a rounder field
@@ -115,16 +75,16 @@ showcase = false, } = {}) {
     const x0 = Math.max(r * 0.6, lx - 5);
     const x1 = lx + lw * S + 5;
     const a = r - IN;
-    const R = w - IN;
+    const R = W - IN;
     const B = H - IN;
-    const mid = w / 2;
+    const mid = W / 2;
     /* the gap, as two halves from its middle to each side */
     const nm = (x0 + x1) / 2;
     const gapL = `M${nm},${IN} L${x0},${IN}`;
     const gapR = `M${nm},${IN} L${x1},${IN}`;
     /* right: from the notch, clockwise, to the bottom middle */
     const right = r > 0
-        ? `M${x1},${IN} L${w - r},${IN} A${a},${a} 0 0 1 ${R},${r} L${R},${H - r} A${a},${a} 0 0 1 ${w - r},${B} L${mid},${B}`
+        ? `M${x1},${IN} L${W - r},${IN} A${a},${a} 0 0 1 ${R},${r} L${R},${H - r} A${a},${a} 0 0 1 ${W - r},${B} L${mid},${B}`
         : `M${x1},${IN} L${R},${IN} L${R},${B} L${mid},${B}`;
     /* left: from the notch, the other way round, to the same point */
     const left = r > 0
@@ -134,10 +94,9 @@ showcase = false, } = {}) {
         setShow((s) => !s);
         setFlip((f) => f + 1);
     };
-    const describe = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
-    return (<div ref={host} className="lbi" data-fill={fill || undefined} data-up={up} data-focus={focus} data-filled={String(value).length > 0} data-error={error ? true : undefined} data-disabled={disabled || undefined}>
-      <div className="lbi-box" style={{ width: w, height: H, borderRadius: r, "--lbi-x": `${lx}px` }}>
-        <svg className="lbi-ring" width={w} height={H} viewBox={`0 0 ${w} ${H}`} aria-hidden="true">
+    return (<div className="lbi" data-up={up} data-focus={focus} data-filled={value.length > 0}>
+      <div className="lbi-box" style={{ width: W, height: H, borderRadius: r, "--lbi-x": `${lx}px` }}>
+        <svg className="lbi-ring" width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
           <path d={right}/>
           <path d={left}/>
           <path className="lbi-gap" d={gapL} pathLength={1}/>
@@ -158,7 +117,7 @@ showcase = false, } = {}) {
        rather than by the type — named so Safari takes it for
        a search, and marked off for the managers that read
        their own attribute. A real use keeps the real types. */
-    type={showcase ? "text" : secret && !show ? "password" : secret ? "text" : kind} name={showcase ? "search-preview" : name} data-1p-ignore={showcase || undefined} data-lpignore={showcase ? "true" : undefined} data-bwignore={showcase || undefined} data-form-type={showcase ? "other" : undefined} autoCorrect="off" autoCapitalize={capProp || (kind === "text" ? "sentences" : "off")} maxLength={maxLength} value={value} onChange={(e) => { setValue(e.target.value); onChange?.(e); }} onFocus={(e) => { setFocus(true); onFocusProp?.(e); }} onBlur={() => setFocus(false)} autoComplete={showcase ? "off" : autoComplete} spellCheck={kind === "text" && !showcase} required={required} disabled={disabled} autoFocus={autoFocus} onKeyDown={onKeyDown} aria-invalid={error ? true : undefined} aria-describedby={describe} 
+    type={showcase ? "text" : secret && !show ? "password" : secret ? "text" : "email"} name={showcase ? "search-preview" : undefined} data-1p-ignore={showcase || undefined} data-lpignore={showcase ? "true" : undefined} data-bwignore={showcase || undefined} data-form-type={showcase ? "other" : undefined} autoCorrect="off" autoCapitalize="off" value={value} onChange={(e) => setValue(e.target.value)} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} autoComplete="off" spellCheck={false} 
     /* ── no keyboard, when it is only being shown ─────
        In a feed you are scrolling on a phone, a tap that
        lands on the field threw the keyboard up over the
@@ -167,7 +126,7 @@ showcase = false, } = {}) {
        opening — and only tells the device not to raise its
        keyboard. A mouse and a hardware keyboard are
        untouched, and so is any real use of this field. */
-    inputMode={quiet ? "none" : inputModeProp} style={{
+    inputMode={quiet ? "none" : undefined} style={{
             paddingRight: secret ? 48 : lx,
             ...(showcase && secret && !show ? { WebkitTextSecurity: "disc" } : {}),
         }}/>
@@ -180,7 +139,5 @@ showcase = false, } = {}) {
             <EyeOff size={16} aria-hidden="true"/>
           </button>)}
       </div>
-      {error ? <p id={`${id}-error`} className="lbi-note" data-tone="error" role="alert">{error}</p>
-        : hint ? <p id={`${id}-hint`} className="lbi-note">{hint}</p> : null}
     </div>);
 }

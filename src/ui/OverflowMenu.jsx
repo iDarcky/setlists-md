@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { IconButton } from './IconButton';
-import { MenuItem, MenuSeparator, MenuLabel } from '@/ui/shadcn/menu';
 
 /**
  * Kebab ("⋮") overflow menu. Collects secondary actions behind a single
@@ -97,21 +96,35 @@ export function OverflowMenu({ items = [], align = 'right', size = 'sm', ariaLab
           ref={menuRef}
           role="menu"
           style={{ position: 'fixed', ...coords, maxHeight: '70vh', overflowY: 'auto' }}
-          className="z-menu flex min-w-[200px] flex-col rounded-card material-menu p-1 font-sans text-foreground"
+          className="z-[200] min-w-[180px] rounded-xl border border-[var(--ds-gray-300)] bg-[var(--ds-background-100)] shadow-lg py-1"
         >
           {visible.map((it, i) => {
-            if (it.divider) return <MenuSeparator key={`d${i}`} />;
-            if (it.heading) return <MenuLabel key={`h${i}`}>{it.label}</MenuLabel>;
+            if (it.divider) return <div key={`d${i}`} role="separator" className="my-1 h-px bg-[var(--ds-gray-200)]" />;
+            if (it.heading) return <div key={`h${i}`} className="px-3.5 pt-2 pb-1 text-label-10 uppercase tracking-wider text-[var(--ds-gray-600)]">{it.label}</div>;
             return (
-              <MenuItem
+              <button
                 key={it.label || i}
-                icon={it.icon || null}
-                selected={it.selected != null ? !!it.selected : undefined}
-                danger={it.danger}
+                type="button"
+                role={it.selected != null ? 'menuitemradio' : 'menuitem'}
+                aria-checked={it.selected != null ? !!it.selected : undefined}
                 onClick={() => { setOpen(false); it.onClick?.(); }}
+                className={cn(
+                  'w-full flex items-center gap-2.5 text-left px-3.5 py-2.5 cursor-pointer border-none bg-transparent text-label-13 transition-colors',
+                  it.danger
+                    ? 'text-[var(--ds-error-900)] hover:bg-[var(--ds-error-soft)]'
+                    : it.selected
+                      ? 'text-[var(--color-brand)] font-semibold hover:bg-[var(--ds-gray-200)]'
+                      : 'text-[var(--ds-gray-1000)] hover:bg-[var(--ds-gray-200)]'
+                )}
               >
-                {it.label}
-              </MenuItem>
+                {it.icon && <span className="shrink-0 inline-flex items-center text-[var(--ds-gray-700)]">{it.icon}</span>}
+                <span className="truncate flex-1">{it.label}</span>
+                {it.selected && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                )}
+              </button>
             );
           })}
         </div>,

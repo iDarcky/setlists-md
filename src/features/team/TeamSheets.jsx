@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { LabelInput } from '@/ui/blocks/LabelInput';
-import { SectionLabel } from '@/ui/shadcn/section-label';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
@@ -21,14 +19,14 @@ const PICKS = ['leader', 'editor', 'member'];
 
 const ANSWER = {
   available: { label: 'Said yes', cls: 'bg-selected text-link' },
-  maybe: { label: 'Maybe', cls: 'bg-warning-fill text-warning-text' },
-  unavailable: { label: 'Can’t', cls: 'bg-danger-fill text-danger-text' },
-  pending: { label: 'Invited', cls: 'bg-warning-fill text-warning-text' },
+  maybe: { label: 'Maybe', cls: 'bg-warning/15 text-warning-text' },
+  unavailable: { label: 'Can’t', cls: 'bg-danger/15 text-danger' },
+  pending: { label: 'Invited', cls: 'bg-warning/15 text-warning-text' },
 };
 
 const savedTokens = (m) => Array.from(new Set((m?.instruments || []).map(normalize).filter(Boolean)));
 
-const Label = ({ children }) => <SectionLabel as="h3">{children}</SectionLabel>;
+const Label = ({ children }) => <h3 className="m-0 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</h3>;
 
 /**
  * Body of the person pop-up. `canManage`: may change their role and remove
@@ -61,7 +59,7 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
         <Avatar name={memberName(member)} url={member.profile?.avatar_url} size={56} />
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[20px] font-semibold leading-7">{memberName(member)}{me && <span className="font-normal text-muted-foreground"> (you)</span>}</span>
-          <span className="truncate text-small text-muted-foreground">{[isOwnerRow ? 'Owner' : roleDef(role).id === 'admin' ? 'Leader' : roleDef(role).label, since].filter(Boolean).join(' · ')}</span>
+          <span className="truncate text-[14px] text-muted-foreground">{[isOwnerRow ? 'Owner' : roleDef(role).id === 'admin' ? 'Leader' : roleDef(role).label, since].filter(Boolean).join(' · ')}</span>
         </div>
       </div>
 
@@ -79,14 +77,14 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
             <Label>Plays</Label>
             {onSaveParts && (
               <button type="button" onClick={() => setPartsDraft(savedTokens(member))}
-                className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-small font-medium text-link hover:underline">
+                className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link hover:underline">
                 {parts.length ? 'Edit' : 'Add'}
               </button>
             )}
           </div>
           {parts.length
-            ? <div className="flex flex-wrap gap-2">{parts.map(p => <span key={p.token} className="flex h-8 items-center rounded-full border border-chip-border px-3 text-small">{p.label}</span>)}</div>
-            : <p className="m-0 text-small text-muted-foreground">{me && !onSaveParts ? 'Add what you play in your profile.' : 'Hasn’t said yet.'}</p>}
+            ? <div className="flex flex-wrap gap-2">{parts.map(p => <span key={p.token} className="flex h-8 items-center rounded-full border border-chip-border px-3 text-[14px]">{p.label}</span>)}</div>
+            : <p className="m-0 text-[14px] text-muted-foreground">{me && !onSaveParts ? 'Add what you play in your profile.' : 'Hasn’t said yet.'}</p>}
         </div>
       )}
 
@@ -100,8 +98,8 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
                 <button key={id} type="button" role="radio" aria-checked={on} disabled={busy} onClick={() => !on && onRole?.(id)}
                   className={cn('flex w-full cursor-pointer items-start gap-3 border-0 border-t border-border bg-transparent px-4 py-3 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring', on && 'bg-raised')}>
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="text-body font-semibold">{roleDef(id).label}</span>
-                    <span className="text-small leading-5 text-muted-foreground">{roleDef(id).blurb}</span>
+                    <span className="text-[15px] font-semibold">{roleDef(id).label}</span>
+                    <span className="text-[13px] leading-5 text-muted-foreground">{roleDef(id).blurb}</span>
                   </span>
                   <span className={cn('mt-0.5 text-link', !on && 'invisible')}><CheckIcon /></span>
                 </button>
@@ -109,7 +107,7 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
             })}
           </div>
           {pick === 'leader' && canMakeAdmin && (
-            <label className="flex cursor-pointer items-center gap-3 pt-1 text-small">
+            <label className="flex cursor-pointer items-center gap-3 pt-1 text-[14px]">
               <input type="checkbox" className="size-5 accent-[var(--color-link)]" checked={role === 'admin'} disabled={busy}
                 onChange={(e) => onRole?.(e.target.checked ? 'admin' : 'leader')} />
               Can also change roles and remove people
@@ -124,12 +122,12 @@ export function PersonBody({ member, isOwnerRow = false, me = false, since = '',
           <div className="flex flex-col">
             {upcoming.map(u => (
               <div key={u.id} className="flex min-h-12 items-center gap-3 border-t border-border py-2 first:border-t-0">
-                <span className="min-w-0 flex-1 truncate text-body">{u.label} · {u.name}</span>
-                {ANSWER[u.answer] && <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold', ANSWER[u.answer].cls)}>{ANSWER[u.answer].label}</span>}
+                <span className="min-w-0 flex-1 truncate text-[15px]">{u.label} · {u.name}</span>
+                {ANSWER[u.answer] && <span className={cn('flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold', ANSWER[u.answer].cls)}>{ANSWER[u.answer].label}</span>}
               </div>
             ))}
           </div>
-        ) : <p className="m-0 text-small text-muted-foreground">Not in any band coming up.</p>}
+        ) : <p className="m-0 text-[14px] text-muted-foreground">Not in any band coming up.</p>}
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}
@@ -178,18 +176,21 @@ export function ChurchBody({ team, onSave, onLogo, missingColumns = false }) {
       <div className="flex flex-col gap-2">
         <AvatarUploader url={team.logo_url || null} fallback={(team.name || 'C').trim().charAt(0).toUpperCase()}
           pathPrefix={`teams/${team.id}`} shape="square" label="logo" onChange={onLogo} />
-        <span className="text-small text-muted-foreground">Shows on guest links and printouts.</span>
+        <span className="text-[13px] text-muted-foreground">Shows on guest links and printouts.</span>
       </div>
       {FIELDS.map(f => {
         const off = missingColumns && ['address', 'website', 'ccli_licence'].includes(f.id);
         return (
-          <LabelInput key={f.id} fill label={f.label} value={form[f.id]} required={f.required} inputMode={f.inputMode} disabled={off}
-            hint={f.hint || (f.placeholder ? f.placeholder.replace(/^e.g. /, 'For example: ') : null)}
-            onChange={(e) => setForm(prev => ({ ...prev, [f.id]: e.target.value }))} />
+          <label key={f.id} className="flex flex-col gap-1.5">
+            <span className="text-[14px] font-medium">{f.label}</span>
+            <Input value={form[f.id]} required={f.required} placeholder={f.placeholder} inputMode={f.inputMode} disabled={off}
+              onChange={(e) => setForm(prev => ({ ...prev, [f.id]: e.target.value }))} />
+            {f.hint && <span className="text-[13px] text-muted-foreground">{f.hint}</span>}
+          </label>
         );
       })}
-      {missingColumns && <p className="m-0 text-small text-muted-foreground">Address, website and licence need a database update first.</p>}
-      {error && <p className="m-0 text-small text-danger">{error}</p>}
+      {missingColumns && <p className="m-0 text-[13px] text-muted-foreground">Address, website and licence need a database update first.</p>}
+      {error && <p className="m-0 text-[14px] text-danger">{error}</p>}
       <Button type="submit" loading={busy} disabled={busy || !form.name.trim()}>Save</Button>
     </form>
   );

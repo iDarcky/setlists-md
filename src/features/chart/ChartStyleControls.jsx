@@ -1,6 +1,6 @@
 import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/ui/Select';
-import { Button } from '@/ui/shadcn/button';
+import { Button } from '@/ui/Button';
 import { SheetField } from '@/ui/BottomSheet';
 import {
   CHART_THEMES,

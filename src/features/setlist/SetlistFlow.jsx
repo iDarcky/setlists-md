@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { SectionLabel } from '@/ui/shadcn/section-label';
 import { cn } from '@/ui/shadcn/utils';
 import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Button } from '@/ui/shadcn/button';
@@ -38,16 +37,19 @@ const sub = (cb) => { const m = window.matchMedia(WIDE); m.addEventListener('cha
 const useWide = () => useSyncExternalStore(sub, () => window.matchMedia(WIDE).matches, () => false);
 
 const Caps = ({ children, right, className }) => (
-  <SectionLabel as="span" action={right} className={className}>{children}</SectionLabel>
+  <div className={cn('flex items-center justify-between', className)}>
+    <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</span>
+    {right}
+  </div>
 );
 const Field = ({ label, children }) => (
   <div className="flex min-h-[52px] items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
-    <span className="w-[56px] shrink-0 text-small text-muted-foreground">{label}</span>
+    <span className="w-[56px] shrink-0 text-[14px] text-muted-foreground">{label}</span>
     <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">{children}</div>
   </div>
 );
 const Switch = ({ on, onChange, label }) => <SharedSwitch checked={on} onCheckedChange={onChange} label={label} />;
-const KeyChip = ({ k }) => (k ? <span className="flex h-7 min-w-9 shrink-0 items-center justify-center rounded-md bg-raised px-1.5 font-mono text-small font-semibold text-[var(--chord)]">{k}</span> : null);
+const KeyChip = ({ k }) => (k ? <span className="flex h-7 min-w-9 shrink-0 items-center justify-center rounded-md bg-raised px-1.5 font-mono text-[13px] font-semibold text-[var(--chord)]">{k}</span> : null);
 
 const lastLine = (lp, song, nameOf) => {
   if (!lp) return 'Never played';
@@ -83,15 +85,15 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-card material-base">
+      <div className="rounded-card border border-border bg-card">
         <Field label="Name">
           <Input value={draft.name || ''} maxLength={80} placeholder="Sunday Morning" aria-label="Setlist name"
             onChange={e => { setNameTouched(true); setDraft(d => ({ ...d, name: e.target.value })); }}
             className="h-10 font-mono font-semibold" />
         </Field>
         <Field label="Date">
-          {dates.map(d => <Chip key={d} on={draft.date === d} className="h-8 px-3 text-small" onClick={() => setDate(d)}>{longDay(d)}</Chip>)}
-          <Chip dashed className="h-8 px-3 text-small" onClick={() => setSheet('date')}>Other…</Chip>
+          {dates.map(d => <Chip key={d} on={draft.date === d} className="h-8 px-3 text-[13px]" onClick={() => setDate(d)}>{longDay(d)}</Chip>)}
+          <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setSheet('date')}>Other…</Chip>
         </Field>
         <Field label="Time">
           <TimeInput aria-label="Service time" value={draft.time} onChange={v => setDraft(d => ({ ...d, time: v }))} />
@@ -103,10 +105,10 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
 
       <Caps className="pt-2" right={<Switch label="Rehearsal" on={rehearsal} onChange={setRehearsal} />}>Rehearsal</Caps>
       {rehearsal && (
-        <div className="rounded-card material-base">
+        <div className="rounded-card border border-border bg-card">
           <Field label="Date">
-            {rDates.map(d => <Chip key={d} on={draft.rehearsalDate === d} className="h-8 px-3 text-small" onClick={() => setDraft(x => ({ ...x, rehearsalDate: d }))}>{longDay(d)}</Chip>)}
-            <Chip dashed className="h-8 px-3 text-small" onClick={() => setSheet('rDate')}>Other…</Chip>
+            {rDates.map(d => <Chip key={d} on={draft.rehearsalDate === d} className="h-8 px-3 text-[13px]" onClick={() => setDraft(x => ({ ...x, rehearsalDate: d }))}>{longDay(d)}</Chip>)}
+            <Chip dashed className="h-8 px-3 text-[13px]" onClick={() => setSheet('rDate')}>Other…</Chip>
           </Field>
           <Field label="Time">
             <TimeInput aria-label="Rehearsal time" value={draft.rehearsalTime} onChange={v => setDraft(d => ({ ...d, rehearsalTime: v }))} />
@@ -132,15 +134,15 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
 function ChartPreview({ view, transpose = 0 }) {
   const sections = view?.sections || [];
   return (
-    <div className="flex flex-col gap-4 text-small leading-[1.35]">
+    <div className="flex flex-col gap-4 text-[14px] leading-[1.35]">
       {sections.slice(0, 8).map((s, i) => (
         <div key={i} className="flex flex-col">
-          <span className="mb-1 text-label text-link">{s.type}</span>
+          <span className="mb-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-link">{s.type}</span>
           {(s.lines || []).filter(l => typeof l === 'string' && l.trim() && !l.startsWith('>')).slice(0, 8).map((l, j) => (
             <div key={j} className="flex flex-wrap items-end">
               {parseLine(l).map((p, k) => (
                 <span key={k} className="inline-flex flex-col whitespace-pre">
-                  <span className="h-4 pr-1 font-mono text-caption font-semibold text-[var(--chord)]">{p.chord ? transposeChord(p.chord, transpose) : ' '}</span>
+                  <span className="h-4 pr-1 font-mono text-[12px] font-semibold text-[var(--chord)]">{p.chord ? transposeChord(p.chord, transpose) : ' '}</span>
                   <span>{p.text || ' '}</span>
                 </span>
               ))}
@@ -176,8 +178,8 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
   return (
     <div className="flex min-h-0 flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <b className="text-heading font-semibold">Add songs</b>
-        <span className="truncate text-small text-muted-foreground">{filling ? `filling song ${filling}` : '+ fills the next “Song”'}</span>
+        <b className="text-[17px] font-semibold">Add songs</b>
+        <span className="truncate text-[13px] text-muted-foreground">{filling ? `filling song ${filling}` : '+ fills the next “Song”'}</span>
       </div>
       <Input ref={searchRef} type="search" inputMode="search" placeholder="Search the library" value={q} onChange={e => setQ(e.target.value)} className="h-11" />
       {/* A song the library doesn't have yet, without leaving the setlist (QA 11 Nov). */}
@@ -185,16 +187,16 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
         <button type="button" onClick={() => onNewSong(q.trim())}
           className="flex min-h-[52px] w-full cursor-pointer items-center gap-2 rounded-card border border-dashed border-input bg-transparent px-3 py-1.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="truncate text-small font-semibold">New song{q.trim() ? `: “${q.trim()}”` : ''}</span>
-            <span className="truncate text-caption text-muted-foreground">Not in the library? Import a PDF or file, or paste it</span>
+            <span className="truncate text-[14px] font-semibold">New song{q.trim() ? `: “${q.trim()}”` : ''}</span>
+            <span className="truncate text-[12px] text-muted-foreground">Not in the library? Import a PDF or file, or paste it</span>
           </span>
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-input"><PlusIcon size={18} /></span>
         </button>
       )}
       {groups.map(({ label, list }) => (list.length > 0 || !label) && (
         <div key={label || 'results'} className="flex flex-col gap-2">
-          {label && <span className="pt-1 text-label text-muted-foreground">{label}</span>}
-          <div className="rounded-card material-base">
+          {label && <span className="pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{label}</span>}
+          <div className="rounded-card border border-border bg-card">
             {list.map(s => {
               const lp = lastPlayed(s.id, setlists, today, draft.id);
               const v = resolveSongView(s);
@@ -203,18 +205,18 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
                 <div key={s.id} className={cn('flex min-h-[52px] items-center gap-2 border-t border-border px-3 py-1.5 first:border-t-0', previewId === s.id && 'bg-selected')}>
                   <button type="button" onClick={() => (onPreview ? onPreview(s.id) : onAdd(s))}
                     className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:underline">
-                    <span className="truncate text-small font-semibold">{s.title}</span>
-                    <span className="truncate text-caption text-muted-foreground">{line}</span>
+                    <span className="truncate text-[14px] font-semibold">{s.title}</span>
+                    <span className="truncate text-[12px] text-muted-foreground">{line}</span>
                   </button>
                   <Button variant="outline" size="icon" className="size-9 shrink-0 rounded-full" aria-label={`Add ${s.title}`} onClick={() => onAdd(s)}><PlusIcon size={18} /></Button>
                 </div>
               );
             })}
-            {empty && <p className="m-0 px-4 py-6 text-center text-small text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
+            {empty && <p className="m-0 px-4 py-6 text-center text-[14px] text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
           </div>
         </div>
       ))}
-      <Button variant="link" className="self-start text-small" onClick={() => onEmptySlot(q.trim())}>
+      <Button variant="link" className="self-start text-[14px]" onClick={() => onEmptySlot(q.trim())}>
         {q.trim() ? `Keep a “${q.trim()}” slot, choose the song later` : 'Add an empty “Song”, choose later'}
       </Button>
     </div>
@@ -223,11 +225,11 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
 
 const SettingRow = ({ label, children }) => (
   <div className="flex min-h-[50px] items-center gap-3 border-t border-border py-2 pl-10 pr-3">
-    <span className="w-[58px] shrink-0 text-small text-muted-foreground">{label}</span>
+    <span className="w-[58px] shrink-0 text-[13px] text-muted-foreground">{label}</span>
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
   </div>
 );
-const sm = 'h-8 px-3 text-small';
+const sm = 'h-8 px-3 text-[13px]';
 
 /** One song, opened in place: who leads, key, BPM, time, version, note. */
 function SongSettings({ item, song, people, setlists, draftId, nameOf, today, onChange }) {
@@ -244,19 +246,19 @@ function SongSettings({ item, song, people, setlists, draftId, nameOf, today, on
   const lp = lastLine(raw, song, nameOf);
   return (
     <>
-      <div className="mx-3 mb-2.5 ml-10 rounded-control bg-background/60 px-3 py-2 text-small text-muted-foreground">
+      <div className="mx-3 mb-2.5 ml-10 rounded-control bg-background/60 px-3 py-2 text-[13px] text-muted-foreground">
         {typeof lp === 'string' ? lp : <>Last time: {lp.date} · <span className="font-medium text-foreground">{lp.bits}</span>{lp.who && ` · led by ${lp.who}`}</>}
       </div>
       <SettingRow label="Leads">
         {people.map(p => <Chip key={p.id} on={item.leadBy === p.id} className={sm} onClick={() => onChange({ leadBy: item.leadBy === p.id ? undefined : p.id })}>{p.name}</Chip>)}
-        {!people.length && <span className="text-small text-muted-foreground">Pick singers in Details and band</span>}
+        {!people.length && <span className="text-[13px] text-muted-foreground">Pick singers in Details and band</span>}
       </SettingRow>
       {keys.length > 0 && (
         <SettingRow label="Key">
           {keys.map(k => (
-            <Chip key={k.t} on={k.t === t} dashed={k.t === 0 && k.t !== t} className="h-8 px-2.5 font-mono text-small" onClick={() => onChange({ transpose: k.t })}>{k.key}</Chip>
+            <Chip key={k.t} on={k.t === t} dashed={k.t === 0 && k.t !== t} className="h-8 px-2.5 font-mono text-[13px]" onClick={() => onChange({ transpose: k.t })}>{k.key}</Chip>
           ))}
-          <Chip dashed className="h-8 px-2.5 text-small" onClick={() => setAllKeys(v => !v)}>{allKeys ? 'Fewer' : 'More'}</Chip>
+          <Chip dashed className="h-8 px-2.5 text-[13px]" onClick={() => setAllKeys(v => !v)}>{allKeys ? 'Fewer' : 'More'}</Chip>
         </SettingRow>
       )}
       <SettingRow label="BPM">
@@ -268,11 +270,11 @@ function SongSettings({ item, song, people, setlists, draftId, nameOf, today, on
             className="h-9 w-[64px] rounded-none border-0 border-x border-border text-center font-semibold" />
           <Button variant="ghost" className="h-9 w-10 rounded-none" aria-label="Faster" onClick={() => onChange({ tempo: Math.min(260, (Number(tempo) || 100) + 1) })}>+</Button>
         </div>
-        {view?.tempo ? <span className="text-caption text-muted-foreground">usual {view.tempo}</span> : null}
+        {view?.tempo ? <span className="text-[12px] text-muted-foreground">usual {view.tempo}</span> : null}
       </SettingRow>
       <SettingRow label="Time">
         <TimeSigInput value={time} onChange={v => onChange({ time: !v || v === view?.time ? undefined : v })} />
-        {view?.time ? <span className="text-caption text-muted-foreground">usual {view.time}</span> : null}
+        {view?.time ? <span className="text-[12px] text-muted-foreground">usual {view.time}</span> : null}
       </SettingRow>
       {arrs.length > 1 && (
         <SettingRow label="Version">
@@ -417,15 +419,15 @@ export default function SetlistFlow({
     if (!it?.songId) return null;
     const name = it.leadBy ? nameOf(it.leadBy) : '';
     return name
-      ? <span className="flex h-[26px] max-w-[110px] shrink-0 items-center gap-1.5 rounded-full bg-raised pl-[3px] pr-2 text-caption text-muted-foreground">
+      ? <span className="flex h-[26px] max-w-[110px] shrink-0 items-center gap-1.5 rounded-full bg-raised pl-[3px] pr-2 text-[12px] text-muted-foreground">
           <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-background text-[9px] font-bold text-link">{initials(name)}</span>
           <span className="truncate">{name.split(' ')[0]}</span>
         </span>
-      : <span className="flex h-[26px] shrink-0 items-center rounded-full border border-dashed border-input px-2 text-caption text-muted-foreground">Who leads?</span>;
+      : <span className="flex h-[26px] shrink-0 items-center rounded-full border border-dashed border-input px-2 text-[12px] text-muted-foreground">Who leads?</span>;
   };
 
   const orderList = (
-    <div ref={listRef} className="flex flex-col overflow-hidden rounded-card material-base">
+    <div ref={listRef} className="flex flex-col overflow-hidden rounded-card border border-border bg-card">
       {order.rows.map((r, i) => {
         const it = items[i];
         const isSlot = isPlaceholder(it);
@@ -438,17 +440,17 @@ export default function SetlistFlow({
               <Grip {...gripProps(i)} />
               <button type="button" onClick={() => tapRow(i)} aria-expanded={isSlot ? undefined : isOpen}
                 className="flex min-h-[52px] min-w-0 flex-1 cursor-pointer items-center gap-2.5 border-0 bg-transparent py-1.5 pr-3 text-left font-sans text-foreground outline-none focus-visible:underline">
-                {r.kind === 'song' && !isSlot && <span className="w-4 shrink-0 text-right text-small tabular-nums text-muted-foreground">{r.n}</span>}
+                {r.kind === 'song' && !isSlot && <span className="w-4 shrink-0 text-right text-[13px] tabular-nums text-muted-foreground">{r.n}</span>}
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className={cn('truncate', r.kind === 'moment' ? 'text-small text-muted-foreground' : 'text-body font-semibold')}>
+                  <span className={cn('truncate', r.kind === 'moment' ? 'text-[14px] text-muted-foreground' : 'text-[15px] font-semibold')}>
                     {r.kind === 'moment' && !it.label ? 'New moment' : r.title}
                   </span>
-                  {!isSlot && r.kind === 'song' && <span className="truncate text-caption text-muted-foreground">{[r.tempo && `${r.tempo} BPM`, r.time].filter(Boolean).join(' · ') || ' '}</span>}
+                  {!isSlot && r.kind === 'song' && <span className="truncate text-[12px] text-muted-foreground">{[r.tempo && `${r.tempo} BPM`, r.time].filter(Boolean).join(' · ') || ' '}</span>}
                   {!isSlot && r.kind === 'song' && (() => {
                     const recent = playedRecently(it.songId, setlists, draft.date || today, draft.id);
                     if (!recent && !hints[i]) return null;
                     return (
-                      <span className="truncate text-caption">
+                      <span className="truncate text-[12px]">
                         {hints[i] && <span className="text-warning-text">{hints[i]}</span>}
                         {hints[i] && recent && <span className="text-muted-foreground"> · </span>}
                         {recent && <span className="text-muted-foreground">{recent}</span>}
@@ -456,11 +458,11 @@ export default function SetlistFlow({
                     );
                   })()}
                 </span>
-                {r.kind === 'moment' && r.minutes > 0 && <span className="text-caption text-muted-foreground">{r.minutes} min</span>}
-                {isSlot && <span className="text-small font-medium text-link">{filling ? 'choosing…' : 'Choose'}</span>}
+                {r.kind === 'moment' && r.minutes > 0 && <span className="text-[12px] text-muted-foreground">{r.minutes} min</span>}
+                {isSlot && <span className="text-[13px] font-medium text-link">{filling ? 'choosing…' : 'Choose'}</span>}
                 {!isOpen && leadChip(it)}
                 <KeyChip k={r.key} />
-                {!isSlot && <span className={cn('w-3.5 shrink-0 text-center text-small text-muted-foreground transition-transform', isOpen ? 'rotate-180' : '')} aria-hidden="true">⌄</span>}
+                {!isSlot && <span className={cn('w-3.5 shrink-0 text-center text-[13px] text-muted-foreground transition-transform', isOpen ? 'rotate-180' : '')} aria-hidden="true">⌄</span>}
               </button>
               {isSlot && <Button variant="ghost" size="icon" className="mr-1 size-9 shrink-0 text-muted-foreground" aria-label="Remove this Song slot" onClick={() => remove(i)}>✕</Button>}
             </div>
@@ -474,41 +476,41 @@ export default function SetlistFlow({
                 <div className="flex items-center justify-between border-t border-border py-2 pl-10 pr-3">
                   {it.songId ? (
                     <span className="flex items-center gap-4">
-                      <Button variant="link" className="text-small" onClick={() => { setPreviewId(null); setPeek({ songId: it.songId, transpose: it.transpose || 0, arrangementId: it.arrangementId }); }}>Preview</Button>
-                      <Button variant="link" className="text-small" onClick={() => { setSlot(i); setOpen(null); goToLibrary(); }}>Change song</Button>
+                      <Button variant="link" className="text-[14px]" onClick={() => { setPreviewId(null); setPeek({ songId: it.songId, transpose: it.transpose || 0, arrangementId: it.arrangementId }); }}>Preview</Button>
+                      <Button variant="link" className="text-[14px]" onClick={() => { setSlot(i); setOpen(null); goToLibrary(); }}>Change song</Button>
                     </span>
                   ) : <span />}
-                  <Button variant="link" className="text-small text-danger" onClick={() => remove(i)}>Remove</Button>
+                  <Button variant="link" className="text-[14px] text-danger" onClick={() => remove(i)}>Remove</Button>
                 </div>
               </div>
             )}
           </div>
         );
       })}
-      {!order.rows.length && <p className="m-0 px-4 py-8 text-center text-small text-muted-foreground">Nothing here yet. Add songs below, or a moment.</p>}
+      {!order.rows.length && <p className="m-0 py-8 text-center text-[14px] text-muted-foreground">Nothing here yet. Add songs below, or a moment.</p>}
     </div>
   );
 
   const orderBlock = (
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <b className="text-heading font-semibold">Order</b>
-        <span className="flex items-center gap-3 truncate text-small text-muted-foreground">
+        <b className="text-[17px] font-semibold">Order</b>
+        <span className="flex items-center gap-3 truncate text-[13px] text-muted-foreground">
           {order.songCount} {order.songCount === 1 ? 'song' : 'songs'}{order.totalSeconds ? ` · ~${Math.round(order.totalSeconds / 60)} min` : ''}
-          {!wide && <Button variant="link" className="text-small" onClick={goToLibrary}>Add songs ↓</Button>}
+          {!wide && <Button variant="link" className="text-[13px]" onClick={goToLibrary}>Add songs ↓</Button>}
         </span>
       </div>
-      {wide && <span className="-mt-2 text-caption text-muted-foreground">{[longDay(draft.date), draft.time, draft.location].filter(Boolean).join(' · ')} · drag ⠿ to move</span>}
+      {wide && <span className="-mt-2 text-[12px] text-muted-foreground">{[longDay(draft.date), draft.time, draft.location].filter(Boolean).join(' · ')} · drag ⠿ to move</span>}
       {orderList}
       <div className="flex gap-2">
         <Chip onClick={addSongSlot}><PlusIcon size={16} />Add song</Chip>
         <Chip onClick={addMoment}><PlusIcon size={16} />Add moment</Chip>
       </div>
       {canReady && (
-        <div className="mt-2 flex items-center gap-3 rounded-card material-base px-4 py-3">
+        <div className="mt-2 flex items-center gap-3 rounded-card border border-border bg-card px-4 py-3">
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-body font-medium">Mark ready when I save</span>
-            <span className="text-caption text-muted-foreground">{asks ? 'The band hears it’s final once they’re asked.' : 'The band hears it’s final.'}</span>
+            <span className="text-[15px] font-medium">Mark ready when I save</span>
+            <span className="text-[12px] text-muted-foreground">{asks ? 'The band hears it’s final once they’re asked.' : 'The band hears it’s final.'}</span>
           </span>
           <Switch label="Mark ready when I save" on={ready} onChange={setReady} />
         </div>
@@ -527,7 +529,7 @@ export default function SetlistFlow({
     <div className="flex flex-col gap-3">
       <Caps>Band</Caps>
       {team ? (
-        <div className="rounded-card material-base px-4">
+        <div className="rounded-card border border-border bg-card px-4">
           <BandSection
             key={isNew ? 'plan' : 'live'}
             setlist={draft} setlists={setlists} schedules={schedules} setlistMap={setlistMap}
@@ -538,7 +540,7 @@ export default function SetlistFlow({
           />
         </div>
       ) : (
-        <p className="m-0 rounded-card bg-raised px-4 py-3 text-small text-muted-foreground">The band is picked in a church space.</p>
+        <p className="m-0 rounded-card bg-raised px-4 py-3 text-[14px] text-muted-foreground">The band is picked in a church space.</p>
       )}
     </div>
   );
@@ -588,15 +590,15 @@ export default function SetlistFlow({
           {!wide && (idx > 0
             ? <Button variant="ghost" size="icon" className="-ml-3" aria-label={`Back to ${STEPS[idx - 1][1]}`} onClick={() => setStep(STEPS[idx - 1][0])}><BackIcon /></Button>
             : <span className="size-11 -ml-3 shrink-0" />)}
-          {!wide && <b className="flex-1 text-center text-body font-semibold">{isNew ? 'New setlist' : 'Edit setlist'}</b>}
+          {!wide && <b className="flex-1 text-center text-[16px] font-semibold">{isNew ? 'New setlist' : 'Edit setlist'}</b>}
           {!wide && <span className="size-11 -mr-3 shrink-0" />}
           {wide && (
             <>
-              <b className="truncate font-mono text-body font-semibold">{draft.name || (isNew ? 'New setlist' : 'Edit setlist')}</b>
+              <b className="truncate font-mono text-[16px] font-semibold">{draft.name || (isNew ? 'New setlist' : 'Edit setlist')}</b>
               <nav aria-label="Steps" className="ml-6 flex gap-1">
                 {STEPS.map(([k, l], i) => (
                   <button key={k} type="button" onClick={() => setStep(k)} aria-current={step === k ? 'step' : undefined}
-                    className={cn('flex h-8 min-h-0 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3 font-sans text-small outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    className={cn('flex h-8 min-h-0 cursor-pointer items-center gap-1.5 rounded-full border-0 px-3 font-sans text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       step === k ? 'bg-selected font-semibold text-foreground' : i < idx ? 'bg-transparent text-link' : 'bg-transparent text-muted-foreground')}>
                     {i < idx ? '✓' : i + 1} {l}
                   </button>
@@ -616,7 +618,7 @@ export default function SetlistFlow({
                   className={cn('h-1.5 min-h-0 flex-1 cursor-pointer rounded-full border-0 p-0', i <= idx ? 'bg-link' : 'bg-raised')} />
               ))}
             </div>
-            <div className="flex justify-between text-caption text-muted-foreground">
+            <div className="flex justify-between text-[12px] text-muted-foreground">
               <span>Step {idx + 1} of {STEPS.length} · <b className="font-semibold text-foreground">{STEPS[idx][1]}</b></span>
               <span className="truncate pl-3 font-mono">{draft.name}</span>
             </div>
@@ -643,8 +645,8 @@ export default function SetlistFlow({
 
       {removed && (
         <div role="status" className={cn('fixed inset-x-0 z-30 mx-auto flex w-[calc(100%-32px)] max-w-[420px] items-center gap-3 rounded-card border border-border bg-raised px-4 py-2.5 shadow-lg', wide ? 'bottom-6' : 'bottom-[150px]')}>
-          <span className="min-w-0 flex-1 truncate text-small">Removed “{removed.title || removed.item?.label || 'Song'}”</span>
-          <Button variant="link" className="text-small" onClick={undoRemove}>Undo</Button>
+          <span className="min-w-0 flex-1 truncate text-[14px]">Removed “{removed.title || removed.item?.label || 'Song'}”</span>
+          <Button variant="link" className="text-[14px]" onClick={undoRemove}>Undo</Button>
         </div>
       )}
       {!wide && peekSong && (
@@ -673,9 +675,9 @@ function DeskPreview({ song, onAdd, onBack, slotN, setlists, draftId, nameOf, to
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-col gap-1.5 border-b border-border px-5 pb-3 pt-4">
-        <Button variant="link" className="self-start text-small" onClick={onBack}>‹ {onAdd ? 'Add songs' : 'Back'}</Button>
+        <Button variant="link" className="self-start text-[14px]" onClick={onBack}>‹ {onAdd ? 'Add songs' : 'Back'}</Button>
         <b className="text-[20px] font-semibold">{song.title}</b>
-        <span className="text-small text-muted-foreground">
+        <span className="text-[13px] text-muted-foreground">
           {[view?.key && (transpose ? `in ${transposeKey(view.key, transpose)} (usually ${view.key})` : `usually ${view.key}`), view?.tempo && `${view.tempo} BPM`, view?.time, typeof lp === 'string' ? lp.toLowerCase() : `last ${lp.date}`].filter(Boolean).join(' · ')}
         </span>
       </div>

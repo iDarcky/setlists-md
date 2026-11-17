@@ -91,7 +91,7 @@ CLI (`supabase db push`) or copy/paste the SQL into the project's SQL editor.
   `section_key`) are NOT NULL default `''` so a plain unique constraint +
   upsert works across partial scopes. RLS: a user reads/writes only their own
   rows, scoped to teams they belong to. Client: `src/notes/usePrivateNotes.js`
-  (cloud + IndexedDB cache, offline-capable) (its old `ui/NotesStack` UI was removed 2026-11-15; no UI today).
+  (cloud + IndexedDB cache, offline-capable) surfaced via `ui/NotesStack`.
 - `20260701_realtime_publication.sql` — adds `team_schedules`,
   `team_availability`, `team_notifications`, `team_activity` to the
   `supabase_realtime` publication (they were subscribed client-side but never

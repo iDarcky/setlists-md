@@ -25,7 +25,7 @@ export function Fact({ label, children }) {
 }
 
 export function MetaLine({ children, className }) {
-  return <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 text-small', className)}>{children}</div>;
+  return <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 text-[14px]', className)}>{children}</div>;
 }
 
 const fmtDay = (d) => (d ? String(d) : null);
@@ -44,7 +44,7 @@ export function Played({ facts, className }) {
   const parts = playedSentence(facts);
   if (!parts) return null;
   return (
-    <p className={cn('m-0 text-small text-muted-foreground', className)}>
+    <p className={cn('m-0 text-[14px] text-muted-foreground', className)}>
       {parts.map(([lead, v]) => <span key={lead}>{lead}<span className="text-foreground">{v}</span></span>)}.
     </p>
   );
@@ -59,7 +59,7 @@ export function SongMap({ codes, className }) {
         const t = typeof c === 'string' ? { code: c } : c;
         return (
           <span key={n} style={t.fg ? { color: t.fg, background: t.bg } : undefined}
-            className={cn('flex h-6 min-w-7 items-center justify-center rounded-[6px] px-1.5 text-caption font-semibold', !t.fg && 'bg-selected text-link')}>{t.code}</span>
+            className={cn('flex h-6 min-w-7 items-center justify-center rounded-[6px] px-1.5 text-[12px] font-semibold', !t.fg && 'bg-selected text-link')}>{t.code}</span>
         );
       })}
     </div>

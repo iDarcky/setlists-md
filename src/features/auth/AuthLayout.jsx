@@ -45,7 +45,7 @@ export function AuthLayout({ onBack, embedded = false, className, children }) {
           <button
             type="button"
             onClick={onBack}
-            className="absolute left-3.5 flex h-11 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-body font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring @min-[640px]:left-5"
+            className="absolute left-3.5 flex h-11 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-[15px] font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring @min-[640px]:left-5"
             style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
           >
             <BackIcon />
@@ -83,7 +83,7 @@ export function ChurchBadge({ name, logoUrl, initials, quiet = false }) {
     <div
       aria-hidden="true"
       className={cn(
-        'flex size-10 items-center justify-center rounded-[10px] bg-raised text-body font-semibold',
+        'flex size-10 items-center justify-center rounded-[10px] bg-raised text-[15px] font-semibold',
         quiet ? 'text-muted-foreground' : 'text-link',
       )}
     >
@@ -127,7 +127,7 @@ export function TextLink({ question, answer, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-control border-0 bg-transparent font-sans text-body text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-control border-0 bg-transparent font-sans text-[15px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {question} <b className="font-medium text-link">{answer}</b>
     </button>

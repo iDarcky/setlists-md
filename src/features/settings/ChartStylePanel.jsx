@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import { Button } from '@/ui/shadcn/button';
+import { Button } from '@/ui/Button';
 import { Input } from '@/ui/Input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/ui/Select';
 import { useConfirm } from '@/ui/useConfirmHook';
@@ -345,7 +345,7 @@ function ChartStylePanelInner({ settings, update }) {
               className="flex-1 h-9 px-3 text-copy-13"
               onKeyDown={(e) => { if (e.key === 'Enter') duplicateActiveTheme(); if (e.key === 'Escape') setSavingName(null); }}
             />
-            <Button size="sm" onClick={duplicateActiveTheme} disabled={!savingName.trim()}>Create</Button>
+            <Button size="sm" variant="brand" onClick={duplicateActiveTheme} disabled={!savingName.trim()}>Create</Button>
             <Button size="sm" variant="ghost" onClick={() => setSavingName(null)}>Cancel</Button>
           </div>
         )}

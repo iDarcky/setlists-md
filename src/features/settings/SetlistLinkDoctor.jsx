@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Button } from '@/ui/shadcn/button';
+import { Button } from '@/ui/Button';
 import { analyzeSetlistLinks } from '@/lib/setlistLinks';
 
 // Setlist-link diagnostic. A setlist item references a song by a snapshotted
@@ -60,7 +60,7 @@ export default function SetlistLinkDoctor({ songs = [], setlists = [], onRepair 
           </div>
         </div>
         {counts.relinkable > 0 && onRepair && (
-          <Button size="sm" variant="outline" loading={busy} onClick={handleRepair}>
+          <Button size="sm" variant="secondary" loading={busy} onClick={handleRepair}>
             Repair {counts.relinkable}
           </Button>
         )}

@@ -1,5 +1,4 @@
 import { useId, useState } from 'react';
-import { LabelInput } from '@/ui/blocks/LabelInput';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
 import { Alert } from '@/ui/shadcn/alert';
@@ -99,18 +98,30 @@ export function CreateAccountView({ values, onChange, onSubmit, onBack, onLogIn,
         sub={joining ? 'Then you can ask to join.' : 'Your songs follow you to every device.'}
       />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (ready) onSubmit(); }} noValidate>
-        <div className="flex flex-col gap-3">
-          <LabelInput fill label="Your name" autoComplete="name" name="name" value={values.name}
-            onChange={e => onChange('name', e.target.value)} onFocus={scrollFieldIntoView} />
-          <LabelInput fill label="Email" type="email" inputMode="email" autoComplete="email" name="email"
-            value={values.email} onChange={e => onChange('email', e.target.value)} onFocus={scrollFieldIntoView} />
-          <LabelInput fill label="Password" type="password" autoComplete="new-password" name="new-password"
-            value={values.password} onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView}
-            error={tooShort ? 'At least 8 characters.' : null} hint="At least 8 characters." />
-          <LabelInput fill label="Confirm password" type="password" autoComplete="new-password" name="confirm-password"
-            value={values.confirm} onChange={e => onChange('confirm', e.target.value)} onFocus={scrollFieldIntoView}
-            error={mismatch ? 'Passwords don’t match.' : null} />
-        </div>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-name`}>Your name</FieldLabel>
+            <Input id={`${uid}-name`} autoComplete="name" placeholder="Joe Doe" value={values.name}
+              onChange={e => onChange('name', e.target.value)} onFocus={scrollFieldIntoView} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-email`}>Email</FieldLabel>
+            <Input id={`${uid}-email`} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com"
+              value={values.email} onChange={e => onChange('email', e.target.value)} onFocus={scrollFieldIntoView} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-password`}>Password</FieldLabel>
+            <PasswordInput id={`${uid}-password`} autoComplete="new-password" value={values.password} aria-invalid={tooShort || undefined}
+              aria-describedby={`${uid}-password-hint`} onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView} />
+            <FieldDescription id={`${uid}-password-hint`} className={tooShort ? 'text-danger-text' : undefined}>At least 8 characters.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-confirm`}>Confirm password</FieldLabel>
+            <PasswordInput id={`${uid}-confirm`} autoComplete="new-password" value={values.confirm} aria-invalid={mismatch || undefined}
+              onChange={e => onChange('confirm', e.target.value)} onFocus={scrollFieldIntoView} />
+            <FieldError>{mismatch ? 'Passwords don’t match.' : null}</FieldError>
+          </Field>
+        </FieldGroup>
       </form>
       <Message message={message} />
       <AuthActions>
@@ -143,16 +154,21 @@ export function LogInView({ values, onChange, onSubmit, onBack, onForgot, onCrea
         sub={joining ? null : 'Log in to see this week’s songs.'}
       />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (ready) onSubmit(); }} noValidate>
-        {/* The floating-label field (Bencho LabelInput, owner 2026-11-16). */}
-        <div className="flex flex-col gap-3">
-          <LabelInput fill label="Email" type="email" inputMode="email" autoComplete="email" name="email"
-            value={values.email} onChange={e => onChange('email', e.target.value)} onFocus={scrollFieldIntoView} />
-          <LabelInput fill label="Password" type="password" autoComplete="current-password" name="password"
-            value={values.password} onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView} />
-          <div className="-mt-1 flex justify-end">
-            <Button variant="link" className="min-h-8 text-small" onClick={onForgot}>Forgot password?</Button>
-          </div>
-        </div>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-email`}>Email</FieldLabel>
+            <Input id={`${uid}-email`} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com"
+              value={values.email} onChange={e => onChange('email', e.target.value)} onFocus={scrollFieldIntoView} />
+          </Field>
+          <Field>
+            <div className="flex items-center justify-between">
+              <FieldLabel htmlFor={`${uid}-password`}>Password</FieldLabel>
+              <span className="text-caption"><Button variant="link" className="min-h-8" onClick={onForgot}>Forgot password?</Button></span>
+            </div>
+            <PasswordInput id={`${uid}-password`} autoComplete="current-password" value={values.password}
+              onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView} />
+          </Field>
+        </FieldGroup>
       </form>
       <Message message={message} />
       <AuthActions>
@@ -177,8 +193,11 @@ export function ForgotPasswordView({ email, onChange, onSubmit, onBack, busy, me
         sub="Type your email and we’ll send you a link to pick a new one."
       />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (email) onSubmit(); }} noValidate>
-        <LabelInput fill label="Email" type="email" inputMode="email" autoComplete="email" name="email"
-          value={email} onChange={e => onChange(e.target.value)} onFocus={scrollFieldIntoView} />
+        <Field>
+          <FieldLabel htmlFor={`${uid}-email`}>Email</FieldLabel>
+          <Input id={`${uid}-email`} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com"
+            value={email} onChange={e => onChange(e.target.value)} onFocus={scrollFieldIntoView} />
+        </Field>
       </form>
       <Message message={message} />
       <AuthActions>
@@ -210,14 +229,20 @@ export function NewPasswordView({ values, onChange, onSubmit, onBack, busy, mess
     <AuthLayout onBack={onBack} embedded={embedded}>
       <AuthHeader mark={<LogoMark />} title="Pick a new password" sub="Use it next time you log in, on any device." />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (ready) onSubmit(); }} noValidate>
-        <div className="flex flex-col gap-3">
-          <LabelInput fill label="New password" type="password" autoComplete="new-password" name="new-password"
-            value={values.password} onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView}
-            error={tooShort ? 'At least 8 characters.' : null} hint="At least 8 characters." />
-          <LabelInput fill label="Type it again" type="password" autoComplete="new-password" name="confirm-password"
-            value={values.confirm} onChange={e => onChange('confirm', e.target.value)} onFocus={scrollFieldIntoView}
-            error={mismatch ? 'Passwords don’t match.' : null} />
-        </div>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-password`}>New password</FieldLabel>
+            <PasswordInput id={`${uid}-password`} autoComplete="new-password" value={values.password} aria-invalid={tooShort || undefined}
+              aria-describedby={`${uid}-password-hint`} onChange={e => onChange('password', e.target.value)} onFocus={scrollFieldIntoView} />
+            <FieldDescription id={`${uid}-password-hint`} className={tooShort ? 'text-danger-text' : undefined}>At least 8 characters.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-confirm`}>Type it again</FieldLabel>
+            <PasswordInput id={`${uid}-confirm`} autoComplete="new-password" value={values.confirm} aria-invalid={mismatch || undefined}
+              onChange={e => onChange('confirm', e.target.value)} onFocus={scrollFieldIntoView} />
+            <FieldError>{mismatch ? 'Passwords don’t match.' : null}</FieldError>
+          </Field>
+        </FieldGroup>
       </form>
       <Message message={message} />
       <AuthActions>

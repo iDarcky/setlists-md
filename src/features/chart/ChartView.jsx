@@ -5,7 +5,7 @@ import SectionBlock from './SectionBlock';
 import SongMap from './SongMap';
 import SongDetails from '@/features/song/SongDetails';
 import ChordDiagram from './ChordDiagram';
-import { Button } from '@/ui/shadcn/button';
+import { Button } from '@/ui/Button';
 import { IconButton } from '@/ui/IconButton';
 import { Card } from '@/ui/Card';
 import { Dialog } from '@/ui/Dialog';
@@ -761,7 +761,7 @@ export default function ChartView({
                     {['all', ...tabInstrumentsPresent].map(id => (
                       <Button
                         key={id}
-                        variant={tabInstrument === id ? 'default' : 'outline'}
+                        variant={tabInstrument === id ? 'brand' : 'secondary'}
                         size="sm"
                         onClick={() => setTabInstrument(id)}
                       >

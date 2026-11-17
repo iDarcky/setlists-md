@@ -281,13 +281,3 @@
 /* Setlists.md: in a page row the frame is the row, and the object grows
    from the row's start rather than from its middle. */
 .sek[data-inline="true"] { place-items: center start; }
-
-/* ── Setlists.md: in a page header (owner, 2026-11-15) ─────
-   Beside the outline calendar button and the + it should read
-   as the same kind of control: no fill, the control edge, and
-   the 8px control corner rather than a circle. */
-[data-search="header"] .sek {
-  --pane: transparent;
-  --pane-edge: var(--control-edge);
-  --sek-r: 8px !important;}
-[data-search="header"] .sek-skin::before { border-color: var(--control-edge); }

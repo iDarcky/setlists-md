@@ -20,8 +20,8 @@ const ANSWERS = [
 // What the bottom of a tile says. An unanswered ask outranks everything.
 function tileState(t) {
   if (t.asks.length) return { label: 'Answer', cls: 'border border-dashed border-input text-muted-foreground' };
-  if (t.status === 'unavailable') return { label: 'Can’t', cls: 'bg-danger-fill text-danger-text' };
-  if (t.status === 'maybe') return { label: 'Maybe', cls: 'bg-warning-fill text-warning-text' };
+  if (t.status === 'unavailable') return { label: 'Can’t', cls: 'bg-danger/15 text-danger' };
+  if (t.status === 'maybe') return { label: 'Maybe', cls: 'bg-warning/20 text-warning-text' };
   if (t.playing) return { label: 'Playing', cls: 'bg-link text-background' };
   if (t.status === 'available') return { label: 'Free', cls: 'bg-selected text-link' };
   return { label: 'Tap', cls: 'border border-dashed border-input text-muted-foreground' };
@@ -32,9 +32,9 @@ export function CanYouPlay({ tiles, onPick, onAll, title = 'Can you play?' }) {
   return (
     <section aria-label={title} className="flex flex-col gap-2">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-label text-muted-foreground">{title}</span>
+        <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{title}</span>
         {onAll && (
-          <button type="button" onClick={onAll} className="flex min-h-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-sans text-small font-medium text-link hover:underline">
+          <button type="button" onClick={onAll} className="flex min-h-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link hover:underline">
             All dates<ChevronRightIcon size={16} />
           </button>
         )}
@@ -57,10 +57,10 @@ export function CanYouPlay({ tiles, onPick, onAll, title = 'Can you play?' }) {
               {asked && (
                 <span className="absolute -top-2 left-1/2 flex h-4 -translate-x-1/2 items-center rounded-full bg-warning-text px-1.5 text-[10px] font-bold text-background">Invited</span>
               )}
-              <span className="text-caption font-semibold uppercase tracking-[.04em] text-muted-foreground">{t.weekday}</span>
-              <span className="text-title font-semibold tabular-nums leading-[26px] tracking-[-0.5px]">{t.day}</span>
-              <span className="line-clamp-2 h-7 max-w-full text-center text-caption leading-[14px] text-muted-foreground">{t.names.join(' + ') || 'Nothing yet'}</span>
-              <span className={cn('mt-1.5 flex h-[22px] w-full items-center justify-center rounded-[6px] text-caption font-semibold', st.cls)}>{st.label}</span>
+              <span className="text-[11px] font-semibold uppercase text-muted-foreground">{t.weekday}</span>
+              <span className="text-[22px] font-semibold leading-[26px] tracking-[-0.5px]">{t.day}</span>
+              <span className="line-clamp-2 h-7 max-w-full text-center text-[11px] leading-[14px] text-muted-foreground">{t.names.join(' + ') || 'Nothing yet'}</span>
+              <span className={cn('mt-1.5 flex h-[22px] w-full items-center justify-center rounded-[6px] text-[11px] font-semibold', st.cls)}>{st.label}</span>
             </button>
           );
         })}
@@ -83,7 +83,7 @@ export function AnswerDay({ tile, onClose, onAnswer, clockFormat }) {
       {tile && (
         <div className="flex flex-col gap-3">
           {tile.setlists?.length > 0 && (
-            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-small text-muted-foreground">
+            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[14px] text-muted-foreground">
               {tile.setlists.map(sl => {
                 const ask = tile.asks.find(a => a.setlist.id === sl.id);
                 const part = ask ? [ask.schedule.role, ask.schedule.vocal_part].filter(Boolean).join(' · ') : '';
@@ -110,7 +110,7 @@ export function AnswerDay({ tile, onClose, onAnswer, clockFormat }) {
               </Button>
             ))}
           </div>
-          <p className="m-0 text-small text-muted-foreground">Your answer covers everything on that day.</p>
+          <p className="m-0 text-[13px] text-muted-foreground">Your answer covers everything on that day.</p>
         </div>
       )}
     </Sheet>

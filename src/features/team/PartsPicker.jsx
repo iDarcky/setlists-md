@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { SectionLabel } from '@/ui/shadcn/section-label';
 import { Toggle } from '@/ui/shadcn/toggle';
 import { Alert } from '@/ui/shadcn/alert';
 import { Button } from '@/ui/shadcn/button';
@@ -7,7 +6,7 @@ import { Sheet } from '@/ui/shadcn/sheet';
 import { INSTRUMENTS, VOCAL_PARTS } from '@/data/instruments';
 
 const Label = ({ children }) => (
-  <SectionLabel as="div" className="px-1 pb-2 pt-5 first:pt-0">{children}</SectionLabel>
+  <div className="px-1 pb-2 pt-5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground first:pt-0">{children}</div>
 );
 
 /**
@@ -82,7 +81,7 @@ export function PartsSheet({ open, onOpenChange, title, intro, tokens = [], onSa
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={title} className="h-auto sm:max-w-[480px]">
       <div className="flex flex-col gap-4">
-        {intro && <p className="m-0 text-small leading-5 text-muted-foreground">{intro}</p>}
+        {intro && <p className="m-0 text-[14px] leading-5 text-muted-foreground">{intro}</p>}
         <PartsPicker tokens={draft} onChange={setDraft} busy={busy} error={error} playLabel={playLabel} singLabel={singLabel} />
         <Button onClick={save} loading={busy} disabled={!allowEmpty && draft.length === 0}>Save</Button>
       </div>

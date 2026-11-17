@@ -7,11 +7,11 @@ const SHEET_CLASSES = {
   a: 'text-link underline-offset-4 hover:underline',
   // The sheet's own header already names the document.
   h1: 'sr-only',
-  h2: 'mt-4 mb-0 text-body font-semibold leading-[23px]',
-  h3: 'mt-3 mb-0 text-body font-semibold leading-[23px]',
+  h2: 'mt-4 mb-0 text-[15px] font-semibold leading-[23px]',
+  h3: 'mt-3 mb-0 text-[15px] font-semibold leading-[23px]',
   meta: 'm-0 text-caption text-muted-foreground',
-  ul: 'my-0 flex list-disc flex-col gap-1.5 pl-5 text-body leading-[23px]',
-  p: 'm-0 text-body leading-[23px]',
+  ul: 'my-0 flex list-disc flex-col gap-1.5 pl-5 text-[15px] leading-[23px]',
+  p: 'm-0 text-[15px] leading-[23px]',
 };
 
 /**

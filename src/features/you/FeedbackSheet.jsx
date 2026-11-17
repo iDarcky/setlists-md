@@ -59,18 +59,18 @@ export default function FeedbackSheet({ open, onOpenChange, userId = null, send 
     <Sheet open={open} onOpenChange={close} title="Send feedback" className="h-auto sm:max-w-[480px]">
       {sent ? (
         <div className="flex flex-col gap-4 py-2">
-          <p className="m-0 text-body leading-[24px]">Thank you. We read every one.</p>
+          <p className="m-0 text-[16px] leading-[24px]">Thank you. We read every one.</p>
           <Button onClick={() => close(false)}>Done</Button>
         </div>
       ) : (
         <form className="flex flex-col gap-3" onSubmit={submit}>
-          <span id={`${uid}-kind`} className="text-small font-medium">What is it about?</span>
+          <span id={`${uid}-kind`} className="text-[14px] font-medium">What is it about?</span>
           <div role="group" aria-labelledby={`${uid}-kind`} className="flex flex-wrap gap-2">
             {KINDS.map(k => (
               <Toggle key={k.id} pressed={kind === k.id} onPressedChange={() => setKind(k.id)}>{k.label}</Toggle>
             ))}
           </div>
-          <label htmlFor={`${uid}-text`} className="pt-1 text-small font-medium">Tell us</label>
+          <label htmlFor={`${uid}-text`} className="pt-1 text-[14px] font-medium">Tell us</label>
           <textarea
             id={`${uid}-text`}
             value={text}
@@ -80,7 +80,7 @@ export default function FeedbackSheet({ open, onOpenChange, userId = null, send 
             placeholder={kind === 'bug' ? 'What happened, and what did you expect?' : kind === 'feature' ? 'What would help you or your band?' : 'Anything you want us to know.'}
             className="min-h-[140px] w-full resize-y rounded-control border border-input bg-transparent px-3.5 py-3 font-sans text-body text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
           />
-          <p className="m-0 text-small leading-[18px] text-muted-foreground">We see who sent it and which phone or browser you use, so we can follow up. Nothing else.</p>
+          <p className="m-0 text-[13px] leading-[18px] text-muted-foreground">We see who sent it and which phone or browser you use, so we can follow up. Nothing else.</p>
           {error && <Alert variant="danger">{error}</Alert>}
           <Button type="submit" className="mt-1" disabled={!text.trim()} loading={busy}>Send</Button>
         </form>

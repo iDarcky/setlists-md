@@ -1,5 +1,4 @@
 import { Fragment, useMemo } from 'react';
-import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { cn } from '@/ui/shadcn/utils';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { buildSongFlow, repeatFirstIndex, repeatRuns } from '@/lib/songFlow';
@@ -23,10 +22,10 @@ import SectionBlock from '@/features/chart/SectionBlock';
 // markers) and which plays are repeats come from the same lib functions as the
 // Reader, so the two never disagree about what the song IS.
 
-const chipCls = 'inline-flex h-7 min-w-8 shrink-0 items-center justify-center rounded-[7px] px-1.5 text-caption font-semibold';
+const chipCls = 'inline-flex h-7 min-w-8 shrink-0 items-center justify-center rounded-[7px] px-1.5 text-[12px] font-semibold';
 // A section's band cue: quiet grey text at the right of its name, the way
 // MultiTracks prints it (QA 11 Nov: the gold pills shouted).
-const pillCls = 'ml-auto text-right text-small italic text-muted-foreground';
+const pillCls = 'ml-auto text-right text-[13px] italic text-muted-foreground';
 
 /**
  * @param {object} p
@@ -57,7 +56,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
   const runs = useMemo(() => repeatRuns(ordered, repeats), [ordered, repeats]);
 
   if (!ordered.length) {
-    return <EmptyNote>No chart yet.</EmptyNote>;
+    return <p className="m-0 px-3 py-6 text-[15px] text-muted-foreground">No chart yet.</p>;
   }
 
   const blocks = [];
@@ -68,7 +67,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
     const type = String(sec?.type || '');
     const tone = sectionTone(type, customSectionTypes);
     const chip = look !== 'chip' && <span className={chipCls} style={{ color: tone.fg, background: tone.bg }} {...(look === 'chipOnly' ? { 'aria-label': type, role: 'img' } : null)}>{tone.code}</span>;
-    const name = look !== 'chipOnly' && <b className={`text-body font-semibold${look === 'chip' ? '' : ' text-foreground'}`} style={look === 'chip' ? { color: tone.fg } : undefined}>{type}</b>;
+    const name = look !== 'chipOnly' && <b className={`text-[15px] font-semibold${look === 'chip' ? '' : ' text-foreground'}`} style={look === 'chip' ? { color: tone.fg } : undefined}>{type}</b>;
     // How many times in a row this is played. A first play followed straight
     // away by its own repeats carries the count ("Chorus ×2"); a repeat run
     // later in the song carries its own ("Chorus again ×2").
@@ -89,7 +88,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
           <div key={i} className="flex flex-wrap items-center gap-2 py-2">
             {chip}
             {name}
-            <span className="text-small text-muted-foreground">again{times > 1 ? ` ×${times}` : ''}</span>
+            <span className="text-[13px] text-muted-foreground">again{times > 1 ? ` ×${times}` : ''}</span>
             {cue && <span className={pillCls}>{cue}</span>}
           </div>
         ),
@@ -134,7 +133,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
           <div className="flex flex-wrap items-center gap-2 pb-1.5">
             {chip}
             {name}
-            {times > 1 && <span className="text-small font-semibold text-muted-foreground">×{times}</span>}
+            {times > 1 && <span className="text-[13px] font-semibold text-muted-foreground">×{times}</span>}
             {cue && <span className={pillCls}>{cue}</span>}
           </div>
           {body}

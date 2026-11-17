@@ -13,13 +13,13 @@ import { partName, ADDABLE_PARTS } from '@/lib/bandParts';
 
 const STATUS = {
   available: ['Yes', 'bg-selected text-link'],
-  maybe: ['Maybe', 'bg-warning-fill text-warning-text'],
-  unavailable: ['Can’t', 'bg-danger-fill text-danger-text'],
-  pending: ['Invited', 'bg-warning-fill text-warning-text'],
-  notsent: ['Not sent', 'bg-warning-fill text-warning-text'],
+  maybe: ['Maybe', 'bg-warning/15 text-warning-text'],
+  unavailable: ['Can’t', 'bg-danger/15 text-danger'],
+  pending: ['Invited', 'bg-warning/15 text-warning-text'],
+  notsent: ['Not sent', 'bg-warning/15 text-warning-text'],
 };
 
-const Caps = ({ children }) => <span className="pt-2 text-label text-muted-foreground">{children}</span>;
+const Caps = ({ children }) => <span className="pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</span>;
 
 /**
  * @param {Array} slots        from bandSlots()
@@ -34,32 +34,32 @@ export function BandPlanner({ slots, person, note, onSlot, onAddPart, pending = 
         return (
           <button key={s.key} type="button" onClick={() => onSlot(s)}
             className="flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised">
-            <span className={cn('w-[112px] shrink-0 truncate text-small font-semibold', s.status === 'empty' ? 'text-danger' : 'text-muted-foreground')}>{partName(s.part)}</span>
+            <span className={cn('w-[112px] shrink-0 truncate text-[13px] font-semibold', s.status === 'empty' ? 'text-danger' : 'text-muted-foreground')}>{partName(s.part)}</span>
             {p ? (
               <>
                 <Avatar name={p.name} url={p.url} size={28} />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-body font-medium">{p.name}</span>
-                  {s.warn && <span className="text-caption font-medium text-warning-text">⚠ {s.warn}</span>}
+                  <span className="truncate text-[15px] font-medium">{p.name}</span>
+                  {s.warn && <span className="text-[12px] font-medium text-warning-text">⚠ {s.warn}</span>}
                 </span>
-                {st && <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold', st[1])}>{st[0]}</span>}
+                {st && <span className={cn('flex h-6 shrink-0 items-center rounded-full px-2.5 text-[12px] font-semibold', st[1])}>{st[0]}</span>}
               </>
             ) : (
-              <span className="flex flex-1 items-center gap-2 text-body font-semibold text-link"><PersonAddIcon />Pick someone</span>
+              <span className="flex flex-1 items-center gap-2 text-[15px] font-semibold text-link"><PersonAddIcon />Pick someone</span>
             )}
           </button>
         );
       })}
-      {!slots.length && <p className="m-0 py-3 text-small text-muted-foreground">Nobody is on this one yet. Add the parts you need.</p>}
+      {!slots.length && <p className="m-0 py-3 text-[14px] text-muted-foreground">Nobody is on this one yet. Add the parts you need.</p>}
       <button type="button" onClick={onAddPart}
-        className="flex min-h-12 cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-small font-medium text-link outline-none">
+        className="flex min-h-12 cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-[14px] font-medium text-link outline-none">
         <PlusIcon size={16} />Add to band
       </button>
-      {note && <p className="m-0 pt-1 text-caption text-muted-foreground">{note}</p>}
+      {note && <p className="m-0 pt-1 text-[12px] text-muted-foreground">{note}</p>}
       {pending > 0 && (
         <div className="flex flex-col gap-1.5 pt-3">
           <Button className="h-11 w-full" disabled={sending} onClick={onSend}>{sending ? 'Sending…' : sendLabel}</Button>
-          <span className="text-center text-caption text-muted-foreground">{error || 'Nobody is notified until you send.'}</span>
+          <span className="text-center text-[12px] text-muted-foreground">{error || 'Nobody is notified until you send.'}</span>
         </div>
       )}
     </div>
@@ -72,9 +72,9 @@ function Person({ p, on, onPick, dim }) {
       className={cn('flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-solid border-border bg-transparent py-2 text-left font-sans text-foreground outline-none first:border-t-0', dim && 'opacity-60')}>
       <Avatar name={p.name} url={p.url} size={32} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-body font-medium">{p.name}</span>
-        <span className="truncate text-small text-muted-foreground">{p.note}</span>
-        {p.warn && <span className="text-caption font-medium text-warning-text">⚠ {p.warn}</span>}
+        <span className="truncate text-[15px] font-medium">{p.name}</span>
+        <span className="truncate text-[13px] text-muted-foreground">{p.note}</span>
+        {p.warn && <span className="text-[12px] font-medium text-warning-text">⚠ {p.warn}</span>}
       </span>
       <span className={cn('flex size-5 shrink-0 items-center justify-center rounded-full border-2', on ? 'border-link' : 'border-input')}>
         {on && <span className="size-2.5 rounded-full bg-link" />}
@@ -94,7 +94,7 @@ export function PartSheet({ open, onOpenChange, title, groups, current, currentN
       <div className="flex flex-col">
         {current && (
           <div className="mb-2 flex items-center justify-between gap-3 rounded-card bg-raised px-4 py-3">
-            <span className="text-small"><b className="font-semibold">{currentName}</b> is on this part</span>
+            <span className="text-[14px]"><b className="font-semibold">{currentName}</b> is on this part</span>
             <Button variant="outline" size="sm" className="text-danger" onClick={onRemove}>Take off</Button>
           </div>
         )}
@@ -104,7 +104,7 @@ export function PartSheet({ open, onOpenChange, title, groups, current, currentN
             {xs.map(p => <Person key={p.userId} p={p} on={pick === p.userId} onPick={setPick} dim={label === 'Can’t'} />)}
           </div>
         ))}
-        {!all.length && <p className="m-0 py-4 text-small text-muted-foreground">Nobody else in the church plays this. Add it to someone’s instruments in Church settings → People.</p>}
+        {!all.length && <p className="m-0 py-4 text-[14px] text-muted-foreground">Nobody else in the church plays this. Add it to someone’s instruments in Church settings → People.</p>}
         <Button className="mt-4 h-11 w-full" disabled={!chosen} onClick={() => onChoose(chosen.userId)}>
           {chosen ? `${current ? 'Swap to' : 'Add'} ${chosen.name.split(' ')[0]}` : 'Pick someone'}
         </Button>
@@ -119,7 +119,7 @@ export function AddPartSheet({ open, onOpenChange, onAdd }) {
       <div className="flex flex-col">
         {ADDABLE_PARTS.map(p => (
           <button key={p} type="button" onClick={() => onAdd(p)}
-            className="flex min-h-12 w-full cursor-pointer items-center border-0 border-t border-solid border-border bg-transparent text-left font-sans text-body font-medium text-foreground outline-none first:border-t-0">
+            className="flex min-h-12 w-full cursor-pointer items-center border-0 border-t border-solid border-border bg-transparent text-left font-sans text-[15px] font-medium text-foreground outline-none first:border-t-0">
             {partName(p)}
           </button>
         ))}

@@ -1,10 +1,4 @@
 import { useId, useState } from 'react';
-import { LabelInput } from '@/ui/blocks/LabelInput';
-import { PageHeader } from '@/ui/shadcn/page-header';
-import { EmptyNote } from '@/ui/shadcn/empty-state';
-import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
-import { SectionLabel } from '@/ui/shadcn/section-label';
-import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -15,7 +9,7 @@ import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Avatar } from '@/app/AppTopBar';
 import { PartsPicker } from '@/features/team/PartsPicker';
 import {
-  BackIcon, UserIcon, BellIcon, CalendarIcon, ClockIcon, CloseIcon, PlusIcon,
+  BackIcon, ChevronRightIcon, UserIcon, BellIcon, CalendarIcon, ClockIcon, CloseIcon, PlusIcon,
 } from '@/app/navIcons';
 
 // Settings (owner, 2026-10-25; reworked 2026-11-14): this device, the
@@ -27,31 +21,25 @@ import {
 // ── Pieces ──────────────────────────────────────────────────────────────────
 
 export const Group = ({ children, className }) => (
-  <div className={cn('overflow-hidden rounded-card material-base', className)}>{children}</div>
+  <div className={cn('overflow-hidden rounded-card border border-border bg-card', className)}>{children}</div>
 );
 export const GroupLabel = ({ children }) => (
-  <SectionLabel as="div" className="px-1 pb-2 pt-6 first:pt-2">{children}</SectionLabel>
+  <div className="px-1 pb-2 pt-6 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground first:pt-2">{children}</div>
 );
-const Note = ({ children }) => <p className="m-0 px-1 pt-2 text-small leading-[18px] text-muted-foreground">{children}</p>;
+const Note = ({ children }) => <p className="m-0 px-1 pt-2 text-[13px] leading-[18px] text-muted-foreground">{children}</p>;
 
-const rowBase = cn(listRowShell('compact'), 'py-2.5');
+const rowBase = 'flex min-h-[56px] w-full items-center gap-3.5 border-0 border-t border-border bg-transparent px-4 py-2.5 text-left font-sans text-foreground first:border-t-0';
 
 /** A row that opens a page. */
 export function NavRow({ icon, label, detail, badge, onClick, danger = false }) {
   return (
-    <ListRow
-      onClick={onClick}
-      danger={danger}
-      size="compact"
-      weight="regular"
-      leading={icon || null}
-      title={label}
-      trailing={(detail || badge) ? <>
-        {detail && <span className="max-w-[45vw] truncate text-small text-muted-foreground">{detail}</span>}
-        {badge && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{badge}</span>}
-      </> : null}
-      chevron={!danger}
-    />
+    <button type="button" onClick={onClick} className={cn(rowBase, 'cursor-pointer outline-none hover:bg-raised focus-visible:bg-raised', danger && 'text-danger-text')}>
+      {icon && <span className={danger ? 'text-danger-text' : 'text-muted-foreground'}>{icon}</span>}
+      <span className="min-w-0 flex-1 truncate text-[16px] sm:text-[15px]">{label}</span>
+      {detail && <span className="max-w-[45%] truncate text-[14px] text-muted-foreground">{detail}</span>}
+      {badge && <span className="rounded-full bg-selected px-2 py-0.5 text-[12px] font-semibold text-link">{badge}</span>}
+      {!danger && <span className="text-input"><ChevronRightIcon /></span>}
+    </button>
   );
 }
 
@@ -60,8 +48,8 @@ export function Row({ label, sub, children, stack = false }) {
   return (
     <div className={cn(rowBase, stack && 'flex-col items-stretch gap-2.5 py-3.5')}>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-body">{label}</span>
-        {sub && <span className="text-small text-muted-foreground">{sub}</span>}
+        <span className="text-[16px] sm:text-[15px]">{label}</span>
+        {sub && <span className="text-[13px] leading-[18px] text-muted-foreground">{sub}</span>}
       </span>
       {children}
     </div>
@@ -70,7 +58,25 @@ export function Row({ label, sub, children, stack = false }) {
 
 /** Two or three choices in one pill. */
 export function Segmented({ value, options, onChange, label }) {
-  return <Seg2 label={label} value={value} options={options} onChange={onChange} />;
+  return (
+    <div role="radiogroup" aria-label={label} className="flex shrink-0 gap-0.5 rounded-control bg-raised p-0.5">
+      {options.map(o => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={value === o.id}
+          onClick={() => onChange?.(o.id)}
+          className={cn(
+            'h-[34px] min-h-0 cursor-pointer rounded-[7px] border-0 px-3 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            value === o.id ? 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.15)]' : 'bg-transparent text-muted-foreground',
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 /** On/off switch: the shared one. */
@@ -83,10 +89,10 @@ export function SettingsShell({ title, onBack, backLabel = 'Back', children, emb
   return (
     <div data-slot="settings-page" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       <div className="mx-auto flex w-full max-w-[600px] flex-col px-4 pb-12 sm:px-6 sm:pt-6">
-        {/* Back is a small ← on the title row, everywhere (QA 2026-11-11);
-            the shared page header since 2026-11-15. */}
-        <div className="pb-2 pt-2" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
-          <PageHeader title={title} onBack={onBack} backLabel={backLabel} />
+        {/* Back is a small ← on the title row, everywhere (QA 2026-11-11). */}
+        <div className="flex min-h-14 items-center gap-1 pb-2 pt-3" style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}>
+          {onBack && <button type="button" onClick={onBack} aria-label={backLabel} title={backLabel} className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>}
+          <h1 className="m-0 min-w-0 text-[26px] font-semibold tracking-[-0.5px]">{title}</h1>
         </div>
         {children}
       </div>
@@ -170,14 +176,14 @@ export function ProfileView({
     <SettingsShell title="Profile" onBack={onBack} embedded={embedded}>
       <div className="flex flex-col items-center gap-2 pb-2 pt-3">
         {photo || <Avatar name={me?.name} url={me?.url} size={88} />}
-        {me?.email && <span className="text-small text-muted-foreground">{me.email}</span>}
+        {me?.email && <span className="text-[14px] text-muted-foreground">{me.email}</span>}
       </div>
 
-      <form className="flex items-end gap-2 pt-3" onSubmit={(e) => { e.preventDefault(); if (dirty) onSaveName?.(); }}>
-        <div className="min-w-0 flex-1">
-          <LabelInput fill label="Your name" id={`${uid}-name`} autoComplete="name" maxLength={80} value={nameDraft} onChange={e => onNameDraft?.(e.target.value)} />
-        </div>
-        {(dirty || nameBusy) && <Button type="submit" className="h-[52px] sm:h-[52px]" loading={nameBusy} disabled={!nameDraft?.trim()}>Save</Button>}
+      <GroupLabel>Your name</GroupLabel>
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (dirty) onSaveName?.(); }}>
+        <label htmlFor={`${uid}-name`} className="sr-only">Your name</label>
+        <Input id={`${uid}-name`} autoComplete="name" maxLength={80} value={nameDraft} onChange={e => onNameDraft?.(e.target.value)} className="flex-1" />
+        {(dirty || nameBusy) && <Button type="submit" loading={nameBusy} disabled={!nameDraft?.trim()}>Save</Button>}
       </form>
       {nameSaved && !dirty && <Note>Saved.</Note>}
 
@@ -214,8 +220,10 @@ export function PasswordSheet({ open, onOpenChange, onSave, busy = false, error 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) { setA(''); setB(''); } onOpenChange?.(o); }} title="Change password" className="h-auto sm:max-w-[440px]">
       <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); if (ok) onSave?.(a); }}>
-        <LabelInput fill label="New password" type="password" id={`${uid}-a`} autoComplete="new-password" value={a} onChange={e => setA(e.target.value)} />
-        <LabelInput fill label="Type it again" type="password" id={`${uid}-b`} autoComplete="new-password" value={b} onChange={e => setB(e.target.value)} />
+        <label htmlFor={`${uid}-a`} className="text-[14px] font-medium">New password</label>
+        <Input id={`${uid}-a`} type="password" autoComplete="new-password" value={a} onChange={e => setA(e.target.value)} />
+        <label htmlFor={`${uid}-b`} className="text-[14px] font-medium">Type it again</label>
+        <Input id={`${uid}-b`} type="password" autoComplete="new-password" value={b} onChange={e => setB(e.target.value)} />
         {(short || mismatch || error) && (
           <Alert variant="danger">{error || (short ? 'At least 8 characters.' : 'The two don’t match.')}</Alert>
         )}
@@ -232,10 +240,11 @@ export function DeleteAccountSheet({ open, onOpenChange, onDelete, busy = false,
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) setWord(''); onOpenChange?.(o); }} title="Delete your account?" className="h-auto sm:max-w-[440px]">
       <div className="flex flex-col gap-3">
-        <p className="m-0 text-body leading-[22px] text-muted-foreground">
+        <p className="m-0 text-[15px] leading-[22px] text-muted-foreground">
           This can’t be undone. Your login, profile, private notes and anything only you can see are removed. Songs and setlists in your church stay with the church.
         </p>
-        <LabelInput fill label="Type DELETE to confirm" id={`${uid}-w`} autoComplete="off" autoCapitalize="characters" value={word} onChange={e => setWord(e.target.value)} />
+        <label htmlFor={`${uid}-w`} className="text-[14px] font-medium">Type DELETE to confirm</label>
+        <Input id={`${uid}-w`} autoComplete="off" autoCapitalize="characters" value={word} onChange={e => setWord(e.target.value)} />
         {error && <Alert variant="danger">{error}</Alert>}
         <Button variant="destructive" className="mt-1" disabled={word.trim() !== 'DELETE'} loading={busy} onClick={onDelete}>Delete my account</Button>
       </div>
@@ -301,12 +310,12 @@ export function NotificationsSettingsView({ push = {}, onPush, reminderOptions =
                 const next = new Set([...open.value, o.value]);
                 open.onChange?.(reminderOptions.map(x => x.value).filter(v => next.has(v)));
                 setAdding(null);
-              }} className={cn(rowBase, 'min-h-12 cursor-pointer text-body outline-none hover:bg-raised focus-visible:bg-raised sm:text-body')}>
+              }} className={cn(rowBase, 'min-h-12 cursor-pointer text-[16px] outline-none hover:bg-raised focus-visible:bg-raised sm:text-[15px]')}>
                 {o.long}
               </button>
             ))}
           </Group>
-        ) : <p className="m-0 text-body text-muted-foreground">You already have every time.</p>)}
+        ) : <p className="m-0 text-[15px] text-muted-foreground">You already have every time.</p>)}
       </Sheet>
     </SettingsShell>
   );
@@ -321,14 +330,14 @@ function ReminderList({ title, value = [], options, onRemove, onAdd }) {
       <Group>
         {picked.map(o => (
           <div key={o.value} className={cn(rowBase, 'min-h-12 py-1 pr-1.5')}>
-            <span className="flex-1 text-body sm:text-body">{o.long}</span>
+            <span className="flex-1 text-[16px] sm:text-[15px]">{o.long}</span>
             <Button size="icon" variant="ghost" className="text-muted-foreground" aria-label={`Remove ${o.long}`} onClick={() => onRemove?.(o.value)}><CloseIcon size={18} /></Button>
           </div>
         ))}
         {picked.length < options.length && (
           <button type="button" onClick={onAdd} className={cn(rowBase, 'min-h-12 cursor-pointer text-link outline-none hover:bg-raised focus-visible:bg-raised')}>
             <PlusIcon size={18} />
-            <span className="text-body sm:text-body">Add reminder</span>
+            <span className="text-[16px] sm:text-[15px]">Add reminder</span>
           </button>
         )}
       </Group>
@@ -347,14 +356,14 @@ export function PlanView({ church, plan, billingLive = false, onSubscribe, onMan
   return (
     <SettingsShell title="Subscription" onBack={onBack} embedded={embedded}>
       <Group className="mt-2 p-5">
-        <div className="text-label text-muted-foreground">{church?.name}</div>
+        <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{church?.name}</div>
         <div className="flex items-center justify-between gap-3 pt-1">
           <b className="text-[22px] font-semibold tracking-[-0.4px]">{plan?.label}</b>
-          <span className={cn('rounded-full px-2.5 py-1 text-caption font-semibold', plan?.tone === 'bad' ? 'bg-danger-fill text-danger-text' : 'bg-selected text-link')}>{plan?.status}</span>
+          <span className={cn('rounded-full px-2.5 py-1 text-[12px] font-semibold', plan?.tone === 'bad' ? 'bg-danger-fill text-danger-text' : 'bg-selected text-link')}>{plan?.status}</span>
         </div>
         {plan?.maxSeats ? (
           <>
-            <p className="m-0 pt-1 text-small text-muted-foreground">{plan.usedSeats} of {plan.maxSeats} seats used</p>
+            <p className="m-0 pt-1 text-[14px] text-muted-foreground">{plan.usedSeats} of {plan.maxSeats} seats used</p>
             <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-raised" role="progressbar" aria-valuemin={0} aria-valuemax={plan.maxSeats} aria-valuenow={plan.usedSeats} aria-label="Seats used">
               <div className={cn('h-full rounded-full', pct >= 100 ? 'bg-danger' : 'bg-link')} style={{ width: `${pct}%` }} />
             </div>
@@ -375,12 +384,12 @@ export function PlanView({ church, plan, billingLive = false, onSubscribe, onMan
 export function DataView({ songCount = 0, setlistCount = 0, deletedCount = 0, onBackup, onDeleted, onBack, embedded }) {
   return (
     <SettingsShell title="Data" onBack={onBack} backLabel="Settings" embedded={embedded}>
-      <p className="m-0 pb-3 text-body text-muted-foreground">{songCount} songs · {setlistCount} setlists</p>
+      <p className="m-0 pb-3 text-[15px] text-muted-foreground">{songCount} songs · {setlistCount} setlists</p>
       <Group className="flex flex-col gap-3 p-4">
         <div className="flex items-start gap-3.5">
           <span className="pt-0.5 text-muted-foreground"><DownloadIcon /></span>
           <span className="flex flex-col gap-0.5">
-            <span className="text-body sm:text-body">Download a backup</span>
+            <span className="text-[16px] sm:text-[15px]">Download a backup</span>
           </span>
         </div>
         <Button variant="outline" onClick={onBackup}>Download backup</Button>
@@ -397,22 +406,22 @@ export function DeletedSongsView({ trash = [], onRestore, onPurge, onEmptyTrash,
   return (
     <SettingsShell title="Deleted songs" onBack={onBack} backLabel="Data" embedded={embedded}>
       {trash.length === 0 ? (
-        <Group className="mt-2"><EmptyNote>Nothing here.</EmptyNote></Group>
+        <Group className="mt-2 p-5 text-center text-[15px] text-muted-foreground">Nothing here.</Group>
       ) : (
         <>
           <Group>
             {trash.map(t => (
               <div key={t.id} className={rowBase}>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="truncate text-body font-medium sm:text-body">{t.title || 'Untitled'}</span>
-                  <span className="truncate text-small text-muted-foreground">{[t.artist, t.daysLeft === 1 ? '1 day left' : `${t.daysLeft} days left`].filter(Boolean).join(' · ')}</span>
+                  <span className="truncate text-[16px] font-medium sm:text-[15px]">{t.title || 'Untitled'}</span>
+                  <span className="truncate text-[13px] text-muted-foreground">{[t.artist, t.daysLeft === 1 ? '1 day left' : `${t.daysLeft} days left`].filter(Boolean).join(' · ')}</span>
                 </span>
                 <Button size="sm" variant="outline" onClick={() => onRestore?.(t.id)}>Restore</Button>
                 <Button size="icon" variant="ghost" className="text-danger-text" onClick={() => onPurge?.(t.id)} aria-label={`Delete ${t.title} for good`}><TrashIcon /></Button>
               </div>
             ))}
           </Group>
-          <Button variant="link" className="mt-3 self-start text-body text-danger-text" onClick={onEmptyTrash}>Delete all for good</Button>
+          <Button variant="link" className="mt-3 self-start text-[15px] text-danger-text" onClick={onEmptyTrash}>Delete all for good</Button>
         </>
       )}
     </SettingsShell>
@@ -426,7 +435,7 @@ export function LabsView({ flags = [], onFlag, onHide, onBack, embedded }) {
   return (
     <SettingsShell title="Labs" onBack={onBack} backLabel="Settings" embedded={embedded}>
       {flags.length === 0 ? (
-        <Group><EmptyNote>Nothing to try right now.</EmptyNote></Group>
+        <Group className="p-5 text-center text-[15px] text-muted-foreground">Nothing to try right now.</Group>
       ) : (
         <Group>
           {flags.map(f => (
@@ -434,7 +443,7 @@ export function LabsView({ flags = [], onFlag, onHide, onBack, embedded }) {
           ))}
         </Group>
       )}
-      {onHide && <Button variant="link" className="mt-3 self-start text-body" onClick={onHide}>Hide Labs again</Button>}
+      {onHide && <Button variant="link" className="mt-3 self-start text-[15px]" onClick={onHide}>Hide Labs again</Button>}
     </SettingsShell>
   );
 }

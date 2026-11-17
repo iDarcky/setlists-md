@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@/ui/shadcn/button';
+import { Button } from '@/ui/Button';
 import { rankedTempos } from '@/tempoHistory';
 
 // Song metadata for the hub's Details tab. Read-only by default; when `onSave`
@@ -228,8 +228,8 @@ export default function SongDetails({ song, onSave }) {
           style={{ background: 'var(--header-bg-blur)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
         >
           <div className="px-5 py-3 flex items-center justify-end gap-3">
-            <Button variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
-            <Button onClick={save}>Save</Button>
+            <Button variant="ghost" size="md" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button variant="brand" size="md" onClick={save}>Save</Button>
           </div>
         </div>
       )}

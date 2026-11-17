@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
-import { menuContent, MenuItem, MenuSeparator } from '@/ui/shadcn/menu';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Input } from '@/ui/shadcn/input';
@@ -8,7 +6,7 @@ import { Sheet } from '@/ui/shadcn/sheet';
 import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { youtubeId } from '@/lib/coverArt';
-import { ChevronDownIcon, PlusIcon, BackIcon } from '@/app/navIcons';
+import { ChevronDownIcon, CheckIcon, PlusIcon, BackIcon } from '@/app/navIcons';
 import { Cover, Fact, MetaLine, Played, SongMap } from './SongParts';
 
 // The song page, built from zero (canvas → "Song, edit and chart"). Pure view:
@@ -29,16 +27,24 @@ export const LayersIcon = ({ size = 16 }) => <Svg size={size}><path d="m12 3 9 5
 const PlayFill = ({ size = 22 }) => <Svg size={size} fill="currentColor"><path d="M8 5v14l11-7z" /></Svg>;
 const XIcon = ({ size = 18 }) => <Svg size={size}><path d="M6 6l12 12M18 6 6 18" /></Svg>;
 
-const chip = 'inline-flex h-9 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-control border-0 px-2.5 font-sans text-small font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const chip = 'inline-flex h-9 min-h-0 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-control border-0 px-2.5 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring';
 // Group names in sentence case (QA 11 Nov: the capitals read as generated).
-const group = 'm-0 px-1 pt-4 text-small font-medium text-muted-foreground';
+const group = 'm-0 px-1 pt-4 text-[13px] font-medium text-muted-foreground';
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 
 /** Chords / Lyrics: what the chart below the details shows. */
 const SHOW = [['chords', 'Chords'], ['lyrics', 'Lyrics']];
 export function ShowSwitch({ value, onChange }) {
   return (
-    <Seg2 label="Show" size="sm" value={value} onChange={onChange} options={SHOW.map(([id, name]) => ({ value: id, label: name }))} />
+    <div role="radiogroup" aria-label="Show" className="flex gap-1 rounded-control bg-raised p-1">
+      {SHOW.map(([id, name]) => (
+        <button key={id} type="button" role="radio" aria-checked={value === id} onClick={() => onChange?.(id)}
+          className={cn('flex h-8 min-h-0 cursor-pointer items-center justify-center rounded-[7px] border-0 px-3.5 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            value === id ? 'bg-background text-foreground shadow-[0_1px_2px_rgba(0,0,0,.25)]' : 'bg-transparent text-muted-foreground hover:text-foreground')}>
+          {name}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -49,15 +55,15 @@ export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryon
       <PopoverTrigger asChild>
         {variant === 'inline' ? (
           // In the one-line numbers: "Key G", the key gold and dotted, a tap changes it.
-          <button type="button" aria-label={`Key ${shown}, change`} className="inline-flex h-8 min-h-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-[6px] border-0 bg-transparent px-1 -mx-1 font-sans text-small outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+          <button type="button" aria-label={`Key ${shown}, change`} className="inline-flex h-8 min-h-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-[6px] border-0 bg-transparent px-1 -mx-1 font-sans text-[14px] outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
             <b className="font-semibold text-foreground">Key</b>
             <span className="border-b border-dotted border-warning-text font-mono font-semibold text-warning-text">{shown}</span>
-            {semis !== 0 && <span className="text-caption text-muted-foreground">(was {original})</span>}
+            {semis !== 0 && <span className="text-[12px] text-muted-foreground">(was {original})</span>}
           </button>
         ) : (
           <button type="button" aria-label={`Key ${shown}, change`} className={cn(chip, 'bg-warning-fill text-warning-text', semis !== 0 && 'ring-1 ring-warning-text')}>
-            <span className="text-caption font-medium opacity-80">Key</span>
-            <span className="font-mono text-body font-semibold">{shown}</span>
+            <span className="text-[12px] font-medium opacity-80">Key</span>
+            <span className="font-mono text-[15px] font-semibold">{shown}</span>
             <ChevronDownIcon size={14} />
           </button>
         )}
@@ -66,16 +72,16 @@ export function KeyChip({ shown, original, semis = 0, onStep, onReset, onEveryon
         <div className="flex items-center justify-between rounded-control bg-raised p-1">
           <button type="button" aria-label="Down a semitone" onClick={() => onStep?.(-1)} className={cn(iconBtn, 'text-[22px]')}>−</button>
           <span className="flex items-baseline gap-1.5">
-            <b className="font-mono text-title font-semibold text-warning-text">{shown}</b>
-            {semis !== 0 && <span className="text-small text-muted-foreground">was {original}</span>}
+            <b className="font-mono text-[24px] font-semibold text-warning-text">{shown}</b>
+            {semis !== 0 && <span className="text-[13px] text-muted-foreground">was {original}</span>}
           </span>
           <button type="button" aria-label="Up a semitone" onClick={() => onStep?.(1)} className={cn(iconBtn, 'text-[22px]')}>+</button>
         </div>
         {semis === 0 ? (
-          <p className="m-0 px-1 text-small leading-[18px] text-muted-foreground">Changes the key on this phone only, until you close the song.</p>
+          <p className="m-0 px-1 text-[13px] leading-[18px] text-muted-foreground">Changes the key on this phone only, until you close the song.</p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            <p className="m-0 px-1 text-small leading-[18px] text-muted-foreground">Only you see {shown}. {onEveryone ? 'Everyone else still sees ' + original + '.' : ''}</p>
+            <p className="m-0 px-1 text-[13px] leading-[18px] text-muted-foreground">Only you see {shown}. {onEveryone ? 'Everyone else still sees ' + original + '.' : ''}</p>
             {onEveryone && <Button size="sm" onClick={onEveryone}>Make {shown} the key for everyone</Button>}
             <Button size="sm" variant="ghost" onClick={onReset}>Back to {original}</Button>
           </div>
@@ -97,7 +103,7 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew, onR
         {variant === 'pill' ? (
           // The outlined pill MultiTracks uses for "Original master".
           <button type="button" aria-label={`Arrangement ${cur.name}, change`}
-            className="inline-flex h-7 min-h-0 max-w-[180px] cursor-pointer items-center gap-1 rounded-full border-[1.5px] border-foreground bg-transparent px-2.5 font-sans text-caption font-semibold uppercase tracking-[0.04em] text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+            className="inline-flex h-7 min-h-0 max-w-[180px] cursor-pointer items-center gap-1 rounded-full border-[1.5px] border-foreground bg-transparent px-2.5 font-sans text-[11px] font-semibold uppercase tracking-[0.04em] text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
             <span className="truncate">{cur.name}</span>
             <ChevronDownIcon size={12} />
           </button>
@@ -109,10 +115,10 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew, onR
           </button>
         )}
       </PopoverTrigger>
-      <PopoverContent className={cn(menuContent, 'w-[260px]')}>
+      <PopoverContent className="flex w-[260px] flex-col p-1.5">
         {naming != null ? (
           <form className="flex flex-col gap-2 p-1.5" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); setOpen(false); }}>
-            <label className="flex flex-col gap-1.5 text-small font-medium text-muted-foreground">Arrangement name
+            <label className="flex flex-col gap-1.5 text-[13px] font-medium text-muted-foreground">Arrangement name
               <Input autoFocus value={naming} onChange={(e) => setNaming(e.target.value)} maxLength={40} className="h-10" />
             </label>
             <div className="flex justify-end gap-2">
@@ -122,21 +128,30 @@ export function ArrangementChip({ arrangements = [], current, onPick, onNew, onR
           </form>
         ) : (<>
         {arrangements.map(a => (
-          <MenuItem key={a.id} onClick={() => { onPick?.(a.id); setOpen(false); }}
-            selected={a.id === cur.id}
-            sub={[a.tempo && `${a.tempo} BPM`, a.capo ? `capo ${a.capo}` : null, a.isDefault && 'default'].filter(Boolean).join(' · ')}
-            trailing={a.key ? <span className="font-mono text-small font-semibold text-[var(--chord)]">{a.key}</span> : null}>
-            {a.name}
-          </MenuItem>
+          <button key={a.id} type="button" onClick={() => { onPick?.(a.id); setOpen(false); }}
+            className={cn('flex h-12 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:bg-raised', a.id === cur.id && 'bg-selected hover:bg-selected')}>
+            <span className="w-4 shrink-0 text-link">{a.id === cur.id && <CheckIcon size={16} />}</span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-[15px] font-medium">{a.name}</span>
+              <span className="truncate text-[12px] text-muted-foreground">{[a.tempo && `${a.tempo} BPM`, a.capo ? `capo ${a.capo}` : null, a.isDefault && 'default'].filter(Boolean).join(' · ')}</span>
+            </span>
+            <span className="font-mono text-[14px] font-semibold text-warning-text">{a.key}</span>
+          </button>
         ))}
         {onNew && (
           <>
-            <MenuSeparator />
-            <MenuItem icon={<PlusIcon size={18} />} onClick={() => { onNew(); setOpen(false); }}>New arrangement</MenuItem>
+            <div className="mx-1 my-1 h-px bg-border" />
+            <button type="button" onClick={() => { onNew(); setOpen(false); }}
+              className="flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] font-medium text-link outline-none hover:bg-raised focus-visible:bg-raised">
+              <span className="w-4"><PlusIcon size={16} /></span>New arrangement
+            </button>
           </>
         )}
         {onRename && (
-          <MenuItem icon={<EditIcon size={18} />} onClick={() => setNaming(cur.name || '')}>Rename “{cur.name}”</MenuItem>
+          <button type="button" onClick={() => setNaming(cur.name || '')}
+            className="flex h-11 min-h-0 w-full cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[15px] font-medium text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
+            <span className="w-4" />Rename “{cur.name}”
+          </button>
         )}
         </>)}
       </PopoverContent>
@@ -151,20 +166,20 @@ function Listen({ url, title, open, onOpen, onClose, compact }) {
   if (!open) {
     return (
       <button type="button" onClick={onOpen}
-        className="flex min-h-0 w-full cursor-pointer items-center gap-3 rounded-card material-base p-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+        className="flex min-h-0 w-full cursor-pointer items-center gap-3 rounded-card border border-border bg-card p-2.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
         <span className={cn('relative flex shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-raised bg-cover bg-center text-white', compact ? 'h-12 w-20' : 'h-14 w-24')}
           style={{ backgroundImage: `url(https://i.ytimg.com/vi/${id}/mqdefault.jpg)` }}>
           <span className="absolute inset-0 bg-black/30" /><span className="relative"><PlayFill /></span>
         </span>
         <span className="flex min-w-0 flex-col">
-          <span className="text-body font-semibold">Listen</span>
-          <span className="truncate text-small text-muted-foreground">YouTube · plays here</span>
+          <span className="text-[15px] font-semibold">Listen</span>
+          <span className="truncate text-[13px] text-muted-foreground">YouTube · plays here</span>
         </span>
       </button>
     );
   }
   return (
-    <div className="overflow-hidden rounded-card material-base">
+    <div className="overflow-hidden rounded-card border border-border bg-card">
       <div className="relative aspect-video min-h-[200px] w-full bg-black">
         <iframe
           title={`${title} on YouTube`}
@@ -175,7 +190,7 @@ function Listen({ url, title, open, onOpen, onClose, compact }) {
         />
       </div>
       <div className="flex items-center gap-2 py-1.5 pl-3 pr-1">
-        <span className="min-w-0 flex-1 truncate text-small font-semibold">{title}</span>
+        <span className="min-w-0 flex-1 truncate text-[14px] font-semibold">{title}</span>
         <button type="button" aria-label="Close the player" onClick={onClose} className={iconBtn}><XIcon /></button>
       </div>
     </div>
@@ -187,11 +202,11 @@ function About({ rows }) {
   return (
     <>
       <h2 className={group}>Credits</h2>
-      <div className="overflow-hidden rounded-card material-base">
+      <div className="overflow-hidden rounded-card border border-border bg-card">
         {rows.map(([k, v]) => (
           <div key={k} className="flex min-h-12 items-center gap-3 border-t border-border px-4 py-2.5 first:border-t-0">
-            <span className="w-[92px] shrink-0 text-small text-muted-foreground">{k}</span>
-            <span className="min-w-0 flex-1 text-body">{v}</span>
+            <span className="w-[92px] shrink-0 text-[14px] text-muted-foreground">{k}</span>
+            <span className="min-w-0 flex-1 text-[15px]">{v}</span>
           </div>
         ))}
       </div>
@@ -210,7 +225,7 @@ function aboutRows(song) {
     !song.album && song.year && ['Year', song.year],
     song.scripture && ['Bible', song.scripture],
     themes.length > 0 && ['Themes', (
-      <span className="flex flex-wrap gap-1.5">{themes.map(t => <span key={t} className="rounded-full bg-raised px-2.5 py-0.5 text-small">{t}</span>)}</span>
+      <span className="flex flex-wrap gap-1.5">{themes.map(t => <span key={t} className="rounded-full bg-raised px-2.5 py-0.5 text-[13px]">{t}</span>)}</span>
     )],
   ].filter(Boolean);
 }
@@ -222,9 +237,9 @@ export function MenuSheet({ open, onOpenChange, title, items = [] }) {
       <div className="flex flex-col overflow-hidden rounded-card border border-border">
         {items.map(it => (
           <button key={it.label} type="button" onClick={() => { onOpenChange?.(false); it.onClick?.(); }}
-            className={cn('flex min-h-[52px] w-full cursor-pointer flex-col justify-center border-0 border-t border-border bg-transparent px-4 py-2 text-left font-sans text-body font-medium text-foreground outline-none first:border-t-0 hover:bg-raised focus-visible:bg-raised', it.danger && 'text-danger-text')}>
+            className={cn('flex min-h-[52px] w-full cursor-pointer flex-col justify-center border-0 border-t border-border bg-transparent px-4 py-2 text-left font-sans text-[15px] font-medium text-foreground outline-none first:border-t-0 hover:bg-raised focus-visible:bg-raised', it.danger && 'text-danger-text')}>
             {it.label}
-            {it.sub && <span className="text-small font-normal text-muted-foreground">{it.sub}</span>}
+            {it.sub && <span className="text-[13px] font-normal text-muted-foreground">{it.sub}</span>}
           </button>
         ))}
       </div>
@@ -240,7 +255,7 @@ function Tabs({ value, onChange, right }) {
       <div role="tablist" aria-label="Show" className="flex flex-1 gap-1">
         {TABS.map(([id, name]) => (
           <button key={id} type="button" role="tab" aria-selected={value === id} onClick={() => onChange?.(id)}
-            className={cn('h-11 min-h-0 cursor-pointer border-0 bg-transparent px-3 font-sans text-body outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            className={cn('h-11 min-h-0 cursor-pointer border-0 bg-transparent px-3 font-sans text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
               value === id ? 'font-medium text-foreground shadow-[inset_0_-2px_0_var(--foreground)]' : 'text-muted-foreground hover:text-foreground')}>
             {name}
           </button>
@@ -294,7 +309,7 @@ export default function SongView({
             <Cover song={song} size={wide ? 160 : 104} />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <h1 className={cn('m-0 font-semibold tracking-[-0.4px]', wide ? 'text-[34px] leading-10' : 'text-[26px] leading-[30px]')}>{song.title || 'Untitled'}</h1>
-              {song.artist && <span className={cn('text-muted-foreground', wide ? 'text-heading' : 'text-body')}>{song.artist}</span>}
+              {song.artist && <span className={cn('text-muted-foreground', wide ? 'text-[18px]' : 'text-[16px]')}>{song.artist}</span>}
               <div className="flex gap-2.5 pt-2.5">
                 {hasYoutube && <button type="button" aria-label="Listen" title="Listen" onClick={() => { onShow?.('details'); setListen(true); }} className={round}><PlayFill size={18} /></button>}
                 {menu.length > 0 && <button type="button" aria-label="More" onClick={() => setMenuOpen(true)} className={round}><MoreIcon /></button>}
@@ -326,11 +341,11 @@ export default function SongView({
       {song.notes && (
         <>
           <h2 className={group}>Notes for the band</h2>
-          <p className="m-0 whitespace-pre-wrap rounded-card material-base px-4 py-3 text-body leading-[22px]">{song.notes}</p>
+          <p className="m-0 whitespace-pre-wrap rounded-card border border-border bg-card px-4 py-3 text-[15px] leading-[22px]">{song.notes}</p>
         </>
       )}
       <About rows={about} />
-      {!hasYoutube && !song.notes && !about.length && <p className="m-0 px-1 pt-6 text-body text-muted-foreground">No details yet.{onEdit ? ' Add a YouTube link, notes or credits in Edit.' : ''}</p>}
+      {!hasYoutube && !song.notes && !about.length && <p className="m-0 px-1 pt-6 text-[15px] text-muted-foreground">No details yet.{onEdit ? ' Add a YouTube link, notes or credits in Edit.' : ''}</p>}
     </div>
   );
 

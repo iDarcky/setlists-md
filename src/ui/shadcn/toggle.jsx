@@ -11,14 +11,14 @@ const toggleVariants = cva(
   {
     variants: {
       variant: {
-        chip: 'rounded-full border border-chip-border bg-transparent text-muted-foreground hover:text-foreground data-[state=on]:border-link data-[state=on]:bg-selected data-[state=on]:text-foreground',
+        chip: 'rounded-control border border-chip-border bg-transparent text-muted-foreground hover:text-foreground data-[state=on]:border-link data-[state=on]:bg-selected data-[state=on]:text-foreground',
         option: 'w-full justify-between rounded-control border border-chip-border bg-transparent text-foreground hover:bg-raised data-[state=on]:border-link data-[state=on]:bg-selected',
       },
       size: {
-        // Same as ui/shadcn/chip: 36px (32 from the iPad up), round; the ::after
-        // makes the tap area 44px tall.
-        default: "relative h-9 min-h-0 px-3.5 text-small sm:h-8 sm:px-3 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
-        option: 'min-h-0 h-12 pl-3.5 pr-3 text-body sm:h-11',
+        // min-h-0: the chip is 40px (36 from the iPad up); the ::after makes
+        // the tap area 48px tall, over index.css's 44px floor for buttons.
+        default: "relative h-10 min-h-0 px-3.5 text-small sm:h-9 sm:px-3 after:absolute after:inset-x-0 after:-inset-y-1 after:content-['']",
+        option: 'min-h-0 h-12 pl-3.5 pr-3 text-[15px] sm:h-11',
       },
     },
     defaultVariants: { variant: 'chip', size: 'default' },

@@ -18,7 +18,7 @@ import { HexColorPicker } from 'react-colorful';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/ui/Select';
 import PageHeader from '@/ui/PageHeader';
 import BrandWordmark from '@/ui/BrandWordmark';
-import { Button } from '@/ui/shadcn/button';
+import { Button } from '@/ui/Button';
 import { useConfirm } from '@/ui/useConfirmHook';
 import { Dialog } from '@/ui/Dialog';
 import { useIsDesktop } from '@/lib/useMediaQuery';
@@ -153,7 +153,7 @@ function OnOffToggle({ value, onChange }) {
         <Button
           key={String(key)}
           size="sm"
-          variant={value === key ? 'outline' : 'ghost'}
+          variant={value === key ? 'secondary' : 'ghost'}
           onClick={() => onChange(key)}
           className={value === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
         >
@@ -179,7 +179,7 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
             <Button
               key={key}
               size="sm"
-              variant={landing === key ? 'outline' : 'ghost'}
+              variant={landing === key ? 'secondary' : 'ghost'}
               onClick={() => update('landingView', key)}
               className={landing === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
             >
@@ -204,7 +204,7 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
             <Button
               key={String(key)}
               size="sm"
-              variant={confirmDelete === key ? 'outline' : 'ghost'}
+              variant={confirmDelete === key ? 'secondary' : 'ghost'}
               onClick={() => update('confirmBeforeDelete', key)}
               className={confirmDelete === key ? 'bg-[var(--ds-background-100)] shadow-sm' : 'text-[var(--ds-gray-900)]'}
             >
@@ -231,10 +231,10 @@ function GeneralPanel({ settings, update, onShowHelp, onReplayOnboarding }) {
         <OnOffToggle value={settings?.lockOrientation === true} onChange={(v) => update('lockOrientation', v)} />
       </Row>
       <Row label="Help guide" description="Open the in-app help and feedback.">
-        <Button size="sm" variant="outline" onClick={() => onShowHelp?.()}>Open Help</Button>
+        <Button size="sm" variant="secondary" onClick={() => onShowHelp?.()}>Open Help</Button>
       </Row>
       <Row label="Replay onboarding" description="See the first-run welcome screen again.">
-        <Button size="sm" variant="outline" onClick={() => onReplayOnboarding?.()}>Replay</Button>
+        <Button size="sm" variant="secondary" onClick={() => onReplayOnboarding?.()}>Replay</Button>
       </Row>
     </Section>
   );
@@ -382,7 +382,7 @@ function AppearancePanel({ settings, update, isSignedIn }) {
             <Button
               key={key}
               size="sm"
-              variant={(settings.firstDayOfWeek || 'sunday') === key ? 'outline' : 'ghost'}
+              variant={(settings.firstDayOfWeek || 'sunday') === key ? 'secondary' : 'ghost'}
               onClick={() => update('firstDayOfWeek', key)}
               className={(settings.firstDayOfWeek || 'sunday') === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
             >
@@ -400,7 +400,7 @@ function AppearancePanel({ settings, update, isSignedIn }) {
             <Button
               key={key}
               size="sm"
-              variant={(settings.clockFormat || '12h') === key ? 'outline' : 'ghost'}
+              variant={(settings.clockFormat || '12h') === key ? 'secondary' : 'ghost'}
               onClick={() => update('clockFormat', key)}
               className={(settings.clockFormat || '12h') === key ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
             >
@@ -456,7 +456,7 @@ function LabsPanel({ settings, update }) {
                 <Button
                   key={n}
                   size="sm"
-                  variant={active ? 'outline' : 'ghost'}
+                  variant={active ? 'secondary' : 'ghost'}
                   onClick={() => update('rosterStreakLimit', n)}
                   className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
                 >
@@ -508,7 +508,7 @@ function LabsToggle({ settings, update, flag, label, description }) {
             <Button
               key={String(key)}
               size="sm"
-              variant={active ? 'outline' : 'ghost'}
+              variant={active ? 'secondary' : 'ghost'}
               onClick={() => update(flag, key)}
               className={active ? "bg-[var(--ds-background-100)] shadow-sm" : "text-[var(--ds-gray-900)]"}
             >
@@ -636,7 +636,7 @@ function NotificationsPanel({ isSignedIn, onRequestSignIn, settings, onUpdate })
     return (
       <Section title="Notifications" subtitle="Sign in to get schedule reminders on this device.">
         <Row label="Push notifications" description="Requires an account.">
-          <Button size="sm" onClick={onRequestSignIn}>Sign in</Button>
+          <Button variant="brand" size="sm" onClick={onRequestSignIn}>Sign in</Button>
         </Row>
       </Section>
     );
@@ -650,9 +650,9 @@ function NotificationsPanel({ isSignedIn, onRequestSignIn, settings, onUpdate })
     status = 'Blocked';
   } else if (push.subscribed) {
     status = 'On for this device';
-    action = <Button variant="outline" size="sm" loading={push.busy} onClick={() => push.disable()}>Turn off</Button>;
+    action = <Button variant="secondary" size="sm" loading={push.busy} onClick={() => push.disable()}>Turn off</Button>;
   } else {
-    action = <Button size="sm" loading={push.busy} onClick={() => push.enable()}>Turn on</Button>;
+    action = <Button variant="brand" size="sm" loading={push.busy} onClick={() => push.enable()}>Turn on</Button>;
   }
 
   const pushSection = (
@@ -724,13 +724,13 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onDownloadBackup,
     <>
       <Section subtitle={`${songCount} songs, ${setlistCount} setlists saved on this device.`}>
         <Row label="Back up library" description="One .zip with every song, arrangement and setlist — keep a copy somewhere safe.">
-          <Button size="sm" variant="outline" onClick={onDownloadBackup}>Download backup</Button>
+          <Button size="sm" variant="secondary" onClick={onDownloadBackup}>Download backup</Button>
         </Row>
         <Row label="Export library" description="Download every song as a separate .md file.">
-          <Button size="sm" variant="outline" onClick={onDownloadSongs}>Download all</Button>
+          <Button size="sm" variant="secondary" onClick={onDownloadSongs}>Download all</Button>
         </Row>
         <Row label="Clear all data" description="Wipe every song and setlist on this device. Cloud copies are kept.">
-          <Button size="sm" variant="outline" onClick={handleClear}>Clear all</Button>
+          <Button size="sm" variant="error" onClick={handleClear}>Clear all</Button>
         </Row>
       </Section>
 
@@ -751,14 +751,14 @@ function DataPanel({ songCount, setlistCount, onDownloadSongs, onDownloadBackup,
                   description={`${song.artist ? song.artist + ' · ' : ''}${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
                 >
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => onRestoreSong?.(song.id)}>Restore</Button>
-                    <Button size="sm" variant="outline" onClick={() => onPurgeSong?.(song.id)}>Delete</Button>
+                    <Button size="sm" variant="secondary" onClick={() => onRestoreSong?.(song.id)}>Restore</Button>
+                    <Button size="sm" variant="error" onClick={() => onPurgeSong?.(song.id)}>Delete</Button>
                   </div>
                 </Row>
               );
             })}
             <Row label="Empty trash" description="Permanently delete everything in the trash now.">
-              <Button size="sm" variant="outline" onClick={onEmptyTrash}>Empty trash</Button>
+              <Button size="sm" variant="error" onClick={onEmptyTrash}>Empty trash</Button>
             </Row>
           </>
         )}
@@ -813,9 +813,9 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
             </div>
           </div>
           {!isSignedIn ? (
-            <Button size="sm" onClick={onRequestSignIn}>Sign in</Button>
+            <Button variant="brand" size="sm" onClick={onRequestSignIn}>Sign in</Button>
           ) : !isTeam && planKey === 'free' ? (
-            <Button size="sm" onClick={onUpgrade}>Upgrade</Button>
+            <Button variant="brand" size="sm" onClick={onUpgrade}>Upgrade</Button>
           ) : (
             <span
               className="text-label-11 uppercase tracking-wider"
@@ -836,7 +836,7 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
             label="Manage billing"
             description="Update your payment method, cancel, or switch plans."
           >
-            <Button variant="outline" size="sm" onClick={onUpgrade}>Open</Button>
+            <Button variant="secondary" size="sm" onClick={onUpgrade}>Open</Button>
           </Row>
         )}
         {isSignedIn && isTeam && (
@@ -844,13 +844,13 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
             <>
               {!teamBillingOk && (
                 <Row label="Subscribe" description="Activate this Space’s subscription to restore paid features.">
-                  <Button size="sm" disabled={billingBusy} onClick={() => runBilling(() => startTeamCheckout(team.id, team.plan))}>
+                  <Button variant="brand" size="sm" disabled={billingBusy} onClick={() => runBilling(() => startTeamCheckout(team.id, team.plan))}>
                     Subscribe
                   </Button>
                 </Row>
               )}
               <Row label="Manage billing" description="Update your payment method, cancel, or switch plans for this Space.">
-                <Button variant="outline" size="sm" disabled={billingBusy} onClick={() => runBilling(() => openBillingPortal(team.id))}>
+                <Button variant="secondary" size="sm" disabled={billingBusy} onClick={() => runBilling(() => openBillingPortal(team.id))}>
                   Open
                 </Button>
               </Row>
@@ -870,7 +870,7 @@ function PlanPanel({ plan, onUpgrade, onRequestSignIn, isSignedIn, activeLibrary
             label="Compare plans"
             description="See everything Sync, Team, and Church add on top of Free."
           >
-            <Button variant="outline" size="sm" onClick={onUpgrade}>View plans</Button>
+            <Button variant="secondary" size="sm" onClick={onUpgrade}>View plans</Button>
           </Row>
         )}
       </Section>
@@ -934,7 +934,7 @@ function ServicesPanel({ setlists = [], onRemapService }) {
                     autoFocus
                     className="flex-1"
                   />
-                  <Button size="sm" onClick={() => saveEdit(svc.name)} disabled={!draft.trim()}>Save</Button>
+                  <Button variant="brand" size="sm" onClick={() => saveEdit(svc.name)} disabled={!draft.trim()}>Save</Button>
                   <Button variant="ghost" size="sm" onClick={() => setEditing(null)}>Cancel</Button>
                 </>
               ) : (
@@ -943,7 +943,7 @@ function ServicesPanel({ setlists = [], onRemapService }) {
                     <div className="text-copy-14 font-medium text-[var(--modes-text)] truncate">{svc.name}</div>
                     <div className="text-label-12 text-[var(--modes-text-dim)]">{svc.count} setlist{svc.count === 1 ? '' : 's'}</div>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => startEdit(svc.name)}>Rename</Button>
+                  <Button variant="secondary" size="sm" onClick={() => startEdit(svc.name)}>Rename</Button>
                   <Button variant="ghost" size="sm" onClick={() => remove(svc.name, svc.count)} className="text-[var(--ds-red-700)]">Remove</Button>
                 </>
               )}

@@ -22,12 +22,12 @@ const SEND = ['M22 2 11 13', 'M22 2l-7 20-4-9-9-4z'];
 
 export function ShareBody({ state, ends, onCreate, onCopy, onSend, onStop, canSend, busy }) {
   if (state === 'loading') {
-    return <p className="m-0 py-6 text-center text-body text-muted-foreground">One moment…</p>;
+    return <p className="m-0 py-6 text-center text-[15px] text-muted-foreground">One moment…</p>;
   }
   if (state === 'new') {
     return (
       <div className="flex flex-col gap-5 font-sans">
-        <p className="m-0 text-body leading-6 text-muted-foreground">
+        <p className="m-0 text-[15px] leading-6 text-muted-foreground">
           Works until <b className="font-semibold text-foreground">{ends}</b>.
         </p>
         <Button onClick={onCreate} loading={busy}><Icon d={LINK} />Create link</Button>
@@ -37,14 +37,14 @@ export function ShareBody({ state, ends, onCreate, onCopy, onSend, onStop, canSe
   const { url } = state;
   return (
     <div className="flex flex-col gap-4 font-sans">
-      <div className="truncate rounded-control border border-input bg-raised px-3.5 py-3 font-mono text-small text-foreground" title={url}>
+      <div className="truncate rounded-control border border-input bg-raised px-3.5 py-3 font-mono text-[14px] text-foreground" title={url}>
         {url.replace(/^https?:\/\//, '')}
       </div>
       <div className="flex gap-2">
         <Button className="flex-1" onClick={onCopy}><Icon d={COPY} />Copy</Button>
         {canSend && <Button className="flex-1" variant="outline" onClick={onSend}><Icon d={SEND} />Send…</Button>}
       </div>
-      <p className="m-0 text-body leading-6 text-muted-foreground">
+      <p className="m-0 text-[15px] leading-6 text-muted-foreground">
         Works until <b className="font-semibold text-foreground">{ends}</b>.
       </p>
       <Button variant="ghost" className="text-danger-text hover:text-danger-text" onClick={onStop} loading={busy}>Stop sharing</Button>
