@@ -10,6 +10,9 @@ import { ChartFooter } from './ChartFooter';
 import { ChartHeader, SetlistBar } from './ChartHeader';
 import { ChartSettings } from './ChartSettings';
 import { songPlays, structureBoxes } from './plays';
+import { playName } from './lines';
+import { useFollow } from './useFollow';
+import { FollowPill } from './FollowPill';
 import { SongBody } from './SongBody';
 import { StructureRow, type RibbonPosition, type RibbonStyle } from './StructureRow';
 import type { ChartMode, Setlist, SetlistItem, SongView } from './types';
@@ -25,7 +28,7 @@ import type { ChartMode, Setlist, SetlistItem, SongView } from './types';
 // sticky section headings always on; repeats written out ("· 2nd time");
 // chords-only lines as bars; raised extensions; lyrics 18 / chords 15;
 // progress on the footer's top edge. Not here yet: the ☰ menu, Aa settings,
-// light edit, live follow, click/track, the finale.
+// light edit, click/track, the finale. Live follow: see follow.ts.
 
 const capoFor = capoForJs as (settings: unknown, songId: string, key?: string | null) => number;
 const withCapo = withCapoJs as (settings: unknown, songId: string, capo: number, key?: string | null) => unknown;
@@ -43,6 +46,10 @@ interface Props {
   startIndex?: number;
   onBack: () => void;
   onFinish: (stats: { startTime: number; endTime: number }) => void;
+  /** The band's follow room (team + setlist). Null: no follow (Personal, guest). */
+  followRoom?: string | null;
+  /** The name others see when this screen leads. */
+  myName?: string;
 }
 
 interface Slot {
@@ -67,7 +74,7 @@ function resolveSlot(it: SetlistItem, songs: RawSong[]): Slot {
   return { item: it, song, isBreak: false, label: song?.title || it.songTitle || 'Song' };
 }
 
-export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'practice', onUpdateSettings, onUpdateSetlist, startIndex = 0, onBack, onFinish }: Props) {
+export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'practice', onUpdateSettings, onUpdateSetlist, startIndex = 0, onBack, onFinish, followRoom = null, myName = '' }: Props) {
   const [startTime] = useState(() => Date.now());
   const slots = useMemo(() => (setlist?.items || []).map(it => resolveSlot(it, songs)), [setlist, songs]);
   const total = slots.length;
@@ -229,23 +236,56 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
   }, [total]);
   const finish = () => onFinish({ startTime, endTime: Date.now() });
 
+  // ── Live follow ─────────────────────────────────────────────────────────
+  // Only while live: the leader's song and section drive every follower.
+  // A follower who touches the chart pauses until "Back to the band".
+  const pendingSlot = useRef<number | null>(null);
+  const followPos = useMemo(() => ({ idx, slot: active }), [idx, active]);
+  const follow = useFollow({
+    room: live ? followRoom : null,
+    name: myName || 'The leader',
+    pos: followPos,
+    onMove: p => {
+      if (p.idx !== idx) {
+        pendingSlot.current = p.slot;
+        go(p.idx);
+      } else if (p.slot !== active) {
+        jump(p.slot);
+      }
+    },
+  });
+  // A song the leader moved to: its sections exist only after it renders.
+  useEffect(() => {
+    const slot = pendingSlot.current;
+    if (slot == null) return;
+    pendingSlot.current = null;
+    if (slot > 0) requestAnimationFrame(() => jump(slot));
+  }, [idx, jump]);
+  const followPause = follow.role === 'following' ? follow.pause : undefined;
+  // Moves made by hand (footer, arrows, the setlist bar) pause follow too.
+  const goByHand = (n: number) => { followPause?.(); go(n); };
+  const jumpByHand = (slot: number) => { followPause?.(); jump(slot); };
+  const bandAt = follow.bandPos
+    ? (follow.bandPos.idx !== idx ? slots[follow.bandPos.idx]?.label : (plays[follow.bandPos.slot] ? playName(plays[follow.bandPos.slot]) : undefined))
+    : undefined;
+
   // Arrow keys and Bluetooth pedals (PageUp/PageDown) move between songs.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-      if (e.key === 'ArrowRight' || e.key === 'PageDown') go(idx + 1);
-      if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(idx - 1);
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') { followPause?.(); go(idx + 1); }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') { followPause?.(); go(idx - 1); }
       // Esc first closes whatever is open over the chart (the settings popover, the key sheet).
       if (e.key === 'Escape' && !document.querySelector('[data-slot="popover-content"], [role="dialog"], dialog[open]')) onBack();
     };
     // Capture: runs before the popover's own Esc handler has removed it.
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [go, idx, onBack]);
+  }, [go, idx, onBack, followPause]);
 
   const row = hasRow ? (
-    <StructureRow boxes={boxes} activeSlot={active} style={ribbonStyle} position={position} live={live} onJump={jump} />
+    <StructureRow boxes={boxes} activeSlot={active} style={ribbonStyle} position={position} live={live} onJump={jumpByHand} />
   ) : null;
 
   if (!cur) {
@@ -261,7 +301,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
     <div className="fixed inset-0 z-fullscreen flex flex-col bg-background pt-[env(safe-area-inset-top)] text-foreground" data-chart="v2">
       <div className="flex min-h-0 flex-1">
                 <div className="relative min-w-0 flex-1">
-          <div ref={scroller} onScroll={onScroll} className="absolute inset-0 overflow-y-auto overscroll-contain">
+          <div ref={scroller} onScroll={onScroll} onWheel={followPause} onTouchStart={followPause} onPointerDown={followPause} className="absolute inset-0 overflow-y-auto overscroll-contain">
             {/* A spacer, not padding: a sticky heading measures its `top` from
                 inside the scroller's padding, so padding would double it. */}
             <div aria-hidden style={{ height: headH + rowH }} />
@@ -286,7 +326,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
             style={{ transform: `translateY(${hidden ? -headH : 0}px)` }}
           >
             <div ref={headRef} className="pointer-events-auto bg-background" aria-hidden={hidden || undefined} inert={hidden || undefined}>
-              {showSetlistBar && <SetlistBar items={barItems} current={idx} onPick={go} />}
+              {showSetlistBar && <SetlistBar items={barItems} current={idx} onPick={goByHand} />}
               <ChartHeader
                 title={cur.label}
                 songKey={shownKey}
@@ -312,6 +352,17 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
             {rowOnTop && <div className="pointer-events-auto">{row}</div>}
           </div>
           {rowOnSide && row}
+          {live && followRoom && (
+            <FollowPill
+              role={follow.role}
+              leaderName={follow.leaderName}
+              bandAt={bandAt}
+              onLead={follow.lead}
+              onStop={follow.stopLeading}
+              onPause={follow.pause}
+              onResume={follow.resume}
+            />
+          )}
         </div>
       </div>
       {hasRow && position === 'bottom' && row}
@@ -339,8 +390,8 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
         live={live && !hasRow}
         prevTitle={slots[idx - 1]?.label}
         nextTitle={slots[idx + 1]?.label}
-        onPrev={() => go(idx - 1)}
-        onNext={() => go(idx + 1)}
+        onPrev={() => goByHand(idx - 1)}
+        onNext={() => goByHand(idx + 1)}
         onFinish={finish}
       />
     </div>

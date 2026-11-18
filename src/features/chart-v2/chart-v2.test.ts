@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { lineGroups, ordinal, playName, splitChord, viewLine } from './lines';
 import { songPlays, structureBoxes } from './plays';
 import type { SongView } from './types';
+import { applyFollowMsg, leaderAlive, LEADER_TIMEOUT_MS, yieldsTo, type FollowMsg, type FollowState } from './follow';
 
 describe('viewLine', () => {
   it('keeps a chord with its word', () => {
@@ -60,5 +61,40 @@ describe('songPlays', () => {
   it('one structure box per run', () => {
     const boxes = structureBoxes(songPlays(song));
     expect(boxes.map(b => [b.type, b.count])).toEqual([['Verse 1', 1], ['Chorus', 2], ['Tag', 2]]);
+  });
+});
+
+describe('live follow', () => {
+  const empty: FollowState = { leader: null, pos: null };
+  const pos = (from: string, since: number, idx = 0, slot = 0): FollowMsg => ({ type: 'pos', from, name: from, at: since, since, pos: { idx, slot } });
+
+  it('ignores its own messages', () => {
+    expect(applyFollowMsg(empty, pos('me', 1), 'me')).toBe(empty);
+  });
+  it('takes the first leader and their position', () => {
+    const s = applyFollowMsg(empty, pos('dana', 10, 2, 3), 'me');
+    expect(s.leader?.name).toBe('dana');
+    expect(s.pos).toEqual({ idx: 2, slot: 3 });
+  });
+  it('a newer leader takes over; an older message does not', () => {
+    const a = applyFollowMsg(empty, pos('dana', 10), 'me');
+    expect(applyFollowMsg(a, pos('sam', 5), 'me')).toBe(a);
+    expect(applyFollowMsg(a, pos('sam', 20), 'me').leader?.id).toBe('sam');
+  });
+  it('stop from the leader clears it; stop from someone else does not', () => {
+    const a = applyFollowMsg(empty, pos('dana', 10), 'me');
+    expect(applyFollowMsg(a, { type: 'stop', from: 'sam', at: 11 }, 'me')).toBe(a);
+    expect(applyFollowMsg(a, { type: 'stop', from: 'dana', at: 11 }, 'me').leader).toBeNull();
+  });
+  it('a silent leader times out', () => {
+    const a = applyFollowMsg(empty, pos('dana', 1000), 'me');
+    const seen = a.leader!.seen;
+    expect(leaderAlive(a, seen + LEADER_TIMEOUT_MS - 1)).toBe(true);
+    expect(leaderAlive(a, seen + LEADER_TIMEOUT_MS)).toBe(false);
+  });
+  it('a leader hands over only to a later Lead tap', () => {
+    expect(yieldsTo(100, pos('sam', 50), 'me')).toBe(false);
+    expect(yieldsTo(100, pos('sam', 150), 'me')).toBe(true);
+    expect(yieldsTo(100, { type: 'stop', from: 'sam', at: 200 }, 'me')).toBe(false);
   });
 });

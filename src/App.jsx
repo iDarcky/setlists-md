@@ -2951,6 +2951,10 @@ export default function App() {
               startIndex={readerStartIndex}
               onBack={goBack}
               onFinish={(stats) => goSetlistFinale(currentSetlist, stats)}
+              // Live follow runs inside a church/band; `?test-follow` lets a
+              // signed-out browser try it between two tabs.
+              followRoom={team?.id ? `${team.id}:${currentSetlist.id}` : (new URLSearchParams(window.location.search).has('test-follow') ? `test:${currentSetlist.id}` : null)}
+              myName={displayName}
             />
             ) : (
             <SetlistReader
