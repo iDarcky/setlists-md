@@ -5,6 +5,7 @@ import { normalizeRibbonStyle, resolveViewCapabilities } from '@/lib/readerConfi
 import { capoFor as capoForJs, withCapo as withCapoJs } from '@/lib/capo';
 import { KeySheet, type KeyScope } from './KeySheet';
 import { useMediaQuery } from './ui';
+import { resolveDisplay } from './display';
 import { ChartFooter } from './ChartFooter';
 import { ChartHeader, SetlistBar } from './ChartHeader';
 import { ChartSettings } from './ChartSettings';
@@ -96,7 +97,8 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
   const wide = useMediaQuery('(min-width: 768px)');
   const colSetting = settings?.defaultColumns;
   const twoCols = wide && !!song && (colSetting === 2 || (colSetting !== 1 && wide));
-  const accidentals = String(settings?.accidentals || 'auto');
+  const display = useMemo(() => resolveDisplay(settings), [settings]);
+  const accidentals = display.accidentals;
   // A preview from the settings popover wins until the chart closes.
   const [previewMode, setPreviewMode] = useState<ChartMode | null>(null);
   const mode = previewMode ?? clockMode;
@@ -274,7 +276,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
                 “{cur.label}” is not in this library.
               </div>
             ) : (
-              <SongBody inset={sideInset} plays={plays} songKey={song.key} transpose={transpose - capo} accidentals={accidentals} stickyTop={pinned} columns={twoCols ? 2 : 1} sectionRef={sectionRef} />
+              <SongBody display={display} inset={sideInset} plays={plays} songKey={song.key} transpose={transpose - capo} stickyTop={pinned} columns={twoCols ? 2 : 1} sectionRef={sectionRef} />
             )}
           </div>
           {/* The chrome sits over the scroller: the header part moves up out of
@@ -295,6 +297,7 @@ export default function ChartV2({ setlist, songs, settings, mode: clockMode = 'p
                 onClose={onBack}
                 leading={onUpdateSettings ? (
                   <ChartSettings
+                    display={display}
                     style={storedStyle}
                     position={position}
                     setlistBar={setlistBarOn}
