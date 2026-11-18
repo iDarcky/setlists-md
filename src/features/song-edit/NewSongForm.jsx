@@ -73,8 +73,9 @@ export function ArtistInput({ value, onChange, artists, className }) {
   const before = cut >= 0 ? v.slice(0, cut + 1) : '';
   const q = normalizeText(v.slice(cut + 1)).trim();
   const have = new Set(before.split(',').map(x => normalizeText(x).trim()).filter(Boolean));
-  // Empty: your most used artists. Typing: the ones that match, accents ignored.
-  const hits = artists.filter(a => { const n = normalizeText(a); return !have.has(n) && (q ? n.includes(q) && n !== q : true); }).slice(0, 6);
+  // Empty: every artist, most used first. Typing: the ones that match, accents
+  // ignored. All of them, in a list that scrolls (owner, 2026-11-18).
+  const hits = artists.filter(a => { const n = normalizeText(a); return !have.has(n) && (q ? n.includes(q) && n !== q : true); });
   const pick = (a) => { onChange(before ? `${before.replace(/\s*$/, '')} ${a}` : a); setOpen(false); };
   return (
     <div className="relative">
@@ -82,8 +83,8 @@ export function ArtistInput({ value, onChange, artists, className }) {
         onChange={(e) => { onChange(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 120)}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} />
       {open && hits.length > 0 && (
-        <div role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 flex flex-col rounded-control border border-border bg-card p-1.5 shadow-lg">
-          {hits.map(a => <button key={a} type="button" role="option" aria-selected="false" className={menuRow} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(a)}>{a}</button>)}
+        <div role="listbox" className="absolute inset-x-0 top-full z-10 mt-1 flex max-h-[min(264px,40dvh)] flex-col overflow-y-auto overscroll-contain rounded-control border border-border bg-card p-1.5 shadow-lg">
+          {hits.map(a => <button key={a} type="button" role="option" aria-selected="false" className={cn(menuRow, 'shrink-0')} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(a)}>{a}</button>)}
         </div>
       )}
     </div>
