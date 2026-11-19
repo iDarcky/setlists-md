@@ -6,7 +6,7 @@
 
 - Păstrăm ce îi trebuie echipei tale ca să planificați și să cântați împreună: numele, emailul, ce instrument cânți, când ești disponibil, plus cântările și listele pe care le adaugă grupul tău.
 - Biserica sau trupa ta decide ce intră în grup și cine vede. Noi avem grijă de conținut în numele ei.
-- Nu vindem date, nu afișăm reclame, nu folosim cookie-uri de urmărire și nu facem statistici despre tine.
+- Nu vindem date, nu afișăm reclame și nu folosim cookie-uri de urmărire. Site-ul numără vizitele fără cookie-uri; aplicația nu are statistici.
 - Îți poți exporta cântările, îți poți corecta datele sau îți poți șterge contul oricând.
 
 ## Cine se ocupă de Setlists.md
@@ -32,7 +32,7 @@ Setlists.md este administrat de Daniel Maghiș, persoană fizică din România (
 
 - Nu vindem și nu închiriem date personale.
 - Nu afișăm reclame și nu lăsăm pe nimeni să te urmărească în scop publicitar.
-- Nu folosim statistici de trafic sau cookie-uri de urmărire nici în aplicație, nici pe site.
+- Nu folosim statistici de trafic în aplicație și nu folosim cookie-uri de urmărire nicăieri. Site-ul (setlists.md) numără vizitele cu GoatCounter, care nu pune cookie-uri și nu te identifică: înregistrează pagina, de unde ai venit, browserul, mărimea ecranului și țara, nu adresa IP.
 - Nu folosim cântările sau datele tale pentru a antrena modele de inteligență artificială.
 - Nu citim conținutul grupului tău. Excepțiile sunt situațiile în care ne ceri ajutorul, o problemă de securitate sau o cerere legală.
 
@@ -56,6 +56,7 @@ Lucrăm cu câțiva furnizori. Fiecare folosește datele doar pentru treaba pe c
 |---|---|---|
 | Supabase | Baza de date, autentificarea, emailurile legate de cont și stocarea fișierelor (pozele de profil) | Irlanda (UE) |
 | Vercel | Găzduiește aplicația și site-ul | Statele Unite, cu servere în toată lumea |
+| GoatCounter | Numără vizitele pe site, fără cookie-uri | Uniunea Europeană |
 | Resend *(planificat, nefolosit încă)* | Va trimite emailurile legate de cont | Completăm înainte să începem |
 | Sentry *(planificat, nefolosit încă)* | Rapoarte de erori, cu textul de pe ecran ascuns | Completăm înainte să începem |
 | Serviciul de notificări al browserului (Apple, Google sau Mozilla) | Livrează notificările pe care le-ai pornit | Depinde de dispozitiv |
