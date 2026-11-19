@@ -1,12 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AvatarStack } from '@/ui/shadcn/avatar';
+import { DateTile } from '@/ui/shadcn/date-tile';
+import { PageHeader } from '@/ui/shadcn/page-header';
+import { EmptyState } from '@/ui/shadcn/empty-state';
+import { Plus, Calendar, CalendarDays, SearchX } from 'lucide-react';
+import { Search } from '@/ui/blocks/Search';
+import { chipClass } from '@/ui/shadcn/chip';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { useRevealList } from '@/hooks/useRevealList';
 import BackToTop from '@/ui/BackToTop';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
-import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime, dateFormatter } from '@/lib/dateFormat';
-import { CalendarIcon, PlusIcon } from '@/app/navIcons';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 
 // Schedule, built from zero (canvas → Schedule page). Pure view: Schedule.jsx
@@ -24,43 +30,27 @@ const clock = (t, fmt) => (t ? formatClockTime(t, fmt) : '');
 
 const CHIP = {
   playing: 'bg-selected text-link',
-  asked: 'bg-warning/20 text-warning-text',
-  maybe: 'bg-warning/20 text-warning-text',
-  cant: 'bg-danger/15 text-danger',
+  asked: 'bg-warning-fill text-warning-text',
+  maybe: 'bg-warning-fill text-warning-text',
+  cant: 'bg-danger-fill text-danger-text',
   not: 'bg-raised text-muted-foreground',
   draft: 'bg-raised text-muted-foreground',
   ready: 'bg-selected text-link',
 };
 const Chip = ({ kind, children }) => (
-  <span className={cn('inline-flex h-6 shrink-0 items-center whitespace-nowrap rounded-full px-2.5 text-[12px] font-semibold', CHIP[kind])}>{children}</span>
+  <span className={cn('inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold', CHIP[kind])}>{children}</span>
 );
 
 function myChip(me) {
   if (me.kind === 'playing') return <Chip kind="playing">{me.part ? `You · ${me.part}` : 'You play'}</Chip>;
-  if (me.kind === 'asked') return <Chip kind="asked">Asked</Chip>;
+  if (me.kind === 'asked') return <Chip kind="asked">Invited</Chip>;
   if (me.kind === 'maybe') return <Chip kind="maybe">Maybe</Chip>;
   if (me.kind === 'cant') return <Chip kind="cant">Can’t</Chip>;
   return <Chip kind="not">Not playing</Chip>;
 }
 
 function Faces({ band }) {
-  return (
-    <span className="flex">
-      {band.slice(0, 6).map((b, i) => (
-        <span
-          key={b.id}
-          title={b.name}
-          className={cn(
-            'flex size-[22px] items-center justify-center rounded-full border-2 border-card text-[9px] font-semibold',
-            i > 0 && '-ml-1.5',
-            b.yes ? 'bg-link text-background' : 'bg-raised text-foreground',
-          )}
-        >
-          {churchInitials(b.name)}
-        </span>
-      ))}
-    </span>
-  );
+  return <AvatarStack people={band.map(b => ({ id: b.id, name: b.name, url: b.url, on: b.yes }))} size={24} />;
 }
 
 const ANSWERS = [
@@ -86,27 +76,24 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
   };
   const asked = !leader && !past && me?.kind === 'asked';
   return (
-    <div className={cn('flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-border px-4 py-3 first:border-t-0', row.selected && 'bg-selected')}>
+    <div className={cn('flex min-h-14 flex-wrap items-start gap-x-3 gap-y-2 border-t border-border px-4 py-3 first:border-t-0', row.selected && 'bg-selected')}>
       <button
         type="button"
         onClick={() => onOpen?.(sl)}
         className="flex min-h-0 min-w-0 flex-1 cursor-pointer items-start gap-3 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="flex w-11 shrink-0 flex-col items-center pt-0.5 leading-none">
-          <span className="text-[11px] font-semibold uppercase text-muted-foreground">{day(sl.date, { weekday: 'short' })}</span>
-          <span className={cn('mt-1 text-[22px] font-semibold tracking-[-0.5px]', past && 'text-muted-foreground')}>{day(sl.date, { day: 'numeric' })}</span>
-        </span>
+        <DateTile weekday={day(sl.date, { weekday: 'short' })} day={day(sl.date, { day: 'numeric' })} muted={past} className="pt-0.5" />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[15px] font-semibold">{sl.name || 'Setlist'}</span>
-          {meta && <span className="text-[13px] text-muted-foreground">{meta}</span>}
-          {rehearsal && <span className="text-[13px] text-muted-foreground">{rehearsal}</span>}
+          <span className="truncate text-body font-semibold">{sl.name || 'Setlist'}</span>
+          {meta && <span className="text-small text-muted-foreground">{meta}</span>}
+          {rehearsal && <span className="text-small text-muted-foreground">{rehearsal}</span>}
           {leader && !past && (
             summary.total === 0 ? (
-              <span className="text-[13px] font-medium text-danger">No band yet{summary.free ? ` · ${summary.free} free that day` : ''}</span>
+              <span className="text-small font-medium text-danger">No band yet{summary.free ? ` · ${summary.free} free that day` : ''}</span>
             ) : (
               <span className="mt-1 flex items-center gap-2">
                 <Faces band={faces} />
-                <span className="text-[13px] text-muted-foreground">
+                <span className="text-small text-muted-foreground">
                   {summary.yes === summary.total ? 'All in' : `${summary.yes} of ${summary.total} said yes`}
                 </span>
               </span>
@@ -125,7 +112,7 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
               type="button"
               disabled={busy}
               onClick={() => answer(a.value)}
-              className="h-8 min-h-0 cursor-pointer rounded-full border border-input bg-card px-3 font-sans text-[13px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              className="h-8 min-h-0 cursor-pointer rounded-full border border-input bg-card px-3 font-sans text-small font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               {a.label}
             </button>
@@ -136,26 +123,8 @@ function Row({ row, leader, past, clockFormat, onOpen, onAnswer }) {
   );
 }
 
-function Segmented({ value, options, onChange }) {
-  return (
-    <div role="tablist" className="grid auto-cols-fr grid-flow-col gap-0.5 rounded-[10px] bg-raised p-[3px]">
-      {options.map(o => (
-        <button
-          key={o.value}
-          type="button"
-          role="tab"
-          aria-selected={value === o.value}
-          onClick={() => onChange?.(o.value)}
-          className={cn(
-            'h-[34px] min-h-0 cursor-pointer rounded-[8px] border-0 bg-transparent font-sans text-[14px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            value === o.value && 'bg-card font-semibold text-foreground shadow-[0_1px_2px_rgba(0,0,0,.2)]',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+export function Segmented({ value, options, onChange }) {
+  return <Seg2 tabs fill value={value} options={options} onChange={onChange} />;
 }
 
 // The first `n` rows across the month groups, months kept whole up to the cut.
@@ -176,13 +145,10 @@ function FilterChip({ on, onClick, children, count }) {
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={cn(
-        'flex h-8 min-h-0 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-3 font-sans text-[13px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        on && 'border-transparent bg-selected font-semibold text-foreground',
-      )}
+      className={chipClass(on)}
     >
       {children}
-      {count > 0 && <span className="text-[12px] font-bold text-link">{count}</span>}
+      {count > 0 && <span className="text-caption font-semibold text-link">{count}</span>}
     </button>
   );
 }
@@ -200,8 +166,27 @@ function FilterChip({ on, onClick, children, count }) {
 export default function ScheduleView({
   leader = false, tab = 'upcoming', onTab, showBand = false, filter = 'all', onFilter, counts = {},
   groups = [], clockFormat = '12h', onOpen, onAnswer, onNew, onAvailability,
-  canPlay, onAnswerDay, band = null, embedded = false, layout = 'auto',
+  canPlay, onAnswerDay, band = null, embedded = false, layout = 'auto', onBack,
+  title = 'Schedule', newLabel = 'New', searchable = false,
 }) {
+  // Search (Setlists tab): same Bencho block as Songs, filters by name, place and date.
+  const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const headRef = useRef(null);
+  const [headWidth, setHeadWidth] = useState(320);
+  useEffect(() => {
+    const el = headRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([e]) => setHeadWidth(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const q = query.trim().toLowerCase();
+  if (q) {
+    groups = groups
+      .map(g => ({ ...g, rows: g.rows.filter(r => [r.setlist.name, r.setlist.location, r.setlist.date, g.month].filter(Boolean).join(' ').toLowerCase().includes(q)) }))
+      .filter(g => g.rows.length);
+  }
   const past = tab === 'past';
   const isBand = tab === 'band' && band;
   const [picked, setPicked] = useState(null);
@@ -219,23 +204,29 @@ export default function ScheduleView({
     <div data-slot="schedule" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
       {past && <BackToTop />}
       <div className={cn('mx-auto flex w-full flex-col gap-3 pb-8', wide ? 'max-w-[1180px]' : 'max-w-[680px]', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
-        <header className="flex items-center justify-between gap-2 pb-0.5 pt-1">
-          <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Schedule</h1>
-          <div className="flex gap-2">
+        {/* Pinned while the list scrolls; search and + like Songs and Home.
+            Opened from Home, so ← says where Back goes. */}
+        <PageHeader ref={headRef} sticky title={title} onBack={onBack} backLabel="Home" wide={layout === 'auto' ? undefined : wide}
+          className={layout === 'phone' ? '-mx-4 px-4' : '-mx-4 px-4 sm:-mx-6 sm:px-6'}>
+            {searchable && (
+              <div data-search="header" className={cn(searchOpen ? cn('absolute inset-y-0 z-10 flex items-center bg-background', layout === 'phone' ? 'inset-x-4' : 'inset-x-4 sm:inset-x-6') : 'shrink-0')}>
+                <Search inline keyboard give={30} spring={30} value={query} onValueChange={setQuery} onOpenChange={setSearchOpen}
+                  placeholder="Search setlists" width={headWidth} />
+              </div>
+            )}
             {onAvailability && (
-              <Button variant="outline" size="sm" onClick={onAvailability} aria-label="My availability">
-                <CalendarIcon size={16} /><span className={cn(leader && onNew && 'sr-only sm:not-sr-only')}>My availability</span>
+              <Button variant="outline" size="icon" className="size-11 rounded-control" onClick={onAvailability} aria-label="My availability">
+                <Calendar size={20} strokeWidth={1.8} aria-hidden="true" />
               </Button>
             )}
-            {leader && onNew && <Button size="sm" onClick={onNew}><PlusIcon size={16} />New</Button>}
-          </div>
-        </header>
+            {leader && onNew && <Button size="icon" className="size-11 shrink-0 rounded-control" aria-label={newLabel} onClick={onNew}><Plus size={20} strokeWidth={2} aria-hidden="true" /></Button>}
+        </PageHeader>
         {!past && !isBand && <CanYouPlay tiles={canPlay} onPick={setPicked} onAll={onAvailability} />}
         <Segmented
           value={tab}
           onChange={onTab}
           options={[
-            { value: 'upcoming', label: leader ? 'Setlists' : 'Coming up' },
+            { value: 'upcoming', label: 'Upcoming' },
             ...(showBand ? [{ value: 'band', label: 'Band' }] : []),
             { value: 'past', label: 'Past' },
           ]}
@@ -248,16 +239,14 @@ export default function ScheduleView({
           </div>
         )}
         {isBand ? band : groups.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
-            <b className="text-[17px]">{past ? 'Nothing played yet' : filter !== 'all' ? 'Nothing here' : 'Nothing planned yet'}</b>
-            <p className="m-0 max-w-[320px] text-[15px] leading-[21px] text-muted-foreground">
-              {past ? 'Setlists you have played show up here.' : leader ? 'Make a setlist with a date and it shows up here.' : 'When your church plans a setlist, it shows up here.'}
-            </p>
-          </div>
+          <EmptyState icon={q ? <SearchX strokeWidth={1.8} /> : <CalendarDays strokeWidth={1.8} />}
+            title={q ? 'No setlists match' : past ? 'Nothing played yet' : filter !== 'all' ? 'Nothing here' : 'Nothing planned yet'}>
+            {q ? 'Try another name, place or date.' : past ? 'Setlists you have played show up here.' : leader ? 'Make a setlist with a date and it shows up here.' : 'When your church plans a setlist, it shows up here.'}
+          </EmptyState>
         ) : shownGroups.map(g => (
           <section key={g.month} aria-label={g.month} className="flex flex-col gap-2">
-            <h2 className="m-0 px-0.5 pt-1.5 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{g.month}</h2>
-            <div className="overflow-hidden rounded-card border border-border bg-card">
+            <h2 className="m-0 px-0.5 pt-1.5 text-label text-muted-foreground">{g.month}</h2>
+            <div className="overflow-hidden rounded-card material-base">
               {g.rows.map(r => (
                 <Row key={r.setlist.id} row={r} leader={leader} past={past} clockFormat={clockFormat} onOpen={onOpen} onAnswer={onAnswer} />
               ))}

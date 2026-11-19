@@ -302,8 +302,9 @@ bar/bottom nav/drawer.
 #### 2.1 — Dashboard 🟡
 **Job.** The landing surface — what's next, what's recent, quick actions.
 
-**Owns.** `Dashboard.jsx` (690) · `ui/CalendarWidget.jsx` · widget internals ·
-the `data-theme-variant="modes"` styling
+**Owns.** `features/home/Home.jsx` + `HomeView.jsx`. The old `Dashboard.jsx`,
+`ui/CalendarWidget.jsx`, `ActivityFeed.jsx` and `ProgressChecklist.jsx` were
+deleted on 2026-11-15 (nothing imported them).
 
 **Debt.** Live customize mode (drag widgets); default widget order; the Library
 widget is a no-op on click; sync status should be fixed chrome, not a widget.
@@ -512,7 +513,7 @@ polish.
 
 #### 3.1 — Onboarding 🟡
 **Owns.** `features/onboarding/*` (7 files, 980 lines) · `Welcome.jsx` · `FounderNote.jsx` ·
-`IOSInstallHint.jsx` · `hooks/useInstallPrompt.js` · `ProgressChecklist.jsx`
+`IOSInstallHint.jsx` · `hooks/useInstallPrompt.js`
 
 **Debt.** The bulk-import decision (2.6) lands here — _Q: a step in the welcome
 flow, or found later in Settings?_ Public-domain starter pack (~20 PD hymns).
@@ -532,7 +533,7 @@ Mobile settings rework. **8 Labs flags** live here — see §4.
 ---
 
 #### 3.3 — Team & workspace 🟡
-**Owns.** `TeamScreen.jsx` (1,081) · `TeamBanner.jsx` · `ActivityFeed.jsx` ·
+**Owns.** `TeamScreen.jsx` (1,081) · `TeamBanner.jsx` ·
 `auth/TeamProvider.jsx` (503) · `ui/WorkspacePickerDialog.jsx` ·
 `ui/AvatarUploader.jsx`
 

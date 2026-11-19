@@ -17,9 +17,9 @@ const short = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-GB',
 const COLS = 'grid-cols-[minmax(0,2.2fr)_minmax(0,1.4fr)_48px_52px_minmax(0,1fr)_48px_minmax(0,1.2fr)]';
 
 export function SongsTable({ rows = [], picked, selecting, selected, onPick, onOpen, onToggle, sort, onSort }) {
-  const head = 'flex h-10 min-h-0 items-center border-0 bg-transparent p-0 text-left font-sans text-[12px] font-semibold text-muted-foreground';
+  const head = 'flex h-10 min-h-0 items-center border-0 bg-transparent p-0 text-left font-sans text-caption font-semibold text-muted-foreground';
   return (
-    <div role="table" aria-label="Songs" className="overflow-hidden rounded-card border border-border bg-card">
+    <div role="table" aria-label="Songs" className="overflow-hidden rounded-card material-base">
       <div role="row" className={cn('grid items-center gap-3 bg-raised px-4', selecting && 'pl-12', COLS)}>
         <button type="button" role="columnheader" onClick={() => onSort?.('az')} className={cn(head, 'cursor-pointer')}>Title{sort === 'az' ? ' ↑' : ''}</button>
         <span role="columnheader" className={head}>Artist</span>
@@ -43,11 +43,11 @@ export function SongsTable({ rows = [], picked, selecting, selected, onPick, onO
               type="button"
               onClick={() => (selecting ? onToggle : onPick)?.(r.song)}
               onDoubleClick={() => !selecting && onOpen?.(r.song)}
-              className={cn('grid h-[52px] w-full min-h-0 cursor-pointer items-center gap-3 border-0 bg-transparent px-4 text-left font-sans text-[14px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised', selecting && 'pl-12', COLS)}
+              className={cn('grid h-[52px] w-full min-h-0 cursor-pointer items-center gap-3 border-0 bg-transparent px-4 text-left font-sans text-small text-foreground outline-none hover:bg-raised focus-visible:bg-raised', selecting && 'pl-12', COLS)}
             >
               <span className="truncate font-semibold">{r.song.title || 'Untitled'}</span>
               <span className="truncate text-muted-foreground">{r.song.artist}</span>
-              <span className="font-mono text-[13px] font-semibold text-[var(--chord)]">{r.keyName}</span>
+              <span className="font-mono text-small font-semibold text-[var(--chord)]">{r.keyName}</span>
               <span className="text-muted-foreground">{songTempo(r.song) || ''}</span>
               <span className={cn('truncate text-muted-foreground', r.line.stale && 'text-[var(--chord)]')}>{r.stat?.last ? short(r.stat.last) : '—'}</span>
               <span className="text-muted-foreground">{r.stat?.plays || 0}</span>
@@ -83,7 +83,7 @@ function firstLines(arr, n = 2) {
 export function SongPreview({ row, nextLabel, onOpen, onEdit, customSectionTypes }) {
   if (!row) {
     return (
-      <div className="flex flex-col items-center gap-1 rounded-card border border-dashed border-border px-5 py-10 text-center text-[14px] text-muted-foreground">
+      <div className="flex flex-col items-center gap-1 rounded-card border border-dashed border-border px-5 py-10 text-center text-small text-muted-foreground">
         Pick a song to see it here.
       </div>
     );
@@ -96,17 +96,17 @@ export function SongPreview({ row, nextLabel, onOpen, onEdit, customSectionTypes
   const lines = firstLines(arr);
   const facts = { plays: stat?.plays || 0, last: stat?.last ? short(stat.last) : null, usualKey: mostPlayedKey(song.keyHistory) || '' };
   return (
-    <aside aria-label="Song preview" className="sticky top-4 flex flex-col gap-3.5 rounded-card border border-border bg-card p-5">
+    <aside aria-label="Song preview" className="sticky top-4 flex flex-col gap-3.5 rounded-card material-base p-5">
       <div className="flex items-center gap-4">
         <Cover song={song} size={72} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h2 className="m-0 text-[22px] font-semibold leading-[26px] tracking-[-0.3px]">{song.title || 'Untitled'}</h2>
-          {song.artist && <span className="truncate text-[15px] text-muted-foreground">{song.artist}</span>}
+          {song.artist && <span className="truncate text-body text-muted-foreground">{song.artist}</span>}
         </div>
-        {next && nextLabel && <span className="flex h-6 shrink-0 items-center self-start rounded-full bg-selected px-2.5 text-[12px] font-semibold text-link">{nextLabel}</span>}
+        {next && nextLabel && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold self-start bg-selected text-link">{nextLabel}</span>}
       </div>
       <MetaLine>
-        {arrs.length > 1 && <span className="inline-flex h-7 max-w-[160px] items-center truncate rounded-full border-[1.5px] border-foreground px-2.5 text-[11px] font-semibold uppercase tracking-[0.04em]">{arr.name || 'Main'}</span>}
+        {arrs.length > 1 && <span className="inline-flex h-7 max-w-[160px] items-center truncate rounded-full border-[1.5px] border-foreground px-2.5 text-caption font-semibold uppercase tracking-[0.04em]">{arr.name || 'Main'}</span>}
         <Fact label="Key">{arr.key && <span className="font-mono font-semibold text-warning-text">{arr.key}</span>}</Fact>
         <Fact label="BPM">{arr.tempo}</Fact>
         <Fact label="Time">{arr.time}</Fact>
@@ -119,8 +119,8 @@ export function SongPreview({ row, nextLabel, onOpen, onEdit, customSectionTypes
         {onEdit && <Button variant="outline" className="flex-1" onClick={() => onEdit(song)}>Edit</Button>}
       </div>
       {lines.length > 0 && (
-        <div className="flex flex-col gap-1 border-t border-border pt-3.5 text-[15px]">
-          <span className="text-[13px] text-muted-foreground">First lines</span>
+        <div className="flex flex-col gap-1 border-t border-border pt-3.5 text-body">
+          <span className="text-small text-muted-foreground">First lines</span>
           <span>{lines[0]}</span>
           {lines[1] && <span className="text-muted-foreground">{lines[1].replace(/[.,;:!?…]+$/, '')}…</span>}
         </div>

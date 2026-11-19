@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 import { createSetlistShare, revokeSetlistShare } from '@/lib/setlistShare';
 
 const EXPIRY_OPTIONS = [
@@ -81,7 +81,7 @@ export default function ShareSetlistDialog({ setlist, songs, ownerId, onClose })
                 <span className="text-label-12 text-[var(--ds-gray-700)] uppercase tracking-wider font-semibold mb-2 block">Link expires</span>
                 <div className="flex flex-wrap gap-2">
                   {EXPIRY_OPTIONS.map(o => (
-                    <Button key={o.days} variant={expiryDays === o.days ? 'brand' : 'secondary'} size="sm" onClick={() => setExpiryDays(o.days)}>
+                    <Button key={o.days} variant={expiryDays === o.days ? 'default' : 'outline'} size="sm" onClick={() => setExpiryDays(o.days)}>
                       {o.label}
                     </Button>
                   ))}
@@ -103,7 +103,7 @@ export default function ShareSetlistDialog({ setlist, songs, ownerId, onClose })
                   onFocus={e => e.target.select()}
                   className="flex-1 min-w-0 h-10 px-3 rounded-lg border border-[var(--ds-gray-400)] bg-[var(--ds-background-200)] text-copy-13 text-[var(--ds-gray-1000)] outline-none"
                 />
-                <Button variant="brand" size="sm" onClick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
+                <Button size="sm" onClick={copy}>{copied ? 'Copied' : 'Copy'}</Button>
               </div>
               <p className="text-label-12 text-[var(--ds-gray-600)] m-0">
                 {link.expiresAt
@@ -118,13 +118,13 @@ export default function ShareSetlistDialog({ setlist, songs, ownerId, onClose })
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[var(--ds-gray-200)] bg-[var(--ds-background-200)]">
           {!link ? (
             <>
-              <Button variant="secondary" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
-              <Button variant="brand" size="sm" onClick={create} loading={busy}>Create link</Button>
+              <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
+              <Button size="sm" onClick={create} loading={busy}>Create link</Button>
             </>
           ) : (
             <>
               <Button variant="ghost" size="sm" onClick={revoke} disabled={busy} className="text-[var(--ds-red-700)] mr-auto">Revoke</Button>
-              <Button variant="secondary" size="sm" onClick={onClose}>Done</Button>
+              <Button variant="outline" size="sm" onClick={onClose}>Done</Button>
             </>
           )}
         </div>

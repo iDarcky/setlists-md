@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { signupSource, forgetSignupSource } from '@/lib/siteEntry';
 import { useAuth } from '@/auth/useAuth';
 import { Button } from '@/ui/shadcn/button';
-import LegalSheet from '@/features/legal/LegalSheet';
+import WebSheet from '@/features/legal/WebSheet';
+import { termsAcceptance } from '@/features/legal/termsVersion';
 import { friendlyAuthError } from './friendlyAuthError';
 import { AuthLayout, AuthHeader, LogoMark } from './AuthLayout';
 import { CreateAccountView, LogInView, ForgotPasswordView } from './AuthViews';
@@ -59,7 +60,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
   const signUp = () => run('submit', async () => {
     const email = values.email.trim();
     const from = signupSource();
-    const { data, error } = await signUpWithPassword(email, values.password, values.name.trim(), from ? { signup_from: from } : null);
+    const { data, error } = await signUpWithPassword(email, values.password, values.name.trim(), { ...(from ? { signup_from: from } : {}), ...termsAcceptance() });
     if (error) throw error;
     forgetSignupSource();
     rememberEmail(email);
@@ -162,7 +163,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
           sent={resetSent}
         />
       )}
-      <LegalSheet doc={legal} onClose={() => setLegal(null)} />
+      <WebSheet page={legal} onClose={() => setLegal(null)} />
     </>
   );
 }

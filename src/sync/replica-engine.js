@@ -53,6 +53,7 @@
 // the migration) the engine says so, sets status `error`, and leaves local data
 // untouched — there is no other engine any more.
 
+import { markOrigin, ownItems } from './provenance';
 import { supabase as defaultClient } from '@/auth/supabase';
 import { getSyncState, updateReplicaState } from './tokens';
 import { parseSongMd, songToMd } from '@/parser';
@@ -676,6 +677,8 @@ export function createReplicaEngine(onStatusChange, teamId, {
     }
     await persist();
     const kept = keepTombstones(tombstones, push.pruned);
+    markOrigin(nextSongs, libraryId);
+    markOrigin(nextSetlists, libraryId);
     return {
       songs: nextSongs,
       setlists: nextSetlists,
@@ -744,9 +747,21 @@ export function createReplicaEngine(onStatusChange, teamId, {
     }
   }
 
+  // Never let another Space's objects in (see ./provenance). Warn once per
+  // call so a leak shows in the console instead of in someone's church.
+  function own(songs, setlists) {
+    let foreign = 0;
+    const count = () => { foreign += 1; };
+    const s = ownItems(songs || [], libraryId, count);
+    const sl = ownItems(setlists || [], libraryId, count);
+    if (foreign) console.warn(`[replica] ${libraryId}: ignored ${foreign} item(s) from another Space`);
+    return [s, sl];
+  }
+
   return {
     async fullSync(songs, setlists, tombstones = { songs: [], setlists: [] }) {
       if (syncing || !client) return { songs, setlists, tombstones, changed: false };
+      [songs, setlists] = own(songs, setlists);
       syncing = true;
       setStatus('syncing');
       try {
@@ -767,6 +782,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
     // Record what changed now (so a reload cannot lose it), push after a pause.
     debouncedPush(songs, setlists, tombstones = { songs: [], setlists: [] }, onTombstonesPruned) {
       if (readOnly || !client) return;
+      [songs, setlists] = own(songs, setlists);
       latest = { songs, setlists, tombstones, onTombstonesPruned };
       if (markDirty(songs, setlists) && mem.initialized) persist().catch(() => {});
       if (debounceTimer) clearTimeout(debounceTimer);
@@ -783,6 +799,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
       if (!debounceTimer) return;
       clearTimeout(debounceTimer);
       debounceTimer = null;
+      [songs, setlists] = own(songs, setlists);
       latest = { songs, setlists, tombstones, onTombstonesPruned };
       markDirty(songs, setlists);
       return runPush(songs, setlists, tombstones, onTombstonesPruned);

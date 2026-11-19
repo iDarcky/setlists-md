@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Chip as SharedChip } from '@/ui/shadcn/chip';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Button } from '@/ui/shadcn/button';
@@ -11,15 +12,8 @@ const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 const dayOf = (date) => new Date(`${date}T12:00:00`);
 
 /** A chip row value: one tap picks it. */
-export function Chip({ on, dashed, children, className, ...p }) {
-  return (
-    <button type="button" aria-pressed={on} {...p}
-      className={cn('flex h-9 min-h-0 shrink-0 cursor-pointer items-center whitespace-nowrap rounded-full border px-3.5 font-sans text-[14px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        on ? 'border-link bg-selected text-foreground' : dashed ? 'border-dashed border-input bg-transparent text-muted-foreground' : 'border-border bg-card text-foreground',
-        className)}>
-      {children}
-    </button>
-  );
+export function Chip(props) {
+  return <SharedChip {...props} />;
 }
 
 const WEEK = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -38,14 +32,14 @@ export function DateSheet({ open, onOpenChange, title = 'Date', value, marked = 
     <Sheet open={open} onOpenChange={onOpenChange} title={title} className="h-auto max-h-[92dvh] sm:max-w-[420px]">
       <div className="flex flex-col gap-3 font-sans">
         <div className="flex items-center justify-between">
-          <b className="text-[15px] font-semibold">{month.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</b>
+          <b className="text-body font-semibold">{month.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}</b>
           <span className="flex gap-1">
             <Button variant="ghost" size="icon" aria-label="Previous month" onClick={() => step(-1)}>‹</Button>
             <Button variant="ghost" size="icon" aria-label="Next month" onClick={() => step(1)}>›</Button>
           </span>
         </div>
         <div className="grid grid-cols-7 gap-0.5 text-center">
-          {WEEK.map((w, i) => <span key={i} className="h-6 text-[11px] text-muted-foreground">{w}</span>)}
+          {WEEK.map((w, i) => <span key={i} className="h-6 text-caption text-muted-foreground">{w}</span>)}
           {cells.map(d => {
             const k = ymd(d);
             const out = d.getMonth() !== month.getMonth();
@@ -53,7 +47,7 @@ export function DateSheet({ open, onOpenChange, title = 'Date', value, marked = 
             const dot = marked != null && d.getDay() === marked && !out;
             return (
               <button key={k} type="button" onClick={() => setPick(k)} aria-pressed={on} aria-label={longDay(k)}
-                className={cn('relative flex h-10 min-h-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent font-sans text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                className={cn('relative flex h-10 min-h-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent font-sans text-small outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   on ? 'bg-link font-semibold text-background' : out ? 'text-input' : k < today ? 'text-muted-foreground' : 'text-foreground')}>
                 {d.getDate()}
                 {dot && <span className={cn('absolute bottom-1 size-1 rounded-full', on ? 'bg-background' : 'bg-link')} />}
@@ -105,7 +99,7 @@ export function TimeInput({ value, onChange, className, ...p }) {
       // Tapping a filled box selects it, so typing replaces the old time.
       onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
       onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-      className={cn('h-10 w-[88px] rounded-control border bg-transparent px-3 font-mono text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      className={cn('h-10 w-[88px] rounded-control border bg-transparent px-3 font-mono text-body text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring',
         bad ? 'border-danger' : 'border-input', className)} {...p} />
   );
 }
@@ -122,7 +116,7 @@ export function TimeSigInput({ value, onChange, className, ...p }) {
       onChange={e => setText(typeTimeSig(e.target.value, text))} onBlur={commit}
       onFocus={e => e.currentTarget.select()} onClick={e => e.currentTarget.select()}
       onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-      className={cn('h-9 w-[72px] rounded-control border border-input bg-transparent px-3 font-mono text-[15px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', className)} {...p} />
+      className={cn('h-9 w-[72px] rounded-control border border-input bg-transparent px-3 font-mono text-body text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring', className)} {...p} />
   );
 }
 

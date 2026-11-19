@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { menuItemClass } from '@/ui/shadcn/menu';
 import { createPortal } from 'react-dom';
 import { cn } from '@/ui/shadcn/utils';
 import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
@@ -21,13 +22,13 @@ import { Grip } from './SetlistEdit';
 
 const Caps = ({ children, right }) => (
   <div className="flex items-center justify-between pt-2">
-    <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</span>
+    <span className="text-label text-muted-foreground">{children}</span>
     {right}
   </div>
 );
 const Row = ({ label, children }) => (
   <div className="flex min-h-[52px] items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
-    <span className="w-[84px] shrink-0 text-[14px] text-muted-foreground">{label}</span>
+    <span className="w-[84px] shrink-0 text-small text-muted-foreground">{label}</span>
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">{children}</div>
   </div>
 );
@@ -82,28 +83,28 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={`Template · ${title}`} className="fixed inset-0 z-[70] flex flex-col bg-background font-sans text-foreground">
+    <div role="dialog" aria-modal="true" aria-label={`Template · ${title}`} className="fixed inset-0 z-[140] flex flex-col bg-background font-sans text-foreground">
       <div className="flex min-h-14 items-center justify-center gap-2 border-b border-border px-4 py-2 sm:justify-between" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
         {/* Phone: Cancel and Save sit in the bar at the bottom. */}
         <Button variant="ghost" className="hidden sm:inline-flex" onClick={onCancel}>Cancel</Button>
-        <b className="truncate text-[16px]">{t.templateName || 'New template'}</b>
+        <b className="truncate text-body">{t.templateName || 'New template'}</b>
         <Button className="hidden sm:inline-flex" disabled={!canSave} onClick={save}>Save</Button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-4 pb-16 pt-4">
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             <Row label="Name"><Input value={t.templateName || ''} maxLength={60} placeholder="Sunday Morning" onChange={e => set({ templateName: e.target.value })} className="h-10" /></Row>
-            <Row label="Day">{WEEKDAYS.map((d, i) => <Chip key={d} on={t.weekday === i} className="h-8 px-2.5 text-[13px]" onClick={() => set({ weekday: i })}>{d}</Chip>)}</Row>
+            <Row label="Day">{WEEKDAYS.map((d, i) => <Chip key={d} on={t.weekday === i} className="h-8 px-2.5 text-small" onClick={() => set({ weekday: i })}>{d}</Chip>)}</Row>
             <Row label="Time"><TimeInput aria-label="Service time" value={t.time} onChange={v => set({ time: v })} /></Row>
             <Row label="Place"><Input value={t.location || ''} maxLength={80} placeholder="Main hall" onChange={e => set({ location: e.target.value })} className="h-10" /></Row>
           </div>
 
           <Caps right={<Switch label="Rehearsal" on={t.rehearsalOn !== false && !!t.rehearsalOn} onChange={v => set({ rehearsalOn: v })} />}>Rehearsal</Caps>
           {t.rehearsalOn && (
-            <div className="rounded-card border border-border bg-card">
+            <div className="rounded-card material-base">
               <Row label="Day">
-                {rehearsalDays.map(([n, l]) => <Chip key={n} on={!t.rehearsalPick && (Number(t.rehearsalOffset) || 0) === n} className="h-8 px-3 text-[13px]" onClick={() => set({ rehearsalOffset: n, rehearsalPick: false })}>{l}</Chip>)}
-                <Chip on={!!t.rehearsalPick} dashed={!t.rehearsalPick} className="h-8 px-3 text-[13px]" onClick={() => set({ rehearsalPick: true })}>Pick each week</Chip>
+                {rehearsalDays.map(([n, l]) => <Chip key={n} on={!t.rehearsalPick && (Number(t.rehearsalOffset) || 0) === n} className="h-8 px-3 text-small" onClick={() => set({ rehearsalOffset: n, rehearsalPick: false })}>{l}</Chip>)}
+                <Chip on={!!t.rehearsalPick} dashed={!t.rehearsalPick} className="h-8 px-3 text-small" onClick={() => set({ rehearsalPick: true })}>Pick each week</Chip>
               </Row>
               <Row label="Time"><TimeInput aria-label="Rehearsal time" value={t.rehearsalTime} onChange={v => set({ rehearsalTime: v })} /></Row>
               <Row label="Place"><Input value={t.rehearsalLocation || ''} maxLength={80} placeholder={t.location || 'Main hall'} onChange={e => set({ rehearsalLocation: e.target.value })} className="h-10" /></Row>
@@ -112,42 +113,42 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
 
           <Caps right={<Switch label="Number the setlists" on={numbered} onChange={v => { setTyped(null); set(v ? { namePattern: defaultPattern, nameCustom: false, namePad: 1, startNumber: 1 } : { namePattern: '', nameCustom: false }); }} />}>Number the setlists</Caps>
           {numbered ? (
-            <div className="rounded-card border border-border bg-card">
+            <div className="rounded-card material-base">
               <Row label="Next one">
                 <Input value={typed ?? formatName(effPattern, next, width)} maxLength={60} aria-label="Next setlist's name" aria-invalid={!typedOk || undefined}
                   onChange={e => typeName(e.target.value)} onBlur={() => { if (typedOk) setTyped(null); }} className="h-10 font-mono" />
               </Row>
-              <p className="m-0 border-t border-border px-4 py-3 text-[13px] text-muted-foreground">
+              <p className="m-0 border-t border-border px-4 py-3 text-small text-muted-foreground">
                 {typedOk
                   ? <>Then <b className="font-mono text-foreground">{formatName(effPattern, next + 1, width)}</b>, and so on. You can change how it is written, as long as it has a number.</>
                   : <span className="text-danger">Put a number in the name, like #1.</span>}
               </p>
             </div>
           ) : (
-            <p className="m-0 text-[13px] text-muted-foreground">Setlists are called “{baseTitle}”. Turn this on to add a number that goes up each time.</p>
+            <p className="m-0 text-small text-muted-foreground">Setlists are called “{baseTitle}”. Turn this on to add a number that goes up each time.</p>
           )}
 
           <Caps>Band</Caps>
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             {partRows.map(({ part, n }) => (
               <div key={part} className="flex min-h-[52px] items-center gap-3 border-t border-border px-4 py-1.5 first:border-t-0">
-                <span className="flex-1 text-[15px] font-medium">{partName(part)}</span>
+                <span className="flex-1 text-body font-medium">{partName(part)}</span>
                 <Button variant="outline" size="icon" className="size-9" aria-label={`One less ${partName(part)}`} onClick={() => setCount(part, n - 1)}>−</Button>
-                <span className="w-6 text-center font-mono text-[15px]" aria-label={`${n} ${partName(part)}`}>{n}</span>
+                <span className="w-6 text-center font-mono text-body" aria-label={`${n} ${partName(part)}`}>{n}</span>
                 <Button variant="outline" size="icon" className="size-9" aria-label={`One more ${partName(part)}`} onClick={() => setCount(part, n + 1)}>+</Button>
               </div>
             ))}
-            {!partRows.length && <p className="m-0 px-4 py-3 text-[14px] text-muted-foreground">Who you need each week, like 1 drums and 2 vocals.</p>}
+            {!partRows.length && <p className="m-0 px-4 py-3 text-center text-small text-muted-foreground">Who you need each week, like 1 drums and 2 vocals.</p>}
             <Popover open={addPart} onOpenChange={setAddPart}>
               <PopoverTrigger asChild>
-                <button type="button" className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent px-4 text-left font-sans text-[15px] font-medium text-link outline-none focus-visible:bg-raised">
+                <button type="button" className="flex min-h-12 w-full cursor-pointer items-center gap-2 border-0 border-t border-solid border-border bg-transparent px-4 text-left font-sans text-body font-medium text-link outline-none focus-visible:bg-raised">
                   <PlusIcon size={16} />Add to band<span aria-hidden="true" className="ml-auto text-muted-foreground">▾</span>
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="z-[80] max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
+              <PopoverContent className="max-h-[320px] w-[var(--radix-popover-trigger-width)] overflow-y-auto p-1">
                 {ADDABLE_PARTS.filter(p => !partRows.some(x => x.part === p)).map(p => (
                   <button key={p} type="button" onClick={() => { set({ parts: [...(t.parts || []), p] }); setAddPart(false); }}
-                    className="flex min-h-11 w-full cursor-pointer items-center rounded-control border-0 bg-transparent px-3 text-left font-sans text-[15px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
+                    className={menuItemClass}>
                     {partName(p)}
                   </button>
                 ))}
@@ -156,7 +157,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
           </div>
 
           <Caps>Order</Caps>
-          <div ref={listRef} className="rounded-card border border-border bg-card px-2 py-1">
+          <div ref={listRef} className="rounded-card material-base px-2 py-1">
             {items.map((it, i) => (
               <div key={i} data-drag-row style={rowStyle(i)} className={cn('my-1 flex min-h-12 items-center gap-2 rounded-control bg-card pr-1', isPlaceholder(it) ? 'border border-dashed border-input' : 'border border-transparent')}>
                 <Grip {...gripProps(i)} />
@@ -168,12 +169,12 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
                       onChange={e => setItems(xs => xs.map((x, j) => (j === i ? { ...x, duration: Math.max(0, Math.min(120, Number(e.target.value.replace(/\D/g, '')) || 0)) } : x)))} className="h-9 w-[64px]" />
                   </>
                 ) : (
-                  <span className="flex-1 text-[15px] font-semibold">{it.songId ? (it.songTitle || 'Song') : 'Song'}{it.songId && <span className="ml-2 text-[12px] font-normal text-muted-foreground">always this song</span>}</span>
+                  <span className="flex-1 text-body font-semibold">{it.songId ? (it.songTitle || 'Song') : 'Song'}{it.songId && <span className="ml-2 text-caption font-normal text-muted-foreground">always this song</span>}</span>
                 )}
                 <Button variant="ghost" size="icon" className="size-9 text-danger" aria-label="Remove" onClick={() => setItems(xs => xs.filter((_, j) => j !== i))}>✕</Button>
               </div>
             ))}
-            {!items.length && <p className="m-0 py-4 text-center text-[14px] text-muted-foreground">An empty order. Add “Song” slots and moments.</p>}
+            {!items.length && <p className="m-0 px-4 py-4 text-center text-small text-muted-foreground">An empty order. Add “Song” slots and moments.</p>}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setItems(xs => [...xs, placeholderItem()])}><PlusIcon size={16} />Song</Button>
@@ -196,20 +197,20 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
 export function TemplatesList({ templates = [], onEdit, onNew }) {
   return (
     <div className="flex flex-col gap-3 font-sans">
-      <div className="rounded-card border border-border bg-card">
+      <div className="rounded-card material-base">
         {templates.map(t => (
           <button key={t.id} type="button" onClick={() => onEdit(t)}
             className="flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-solid border-border bg-transparent px-4 py-2 text-left font-sans text-foreground outline-none first:border-t-0 focus-visible:bg-raised">
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="truncate text-[15px] font-semibold">{templateTitle(t)}</span>
-              <span className="truncate text-[13px] text-muted-foreground">
+              <span className="truncate text-body font-semibold">{templateTitle(t)}</span>
+              <span className="truncate text-small text-muted-foreground">
                 {[Number.isInteger(t.weekday) && `${WEEKDAYS[t.weekday]} ${t.time || ''}`.trim(), t.location, `${(t.items || []).filter(i => i.type !== 'break').length} songs`].filter(Boolean).join(' · ')}
               </span>
             </span>
             <ChevronRightIcon />
           </button>
         ))}
-        {!templates.length && <p className="m-0 px-4 py-5 text-[14px] text-muted-foreground">No templates yet.</p>}
+        {!templates.length && <p className="m-0 px-4 py-5 text-center text-small text-muted-foreground">No templates yet.</p>}
       </div>
       <Button onClick={onNew}><PlusIcon size={16} />New template</Button>
     </div>
@@ -226,8 +227,8 @@ export function TemplatesSheet({ open, onOpenChange, templates = [], onEdit, onN
 
 const Info = ({ label, value }) => (
   <div className="flex min-h-12 items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
-    <span className="flex-1 text-[15px]">{label}</span>
-    <span className="text-right text-[15px] text-muted-foreground">{value || '—'}</span>
+    <span className="flex-1 text-body">{label}</span>
+    <span className="text-right text-body text-muted-foreground">{value || '—'}</span>
   </div>
 );
 
@@ -245,40 +246,40 @@ export function TemplateView({ template: t, onEdit, onClose, embedded = false })
   const items = t.items || [];
   const body = (
     <div role="dialog" aria-modal={embedded ? undefined : 'true'} aria-label={`Template · ${templateTitle(t)}`}
-      className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'fixed inset-0 z-[70]')}>
+      className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'fixed inset-0 z-[140]')}>
       <div className="flex items-center gap-1 px-4 pb-1" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 8px)' }}>
         <button type="button" onClick={onClose} aria-label="Templates" title="Templates" className="-ml-2.5 flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"><BackIcon /></button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[560px] flex-col gap-2 px-4 pb-28">
           <h1 className="m-0 text-[26px] font-semibold tracking-[-0.5px]">{templateTitle(t)}</h1>
-          <p className="m-0 text-[14px] text-muted-foreground">Template{numbered ? ` · setlists are numbered (${formatName(t.namePattern, Number(t.startNumber) || 1, t.namePad)} …)` : ''}</p>
+          <p className="m-0 text-small text-muted-foreground">Template{numbered ? ` · setlists are numbered (${formatName(t.namePattern, Number(t.startNumber) || 1, t.namePad)} …)` : ''}</p>
 
           <Caps>When</Caps>
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             <Info label="Service" value={[serviceDay != null && WEEKDAYS[serviceDay], t.time].filter(Boolean).join(' ')} />
             {t.rehearsalOn && <Info label="Rehearsal" value={[rehearsalDay, t.rehearsalTime].filter(Boolean).join(' ')} />}
             <Info label="Place" value={t.location} />
           </div>
 
           <Caps>Band</Caps>
-          <div className="rounded-card border border-border bg-card px-4 py-3 text-[15px]">
+          <div className="rounded-card material-base px-4 py-3 text-body">
             {parts.length ? parts.map(x => (x.n > 1 ? `${x.n} ${partName(x.part)}` : partName(x.part))).join(', ') : <span className="text-muted-foreground">No parts picked</span>}
           </div>
 
           <Caps>Order of service</Caps>
-          <div className="rounded-card border border-border bg-card">
+          <div className="rounded-card material-base">
             {items.length ? items.map((it, i) => (
               <div key={i} className="flex min-h-11 items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
-                <span className="w-5 text-[13px] text-muted-foreground">{i + 1}</span>
-                <span className="flex-1 text-[15px]">
+                <span className="w-5 text-small text-muted-foreground">{i + 1}</span>
+                <span className="flex-1 text-body">
                   {it.type === 'break' ? (it.label || 'Moment') : it.songId ? (it.songTitle || 'Song') : (it.label || 'Song')}
                 </span>
-                <span className="text-[13px] text-muted-foreground">
-                  {it.type === 'break' ? (it.duration ? `${it.duration} min` : 'Moment') : it.songId ? 'Always this song' : isPlaceholder(it) ? 'Song to pick' : ''}
+                <span className="text-small text-muted-foreground">
+                  {it.type === 'break' ? (it.duration ? `${it.duration} min` : '') : it.songId ? 'Always this song' : isPlaceholder(it) ? 'Song to pick' : ''}
                 </span>
               </div>
-            )) : <p className="m-0 px-4 py-4 text-[14px] text-muted-foreground">Nothing in the order yet.</p>}
+            )) : <p className="m-0 px-4 py-4 text-center text-small text-muted-foreground">Nothing in the order yet.</p>}
           </div>
         </div>
       </div>

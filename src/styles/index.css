@@ -1,3 +1,6 @@
+/* Phone sheets (ui/shadcn/bottom-sheet.jsx), in their own layer so Tailwind utilities win. */
+@layer scrollsheet;
+@import "scrollsheet/styles.css" layer(scrollsheet);
 @import "tailwindcss";
 @import "./print.css";
 @import "./ds.css";
@@ -928,8 +931,54 @@
   100% { background-position: -200% 0; }
 }
 
-/* "Update available" card (ui/UpdatePrompt): rises from the bottom edge. */
-.update-card-in { animation: sheet-up 220ms ease-out both; }
+/* Every toast (ui/toast.jsx, Sileo). Unlayered on purpose and scoped to
+   .app-toaster so it outranks the styles Sileo injects at runtime. Ink, red
+   (undo) or green (update) fill with white text in both themes; the button is
+   white, its text colour comes from the toast (styles.button).
+   Update pill: very top on a phone (user, 14 Nov); every other toast bottom
+   right, offset above the nav pill below 1024px (AppToaster). */
+.app-toaster [data-sileo-viewport][data-position] { z-index: 600; } /* = z-toast */
+.app-toaster [data-sileo-viewport][data-position^=top] { top: env(safe-area-inset-top, 0px); }
+/* Phones: 85% size (owner, 15 Nov: "a bit too big for mobile"). Scaled from
+   the corner the toast sits in, so it stays put. */
+@media (max-width: 639px) {
+  .app-toaster [data-sileo-viewport] { transform: scale(0.85); }
+  .app-toaster [data-sileo-viewport][data-position=bottom-right] { transform-origin: bottom right; }
+  .app-toaster [data-sileo-viewport][data-position=top-center] { transform-origin: top center; }
+}
+.app-toaster [data-sileo-toast] { cursor: pointer; }
+.app-toaster [data-sileo-title] {
+  color: #fff;
+  font-family: var(--font-sans, inherit);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+}
+.app-toaster [data-sileo-badge] { color: #fff; background: rgba(255, 255, 255, 0.18); }
+.app-toaster [data-sileo-description] {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 14px 14px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-sans, inherit);
+  font-size: 14px;
+  line-height: 20px;
+}
+.app-toaster [data-sileo-button] {
+  height: 40px;
+  margin-top: 10px;
+  padding: 0 18px;
+  align-self: center;
+  width: 100%;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1C1A17;
+  background: #fff;
+  text-decoration: none;
+}
+.app-toaster [data-sileo-button]:hover { background: rgba(255, 255, 255, 0.9); }
 
 @keyframes pop-in {
   0% { opacity: 0; }

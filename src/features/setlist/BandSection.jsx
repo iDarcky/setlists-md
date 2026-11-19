@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTeamAvailability } from '@/hooks/useTeamAvailability';
 import { bandFor } from '@/lib/homeData';
+import { thirdInARow } from '@/lib/scheduleData';
 import { bandSlots, candidates, lastParts, partName } from '@/lib/bandParts';
 import { BandPlanner, PartSheet, AddPartSheet } from './BandPlanner';
 
@@ -30,7 +31,11 @@ export default function BandSection({
 
   const rows = bandFor(setlist, schedules, setlistMap);
   const from = useMemo(() => lastParts({ setlist, setlists, schedules, setlistMap }), [setlist, setlists, schedules, setlistMap]);
-  const slots = bandSlots({ rows, adds, removes, needed: [...(neededParts || from), ...extra] });
+  // "3 Sundays in a row" shows on the band rows too, not only in the picker.
+  const weekday = setlist.date ? new Date(`${setlist.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }) : '';
+  const slots = bandSlots({ rows, adds, removes, needed: [...(neededParts || from), ...extra] })
+    .map(s => (s.userId && s.status !== 'unavailable' && thirdInARow({ uid: s.userId, date: setlist.date, setlists, schedules, setlistMap })
+      ? { ...s, warn: `3 ${weekday}s in a row` } : s));
   const planRef = useRef(onPlanChange);
   planRef.current = onPlanChange;
   useEffect(() => { if (planOnly) planRef.current?.(adds, extra); }, [planOnly, adds, extra]);
@@ -76,7 +81,7 @@ export default function BandSection({
       console.error('Send asks failed:', err);
       setError(typeof navigator !== 'undefined' && !navigator.onLine
         ? 'You’re offline. Your picks are kept here; send again when you’re back.'
-        : 'Some asks weren’t sent. Try again.');
+        : 'Some invites weren’t sent. Try again.');
     } finally {
       setSending(false);
     }
@@ -93,7 +98,7 @@ export default function BandSection({
 
   const pending = planOnly ? 0 : adds.length + removes.size;
   const sendLabel = adds.length
-    ? `Send ${adds.length} ${adds.length === 1 ? 'ask' : 'asks'}${removes.size ? ` · take ${removes.size} off` : ''}`
+    ? `Send ${adds.length} ${adds.length === 1 ? 'invite' : 'invites'}${removes.size ? ` · take ${removes.size} off` : ''}`
     : 'Save changes';
   const dateLabel = setlist.date ? new Date(`${setlist.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
 

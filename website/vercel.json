@@ -1,5 +1,17 @@
 {
   "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/ro",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/ro/",
+      "destination": "/",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/((?!help|privacy|terms|copyright).*)",
@@ -65,7 +77,7 @@
       ]
     },
     {
-      "source": "/(site.css|site.js)",
+      "source": "/(site.css|home.css|site.js)",
       "headers": [
         {
           "key": "Cache-Control",

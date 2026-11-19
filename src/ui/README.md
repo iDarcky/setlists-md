@@ -1,5 +1,11 @@
 # The design system
 
+> **2026-11-15:** new work uses `src/ui/shadcn/` (button, list-row, section-label,
+> menu, segmented, chip, badge, empty-state, page-header, avatar, date-tile,
+> bottom-sheet …) and `src/ui/blocks/`. Removed as unused: `Badge`, `MobileSheet`,
+> `NotesStack`, `Separator`, `Switch`, `Toaster`, `UndoToastContent`. The rest of
+> this file describes the older primitives that old screens still use.
+
 51 primitives. This file says **which one to reach for**, so the next person
 doesn't add a 52nd because they couldn't tell `ScreenHeader` from `PageHeader`.
 
@@ -93,7 +99,7 @@ the surface you're on.
 `OfflineBanner` · `UpdatePrompt`
 
 **Data display** — `Highlight` (search matches, accent-correct) · `NoteContent` ·
-`NotesStack` · `Avatar` / `AvatarUploader` · `CalendarWidget`
+`NotesStack` · `Avatar` / `AvatarUploader`
 
 **Menus & controls** — `ColumnsMenu` · `CardFieldsMenu` · `SelectionBar` ·
 `Tabs` · `EdgeNavArrows` · `FloatingNavPill` · `FloatingStructure`

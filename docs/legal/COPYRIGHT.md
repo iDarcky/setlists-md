@@ -1,77 +1,28 @@
-# Copyright Policy
+# Copyright
 
-**Last Updated: May 1, 2026**
+*Beta version. Last updated: 19 November 2026. A Romanian version is published alongside this one. Both versions carry equal weight.*
 
-Setlists.md respects intellectual property rights. This page explains how
-copyright owners can submit a takedown notice and how we handle repeated
-infringement on the service.
+## How songs get into Setlists.md
 
-## What Setlists.md Is
+- Setlists.md doesn't come with a song library. Every group starts empty, and holds only what its own members add.
+- Each church or band is responsible for having the right to use the songs it adds, prints or shares. That might be a church licence, the songwriter's permission, or a song that's out of copyright.
+- A group's songs are visible only to its members, and to people with a guest link for one setlist, until that link expires.
 
-Setlists.md is a private workspace for musicians. We do not maintain a
-catalog of songs, lyrics, or chord charts. All content stored in the
-service is uploaded or created by individual users in their own private
-libraries. Users are responsible for ensuring they hold the appropriate
-licenses (such as **CCLI**, **SongSelect**, or **PraiseCharts**) for any
-copyrighted content they import.
+## If you own a song and it's here without permission
 
-## DMCA Takedown Notices (USA)
+Write to **hello@setlists.md** and tell us:
 
-If you believe that content stored in a Setlists.md user's library
-infringes your copyright, you may submit a notice under the Digital
-Millennium Copyright Act (17 U.S.C. § 512). Your notice must include:
+- your name and how to reach you, and who you act for if it's not yourself,
+- which song it is (title and author) and, if you know them, the group's name or a link,
+- why you think it's used without permission,
+- that what you've written is accurate and sent in good faith.
 
-1. A physical or electronic signature of the copyright owner or someone
-   authorized to act on their behalf.
-2. Identification of the copyrighted work claimed to have been infringed.
-3. Identification of the material that is claimed to be infringing,
-   sufficient for us to locate it (e.g. song title, user account email,
-   approximate date imported).
-4. Your contact information (address, telephone number, email).
-5. A statement that you have a good-faith belief that the use is not
-   authorized by the copyright owner, its agent, or the law.
-6. A statement, under penalty of perjury, that the information in the
-   notice is accurate and that you are authorized to act on behalf of
-   the copyright owner.
+We confirm we've received your report within 2 working days. If the use is clearly not allowed, we remove the song or restrict it. We tell the group what we did and why.
 
-## EU Copyright Directive (Article 17)
+## If your group's song was removed
 
-Rights-holders in the EU may submit equivalent notices. We will act
-expeditiously to remove or disable access to infringing content once a
-valid notice is received.
+A leader can reply to our email if the song is used with permission, for example under a licence. We look at it again and tell both sides what we decided. A group that keeps adding songs it has no right to use may be suspended.
 
-## Designated Agent
+## Our own name and design
 
-Send all copyright notices to:
-
-**Setlists.md — Designated Copyright Agent**
-Email: **legal@setlists.md**
-
-We endeavour to respond to all valid notices within 7 business days.
-
-## Counter-Notices
-
-If your content was removed and you believe the takedown was made in
-error or misidentification, you may submit a counter-notice to the same
-address. A valid counter-notice must include the elements listed in
-17 U.S.C. § 512(g)(3).
-
-## Repeat-Infringer Policy
-
-In accordance with 17 U.S.C. § 512(i) and applicable EU law, we will
-terminate the accounts of users who are the subject of repeated valid
-infringement notices. We define a repeat infringer as any user with two
-or more valid takedown notices issued against their account within a
-rolling twelve-month period.
-
-## Reporting Other Content Concerns
-
-If you encounter content shared with you (for example, in a Team library)
-that you believe is illegal, abusive, or otherwise violates our
-[Terms of Service](./TERMS.md), please email **legal@setlists.md** with a
-description of the content and the team or user involved.
-
-## Misuse of This Process
-
-Knowingly submitting false claims may result in liability under 17
-U.S.C. § 512(f). Please do not abuse this process.
+The Setlists.md name, logo, app design and code belong to us. Your songs and setlists stay yours or your group's.

@@ -1,192 +1,208 @@
 import { useState } from 'react';
+import { PageHeader } from '@/ui/shadcn/page-header';
+import * as AvatarPrimitive from '@radix-ui/react-avatar';
+import { AnimatePresence, motion as Motion } from 'motion/react';
+import {
+  Calendar, Check, ChevronLeft, ChevronRight, FileCheck, List, Music, Play, Plus, Users,
+} from 'lucide-react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
+import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime } from '@/lib/dateFormat';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { timeAgo } from '@/lib/homeData';
-import {
-  CalendarIcon, MusicIcon, TeamIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon,
-  ClockIcon, PinIcon, PlayIcon,
-} from '@/app/navIcons';
 import { partLabel } from '@/data/instruments';
-import { PlusIcon } from '@/app/navIcons';
 
-// Home, built from zero (canvas "Signed out and joining" → Home, v2). Pure
-// view: Home.jsx works out the data, /design renders this with samples.
+// Home, built from zero a second time (components overhaul, canvas "Home from
+// zero", owner 2026-11-15). Pure view: Home.jsx works out the data.
 //
-// Order, top to bottom (phone): hello + sync, Needs you (leaders), Can you
-// play?, Next up, your two weeks, Who can play (leaders), Recent activity
-// in the library. From 1024px the asks and the leader's lists move to a right
-// column.
+// Order (owner): the one-time checklist, Next up, Needs you, your two weeks,
+// Recent activity. One Home for leaders and members; the leader just sees more
+// rows. Who can play went to Schedule → Band, and "What do you play?" became a
+// checklist step.
+//
+// Five text sizes only: 24 title, 18 card title, 16, 14, 12 (the UPPERCASE
+// labels). Lucide icons at stroke 1.8. Corners: 8 controls, 12 cards.
 
+const STROKE = 1.8;
 const day = (dateStr, opts) => new Date(`${dateStr}T12:00:00`).toLocaleDateString('en-US', opts);
 const shortDate = d => day(d, { weekday: 'short', day: 'numeric', month: 'short' });
 const clock = (t, fmt) => (t ? formatClockTime(t, fmt) : '');
 
-function Section({ title, action, children, className }) {
+// ── Small parts ─────────────────────────────────────────────────────────────
+
+const Label = ({ children, className }) => (
+  <h2 className={cn('m-0 text-[12px] font-semibold uppercase leading-4 tracking-[0.06em] text-muted-foreground', className)}>{children}</h2>
+);
+
+function Section({ label, action, children, className }) {
   return (
-    <section className={cn('flex flex-col gap-2.5', className)}>
-      {(title || action) && (
-        <div className="flex items-baseline justify-between px-0.5">
-          <h2 className="m-0 text-[16px] font-semibold">{title}</h2>
-          {action}
-        </div>
-      )}
+    <section className={cn('flex min-w-0 flex-col gap-2.5', className)}>
+      <div className="flex h-7 items-center justify-between gap-2 px-0.5">
+        <Label>{label}</Label>
+        {action}
+      </div>
       {children}
     </section>
   );
 }
 
-const List = ({ children, className }) => (
-  <div className={cn('overflow-hidden rounded-card border border-border bg-card', className)}>{children}</div>
-);
-
-const Eyebrow = ({ children, accent }) => (
-  <span className={cn('text-[12px] font-semibold uppercase tracking-[0.06em]', accent ? 'text-link' : 'text-muted-foreground')}>{children}</span>
+const Card = ({ className, children, ...props }) => (
+  <div className={cn('overflow-hidden rounded-card border border-border bg-card', className)} {...props}>{children}</div>
 );
 
 const TextLink = ({ onClick, children }) => (
-  <button type="button" onClick={onClick} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 font-sans text-[14px] font-medium text-link hover:underline">
+  <button type="button" onClick={onClick} className="min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-1 py-1 font-sans text-[14px] font-medium text-link outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">
     {children}
   </button>
 );
 
-const rowButton = 'flex w-full min-h-14 cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent px-4 py-2.5 text-left font-sans text-foreground outline-none first:border-t-0 hover:bg-raised focus-visible:bg-raised';
+// One list row: 60px, a 36px leading tile or face, two lines, a trailing bit.
+const row = 'flex w-full min-h-[60px] items-center gap-3 border-0 border-t border-border bg-transparent px-4 py-2.5 text-left font-sans text-foreground outline-none first:border-t-0';
+const tappable = 'cursor-pointer transition-colors hover:bg-raised focus-visible:bg-raised';
 
-function SyncLine({ sync }) {
-  if (!sync) return null;
-  const dot = { ok: 'bg-success', pending: 'bg-warning', offline: 'bg-muted-foreground', error: 'bg-danger' }[sync.state] || 'bg-muted-foreground';
+function Tile({ icon: Icon, tone = 'plain' }) {
   return (
-    <span className="inline-flex items-center gap-2">
-      <span aria-hidden="true" className={cn('size-2 rounded-full', dot)} />
-      {sync.label}
+    <span className={cn(
+      'flex size-9 shrink-0 items-center justify-center rounded-control',
+      tone === 'warn' ? 'bg-warning-fill text-warning-text' : 'bg-raised text-foreground',
+    )}>
+      <Icon size={18} strokeWidth={STROKE} aria-hidden="true" />
     </span>
   );
 }
 
-// ── Needs you (leaders) ─────────────────────────────────────────────────────
-
-function NeedsYou({ items, onOpen }) {
-  if (!items?.length) return null;
-  const view = (it) => {
-    if (it.kind === 'join') {
-      return {
-        icon: <TeamIcon />,
-        title: it.count === 1 ? '1 person wants to join' : `${it.count} people want to join`,
-        sub: it.names.slice(0, 3).join(', ') + (it.names.length > 3 ? '…' : ''),
-      };
-    }
-    if (it.kind === 'parts') {
-      return {
-        icon: <TeamIcon />,
-        title: it.count === 1 ? '1 person hasn’t said what they play' : `${it.count} people haven’t said what they play`,
-        sub: it.names.slice(0, 3).join(', ') + (it.names.length > 3 ? '…' : ''),
-      };
-    }
-    const sl = it.setlist;
-    const when = shortDate(sl.date);
-    if (it.kind === 'noband') return { icon: <CalendarIcon size={20} />, title: `${when} has no band yet`, sub: sl.name || 'Service' };
-    return { icon: <MusicIcon size={20} />, title: `${sl.name || 'Service'} has no songs`, sub: when };
-  };
+function Lines({ title, sub, strike }) {
   return (
-    <Section title="Needs you">
-      <List>
-        {items.map((it, i) => {
-          const v = view(it);
-          return (
-            <button key={i} type="button" onClick={() => onOpen?.(it)} className={rowButton}>
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-raised text-link">{v.icon}</span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[15px] font-medium">{v.title}</span>
-                {v.sub && <span className="truncate text-[13px] text-muted-foreground">{v.sub}</span>}
-              </span>
-              <span className="text-input"><ChevronRightIcon /></span>
-            </button>
-          );
-        })}
-      </List>
-    </Section>
+    <span className="flex min-w-0 flex-1 flex-col">
+      <span className={cn('truncate text-[14px] font-medium leading-5', strike && 'text-muted-foreground line-through decoration-input')}>{title}</span>
+      {sub && <span className="truncate text-[12px] leading-4 text-muted-foreground">{sub}</span>}
+    </span>
   );
 }
 
-// ── What do you play? ───────────────────────────────────────────────────────
+const Chevron = () => <ChevronRight size={16} strokeWidth={2} className="shrink-0 text-muted-foreground" aria-hidden="true" />;
 
-/** Until you have said what you play and sing. No "Later": it stays until set. */
-function PartsCard({ church, onOpen }) {
+/** A person: their photo, else initials. */
+function Face({ name, url, you = false, size = 32, ring = false, className }) {
   return (
-    <section aria-label="What do you play?" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 sm:flex-row sm:items-center sm:gap-5">
-      <div className="flex min-w-0 flex-1 items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-selected text-link"><MusicIcon size={22} /></span>
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <h2 className="m-0 text-[16px] font-semibold leading-6">What do you play?</h2>
-          <p className="m-0 text-[14px] leading-5 text-muted-foreground">
-            Tell {church || 'your church'} what you play and sing. Leaders use it to plan the band, and your charts open on your part.
-          </p>
-        </div>
-      </div>
-      <Button className="sm:shrink-0" onClick={onOpen}>Pick what you play</Button>
-    </section>
+    <AvatarPrimitive.Root
+      title={name}
+      className={cn('relative inline-flex shrink-0 overflow-hidden rounded-full', ring && 'border-2 border-card', className)}
+      style={{ width: size, height: size }}
+    >
+      {url && <AvatarPrimitive.Image src={url} alt="" className="size-full object-cover" />}
+      <AvatarPrimitive.Fallback
+        className={cn(
+          'flex size-full items-center justify-center text-[12px] font-semibold',
+          you ? 'bg-selected text-link' : 'bg-raised text-foreground',
+        )}
+      >
+        {churchInitials(name)}
+      </AvatarPrimitive.Fallback>
+    </AvatarPrimitive.Root>
   );
 }
 
-// ── Can you play? ───────────────────────────────────────────────────────────
 
-const ANSWERS = [
-  { value: 'available', label: 'Yes' },
-  { value: 'maybe', label: 'Maybe' },
-  { value: 'unavailable', label: 'No' },
-];
+// ── Create (the + by the hello) ─────────────────────────────────────────────
 
-function Asks({ asks, onAnswer, onOpen, limit = 3 }) {
-  const [all, setAll] = useState(false);
-  const [busy, setBusy] = useState(null);
-  if (!asks?.length) return null;
-  const shown = all ? asks : asks.slice(0, limit);
-  const answer = async (id, value) => {
-    setBusy(id);
-    try { await onAnswer?.(id, value); } finally { setBusy(null); }
-  };
+/**
+ * The + opens a small menu that springs from the button (the bencho create
+ * menu's rows, corners and timing; anchored instead of centred, because a
+ * header has no room for the block's 244px stage). The + never turns into an
+ * ✕ (owner, 2026-11-15: "Don't rotate the +").
+ */
+function CreateButton({ items }) {
+  const [open, setOpen] = useState(false);
+  if (!items.length) return null;
   return (
-    <section aria-label="Can you play?" className="overflow-hidden rounded-card border border-link bg-selected">
-      <div className="flex items-center justify-between px-4 pb-1.5 pt-3.5">
-        <Eyebrow accent>Can you play?</Eyebrow>
-        <span className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full bg-link px-1.5 text-[12px] font-bold text-background">{asks.length}</span>
-      </div>
-      {shown.map(({ schedule, setlist }) => {
-        const part = partLabel(schedule);
-        return (
-          <div key={schedule.id} className="flex items-center gap-3 border-t border-border px-4 py-2.5 first-of-type:border-t-0">
-            <button type="button" onClick={() => onOpen?.(setlist)} className="flex min-h-0 min-w-0 flex-1 cursor-pointer flex-col border-0 bg-transparent p-0 text-left font-sans text-foreground">
-              <span className="truncate text-[15px] font-semibold">{shortDate(setlist.date)}</span>
-              <span className="truncate text-[13px] text-muted-foreground">{[setlist.name, part].filter(Boolean).join(' · ')}</span>
-            </button>
-            <div className="flex shrink-0 gap-1.5" role="group" aria-label={`Answer for ${shortDate(setlist.date)}`}>
-              {ANSWERS.map(a => (
-                <button
-                  key={a.value}
-                  type="button"
-                  disabled={busy === schedule.id}
-                  onClick={() => answer(schedule.id, a.value)}
-                  className="h-9 min-h-0 cursor-pointer rounded-full border border-input bg-card px-3 font-sans text-[14px] font-semibold text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                >
-                  {a.label}
-                </button>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button size="icon" aria-label="Create" className="size-11 shrink-0 rounded-control">
+          <Plus size={20} strokeWidth={2} aria-hidden="true" />
+        </Button>
+      </PopoverTrigger>
+      <AnimatePresence>
+        {open && (
+          <PopoverContent forceMount asChild align="end" sideOffset={8} className="w-[236px] p-1.5">
+            <Motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
+              style={{ transformOrigin: 'top right' }}
+            >
+              {items.map((it, i) => (
+                <div key={it.label}>
+                  {it.divider && i > 0 && <div className="mx-1.5 my-1 h-px bg-border" />}
+                  <button
+                    type="button"
+                    onClick={() => { setOpen(false); it.onSelect(); }}
+                    className="flex h-9 w-full min-h-0 cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[14px] font-medium text-foreground outline-none hover:bg-raised focus-visible:bg-raised"
+                  >
+                    <it.icon size={18} strokeWidth={STROKE} aria-hidden="true" />
+                    {it.label}
+                  </button>
+                </div>
               ))}
-            </div>
-          </div>
-        );
-      })}
-      {asks.length > limit && (
-        <button type="button" onClick={() => setAll(v => !v)} className="w-full min-h-0 cursor-pointer border-0 border-t border-border bg-transparent px-4 py-3 text-left font-sans text-[14px] font-medium text-link">
-          {all ? 'Show fewer' : `See all ${asks.length}`}
-        </button>
-      )}
-    </section>
+            </Motion.div>
+          </PopoverContent>
+        )}
+      </AnimatePresence>
+    </Popover>
   );
 }
 
-// ── Next up ─────────────────────────────────────────────────────────────────
+// ── 1 · Get ready (once) ────────────────────────────────────────────────────
+
+function SetupCard({ title, steps, onStep, onHide }) {
+  if (!steps?.length) return null;
+  const done = steps.filter(s => s.done).length;
+  return (
+    <Card aria-label={title} className="flex flex-col">
+      <div className="flex items-start justify-between gap-3 px-4 pt-4">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="m-0 text-[18px] font-semibold leading-[26px] tracking-[-0.2px]">{title}</h2>
+          <p className="m-0 text-[14px] leading-5 text-muted-foreground">{done} of {steps.length} done</p>
+        </div>
+        <button type="button" onClick={onHide} className="min-h-0 cursor-pointer rounded-control border-0 bg-transparent px-1 py-1 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+          Hide
+        </button>
+      </div>
+      <div className="mx-4 mb-1.5 mt-3 h-1 overflow-hidden rounded-full bg-raised" aria-hidden="true">
+        <div className="h-full rounded-full bg-link transition-[width] duration-300" style={{ width: `${(done / steps.length) * 100}%` }} />
+      </div>
+      <div className="flex flex-col pb-1">
+        {steps.map(s => (
+          <button
+            key={s.id}
+            type="button"
+            disabled={s.done}
+            onClick={() => onStep?.(s.id)}
+            className={cn(row, 'min-h-[52px] border-t-0 py-2', !s.done && tappable, s.done && 'cursor-default')}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                'flex size-[22px] shrink-0 items-center justify-center rounded-full',
+                s.done ? 'bg-link text-background' : 'shadow-[inset_0_0_0_1.5px_var(--input)]',
+              )}
+            >
+              {s.done && <Check size={13} strokeWidth={3} />}
+            </span>
+            <Lines title={s.title} sub={s.sub} strike={s.done} />
+            {!s.done && <Chevron />}
+            <span className="sr-only">{s.done ? 'done' : 'not done yet'}</span>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ── 2 · Next up ─────────────────────────────────────────────────────────────
 
 function inDays(n) {
   if (n == null) return '';
@@ -195,183 +211,260 @@ function inDays(n) {
   return `in ${n} days`;
 }
 
-function Faces({ band }) {
-  const yes = band.filter(b => b.yes).length;
+function NextUp({ next, leader, clockFormat, onOpen, onPlay, onMarkReady }) {
+  if (!next) return null;
+  const { setlist: sl, part, band = [], days, onNow } = next;
+  const when = onNow
+    ? `Started ${clock(sl.time, clockFormat)}`
+    : [shortDate(sl.date), clock(sl.time, clockFormat), inDays(days)].filter(Boolean).join(' · ');
+  const songs = (sl.items || []).filter(it => it?.type !== 'break').length;
+  const sub = [songs ? `${songs} song${songs === 1 ? '' : 's'}` : 'No songs yet', part ? `you play ${part}` : null, sl.location].filter(Boolean).join(' · ');
+  const yes = band.filter(b => b.yes);
+  const canMarkReady = leader && onMarkReady && sl.status === 'draft';
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex">
-        {band.slice(0, 6).map((b, i) => (
-          <span
-            key={b.id}
-            title={b.name}
-            className={cn(
-              'flex size-[26px] items-center justify-center rounded-full border-2 border-card text-[10px] font-semibold',
-              i > 0 && '-ml-1.5',
-              b.yes ? 'bg-link text-background' : 'bg-raised text-foreground',
-            )}
-          >
-            {churchInitials(b.name)}
-          </span>
+    <Section label={onNow ? 'On now' : 'Next up'}>
+      <Card className="flex flex-col gap-3.5 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-[12px] font-semibold uppercase leading-4 tracking-[0.06em] text-link">{when}</span>
+            <h3 className="m-0 truncate text-[18px] font-semibold leading-[26px] tracking-[-0.2px]">{sl.name || 'Service'}</h3>
+            <p className="m-0 truncate text-[14px] leading-5 text-muted-foreground">{sub}</p>
+          </div>
+          {sl.status === 'ready' && (
+            <span className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-success-fill px-2.5 text-[12px] font-semibold text-success-text">
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />Ready
+            </span>
+          )}
+        </div>
+        {band.length > 0 && (
+          <div className="flex items-center gap-2.5">
+            <div className="flex">
+              {band.slice(0, 5).map((b, i) => (
+                <Face key={b.id} name={b.name} url={b.avatarUrl} ring className={cn(i > 0 && '-ml-2', !b.yes && 'opacity-50')} />
+              ))}
+              {band.length > 5 && (
+                <span className="-ml-2 flex size-8 items-center justify-center rounded-full border-2 border-card bg-raised text-[12px] font-semibold">+{band.length - 5}</span>
+              )}
+            </div>
+            <span className="text-[14px] text-muted-foreground">
+              {yes.length === band.length ? `${band.length} in the band` : `${yes.length} of ${band.length} said yes`}
+            </span>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" onClick={() => onOpen?.(sl)}>Open</Button>
+          {canMarkReady ? (
+            <Button onClick={() => onMarkReady(sl)}><Check size={16} strokeWidth={2} aria-hidden="true" />Mark ready</Button>
+          ) : (
+            <Button onClick={() => (onPlay || onOpen)?.(sl)}><Play size={16} fill="currentColor" strokeWidth={0} aria-hidden="true" />Play</Button>
+          )}
+        </div>
+      </Card>
+    </Section>
+  );
+}
+
+// ── 3 · Needs you ───────────────────────────────────────────────────────────
+
+const ANSWERS = [
+  { value: 'unavailable', label: 'No' },
+  { value: 'maybe', label: 'Maybe' },
+  { value: 'available', label: 'Yes', primary: true },
+];
+
+function AskRow({ ask, onAnswer, onOpen }) {
+  const [busy, setBusy] = useState(false);
+  const { schedule, setlist } = ask;
+  const answer = async (value) => {
+    setBusy(true);
+    try { await onAnswer?.(schedule.id, value); } finally { setBusy(false); }
+  };
+  // The question gets the whole line, the three answers sit under it: on a
+  // phone the buttons beside it cut "Can you play Sun 22 Nov?" to "Can you pla…".
+  return (
+    <div className={cn(row, 'flex-col items-stretch gap-2.5 py-3')}>
+      <button type="button" onClick={() => onOpen?.(setlist)} className="flex min-h-0 min-w-0 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none">
+        <Tile icon={Calendar} tone="warn" />
+        <Lines title={`Can you play ${shortDate(setlist.date)}?`} sub={[setlist.name, partLabel(schedule)].filter(Boolean).join(' · ')} />
+      </button>
+      <div className="grid grid-cols-3 gap-1.5 pl-12" role="group" aria-label={`Answer for ${shortDate(setlist.date)}`}>
+        {ANSWERS.map(a => (
+          <Button key={a.value} size="sm" variant={a.primary ? 'default' : 'outline'} disabled={busy} onClick={() => answer(a.value)} className="h-9">
+            {a.label}
+          </Button>
         ))}
       </div>
-      <span className="text-[13px] text-muted-foreground">{yes} of {band.length} said yes</span>
     </div>
   );
 }
 
-function NextUp({ next, leader, clockFormat, onOpen, onMarkReady }) {
-  if (!next) return null;
-  const { setlist: sl, part, band, days } = next;
-  const rehearsal = sl.rehearsalDate
-    ? `Rehearsal ${shortDate(sl.rehearsalDate)}${sl.rehearsalTime ? ` · ${clock(sl.rehearsalTime, clockFormat)}` : ''}`
-    : null;
-  const canMarkReady = leader && onMarkReady && sl.status === 'draft';
+function needView(it) {
+  const names = it.names ? it.names.slice(0, 3).join(', ') + (it.names.length > 3 ? '…' : '') : null;
+  if (it.kind === 'join') return { icon: Users, title: it.count === 1 ? '1 person wants to join' : `${it.count} people want to join`, sub: names };
+  if (it.kind === 'parts') return { icon: Users, title: it.count === 1 ? '1 person hasn’t said what they play' : `${it.count} people haven’t said what they play`, sub: names };
+  if (it.kind === 'check') return { icon: FileCheck, title: it.count === 1 ? '1 imported song to check' : `${it.count} imported songs to check`, sub: 'Open each one and fix what’s off' };
+  const sl = it.setlist;
+  const when = shortDate(sl.date);
+  if (it.kind === 'noband') return { icon: List, title: `${sl.name || 'Service'} has no band yet`, sub: when };
+  return { icon: Music, title: `${sl.name || 'Service'} has no songs`, sub: when };
+}
+
+function NeedsYou({ asks = [], needs = [], onAnswer, onOpenSetlist, onNeed, limit = 4 }) {
+  const [all, setAll] = useState(false);
+  const total = asks.length + needs.length;
+  if (!total) return null;
+  const rows = [
+    ...asks.map(a => ({ key: `ask-${a.schedule.id}`, ask: a })),
+    ...needs.map((n, i) => ({ key: `need-${n.kind}-${n.setlist?.id || i}`, need: n })),
+  ];
+  const shown = all ? rows : rows.slice(0, limit);
   return (
-    <section aria-label="Next up" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <Eyebrow>Next up · {inDays(days)}</Eyebrow>
-        {leader && sl.status === 'ready' && (
-          <span className="rounded-full bg-selected px-2.5 py-0.5 text-[12px] font-semibold text-link">Ready</span>
+    <Section label={`Needs you · ${total}`}>
+      <Card>
+        {shown.map(r => {
+          if (r.ask) return <AskRow key={r.key} ask={r.ask} onAnswer={onAnswer} onOpen={onOpenSetlist} />;
+          const v = needView(r.need);
+          return (
+            <button key={r.key} type="button" onClick={() => onNeed?.(r.need)} className={cn(row, tappable)}>
+              <Tile icon={v.icon} />
+              <Lines title={v.title} sub={v.sub} />
+              <Chevron />
+            </button>
+          );
+        })}
+        {rows.length > limit && (
+          <button type="button" onClick={() => setAll(v => !v)} className={cn(row, tappable, 'min-h-11 text-[14px] font-medium text-link')}>
+            {all ? 'Show fewer' : `See all ${rows.length}`}
+          </button>
         )}
-      </div>
-      <h2 className="m-0 text-[22px] font-semibold leading-7 tracking-[-0.4px]">{sl.name || 'Service'}</h2>
-      <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[14px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5"><ClockIcon />{shortDate(sl.date)}{sl.time ? ` · ${clock(sl.time, clockFormat)}` : ''}</span>
-        {sl.location && <span className="inline-flex items-center gap-1.5"><PinIcon />{sl.location}</span>}
-        {rehearsal && <span className="inline-flex items-center gap-1.5"><CalendarIcon size={16} />{rehearsal}</span>}
-      </div>
-      {part && <div><span className="inline-flex h-[26px] items-center rounded-full bg-selected px-2.5 text-[13px] font-semibold">You: {part}</span></div>}
-      {leader && band?.length > 0 && <Faces band={band} />}
-      <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => onOpen?.(sl)}><PlayIcon />Open setlist</Button>
-        {canMarkReady && <Button variant="outline" className="flex-1" onClick={() => onMarkReady(sl)}>Mark ready</Button>}
-      </div>
-    </section>
+      </Card>
+    </Section>
   );
 }
 
-// ── Your two weeks ──────────────────────────────────────────────────────────
+// ── 4 · Your two weeks ──────────────────────────────────────────────────────
 
 function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onOpen }) {
   if (!days?.length) return null;
   const sel = days.find(d => d.date === selected) || null;
   const lines = sel
     ? [
-        ...sel.services.map(sl => ({ sl, title: sl.name || 'Service', sub: [clock(sl.time, clockFormat), sel.play ? 'You play' : sel.asked ? 'Asked' : null].filter(Boolean).join(' · ') })),
+        ...sel.services.map(sl => ({ sl, title: sl.name || 'Service', sub: [clock(sl.time, clockFormat), sel.play ? 'You play' : sel.asked ? 'You’re invited' : null].filter(Boolean).join(' · ') })),
         ...sel.rehearsals.map(sl => ({ sl, title: `Rehearsal · ${sl.name || 'Service'}`, sub: [clock(sl.rehearsalTime, clockFormat), sl.rehearsalLocation].filter(Boolean).join(' · ') })),
       ]
     : [];
-  const navBtn = 'flex size-8 min-h-0 cursor-pointer items-center justify-center rounded-full border border-border bg-transparent p-0 text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring';
+  const arrow = 'flex size-8 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent p-0 text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent';
+  const label = offset === 0 ? 'Your two weeks' : `${shortDate(days[0].date)} – ${shortDate(days[13].date)}`;
   return (
-    <section aria-label="Your two weeks" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <Eyebrow>{offset === 0 ? 'Your next two weeks' : `${shortDate(days[0].date)} – ${shortDate(days[13].date)}`}</Eyebrow>
-        <div className="flex gap-1">
-          <button type="button" aria-label="Earlier" disabled={offset <= 0} onClick={() => onOffset?.(offset - 1)} className={cn(navBtn, 'disabled:opacity-40')}><ChevronLeftIcon /></button>
-          <button type="button" aria-label="Later" onClick={() => onOffset?.(offset + 1)} className={navBtn}><ChevronRightIcon /></button>
-        </div>
-      </div>
-      {[days.slice(0, 7), days.slice(7)].map((week, w) => (
-        <div key={w} className="grid grid-cols-7 gap-1">
-          {week.map(d => {
-            const on = d.date === selected;
-            const label = `${d.weekday} ${d.day}${d.play ? ', you play' : d.asked ? ', asked' : ''}${d.services.length || d.rehearsals.length ? '' : ', nothing on'}`;
-            return (
-              <button
-                key={d.date}
-                type="button"
-                aria-label={label}
-                aria-pressed={on}
-                onClick={() => onSelect?.(d.date)}
-                className={cn(
-                  'relative flex h-16 min-h-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-[10px] border-0 bg-transparent p-0 font-sans outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  d.isToday && 'bg-raised',
-                  d.play && 'bg-selected',
-                  d.asked && 'shadow-[inset_0_0_0_1.5px_var(--warning-text)]',
-                  on && 'shadow-[inset_0_0_0_2px_var(--foreground)]',
-                  d.isPast && 'opacity-45',
-                )}
-              >
-                <span className="text-[11px] font-semibold text-muted-foreground">{d.weekday}</span>
-                <span className={cn('text-[17px] font-semibold', d.isToday ? 'text-link' : 'text-foreground')}>{d.day}</span>
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'size-1.5 rounded-full',
-                    d.play ? 'bg-link' : d.asked ? 'bg-warning-text' : d.services.length || d.rehearsals.length ? 'bg-input' : 'bg-transparent',
-                  )}
-                />
-              </button>
-            );
-          })}
-        </div>
-      ))}
-      <div className="flex flex-wrap gap-3.5 text-[12px] text-muted-foreground" aria-hidden="true">
-        <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] bg-selected" />You play</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[3px] shadow-[inset_0_0_0_1.5px_var(--warning-text)]" />Asked</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-input" />Something on</span>
-      </div>
-      {sel && (
-        <div className="-mx-4 flex flex-col border-t border-border">
-          {lines.length === 0 ? (
-            <p className="m-0 px-4 pt-3 text-[14px] text-muted-foreground">{shortDate(sel.date)}: nothing on.</p>
-          ) : lines.map((l, i) => (
-            <button key={i} type="button" onClick={() => onOpen?.(l.sl)} className={cn(rowButton, 'min-h-[52px] border-t-0 py-2')}>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[15px] font-medium">{shortDate(sel.date)} · {l.title}</span>
-                {l.sub && <span className="truncate text-[13px] text-muted-foreground">{l.sub}</span>}
-              </span>
-              <span className="text-input"><ChevronRightIcon /></span>
-            </button>
-          ))}
+    <Section
+      label={label}
+      action={(
+        <div className="flex items-center gap-1">
+          <button type="button" aria-label="Earlier" disabled={offset <= 0} onClick={() => onOffset?.(offset - 1)} className={arrow}><ChevronLeft size={16} strokeWidth={2} /></button>
+          <button type="button" aria-label="Later" onClick={() => onOffset?.(offset + 1)} className={arrow}><ChevronRight size={16} strokeWidth={2} /></button>
         </div>
       )}
-    </section>
-  );
-}
-
-// ── Who can play (leaders) ──────────────────────────────────────────────────
-
-function WhoCanPlay({ rows, onOpen, onOpenSchedule }) {
-  if (!rows?.length) return null;
-  const pct = (n, t) => (t ? `${(n / t) * 100}%` : '0%');
-  return (
-    <Section title="Who can play" action={onOpenSchedule && <TextLink onClick={onOpenSchedule}>Schedule</TextLink>}>
-      <List>
-        {rows.map(r => (
-          <button key={r.setlist.id} type="button" onClick={() => onOpen?.(r.setlist)} className={cn(rowButton, 'flex-col items-stretch gap-2 py-3')}>
-            <span className="flex items-baseline justify-between gap-2">
-              <span className="truncate text-[15px] font-semibold">{shortDate(r.setlist.date)} · {r.setlist.name || 'Service'}</span>
-              <span className="shrink-0 text-[13px] text-muted-foreground">{r.total - r.noAnswer} of {r.total} answered</span>
-            </span>
-            <span className="flex h-2 w-full overflow-hidden rounded-full bg-raised" aria-hidden="true">
-              <span className="h-full bg-link" style={{ width: pct(r.yes, r.total) }} />
-              <span className="h-full bg-warning-text" style={{ width: pct(r.maybe, r.total) }} />
-              <span className="h-full bg-danger" style={{ width: pct(r.no, r.total) }} />
-            </span>
-            <span className="flex flex-wrap gap-x-2.5 text-[12px] text-muted-foreground">
-              <span><b className="font-semibold text-foreground">{r.yes}</b> yes</span>
-              <span><b className="font-semibold text-foreground">{r.maybe}</b> maybe</span>
-              <span><b className="font-semibold text-foreground">{r.no}</b> no</span>
-              <span><b className="font-semibold text-foreground">{r.noAnswer}</b> no answer</span>
-            </span>
-          </button>
+    >
+      <Card className="flex flex-col gap-1 px-2.5 pb-1 pt-3">
+        {[days.slice(0, 7), days.slice(7)].map((week, w) => (
+          <div key={w} className="grid grid-cols-7 gap-1">
+            {week.map(d => {
+              const on = d.date === selected;
+              const busy = d.services.length || d.rehearsals.length;
+              const aria = `${d.weekday} ${d.day}${d.play ? ', you play' : d.asked ? ', invited' : ''}${busy ? '' : ', nothing on'}`;
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  aria-label={aria}
+                  aria-pressed={on}
+                  onClick={() => onSelect?.(d.date)}
+                  className={cn(
+                    'relative flex h-[52px] min-h-0 cursor-pointer flex-col items-center justify-center rounded-control border-0 bg-transparent p-0 font-sans text-foreground outline-none transition-colors hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
+                    on && 'bg-selected shadow-[inset_0_0_0_1.5px_var(--link)] hover:bg-selected',
+                    d.isPast && 'opacity-40',
+                  )}
+                >
+                  <span className="text-[12px] font-medium leading-4 text-muted-foreground">{d.weekday}</span>
+                  <span className={cn('text-[16px] font-semibold leading-[22px]', d.isToday && 'text-link')}>{d.day}</span>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'absolute bottom-1 size-[5px] rounded-full',
+                      d.play ? 'bg-link' : d.asked ? 'bg-warning-text' : busy ? 'bg-input' : 'hidden',
+                    )}
+                  />
+                </button>
+              );
+            })}
+          </div>
         ))}
-      </List>
+        {sel && (
+          <div className="-mx-2.5 mt-2 flex flex-col border-t border-border">
+            {lines.length === 0 ? (
+              <p className="m-0 px-4 py-3 text-[14px] leading-5 text-muted-foreground">{shortDate(sel.date)}: nothing on.</p>
+            ) : lines.map((l, i) => (
+              <button key={i} type="button" onClick={() => onOpen?.(l.sl)} className={cn(row, tappable, 'min-h-[52px] py-2')}>
+                <Lines title={`${shortDate(sel.date)} · ${l.title}`} sub={l.sub} />
+                <Chevron />
+              </button>
+            ))}
+          </div>
+        )}
+      </Card>
+      <div className="flex flex-wrap gap-x-3.5 gap-y-1 px-0.5 text-[12px] leading-4 text-muted-foreground" aria-hidden="true">
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-link" />You play</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-warning-text" />Invited</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-input" />Something on</span>
+      </div>
     </Section>
   );
 }
 
-// ── Nothing planned / recent activity ─────────────────────────────
+// ── 5 · Recent activity ─────────────────────────────────────────────────────
+
+/** Three rows show; the rest scroll inside the card (owner, 2026-11-15). */
+function Activity({ items, now, onOpen, onOpenSongs }) {
+  if (!items?.length) return null;
+  return (
+    <Section label="Recent activity" action={onOpenSongs && <TextLink onClick={onOpenSongs}>Songs</TextLink>}>
+      <Card className="max-h-[182px] overflow-y-auto overscroll-contain [scrollbar-width:thin]">
+        {items.map(it => {
+          const body = (
+            <>
+              <Face name={it.actor} url={it.avatarUrl} you={it.actor === 'You'} />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-[14px] leading-5">
+                  <span className="font-medium">{it.actor}</span>
+                  <span className="text-muted-foreground"> {it.verb}</span>
+                  {it.object && <span className={cn('font-medium', it.removed && 'line-through decoration-muted-foreground')}> {it.object}</span>}
+                </span>
+                <span className="text-[12px] leading-4 text-muted-foreground">{timeAgo(it.at, now)}</span>
+              </span>
+            </>
+          );
+          const canOpen = onOpen && !it.removed && it.kind !== 'member';
+          return canOpen ? (
+            <button key={it.id} type="button" onClick={() => onOpen(it)} className={cn(row, tappable)}>{body}</button>
+          ) : (
+            <div key={it.id} className={row}>{body}</div>
+          );
+        })}
+      </Card>
+    </Section>
+  );
+}
+
+// ── Sync trouble / nothing planned ──────────────────────────────────────────
 
 // Sync has been failing for minutes: say what that means for the band, and
 // what to try. Edits are still safe on this device.
 export function SyncProblem({ onRetry }) {
   return (
-    <section role="alert" className="flex flex-col gap-3 rounded-card border border-danger/30 bg-danger-fill px-4 py-4">
+    <section role="alert" className="flex flex-col gap-3 rounded-card border border-danger/30 bg-danger-fill p-4">
       <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[17px] font-semibold text-danger-text">Your changes aren’t reaching the church</h2>
-        <p className="m-0 text-[15px] leading-[21px] text-muted-foreground">They’re saved on this device, but the band won’t see them until sync works again. If trying again doesn’t help, close the app and open it again.</p>
+        <h2 className="m-0 text-[16px] font-semibold leading-6 text-danger-text">Your changes aren’t reaching the church</h2>
+        <p className="m-0 text-[14px] leading-5 text-muted-foreground">They’re saved on this device, but the band won’t see them until sync works again. If trying again doesn’t help, close the app and open it again.</p>
       </div>
       {onRetry && <Button size="sm" className="self-start" onClick={onRetry}>Try again</Button>}
     </section>
@@ -380,47 +473,12 @@ export function SyncProblem({ onRetry }) {
 
 function NothingPlanned({ onBrowse }) {
   return (
-    <section className="flex flex-col items-center gap-2 rounded-card border border-border bg-card px-5 py-7 text-center">
-      <h2 className="m-0 text-[17px] font-semibold">Nothing planned for you yet</h2>
-      <p className="m-0 max-w-[340px] text-[15px] leading-[21px] text-muted-foreground">When a leader asks you to play, it shows up here. You can still open any song.</p>
+    <Card className="flex flex-col items-center gap-2 px-5 py-7 text-center">
+      <span className="flex size-10 items-center justify-center rounded-control bg-raised text-muted-foreground"><Calendar size={20} strokeWidth={STROKE} aria-hidden="true" /></span>
+      <h2 className="m-0 text-[16px] font-semibold leading-6">Nothing planned for you yet</h2>
+      <p className="m-0 max-w-[340px] text-[14px] leading-5 text-muted-foreground">When a leader invites you to play, it shows up here. You can still open any song.</p>
       {onBrowse && <Button variant="outline" className="mt-2 w-full max-w-[340px]" onClick={onBrowse}>Browse songs</Button>}
-    </section>
-  );
-}
-
-function Activity({ items, now, onOpen, onOpenSongs }) {
-  if (!items?.length) return null;
-  return (
-    <Section title="Recent activity" action={onOpenSongs && <TextLink onClick={onOpenSongs}>Songs</TextLink>}>
-      <List>
-        {items.map(it => {
-          const body = (
-            <>
-              <span
-                aria-hidden="true"
-                className={cn('flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold', it.actor === 'You' ? 'bg-selected text-link' : 'bg-raised text-foreground')}
-              >
-                {churchInitials(it.actor)}
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[14px]">
-                  <span className="font-medium">{it.actor}</span>
-                  <span className="text-muted-foreground"> {it.verb}</span>
-                  {it.object && <span className={cn('font-medium', it.removed && 'line-through decoration-muted-foreground')}> {it.object}</span>}
-                </span>
-                <span className="text-[12px] text-muted-foreground">{timeAgo(it.at, now)}</span>
-              </span>
-            </>
-          );
-          const canOpen = onOpen && !it.removed && it.kind !== 'member';
-          return canOpen ? (
-            <button key={it.id} type="button" onClick={() => onOpen(it)} className={rowButton}>{body}</button>
-          ) : (
-            <div key={it.id} className={cn(rowButton, 'cursor-default hover:bg-transparent')}>{body}</div>
-          );
-        })}
-      </List>
-    </Section>
+    </Card>
   );
 }
 
@@ -429,78 +487,72 @@ function Activity({ items, now, onOpen, onOpenSongs }) {
 /**
  * @param {object} p
  * @param {string} p.name                 first name for "Hi …"
- * @param {string} p.dateLabel            "Sunday, 25 October"
- * @param {{state, label}} [p.sync]
- * @param {{onRetry}} [p.syncProblem]  sync failing for minutes
+ * @param {string} p.dateLabel            "Sunday 15 November"
+ * @param {{onRetry}} [p.syncProblem]     sync failing for minutes
+ * @param {{title, steps, onStep, onHide}} [p.setup]  the one-time checklist
  * @param {boolean} [p.leader]
  * @param {Array} [p.needs]               from needsYou()
  * @param {Array} [p.asks]                from myAsks()
  * @param {object} [p.next]               { setlist, part, band, days }
  * @param {object} [p.strip]              { days, offset, onOffset, selected, onSelect }
- * @param {Array} [p.whoCanPlay]          from whoCanPlay()
  * @param {Array} [p.activity]            from recentActivity() / activityFromSongs()
- * @param {boolean} [p.showNothingPlanned]
- * @param {Function} [p.onNewSetlist]     leaders: the "New setlist" button by the hello
- * @param {{church, onOpen}} [p.parts]    you have not said what you play yet
+ * @param {Array} [p.create]              the + menu: [{ icon, label, onSelect, divider }]
  */
 export default function HomeView({
-  name, dateLabel, sync, syncProblem, leader = false, clockFormat = '12h',
-  needs, onNeed, asks, onAnswer, next, onOpenSetlist, onMarkReady,
-  strip, whoCanPlay, onOpenSchedule, activity, now, onOpenActivity, onOpenSongs,
-  showNothingPlanned = false, onNewSetlist, parts, startChurch = null, embedded = false, layout = 'auto',
+  name, dateLabel, syncProblem, setup, leader = false, clockFormat = '12h',
+  needs, onNeed, asks, onAnswer, next, onOpenSetlist, onPlaySetlist, onMarkReady,
+  strip, onOpenSchedule, activity, now, onOpenActivity, onOpenSongs,
+  showNothingPlanned = false, create = [], startChurch = null, embedded = false, layout = 'auto',
 }) {
-  // One tree, picked by width (rendering both and hiding one would mount the
-  // asks' own state twice). `layout` pins it for /design's frames.
   const wideScreen = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'auto' ? wideScreen : layout === 'wide';
-  // The same header as Songs and Schedule (owner, 2026-11-13: "the hi user
-  // and new setlist button should all be on the same level as songs and
-  // schedule"): title and button share one centred row at the same size and
-  // padding, and the date line sits under that row instead of pushing the
-  // button down.
+  // The shared page header (owner, 2026-11-15: Home, Setlists and Songs the
+  // same); the date sits under it. Sync status moved to the profile photo
+  // and You (owner, 2026-11-15).
   const hello = (
-    <header className="flex flex-col gap-0.5 pb-0.5 pt-1">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className={cn('m-0 min-w-0 truncate font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Hi {name}</h1>
-        {leader && onNewSetlist && (
-          <Button size="sm" className="shrink-0" onClick={onNewSetlist}>
-            <PlusIcon size={16} />New setlist
-          </Button>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-2 text-[14px] text-muted-foreground">
-        <span>{dateLabel}</span>
-        {sync && <><span aria-hidden="true" className="text-border">·</span><SyncLine sync={sync} /></>}
-      </div>
-    </header>
+    <PageHeader
+      title={`Hi ${name}`}
+      wide={layout === 'auto' ? undefined : wide}
+      sub={<span>{dateLabel}</span>}
+    >
+      {/* Schedule's door (owner, 2026-11-15): a calendar button beside the +,
+          not a row in the two weeks. Schedule is not a nav tab. */}
+      {onOpenSchedule && (
+        <Button variant="outline" size="icon" aria-label="Schedule" title="Schedule" onClick={onOpenSchedule} className="size-11 rounded-control">
+          <Calendar size={20} strokeWidth={STROKE} aria-hidden="true" />
+        </Button>
+      )}
+      <CreateButton items={create} />
+    </PageHeader>
   );
-  const needsEl = leader && <NeedsYou items={needs} onOpen={onNeed} />;
-  const asksEl = <Asks asks={asks} onAnswer={onAnswer} onOpen={onOpenSetlist} />;
-  const nextEl = <NextUp next={next} leader={leader} clockFormat={clockFormat} onOpen={onOpenSetlist} onMarkReady={onMarkReady} />;
+  const setupEl = setup && <SetupCard {...setup} />;
+  const nextEl = <NextUp next={next} leader={leader} clockFormat={clockFormat} onOpen={onOpenSetlist} onPlay={onPlaySetlist} onMarkReady={onMarkReady} />;
+  const needsEl = <NeedsYou asks={asks} needs={leader ? needs : []} onAnswer={onAnswer} onOpenSetlist={onOpenSetlist} onNeed={onNeed} />;
+  const emptyEl = showNothingPlanned && !setup && <NothingPlanned onBrowse={onOpenSongs} />;
   const stripEl = strip && <TwoWeeks {...strip} clockFormat={clockFormat} onOpen={onOpenSetlist} />;
-  const whoEl = leader && <WhoCanPlay rows={whoCanPlay} onOpen={onOpenSetlist} onOpenSchedule={onOpenSchedule} />;
-  const emptyEl = showNothingPlanned && <NothingPlanned onBrowse={onOpenSongs} />;
   const activityEl = <Activity items={activity} now={now} onOpen={onOpenActivity} onOpenSongs={onOpenSongs} />;
 
   return (
     <div data-slot="home" className={cn('bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      <div className={cn('mx-auto flex w-full flex-col gap-3 pb-8', wide ? 'max-w-[1180px]' : 'max-w-[680px]', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
+      <div className={cn('mx-auto flex w-full flex-col gap-6 pb-8', wide ? 'max-w-[1180px]' : 'max-w-[680px]', layout === 'phone' ? 'px-4 pt-1' : 'px-4 pt-1 sm:px-6 sm:pt-6')}>
         {hello}
         {syncProblem && <SyncProblem {...syncProblem} />}
         {startChurch}
-        {parts && <PartsCard {...parts} />}
+        {setupEl}
         {wide ? (
-          // From 1024px: the service and your weeks on the left, asks and lists on the right.
-          <div className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-5">
-            <div className="flex min-w-0 flex-col gap-4">{needsEl}{nextEl}{emptyEl}{stripEl}</div>
-            <div className="flex min-w-0 flex-col gap-4">{asksEl}{whoEl}{activityEl}</div>
+          // From 1024px: your service and what needs you on the left, the
+          // calendar and the library's news on the right.
+          <div className="grid grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start gap-6">
+            <div className="flex min-w-0 flex-col gap-6">{nextEl}{needsEl}{emptyEl}</div>
+            <div className="flex min-w-0 flex-col gap-6">{stripEl}{activityEl}</div>
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {needsEl}{asksEl}{nextEl}{emptyEl}{stripEl}{whoEl}{activityEl}
+          <div className="flex flex-col gap-6">
+            {nextEl}{needsEl}{emptyEl}{stripEl}{activityEl}
           </div>
         )}
       </div>
     </div>
   );
 }
+

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { Button } from '@/ui/shadcn/button';
 import { cn } from '@/ui/shadcn/utils';
 import { PRINT_LOOK, applyPrintLook, fitPrintPreview } from '@/pdf/printSetlist';
@@ -33,19 +34,7 @@ function Segmented({ label, options, value, onChange }) {
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <span className="text-caption font-medium text-muted-foreground">{label}</span>
-      <div role="radiogroup" aria-label={label} className="flex h-10 rounded-control border border-border bg-raised p-0.5">
-        {options.map(o => {
-          const on = o.value === value;
-          return (
-            <button key={String(o.value)} type="button" role="radio" aria-checked={on} aria-label={o.aria || undefined}
-              onClick={() => onChange(o.value)}
-              className={cn('flex h-full min-h-0 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-[7px] border-0 px-3 font-sans text-small font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring',
-                on ? 'bg-background text-foreground shadow-sm' : 'bg-transparent text-muted-foreground hover:text-foreground')}>
-              {o.label}
-            </button>
-          );
-        })}
-      </div>
+      <Seg2 fill label={label} value={value} options={options} onChange={onChange} />
     </div>
   );
 }
@@ -142,7 +131,7 @@ export function PrintPreviewView({ title, kind, charts, build, onClose, embedded
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose}><XIcon /></Button>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[16px] font-semibold">{title}</span>
+            <span className="truncate text-body font-semibold">{title}</span>
             <span className="text-caption text-muted-foreground">{kind || (charts ? 'Charts' : 'Order sheet')} · print or save as PDF</span>
           </div>
           <Button onClick={print}><PrintIcon />Print</Button>

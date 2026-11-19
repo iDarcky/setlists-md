@@ -1,9 +1,13 @@
 import { useRef, useState } from 'react';
+import { syncStatus, SYNC_DOT } from '@/lib/syncStatus';
+import { Segmented } from '@/ui/shadcn/segmented';
+import { SectionLabel } from '@/ui/shadcn/section-label';
+import { ListRow, listRowShell } from '@/ui/shadcn/list-row';
 import { cn } from '@/ui/shadcn/utils';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Avatar } from '@/app/AppTopBar';
 import {
-  BackIcon, ChevronRightIcon, UserIcon, TeamIcon, GearIcon, MoonIcon, HelpIcon,
+  BackIcon, UserIcon, TeamIcon, GearIcon, MoonIcon, HelpIcon,
   SparkIcon, PhoneIcon, SignOutIcon,
 } from '@/app/navIcons';
 import WebSheet from '@/features/legal/WebSheet';
@@ -22,31 +26,30 @@ const Svg = ({ children, size = 20 }) => (
 const CrownIcon = () => <Svg><path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 11H5z" /></Svg>;
 const SendIcon = () => <Svg><path d="m22 2-7 20-4-9-9-4z" /><path d="M22 2 11 13" /></Svg>;
 const DocIcon = () => <Svg><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M8 13h8M8 17h5" /></Svg>;
+const SyncIcon = () => <Svg><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5M3 21v-5h5" /></Svg>;
 const ExternalIcon = () => <Svg size={16}><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></Svg>;
 
 function Row({ icon, label, sub, detail, badge, onClick, danger = false, external = false, chevron = true }) {
   return (
-    <button
-      type="button"
+    <ListRow
       onClick={onClick}
-      className={cn(
-        'flex min-h-[52px] w-full cursor-pointer items-center gap-3.5 border-0 border-t border-border bg-transparent px-4 py-2 text-left font-sans text-[16px] outline-none first:border-t-0 hover:bg-raised focus-visible:bg-raised sm:min-h-12 sm:text-[15px]',
-        danger ? 'text-danger-text' : 'text-foreground',
-      )}
-    >
-      <span className={danger ? 'text-danger-text' : 'text-muted-foreground'}>{icon}</span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate">{label}</span>
-        {sub && <span className="truncate text-[13px] text-muted-foreground">{sub}</span>}
-      </span>
-      {detail && <span className="text-small text-muted-foreground">{detail}</span>}
-      {badge != null && badge !== 0 && badge !== false && (
-        typeof badge === 'number'
-          ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-[12px] font-semibold text-white">{badge}</span>
-          : <span className="rounded-full bg-selected px-2 py-0.5 text-[12px] font-semibold text-link">{badge}</span>
-      )}
-      {external ? <span className="text-input"><ExternalIcon /></span> : chevron && <span className="text-input"><ChevronRightIcon /></span>}
-    </button>
+      danger={danger}
+      size={sub ? 'default' : 'compact'}
+      weight="regular"
+      leading={icon}
+      title={label}
+      sub={sub}
+      trailing={(detail || (badge != null && badge !== 0 && badge !== false) || external) ? <>
+        {detail && <span className="text-small text-muted-foreground">{detail}</span>}
+        {badge != null && badge !== 0 && badge !== false && (
+          typeof badge === 'number'
+            ? <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-danger px-1.5 text-caption font-semibold text-white">{badge}</span>
+            : <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{badge}</span>
+        )}
+        {external && <span className="text-muted-foreground"><ExternalIcon /></span>}
+      </> : null}
+      chevron={!external && chevron}
+    />
   );
 }
 
@@ -59,35 +62,19 @@ const THEMES = [
 function ThemeRow({ theme, onChange }) {
   const current = theme === 'midnight' ? 'dark' : (theme || 'dark');
   return (
-    <div className="flex min-h-[52px] items-center gap-3.5 px-4 sm:min-h-12">
-      <span className="text-muted-foreground"><MoonIcon /></span>
-      <span id="you-theme" className="flex-1 text-[16px] sm:text-[15px]">Theme</span>
-      <div role="radiogroup" aria-labelledby="you-theme" className="flex gap-0.5 rounded-control bg-raised p-0.5">
-        {THEMES.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            role="radio"
-            aria-checked={current === t.id}
-            onClick={() => onChange?.(t.id)}
-            className={cn(
-              'h-[30px] min-h-0 cursor-pointer rounded-[6px] border-0 px-2.5 font-sans text-[13px] font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              current === t.id ? 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.15)]' : 'bg-transparent text-muted-foreground',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+    <div className={listRowShell('compact')}>
+      <span className="flex shrink-0 items-center text-muted-foreground"><MoonIcon /></span>
+      <span id="you-theme" className="flex-1 text-body">Theme</span>
+      <Segmented label="Theme" size="sm" value={current} options={THEMES} onChange={onChange} />
     </div>
   );
 }
 
 const Group = ({ children }) => (
-  <div className="overflow-hidden rounded-card border border-border bg-card">{children}</div>
+  <div className="overflow-hidden rounded-card material-base">{children}</div>
 );
 const GroupLabel = ({ children }) => (
-  <div className="px-1 pb-2 pt-5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</div>
+  <SectionLabel as="div" className="px-1 pb-2 pt-5">{children}</SectionLabel>
 );
 
 const UNLOCK_TAPS = 7;
@@ -118,10 +105,10 @@ function VersionLine({ version, labsUnlocked, onUnlockLabs }) {
   return (
     <div className="flex flex-col items-center gap-1 pt-6">
       <button type="button" onClick={tap}
-        className="min-h-0 cursor-default rounded-control border-0 bg-transparent px-3 py-2 font-sans text-[13px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        className="min-h-0 cursor-default rounded-control border-0 bg-transparent px-3 py-2 font-sans text-small text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
         Setlists.md · version {version}
       </button>
-      <span role="status" aria-live="polite" className="min-h-[18px] text-[13px] text-foreground">{hint}</span>
+      <span role="status" aria-live="polite" className="min-h-[18px] text-small text-foreground">{hint}</span>
     </div>
   );
 }
@@ -129,6 +116,7 @@ function VersionLine({ version, labsUnlocked, onUnlockLabs }) {
 const LEGAL = [
   { id: 'privacy', label: 'Privacy policy' },
   { id: 'terms', label: 'Terms of service' },
+  { id: 'churchTerms', label: 'Church and band terms' },
   { id: 'copyright', label: 'Copyright and takedowns' },
 ];
 
@@ -138,7 +126,7 @@ const LEGAL = [
  * @param {{ label: string }} [subscription]  only for the church's owner
  */
 export default function YouPage({
-  me, signedIn = true, church, teamBadge = 0, subscription, userId = null,
+  me, signedIn = true, syncState = null, online = true, onSyncNow, church, teamBadge = 0, subscription, userId = null,
   onBack, onProfile, onTeam, onSubscription, onSettings, theme, onThemeChange,
   onWhatsNew, hasNewChangelog = false, onInstall, onSignOut, onLogIn,
   version = __APP_VERSION__, labsUnlocked = false, onUnlockLabs, sendFeedback,
@@ -147,6 +135,10 @@ export default function YouPage({
   const [web, setWeb] = useState(null);
   const [legalOpen, setLegalOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  // Sync status lives here and as the dot on the profile photo, not on Home
+  // (owner, 2026-11-15). Tap to sync now.
+  const [now] = useState(() => Date.now());
+  const sync = syncStatus(syncState, now, online);
   return (
     <div
       data-slot="you-page"
@@ -165,10 +157,10 @@ export default function YouPage({
         <div className="flex items-center gap-4 pb-1 pt-1 sm:pt-4">
           <Avatar name={church ? church.name : me?.name} url={church ? church.logoUrl : me?.url} size={64} />
           <div className="flex min-w-0 flex-col gap-1">
-            <h1 className="m-0 truncate text-[22px] font-semibold tracking-[-0.4px]">{church ? church.name : me?.name}</h1>
-            <div className="flex min-w-0 items-center gap-2 text-[14px] text-muted-foreground">
+            <h1 className="m-0 truncate text-title font-semibold tracking-[-0.5px]">{church ? church.name : me?.name}</h1>
+            <div className="flex min-w-0 items-center gap-2 text-small text-muted-foreground">
               <span className="truncate">{church ? me?.name : me?.email}</span>
-              {church?.role && <span className="shrink-0 rounded-full bg-selected px-2 py-0.5 text-[12px] font-semibold text-link">{church.role}</span>}
+              {church?.role && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{church.role}</span>}
             </div>
           </div>
         </div>
@@ -183,6 +175,14 @@ export default function YouPage({
 
         <GroupLabel>App</GroupLabel>
         <Group>
+          <Row
+            icon={<SyncIcon />}
+            label="Sync"
+            sub={sync.state === 'local' ? 'Only on this device' : sync.state === 'error' ? 'Tap to try again' : null}
+            detail={<span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className={cn('size-2 rounded-full', SYNC_DOT[sync.state], sync.state === 'pending' && 'animate-pulse')} />{sync.state === 'local' ? 'Off' : sync.label}</span>}
+            onClick={onSyncNow}
+            chevron={false}
+          />
           <ThemeRow theme={theme} onChange={onThemeChange} />
           {onInstall && <Row icon={<PhoneIcon />} label="Put the app on your phone" onClick={onInstall} />}
           {onWhatsNew && <Row icon={<SparkIcon />} label="What’s new" badge={hasNewChangelog ? 'New' : 0} onClick={onWhatsNew} />}

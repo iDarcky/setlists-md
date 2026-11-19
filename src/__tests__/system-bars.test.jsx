@@ -51,9 +51,9 @@ describe('system bars', () => {
     setAppBarColor('#f6f4ef');
     document.documentElement.style.setProperty('--chart-bg', '#050505');
     const { unmount } = renderHook(() => useChartSystemBars());
-    setAppBarColor('#11100e');
+    setAppBarColor('#121110');
     expect(meta()).toBe('#050505');
     unmount();
-    expect(meta()).toBe('#11100e');
+    expect(meta()).toBe('#121110');
   });
 });

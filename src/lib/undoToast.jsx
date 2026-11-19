@@ -1,20 +1,7 @@
-import { toast } from '@/ui/use-toast';
-import UndoToastContent from '@/ui/UndoToastContent';
+import { undoToast } from '@/ui/toast';
 
-// Show a compact "deleted — Undo" toast with a 5s countdown ring. The caller has
-// ALREADY removed the thing optimistically; Undo puts it back via `onUndo`. The
-// toast dismisses itself when the ring runs out (onExpire), not only via Radix.
+// A "deleted · Undo" toast (Sileo, red, 5s). The caller has ALREADY removed the
+// thing optimistically; Undo puts it back via `onUndo`.
 export function showUndoToast({ title, onUndo }) {
-  const t = toast({
-    duration: 5000,
-    className: 'w-fit min-w-0 py-2 pl-3 pr-11',
-    title: (
-      <UndoToastContent
-        label={title}
-        onUndo={() => { onUndo?.(); t.dismiss(); }}
-        onExpire={() => t.dismiss()}
-      />
-    ),
-  });
-  return t;
+  return undoToast({ title, onUndo });
 }

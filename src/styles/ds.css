@@ -16,17 +16,23 @@
 :root,
 [data-theme="dark"],
 [data-theme="midnight"] {
-  --background: #11100E;
+  /* Dark surfaces "D: thin edge" (picked 2026-11-15 over B, which felt cheap
+     on a real phone: page too black, cards too bright). The page and the card
+     are a small step apart; the --border hairline does the separating, the
+     way Vercel's dark UI does. */
+  --background: #121110;
   --foreground: #F3EFE8;
-  --card: #1A1816;
+  --card: #171614;
   --card-foreground: #F3EFE8;
-  --raised: #23201D;
+  --raised: #22201D;
   --muted-foreground: #A39C92;
   --border: #2E2A26;
   --input: #6B645B;
+  /* Outline-button edge: softer than --input, a bright edge on black reads as a heavier, bigger button. */
+  --control-edge: #4A453F;
   --chip-border: #3D3833;
   --primary: #F3EFE8;
-  --primary-foreground: #11100E;
+  --primary-foreground: #121110;
   --link: #7AA89C;
   --selected: rgba(122, 168, 156, 0.16);
   --ring: #7AA89C;
@@ -55,6 +61,19 @@
   --tone-bridge: #AE9FDB;
   --tone-instrumental: #8FAACB;
   --tone-tag: #D895AA;
+
+  /* Materials (2026-11-15, modelled on Vercel Geist Materials). Floating
+     surfaces (bars, menus, sheets) get a step-lighter fill and edge on dark,
+     because a shadow alone barely reads on warm black. */
+  --float: #1C1A18;
+  --float-border: #3A3631;
+  --float-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-small: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-medium: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-large: 0 2px 4px rgba(0, 0, 0, 0.4), 0 16px 32px -8px rgba(0, 0, 0, 0.6);
+  --shadow-tooltip: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --shadow-menu: 0 4px 8px -2px rgba(0, 0, 0, 0.5), 0 16px 24px -8px rgba(0, 0, 0, 0.6);
+  --shadow-modal: 0 8px 16px -4px rgba(0, 0, 0, 0.5), 0 24px 48px -12px rgba(0, 0, 0, 0.7);
 }
 
 [data-theme="light"] {
@@ -66,6 +85,7 @@
   --muted-foreground: #6B655C;
   --border: #D3CCC0;
   --input: #8F887D;
+  --control-edge: #B9B1A5;
   --chip-border: #D3CCC0;
   --primary: #1C1A17;
   --primary-foreground: #F6F4EF;
@@ -93,6 +113,16 @@
   --tone-bridge: #5C4D93;
   --tone-instrumental: #3D5B80;
   --tone-tag: #8F3F5A;
+
+  --float: #FFFFFF;
+  --float-border: #D3CCC0;
+  --float-highlight: inset 0 0 0 0 transparent;
+  --shadow-small: 0 1px 2px rgba(28, 26, 23, 0.06);
+  --shadow-medium: 0 2px 4px rgba(28, 26, 23, 0.04), 0 8px 16px -4px rgba(28, 26, 23, 0.08);
+  --shadow-large: 0 2px 4px rgba(28, 26, 23, 0.04), 0 16px 32px -8px rgba(28, 26, 23, 0.12);
+  --shadow-tooltip: 0 2px 6px rgba(28, 26, 23, 0.12);
+  --shadow-menu: 0 4px 8px -2px rgba(28, 26, 23, 0.06), 0 16px 24px -8px rgba(28, 26, 23, 0.12);
+  --shadow-modal: 0 8px 16px -4px rgba(28, 26, 23, 0.08), 0 24px 48px -12px rgba(28, 26, 23, 0.2);
 }
 
 @theme inline {
@@ -104,6 +134,7 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --color-control-edge: var(--control-edge);
   --color-chip-border: var(--chip-border);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
@@ -123,6 +154,8 @@
   --color-info: var(--info);
   --color-info-fill: var(--info-fill);
   --color-info-text: var(--info-text);
+  --color-float: var(--float);
+  --color-float-border: var(--float-border);
 }
 
 @theme {
@@ -131,7 +164,10 @@
   --radius-card: 12px;
   --radius-sheet: 20px;
 
-  /* Five text sizes. Geist Sans comes from --font-sans in index.css. */
+  /* Five text sizes (2026-11-15): 24 / 18 / 16 / 14 / 12. Weights: 400
+     regular, 500 medium, 600 semibold; no bold in the UI (charts may bold
+     chords). Geist Sans comes from --font-sans in index.css.
+     `display` (32) is legacy: only the signed-out welcome uses it. */
   --text-display: 32px;
   --text-display--line-height: 40px;
   --text-display--letter-spacing: -1px;
@@ -140,10 +176,53 @@
   --text-title--line-height: 32px;
   --text-title--letter-spacing: -0.5px;
   --text-title--font-weight: 600;
+  --text-heading: 18px;
+  --text-heading--line-height: 24px;
+  --text-heading--letter-spacing: -0.2px;
+  --text-heading--font-weight: 600;
   --text-body: 16px;
   --text-body--line-height: 24px;
   --text-small: 14px;
   --text-small--line-height: 20px;
-  --text-caption: 13px;
-  --text-caption--line-height: 18px;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
 }
+
+/* ── Materials ────────────────────────────────────────────────────────────────
+   One class per elevation: fill + edge + shadow. Pick by where the surface
+   sits, never hand-roll a shadow. Don't stack two on one element; lift a
+   child into its own, higher material instead. Corners stay on the component
+   (rounded-card 12 for all of them, rounded-control 8 for tooltip,
+   rounded-t-sheet 20 for a phone sheet, rounded-full for pills).
+   Materials sort AFTER Tailwind built-ins in the CSS, so trimming an edge
+   needs `!` (the phone drawer uses `!border-x-0 !border-b-0`).
+
+     base        resting card, list group              layer 0
+     small       lifted row, picked tile, sticky head   layer 0 (z-sticky)
+     medium      nav pill, top bar, Save bar, sel. bar  z-chrome
+     large       floating panel, desktop preview        z-chrome
+     fullscreen  reader, live intro, takeovers          z-fullscreen
+     modal       sheet, dialog (over the scrim)         z-modal
+     menu        ⋮ menus, popovers, pickers             z-menu
+     tooltip     hints, inverted colours                z-tooltip
+     (toasts)    Sileo                                  z-toast        */
+@utility material-base { background-color: var(--card); border: 1px solid var(--border); box-shadow: none; }
+@utility material-small { background-color: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-small); }
+@utility material-medium { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-medium); }
+@utility material-large { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-large); }
+@utility material-fullscreen { background-color: var(--background); border: 0; box-shadow: none; }
+@utility material-modal { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-modal); }
+@utility material-menu { background-color: var(--float); border: 1px solid var(--float-border); box-shadow: var(--float-highlight), var(--shadow-menu); }
+@utility material-tooltip { background-color: var(--foreground); color: var(--background); border: 0; box-shadow: var(--shadow-tooltip); }
+
+/* Layers. Every z-index in the app comes from this list. */
+@utility z-sticky { z-index: 10; }
+@utility z-chrome { z-index: 100; }
+@utility z-fullscreen { z-index: 200; }
+@utility z-modal { z-index: 300; }
+@utility z-menu { z-index: 400; }
+@utility z-tooltip { z-index: 500; }
+@utility z-toast { z-index: 600; }
+
+/* The 12px UPPERCASE section label. */
+@utility text-label { font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }

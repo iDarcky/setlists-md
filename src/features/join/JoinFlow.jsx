@@ -53,7 +53,7 @@ function YoureIn({ church, onGoSchedule, onSkipHome }) {
       : 'In your browser menu, pick “Add to Home Screen” or “Install app”.';
 
   let pushAction = null;
-  let pushBody = 'Hear when a leader asks you to play.';
+  let pushBody = 'Hear when a leader invites you to play.';
   if (push.subscribed) {
     pushBody = 'On. You’ll hear when you’re asked to play.';
   } else if (push.denied) {

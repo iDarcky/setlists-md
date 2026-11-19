@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { SectionLabel } from '@/ui/shadcn/section-label';
+import { ListRow } from '@/ui/shadcn/list-row';
 import QRCode from 'qrcode';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
@@ -39,12 +41,7 @@ export function ChurchMark({ name, url, size = 48 }) {
 }
 
 const SectionTitle = ({ children, count, action }) => (
-  <div className="flex items-center justify-between gap-3 pt-3">
-    <h2 className="m-0 flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-      {children}{count != null && <span className="font-medium normal-case tracking-normal">{count}</span>}
-    </h2>
-    {action}
-  </div>
+  <SectionLabel count={count} action={action} className="pt-3">{children}</SectionLabel>
 );
 
 /** Logo, name, city and the facts. Owner gets Edit. */
@@ -56,12 +53,12 @@ export function ChurchCard({ team, peopleCount, services = [], onEdit }) {
     team.ccli_licence && { d: ICONS.licence, text: `CCLI ${team.ccli_licence}`, label: 'Licence number' },
   ].filter(Boolean);
   return (
-    <section aria-label="Church info" className="flex flex-col gap-4 rounded-card border border-border bg-card p-4 sm:p-5">
+    <section aria-label="Church info" className="flex flex-col gap-4 rounded-card material-base p-4 sm:p-5">
       <div className="flex items-center gap-3.5">
         <ChurchMark name={team.name} url={team.logo_url} size={52} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <h1 className="m-0 truncate text-[22px] font-semibold leading-7 tracking-[-0.4px]">{team.name}</h1>
-          <span className="truncate text-[14px] text-muted-foreground">
+          <span className="truncate text-small text-muted-foreground">
             {[team.location, `${peopleCount} ${peopleCount === 1 ? 'person' : 'people'}`].filter(Boolean).join(' · ')}
           </span>
         </div>
@@ -70,13 +67,13 @@ export function ChurchCard({ team, peopleCount, services = [], onEdit }) {
       {facts.length > 0 && (
         <dl className="m-0 flex flex-col gap-2.5 border-t border-border pt-4">
           {facts.map(f => (
-            <div key={f.label} className="flex items-start gap-3 text-[14px] leading-5">
+            <div key={f.label} className="flex items-start gap-3 text-small leading-5">
               <span className="mt-0.5 text-muted-foreground">{f.d ? <Icon d={f.d} /> : <PinIcon size={16} />}</span>
               <div className="flex min-w-0 flex-col">
                 <dd className="m-0 break-words text-foreground">
                   {f.href ? <a href={f.href} target="_blank" rel="noreferrer" className="text-link no-underline hover:underline">{f.text}</a> : f.text}
                 </dd>
-                <dt className="text-[12px] text-muted-foreground">{f.label}</dt>
+                <dt className="text-caption text-muted-foreground">{f.label}</dt>
               </div>
             </div>
           ))}
@@ -89,15 +86,14 @@ export function ChurchCard({ team, peopleCount, services = [], onEdit }) {
 function PersonRow({ member, sub, onOpen, me = false }) {
   const name = memberName(member);
   return (
-    <button type="button" onClick={() => onOpen?.(member)}
-      className="flex min-h-14 w-full cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent py-2 text-left font-sans text-foreground outline-none first:border-t-0 hover:bg-raised/50 focus-visible:ring-2 focus-visible:ring-ring">
-      <Avatar name={name} url={member.profile?.avatar_url} size={36} />
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[15px] font-medium">{name}{me && <span className="font-normal text-muted-foreground"> (you)</span>}</span>
-        {sub && <span className="truncate text-[13px] text-muted-foreground">{sub}</span>}
-      </span>
-      <span className="text-muted-foreground"><ChevronRightIcon /></span>
-    </button>
+    <ListRow
+      onClick={() => onOpen?.(member)}
+      inset={false}
+      leading={<Avatar name={name} url={member.profile?.avatar_url} size={36} />}
+      title={<>{name}{me && <span className="font-normal text-muted-foreground"> (you)</span>}</>}
+      sub={sub}
+      chevron
+    />
   );
 }
 
@@ -139,7 +135,7 @@ export function Waiting({ requests = [], onApprove, onDecline, onApproveAll, bus
   return (
     <section aria-label="Waiting to join" className="flex flex-col gap-1 rounded-card bg-warning/12 px-4 pb-2 pt-1">
       <SectionTitle count={requests.length}
-        action={requests.length > 1 && <Button variant="link" className="text-[14px]" disabled={!!busy} onClick={onApproveAll}>Let everyone in</Button>}>
+        action={requests.length > 1 && <Button variant="link" className="text-small" disabled={!!busy} onClick={onApproveAll}>Let everyone in</Button>}>
         Waiting for you
       </SectionTitle>
       {requests.map(r => {
@@ -149,15 +145,16 @@ export function Waiting({ requests = [], onApprove, onDecline, onApproveAll, bus
           <div key={r.id} className="flex min-h-14 items-center gap-3 border-t border-border/60 py-2 first:border-t-0">
             <Avatar name={name} url={r.avatar_url} size={36} />
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-[15px] font-medium">{name}</span>
-              <span className="truncate text-[13px] text-muted-foreground">{[parts, `asked ${ago(r.created_at)}`].filter(Boolean).join(' · ')}</span>
+              <span className="truncate text-body font-medium">{name}</span>
+              <span className="truncate text-small text-muted-foreground">{[parts, `asked ${ago(r.created_at)}`].filter(Boolean).join(' · ')}</span>
             </span>
             <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => onDecline(r)}>No</Button>
             <Button size="sm" loading={busy === r.id} disabled={!!busy} onClick={() => onApprove(r)}>Let in</Button>
           </div>
         );
       })}
-      {message && <p className={cn('m-0 pb-1 text-[13px]', message.kind === 'error' ? 'text-danger' : 'text-muted-foreground')}>{message.text}</p>}
+      {message && <p className={cn('m-0 pb-1 text-small', message.kind === 'error' ? 'text-danger' : 'text-muted-foreground')}>{message.text}</p>}
+      <p className="m-0 border-t border-border/60 pb-1 pt-2 text-caption text-muted-foreground">Under 16? Let them in only with a parent’s OK. Never under 13.</p>
     </section>
   );
 }
@@ -166,11 +163,11 @@ export function Waiting({ requests = [], onApprove, onDecline, onApproveAll, bus
 export function UsageEntry({ summary, onOpen }) {
   return (
     <button type="button" onClick={onOpen}
-      className="flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-card border border-border bg-card px-4 py-3 text-left font-sans text-foreground outline-none hover:bg-raised/50 focus-visible:ring-2 focus-visible:ring-ring">
+      className="flex min-h-16 w-full cursor-pointer items-center gap-3 rounded-card material-base px-4 py-3 text-left font-sans text-foreground outline-none hover:bg-raised/50 focus-visible:ring-2 focus-visible:ring-ring">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-raised"><Icon d={ICONS.chart} size={18} /></span>
       <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[15px] font-semibold">Song usage</span>
-        <span className="truncate text-[13px] text-muted-foreground">{summary || 'What we played, when, and who planned it'}</span>
+        <span className="text-body font-semibold">Song usage</span>
+        <span className="truncate text-small text-muted-foreground">{summary || 'What we played, when, and who planned it'}</span>
       </span>
       <span className="text-muted-foreground"><ChevronRightIcon /></span>
     </button>
@@ -199,24 +196,24 @@ export function InviteCard({ teamName, url, enabled = true, loading = false, err
   };
 
   return (
-    <section aria-label="Invite people" className="flex flex-col gap-3 rounded-card border border-border bg-card p-4 sm:p-5">
+    <section aria-label="Invite people" className="flex flex-col gap-3 rounded-card material-base p-4 sm:p-5">
       <div className="flex flex-col gap-1">
-        <h2 className="m-0 text-[17px] font-semibold">Invite people</h2>
-        <p className="m-0 text-[14px] leading-5 text-muted-foreground">Anyone with the link can ask to join. You let them in.</p>
+        <h2 className="m-0 text-heading font-semibold">Invite people</h2>
+        <p className="m-0 text-small leading-5 text-muted-foreground">Anyone with the link can ask to join. You let them in.</p>
       </div>
-      {loading && <p className="m-0 text-[14px] text-muted-foreground">One moment…</p>}
-      {error && !url && <p className="m-0 text-[14px] text-danger">{error}</p>}
+      {loading && <p className="m-0 text-small text-muted-foreground">One moment…</p>}
+      {error && !url && <p className="m-0 text-small text-danger">{error}</p>}
       {url && (
         <>
-          <div className={cn('truncate rounded-control border border-input bg-raised px-3.5 py-3 font-mono text-[14px]', !enabled && 'opacity-50')} title={url}>
+          <div className={cn('truncate rounded-control border border-input bg-raised px-3.5 py-3 font-mono text-small', !enabled && 'opacity-50')} title={url}>
             {url.replace(/^https?:\/\//, '')}
           </div>
-          {!enabled && <p className="m-0 text-[14px] text-muted-foreground">The link is off. Nobody can ask to join with it.</p>}
+          {!enabled && <p className="m-0 text-small text-muted-foreground">The link is off. Nobody can ask to join with it.</p>}
           <div className="flex gap-2">
             <Button className="flex-1" disabled={!enabled} onClick={copy}><Icon d={ICONS.copy} />{copied ? 'Copied' : 'Copy'}</Button>
             {canSend && <Button className="flex-1" variant="outline" disabled={!enabled} onClick={send}><Icon d={ICONS.send} />Send…</Button>}
           </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1 text-[14px]">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1 text-small">
             <Button variant="link" disabled={!enabled} onClick={() => setShowQr(v => !v)}>{showQr ? 'Hide QR code' : 'QR code'}</Button>
             {onToggle && <Button variant="link" disabled={busy === 'toggle'} onClick={() => onToggle(!enabled)}>{enabled ? 'Turn the link off' : 'Turn the link on'}</Button>}
             {onReset && <Button variant="link" className="text-danger" disabled={!!busy} onClick={onReset}>New link</Button>}
@@ -224,10 +221,10 @@ export function InviteCard({ teamName, url, enabled = true, loading = false, err
           {showQr && enabled && qr && (
             <div className="flex flex-col items-center gap-2 pt-1">
               <img src={qr} alt={`QR code for the ${teamName} join link`} width="200" height="200" className="rounded-control bg-white p-2" />
-              <span className="text-[13px] text-muted-foreground">Put it on the screen at rehearsal. Phones can scan it.</span>
+              <span className="text-small text-muted-foreground">Put it on the screen at rehearsal. Phones can scan it.</span>
             </div>
           )}
-          {error && <p className="m-0 text-[14px] text-danger">{error}</p>}
+          {error && <p className="m-0 text-small text-danger">{error}</p>}
         </>
       )}
     </section>

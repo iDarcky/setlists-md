@@ -192,9 +192,10 @@ const ACTIVITY_VERBS = {
  * left out: Home already shows those as asks and the strip.
  * `entity_id` is the server ROW id, so the item carries the name as well —
  * the caller finds the local song or setlist by row map or by name.
- * @returns {Array<{ id, kind, actorId, actor, verb, object, rowId, at, removed }>}
+ * `avatarFor(actorId)` gives the person's photo, or null for initials.
+ * @returns {Array<{ id, kind, actorId, actor, avatarUrl, verb, object, rowId, at, removed }>}
  */
-export function recentActivity(rows = [], { nameFor = () => null, userId, limit = 5 } = {}) {
+export function recentActivity(rows = [], { nameFor = () => null, avatarFor = () => null, userId, limit = 5 } = {}) {
   const seen = new Set();
   const out = [];
   for (const r of rows) {
@@ -206,7 +207,7 @@ export function recentActivity(rows = [], { nameFor = () => null, userId, limit 
     const [kind, verb] = known;
     const actor = r.actor_id && r.actor_id === userId ? 'You' : nameFor(r.actor_id) || 'Someone';
     out.push({
-      id: r.id, kind, actorId: r.actor_id, actor, verb,
+      id: r.id, kind, actorId: r.actor_id, actor, avatarUrl: (r.actor_id && avatarFor(r.actor_id)) || null, verb,
       object: kind === 'member' ? null : r.entity_name || null,
       rowId: r.entity_id, at: new Date(r.created_at).getTime(),
       removed: verb === 'removed' || verb === 'deleted',
@@ -241,4 +242,36 @@ export const SYNC_PROBLEM_AFTER_MS = 3 * 60 * 1000;
 export function syncProblem(syncState, now, online = true) {
   if (!online || !syncState?.provider || syncState.state !== 'error' || !syncState.errorSince) return false;
   return now - syncState.errorSince >= SYNC_PROBLEM_AFTER_MS;
+}
+
+// ── Get ready (Home's one-time checklist) ───────────────────────────────────
+
+const isDemo = (s) => typeof s?.id === 'string' && s.id.startsWith('demo-');
+
+/**
+ * The steps on Home's one-time checklist (owner, 2026-11-15). A leader sets
+ * the church up; a member gets ready to play. Each step is DONE from data the
+ * app already has, so ticking happens by doing, never by tapping a box.
+ * A step that can't apply here (no push on this browser) is left out.
+ * @returns {Array<{ id, title, sub, done }>}
+ */
+export function setupSteps({
+  leader = false, songs = [], setlists = [], memberCount = 0, hasParts = false,
+  push = null, answered = false,
+} = {}) {
+  if (leader) {
+    const mine = songs.filter(s => !isDemo(s)).length;
+    return [
+      { id: 'song', title: 'Add your first song', sub: 'Type it, or paste words and chords', done: mine > 0 },
+      { id: 'import', title: 'Import your song PDFs', sub: 'Many at once, then check each one', done: mine >= 10 },
+      { id: 'parts', title: 'Pick what you play', sub: 'Your charts open on your part', done: hasParts },
+      { id: 'setlist', title: 'Make your first setlist', sub: 'Pick a date and add songs', done: setlists.length > 0 },
+      { id: 'invite', title: 'Invite your band', sub: 'Send one link, you approve who joins', done: memberCount > 1 },
+    ];
+  }
+  return [
+    { id: 'parts', title: 'Pick what you play', sub: 'Your charts open on your part', done: hasParts },
+    ...(push?.supported ? [{ id: 'push', title: 'Turn on notifications', sub: 'Hear when a leader invites you to play', done: !!push.subscribed }] : []),
+    { id: 'answer', title: 'Answer your first ask', sub: 'Say if you can play on a date', done: answered },
+  ];
 }

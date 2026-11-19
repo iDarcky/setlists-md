@@ -1,5 +1,6 @@
 import { applyReaderLook, READER_LOOK_FLAG } from '@/lib/readerLook';
-import { Toaster } from "@/ui/Toaster";
+import { syncStatus } from '@/lib/syncStatus';
+import AppToaster from "@/ui/AppToaster";
 import { toast } from "@/ui/use-toast";
 import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
@@ -32,6 +33,7 @@ import { createBackupMirror } from '@/sync/backup';
 import { createReplicaEngine } from '@/sync/replica-engine';
 import { getSyncState, setActiveProvider } from '@/sync/tokens';
 import { reconcileAdopt, applyPulled } from '@/sync/adopt';
+import { markOrigin } from '@/sync/provenance';
 import { useTeamSetlistMap } from '@/hooks/useTeamSetlistMap';
 import { resolveMyInstrument } from '@/lib/myInstrument';
 import { resolveOpeningMode } from '@/lib/openingMode';
@@ -371,6 +373,7 @@ export default function App() {
   // Settings sub-panel ('hub' | 'appearance' | 'chart' | 'sync' | 'data' | 'about')
   // Lifted to App so it participates in the back-button history stack.
   const [settingsPanel, setSettingsPanel] = useState('hub');
+  // 'add' | 'import' | null: which Songs sheet to open on arrival (Home's + menu).
   // Wake-lock explainer is now state-driven (was render-condition-driven) so
   // it can participate in the history stack.
   // Session metrics handed off from the reader to the finale.
@@ -383,6 +386,8 @@ export default function App() {
   const [sessionStats, setSessionStats] = useState(null);
 
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  // The dot on the profile photo (sync moved off Home, owner 2026-11-15).
+  const topSync = useMemo(() => syncStatus(syncState, syncState.lastSync ? new Date(syncState.lastSync).getTime() : 0, isOnline), [syncState, isOnline]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -423,6 +428,13 @@ export default function App() {
     });
   };
   const isSwitchingLibraryRef = useRef(false);
+  // Bumped on every Space switch. A sync started in one Space must never land
+  // in another: its result is that Space's songs, and adopting it into the
+  // next Space's state makes them look like local edits there, which the next
+  // push uploads. On 2026-11-14 that copied a Personal library into a church
+  // (31 songs created, 5 overwritten) right after a sign-in on a new browser:
+  // Personal's first pull resolved after the switch to the church.
+  const libraryEpochRef = useRef(0);
   // Tracks which user we've already applied the "home Space" default for, so we
   // do it once per sign-in and never override a later manual switch.
   const defaultSpaceAppliedForRef = useRef(null);
@@ -705,7 +717,7 @@ export default function App() {
   // ask for is noise at best — and if the library ever re-uploads in a loop it
   // reads as one "Synced" panel that never goes away. Failures always toast;
   // only user-initiated syncs ("Sync now") report success.
-  const triggerSync = useCallback(async ({ silent = true } = {}) => {
+  const triggerSync = useCallback(async ({ silent: _silent = true } = {}) => {
     if (isSwitchingLibraryRef.current) return;
     const state = await getSyncState(activeLibrary);
     void state;
@@ -720,7 +732,11 @@ export default function App() {
       setSyncState(prev => ({ ...prev, state: 'offline', provider: providerId }));
       return;
     }
-    const result = await syncEngineRef.current.fullSync(songs, setlists, tombstones);
+    const epoch = libraryEpochRef.current;
+    const engine = syncEngineRef.current;
+    const result = await engine.fullSync(songs, setlists, tombstones);
+    // The Space changed while this sync ran: the result belongs to the old one.
+    if (epoch !== libraryEpochRef.current || engine !== syncEngineRef.current) return;
     adoptSyncResult(result, songs, setlists, tombstones);
     if (result.errors?.length > 0) {
       const first = result.errors[0];
@@ -731,15 +747,8 @@ export default function App() {
         description: `${first.kind}${where}: ${first.message}${more}`,
         variant: 'error',
       });
-    } else if (!silent) {
-      const parts = [];
-      if (result.uploaded?.songs) parts.push(`${result.uploaded.songs} song${result.uploaded.songs === 1 ? '' : 's'}`);
-      if (result.uploaded?.setlists) parts.push(`${result.uploaded.setlists} setlist${result.uploaded.setlists === 1 ? '' : 's'}`);
-      toast({
-        title: 'Synced',
-        description: parts.length ? `Uploaded ${parts.join(', ')}.` : 'Everything is up to date.',
-      });
     }
+    // A successful sync shows in the sync dot; no toast.
   }, [songs, setlists, tombstones, activeLibrary, personalCloudId, adoptSyncResult]);
   triggerSyncRef.current = triggerSync;
 
@@ -768,6 +777,7 @@ export default function App() {
   // Load data on mount or when active library changes
   useEffect(() => {
     isSwitchingLibraryRef.current = true;
+    libraryEpochRef.current += 1;
     let ignore = false;
     
     // Clear stale data immediately to avoid "ghost" content during load
@@ -812,6 +822,10 @@ export default function App() {
         savedSetlists = healSetlistLinks(savedSetlists, savedSongs).setlists;
       }
 
+      // Stamp what was read for this Space, so no other Space's engine can
+      // ever upload it (sync/provenance.js).
+      markOrigin(savedSongs, activeLibrary);
+      markOrigin(savedSetlists || [], activeLibrary);
       setSongs(savedSongs);
       setSetlists(savedSetlists || []);
 
@@ -879,6 +893,10 @@ export default function App() {
         // Force the provider state for team libraries
         await setActiveProvider(providerId, { connected: true }, activeLibrary);
       }
+      // Another switch may have started during the awaits above; by now
+      // syncEngineRef holds THAT Space's engine, and handing it this Space's
+      // songs would push them there.
+      if (ignore) return;
 
       if (providerId) {
         setSyncState({ state: 'idle', lastSync: storedSync?.lastSyncTime, provider: providerId });
@@ -1359,6 +1377,7 @@ export default function App() {
   ];
 
   const goLibrary = () => goToMainView('library');
+  // Home's + menu: open Songs with its Add-a-song or Import sheet already up.
 
   // Safety net: if a member ends up on an editing surface in a read-only team
   // library (e.g. they switched into the workspace while the editor was open),
@@ -1507,7 +1526,9 @@ export default function App() {
   // it we surface a "limit reached / contact support" affordance instead.
   const eligibleToCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
   const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
-  const goSchedule = () => navigate('schedule');
+  // Schedule opens from Home now (it left the nav pill on 2026-11-15). A
+  // personal library has no schedule, so its dated setlists stand in.
+  const goSchedule = () => navigate(activeLibrary === 'personal' ? 'setlists' : 'schedule');
 
   // Song CRUD
   // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
@@ -1633,7 +1654,6 @@ export default function App() {
     // reopens on the saved copy, so it is no longer "new" and nothing is
     // unsaved. Editing an existing song still lands on its page.
     const stay = wasNew && view === 'editor';
-    if (stay) toast({ title: 'Song added' });
     navigate(stay ? 'editor' : 'song-hub', { song, replace: true });
     if (isNew && !user && !settings?.seenSaveAccountWall) {
       openAccountWall(
@@ -1684,7 +1704,9 @@ export default function App() {
       const targetSongs = await loadSongs(targetLibraryId);
       // Clean up its old ID if it exists in the new library to avoid duplicates
       const filteredTargetSongs = targetSongs.filter(s => s.id !== song.id);
-      filteredTargetSongs.push(song);
+      // A new object: the original is stamped with the Space it leaves, and the
+      // target's engine refuses another Space's objects (sync/provenance.js).
+      filteredTargetSongs.push({ ...song });
       await saveSongs(filteredTargetSongs, targetLibraryId);
 
       // Trigger a background sync on the target library so the cloud gets the file
@@ -1697,10 +1719,6 @@ export default function App() {
         tempEngine.debouncedPush(filteredTargetSongs, targetSetlists, targetTombstones, () => {});
       }
 
-      toast({
-        title: 'Song moved',
-        description: `Successfully moved to ${targetLibraryId === 'personal' ? 'Personal' : 'Team'} library.`,
-      });
       setView('library');
     } catch (err) {
       console.error(err);
@@ -1872,7 +1890,6 @@ export default function App() {
     setSongs(prev => prev.some(s => s.id === id) ? prev : [...prev, entry.song]);
     setTrash(prev => prev.filter(e => e.song?.id !== id));
     setTombstones(prev => ({ ...prev, songs: prev.songs.filter(t => t.id !== id) }));
-    toast({ title: `Restored "${entry.song.title || 'song'}"` });
   };
 
   const handlePurgeSong = (id) => {
@@ -1934,8 +1951,7 @@ export default function App() {
       return { ...s, tags: next, updatedAt: Date.now() };
     }));
     if (changed > 0) {
-      const label = addList.length ? `Tagged ${changed} song${changed === 1 ? '' : 's'}` : `Untagged ${changed} song${changed === 1 ? '' : 's'}`;
-      toast({ title: label });
+      // The tag chips show it; no toast (design-basics/toasts-to-cut.md).
     }
   };
 
@@ -1966,7 +1982,6 @@ export default function App() {
       }
       return next;
     });
-    toast({ title: list.length === 1 ? `Added "${list[0].title || 'Untitled'}"` : `Added ${list.length} songs` });
   };
 
   // New song from a setlist's Add songs list. Unlike an import on Songs, a
@@ -2161,7 +2176,6 @@ export default function App() {
       arr[i] = { ...next, updatedAt: Date.now() };
       return arr;
     });
-    toast({ title: 'Saved as a new arrangement', description: 'The original is back the way it was.' });
   }, [isTeamReadOnly]);
 
   const handleUpdateSetlist = useCallback((updatedSetlist) => {
@@ -2245,7 +2259,6 @@ export default function App() {
       items: (src.items || []).map(it => ({ ...it })),
     };
     setSetlists(prev => [...prev, copy]);
-    toast({ title: 'Setlist duplicated', description: copy.name });
   };
 
   // Service templates (New setlist → Edit templates). A template is a setlist
@@ -2262,7 +2275,6 @@ export default function App() {
       if (!from || !to || from === to) return next;
       return next.map(s => (!s.isTemplate && (s.service || '') === from ? { ...s, service: to, updatedAt: Date.now() } : s));
     });
-    toast({ title: 'Template saved', description: tpl.templateName || tpl.name });
   };
   const handleDeleteTemplate = async (id) => {
     const tpl = setlists.find(s => s.id === id);
@@ -2315,9 +2327,8 @@ export default function App() {
       changed++;
       return { ...s, tags: next, updatedAt: Date.now() };
     }));
-    if (changed > 0) {
-      toast({ title: `${addList.length ? 'Tagged' : 'Untagged'} ${changed} setlist${changed === 1 ? '' : 's'}` });
-    }
+    // The tag chips show the change; no toast (design-basics/toasts-to-cut.md).
+    void changed;
   };
 
   // Setlist export/import
@@ -2386,7 +2397,6 @@ export default function App() {
         <Suspense fallback={<div className="min-h-screen bg-[var(--ds-background-100)]" />}>
           <GoogleDriveCallback
             onDone={() => {
-              toast({ title: 'Google Drive connected', description: 'Your songs and setlists will sync to your Drive.' });
               goToMainView('home');
               // Trigger a sync immediately so it pulls the cloud state into the app
               triggerSync();
@@ -2526,6 +2536,7 @@ export default function App() {
       }}
       me={{ name: displayName, url: profile?.avatar_url || null }}
       meBadge={pendingJoinCount}
+      sync={topSync}
       onOpenYou={leaveEditing(() => navigate('you'))}
       pill={<NavPill placement="top" active={navItemFor(view)} onSelect={goNavItem} />}
     />
@@ -2585,7 +2596,7 @@ export default function App() {
     <WorkspaceProvider activeLibrary={activeLibrary}>
     <ErrorBoundary>
     <Suspense fallback={lazyFallback}>
-      <Toaster />
+      <AppToaster />
       <OfflineBanner />
       {/* Home only: nobody is mid-task there, so a reload never lands in a
           live set, a rehearsal or a half-typed song. */}
@@ -2656,12 +2667,19 @@ export default function App() {
               ensureRow={ensureSetlistRow}
               setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
+              onPlaySetlist={(sl) => goSetlistRead(sl)}
+              onSetupDone={() => setSettings(prev => (prev && !prev.homeSetupDone ? { ...prev, homeSetupDone: true } : prev))}
               onEditSetlist={isTeamReadOnly ? null : goSetlistBuild}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onMarkReady={isTeamReadOnly ? null : markSetlistReady}
               onOpenSong={goChart}
               onOpenSongs={goLibrary}
               onOpenSchedule={goSchedule}
+              canAddSongs={!isTeamReadOnly}
+              onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
+              onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
+              onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
+              onBlank={isTeamReadOnly ? null : (details) => goEditor(null, null, '', details || null)}
               onOpenTeam={goTeam}
               onNotFound={showNotFound}
               onRetrySync={() => triggerSyncRef.current?.({ silent: false })}
@@ -2686,7 +2704,24 @@ export default function App() {
               otherChurches={ledChurches.filter(t => t.id !== activeLibrary)}
             />
           )}
-          {view === 'setlists' && (
+          {/* A church's Setlists tab is the Schedule list with only Upcoming /
+              Past (2026-11-15). Personal keeps the old library page. */}
+          {view === 'setlists' && activeLibrary !== 'personal' && (
+            <Schedule
+              mode="setlists"
+              setlists={setlists}
+              schedules={schedules}
+              updateSchedule={updateSchedule}
+              createSchedule={null}
+              deleteSchedule={deleteSchedule}
+              setlistMap={teamSetlistMap}
+              onOpenSetlist={goSetlistView}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              clockFormat={settings?.clockFormat || '12h'}
+              firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
+            />
+          )}
+          {view === 'setlists' && activeLibrary === 'personal' && (
             <Setlists
             songs={songs}
               setlists={setlists}
@@ -2953,6 +2988,9 @@ export default function App() {
             <YouPage
               me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
               signedIn={isSignedIn}
+              syncState={syncState}
+              online={isOnline}
+              onSyncNow={syncState.provider ? () => triggerSyncRef.current?.({ silent: false }) : undefined}
               church={activeLibrary !== 'personal' ? {
                 name: currentWorkspaceName,
                 logoUrl: team?.logo_url || null,
@@ -3058,6 +3096,7 @@ export default function App() {
               setlistMap={teamSetlistMap}
               onOpenSetlist={goSetlistView}
               onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
+              onBack={() => goToMainView('home')}
               clockFormat={settings?.clockFormat || '12h'}
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />

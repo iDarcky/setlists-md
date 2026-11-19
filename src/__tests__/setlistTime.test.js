@@ -24,12 +24,18 @@ describe('setlistTime', () => {
   it('stays upcoming through its slot when an end time is set', () => {
     const now = at(date, '11:00'); // mid-service
     expect(isSetlistUpcoming({ date, time: '10:00', endTime: '12:00' }, now)).toBe(true);
-    // without an end time, 11:00 is past the 1h grace after a 10:00 start
-    expect(isSetlistUpcoming({ date, time: '10:00' }, now)).toBe(false);
+    // without an end time it runs 3h, like the live window
+    expect(isSetlistUpcoming({ date, time: '10:00' }, now)).toBe(true);
+    expect(isSetlistUpcoming({ date, time: '10:00' }, at(date, '13:30'))).toBe(false);
   });
 
   it('becomes past once the end time passes', () => {
     expect(isSetlistUpcoming({ date, time: '10:00', endTime: '12:00' }, at(date, '12:30'))).toBe(false);
+  });
+
+  it('a setlist with no time lasts the whole day', () => {
+    expect(isSetlistUpcoming({ date }, at(date, '11:44'))).toBe(true);
+    expect(isSetlistUpcoming({ date }, at('2026-06-30', '00:01'))).toBe(false);
   });
 
   it('a future set is upcoming', () => {
