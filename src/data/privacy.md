@@ -6,7 +6,7 @@
 
 - We keep what your team needs to plan and play together: your name, your email, what you play and when you're free, and the songs and setlists your group adds.
 - Your church or band decides what goes into its group and who can see it. We look after that content for them.
-- We don't sell data, show ads, use tracking cookies or run analytics on you.
+- We don't sell data, show ads or use tracking cookies. The website counts visits without cookies; the app has no analytics.
 - You can export your songs, fix your details or delete your account whenever you like.
 
 ## Who runs Setlists.md
@@ -32,7 +32,7 @@ Setlists.md is run by Daniel Maghiș, a private individual based in Romania ("we
 
 - We don't sell or rent personal data.
 - We don't show ads and don't let anyone track you for ads.
-- We don't use analytics or tracking cookies on the app or the website.
+- We don't use analytics in the app, and we don't use tracking cookies anywhere. The website (setlists.md) counts page visits with GoatCounter, which sets no cookies and doesn't identify you: it records the page, where you came from, browser, screen size and country, not your IP address.
 - We don't use your songs or personal data to train AI models.
 - We don't read your group's content, except when you ask us for help with it or when we have to deal with a security problem or a legal request.
 
@@ -56,6 +56,7 @@ We use a small number of providers. Each one handles data only to do its job for
 |---|---|---|
 | Supabase | Database, sign-in, account emails, file storage (profile photos) | Ireland (EU) |
 | Vercel | Hosts the app and the website | United States, with servers worldwide |
+| GoatCounter | Counts visits to the website, without cookies | European Union |
 | Resend *(planned, not used yet)* | Will send account emails | We'll add it here before we start |
 | Sentry *(planned, not used yet)* | Crash reports, with on-screen text hidden | We'll add it here before we start |
 | Your browser's push service (Apple, Google or Mozilla) | Delivers notifications you turned on | Depends on your device |
