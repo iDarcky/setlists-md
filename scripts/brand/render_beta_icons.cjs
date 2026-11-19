@@ -15,8 +15,14 @@ const BETA_TILE = '#53796F';
 const BAND = '<rect x="0" y="206" width="256" height="50" fill="#E2A832"/>'
   + '<text x="128" y="243" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="34" letter-spacing="6" fill="#1A1816">BETA</text>';
 
+// Android crops the maskable icon to a circle (safe zone: radius 102 around
+// the centre), so its band is a small pill that stays inside that circle.
+const MASK_BAND = '<rect x="78" y="186" width="100" height="26" rx="13" fill="#E2A832"/>'
+  + '<text x="128" y="205.5" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="18" letter-spacing="3" fill="#1A1816">BETA</text>';
+
 function beta(src, withBand) {
   let svg = fs.readFileSync(path.join(pub, src), 'utf8').split(TILE).join(BETA_TILE);
+  if (withBand === 'mask') return svg.replace('</svg>', MASK_BAND + '</svg>');
   if (withBand) {
     // Keep the band inside a rounded tile: clip to the tile's own corners.
     const rx = (svg.match(/<rect width="256" height="256"( rx="(\d+)")?/) || [])[2] || 0;
@@ -28,7 +34,7 @@ function beta(src, withBand) {
 const ICONS = [
   ['setlists-md-icon.svg', 'icon-192.png', 192, true],
   ['setlists-md-icon.svg', 'icon-512.png', 512, true],
-  ['setlists-md-icon-maskable.svg', 'icon-512-maskable.png', 512, false],
+  ['setlists-md-icon-maskable.svg', 'icon-512-maskable.png', 512, 'mask'],
   ['setlists-md-icon-full.svg', 'apple-touch-icon.png', 180, true],
   ['favicon.svg', 'favicon-32.png', 32, false],
 ];
