@@ -36,10 +36,10 @@ describe('provenance', () => {
     const b = mkSong('b', 'B');
     const fresh = mkSong('c', 'C');
     const before = JSON.stringify(a);
-    markOrigin([a], 'personal');
+    markOrigin([a], 'other-church');
     markOrigin([b], CHURCH);
     expect(JSON.stringify(a)).toBe(before);
-    expect(originOf(a)).toBe('personal');
+    expect(originOf(a)).toBe('other-church');
     expect(originOf(fresh)).toBeUndefined();
 
     const foreign = [];
@@ -53,14 +53,14 @@ describe('provenance', () => {
 });
 
 describe('space lock — an engine only uploads its own Space', () => {
-  it('a church engine handed Personal songs pushes nothing for them', async () => {
+  it('a church engine handed another library\'s songs pushes nothing for them', async () => {
     const db = { team_songs: [], team_setlists: [], __rpcs: [] };
     const engine = createReplicaEngine(() => {}, CHURCH, { client: createFakeClient(db), onPullNeeded: () => {} });
     await engine.fullSync([], [], noTombstones());
 
-    const personal = markOrigin([mkSong('p1', 'Mare ești'), mkSong('p2', 'Tu ești vrednic')], 'personal');
+    const other = markOrigin([mkSong('p1', 'Mare ești'), mkSong('p2', 'Tu ești vrednic')], 'other-church');
     const mine = mkSong('c1', 'New church song');
-    const songs = [...personal, mine];
+    const songs = [...other, mine];
 
     engine.debouncedPush(songs, [], noTombstones(), () => {});
     await engine.flushPending(songs, [], noTombstones(), () => {});

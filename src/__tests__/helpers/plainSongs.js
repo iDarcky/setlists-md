@@ -1,20 +1,7 @@
-// The three demo songs every new personal library starts with.
-//
-// FIXED ids, on purpose (docs/SYNC-REDESIGN.md §6 #5). A song's id is its
-// identity on the wire: two devices of one account that both seeded the demos
-// with random ids uploaded six songs, not three. With fixed ids (and fixed
-// arrangement ids — the arrangement id is inside the JSON document too) the
-// second device's seed is the SAME song, and the replica treats the pristine
-// demo markdown as that song's baseline (`seedBaselines`): an unedited seed
-// adopts whatever the account already has, an edited one merges three-way,
-// and a demo deleted on another device stays deleted.
-
-import { parseSongMd } from '@/parser';
-import { songFromFlat } from '@/arrangements';
-
-export const DEMO_SONGS = [
+// Three plain public-domain songs, used as markdown round-trip fixtures.
+const SONGS = [
   {
-    id: 'demo-amazing-grace',
+    id: 'plain-amazing-grace',
     md: `---
 title: Amazing Grace
 artist: John Newton
@@ -59,7 +46,7 @@ Than when we [D7]first be[G]gun.
 `,
   },
   {
-    id: 'demo-there-is-a-fountain',
+    id: 'plain-there-is-a-fountain',
     md: `---
 title: There Is A Fountain
 artist: William Cowper
@@ -124,7 +111,7 @@ I'll sing Thy [D7]pow'r to [G]save.
 `,
   },
   {
-    id: 'demo-what-a-friend',
+    id: 'plain-what-a-friend',
     md: `---
 title: What A Friend We Have In Jesus
 artist: Joseph Medlicott Scriven
@@ -170,13 +157,5 @@ You will find a [C7]solace [F]there.
   },
 ];
 
-/** The markdown of each demo, in seed order (the catalog stand-in reads these). */
-export const DEMO_SONGS_MD = DEMO_SONGS.map(d => d.md);
-
-/** `{ [songId]: md }` — the baseline the replica compares a seeded demo against. */
-export const DEMO_BASELINES = Object.fromEntries(DEMO_SONGS.map(d => [d.id, d.md]));
-
-/** Fresh song objects for a first run. Same ids on every device, every time. */
-export function seedDemoSongs() {
-  return DEMO_SONGS.map(({ id, md }) => songFromFlat({ ...parseSongMd(md), id, arrangementId: `${id}-main` }));
-}
+/** The markdown of each song. */
+export const PLAIN_SONGS_MD = SONGS.map(d => d.md);

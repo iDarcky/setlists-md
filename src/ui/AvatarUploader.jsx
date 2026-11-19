@@ -7,7 +7,7 @@ import { uploadAvatar, removeOldAvatars } from '@/lib/avatarUpload';
 /**
  * Uploads an image to the public `avatars` storage bucket and reports the
  * resulting public URL via onChange. `pathPrefix` controls the storage folder
- * — `users/{uid}` for personal avatars, `teams/{teamId}` for team logos — which
+ * — `users/{uid}` for profile photos, `teams/{teamId}` for team logos — which
  * the bucket's RLS policies authorize. Removing calls onChange(null).
  *
  * The photo is shrunk on the device first (256px square, WebP or JPEG on

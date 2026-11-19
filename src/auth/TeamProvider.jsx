@@ -28,7 +28,7 @@ export function TeamProvider({ children }) {
   // The user whose memberships were last read from the server WITHOUT an
   // error. Until it matches the signed-in user, an empty `teams` means "not
   // known yet", not "in no church" — App must not drop a remembered church
-  // on that (the open-into-Personal-then-flicker on launch, 2026-11-03).
+  // on that (the flicker on launch, 2026-11-03).
   const [teamsLoadedFor, setTeamsLoadedFor] = useState(null);
   const loadedForUserRef = useRef(null);
   // Bumped to re-read memberships (e.g. a join request was just approved) or
@@ -43,7 +43,7 @@ export function TeamProvider({ children }) {
   }, []);
   const reloadMembers = useCallback(() => setMembersReloadKey(k => k + 1), []);
 
-  // The user's personal tier drives whether they may create/own workspaces.
+  // The account's tier (profiles.subscription_tier) drives whether they may create/own workspaces.
   // (The legacy `profiles.plan` column was dropped in 20260522_plans_migration;
   // `subscription_tier` is the canonical field.)
   const plan = (profile?.subscription_tier || 'free').toLowerCase();
@@ -220,7 +220,7 @@ export function TeamProvider({ children }) {
   // leaders only — must agree with `get_user_join_manager_teams()` in
   // 20261019_join_links.sql, or the list just comes back empty.
   const myActiveRole = team ? members.find(m => m.user_id === user?.id)?.role : null;
-  const canManageJoinLink = !!team && team.kind !== 'personal'
+  const canManageJoinLink = !!team
     && (team.owner_id === user?.id || canApproveJoins(myActiveRole));
   const {
     requests: joinRequests,
@@ -318,7 +318,7 @@ export function TeamProvider({ children }) {
         // Each workspace is its own billing unit. The `teams.plan` check
         // constraint only allows 'team' | 'church' — never 'free'/'sync' — so
         // we resolve a valid tier: an explicit choice wins, else fall back to
-        // the owner's personal tier when it's already team/church, else 'team'.
+        // the owner's account tier when it's already team/church, else 'team'.
         // Once Stripe checkout is wired the tier comes from the selected price;
         // subscription_status defaults to 'active' (see 20260604 migration).
         const teamPlan = (planArg === 'church' || planArg === 'team')

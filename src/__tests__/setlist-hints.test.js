@@ -45,7 +45,7 @@ describe('setlistDraft', () => {
   it('keeps one unsaved new setlist per space', () => {
     writeNewDraft('t1', { id: 'x', name: 'BBPT #424 AM' });
     expect(readNewDraft('t1')?.name).toBe('BBPT #424 AM');
-    expect(readNewDraft('personal')).toBe(null);
+    expect(readNewDraft('t2')).toBe(null);
     writeNewDraft('t1', null);
     expect(readNewDraft('t1')).toBe(null);
   });

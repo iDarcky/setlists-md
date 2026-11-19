@@ -361,7 +361,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
+export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = null, onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
   const { user } = useAuth();
   const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests } = useTeam();
   // Fresh "Waiting" list every time the page opens (realtime can miss one).
@@ -449,7 +449,7 @@ export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = fa
         onCreate={canCreate ? () => setCreating(true) : null}
         isDefaultSpace={defaultSpaceId === team.id}
         onToggleDefaultSpace={onSetDefaultSpace
-          ? () => onSetDefaultSpace(defaultSpaceId === team.id ? 'personal' : team.id)
+          ? () => onSetDefaultSpace(defaultSpaceId === team.id ? null : team.id)
           : undefined}
         setlists={setlists}
         songs={songs}

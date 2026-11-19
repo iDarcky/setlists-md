@@ -11,7 +11,7 @@ const joinLinkFns = { parseJoinPath, normalizeJoinCode };
 // at, done? }. `pendingJoin` is a parked join link (lib/joinLink): its own
 // flow (Waiting for a leader) covers that person, so this one stays out.
 
-export const START_SKIP_VIEWS = ['join', 'auth-callback', 'recovery', 'google-drive-callback', 'share-view', 'loading', 'signin', 'onboarding'];
+export const START_SKIP_VIEWS = ['join', 'auth-callback', 'recovery', 'share-view', 'loading', 'signin', 'onboarding'];
 
 /** 'choose' | 'waiting' | 'ready' | null */
 export function startScreen({ signedIn, teamsLoaded, teamCount, pendingJoin, request, view }) {

@@ -27,7 +27,7 @@ function Row({ on, title, sub, name, onPick }) {
   );
 }
 
-export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, onNewTemplate, space = 'personal' }) {
+export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, onNewTemplate, space }) {
   const templates = useMemo(() => templatesOf(setlists), [setlists]);
   const drafts = useMemo(() => Object.fromEntries(templates.map(t => [t.id, draftFromTemplate(t, setlists)])), [templates, setlists]);
   // A setlist started here earlier and never saved (the app was closed).
@@ -77,7 +77,7 @@ export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, onNew
   );
 }
 
-export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onCreate, onSaveTemplate, onDeleteTemplate, space = 'personal' }) {
+export default function NewSetlistSheet({ open, onOpenChange, setlists = [], onCreate, onSaveTemplate, onDeleteTemplate, space }) {
   const [list, setList] = useState(false);
   const [edit, setEdit] = useState(null);
   // The "Set up your Sunday" card: after saving, go straight on into a new
