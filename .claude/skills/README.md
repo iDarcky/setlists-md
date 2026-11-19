@@ -16,6 +16,7 @@ Each keeps its upstream licence beside it. To update, re-copy from the upstream 
 | `seo` | addyosmani/web-quality-skills | afa8da9 | Referenced by web-quality-audit; for the public site |
 | `web-quality-audit` | addyosmani/web-quality-skills | afa8da9 | Combined Lighthouse-style audit in a real browser |
 | `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain`, `ponytail-help` | DietrichGebert/ponytail `skills/` | 96608e0 | Reuse before writing; `/ponytail-review` on a diff, `/ponytail-audit` on the repo (skill files only; the plugin's hooks and band are not vendored) |
+| `condom` | murphyaidanbusiness-ux/condom | e98a9f8 | Pre-launch hacked/sued check: `/condom` (`security`, `legal`, `quick`, `fix`); writes `CONDOM-REPORT.md`, not legal advice |
 
 Trimmed on import: upstream test suites and evals. taste-skill (Leonxlnx/taste-skill) was tried and
 removed: it targets marketing pages, not app screens. Re-add it for the church website if wanted.
