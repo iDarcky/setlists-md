@@ -2,6 +2,29 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.26.0 — New address, new Home
+*November 2026*
+
+### Added
+- **The app now lives at app.setlists.md.** setlists.md is the website. Sign in once at the new address, and add the new icon to your Home Screen.
+- **A new Home** — a get-ready checklist, an On now card, a + menu for new songs and setlists, and Schedule opens from Home.
+- **Schedule is about who plays when** — invites, the next Sundays, what you play and your availability in one place.
+- **New logo** — the taped setlist sheet.
+- **New privacy policy, terms, church terms and copyright pages**, in English and Romanian.
+
+### Improved
+- **Setlists is back in the bottom bar**, next to Home and Songs.
+- **Picking the band shows three in a row** everywhere a leader chooses who plays.
+- **One look across the app** — buttons, lists, sheets and search share the same parts, with the new dark colours.
+- **Phone sheets swipe like a native app.**
+- **The update pill** sits at the top in green.
+- **Profile photos** are limited to 1 MB images.
+
+### Fixed
+- **Each church or band only ever syncs its own songs**, so songs can't end up in the wrong Space.
+- **Deleting your account never deletes a church by mistake.**
+- **Edit template** sits above the phone's tab bar.
+
 ## 0.25.2 — Songs stay in their own Space
 *November 2026*
 
