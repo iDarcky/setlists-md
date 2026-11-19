@@ -116,6 +116,7 @@ function page({ lang, doc, title, meta, body }) {
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/site.css">
 <script src="/site.js" defer></script>
+<script data-goatcounter="https://insideahead.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
