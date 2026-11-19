@@ -121,8 +121,7 @@ export function CreateAccountView({ values, onChange, onSubmit, onBack, onLogIn,
           By creating an account you agree to our{' '}
           <Button variant="link" className="underline" onClick={() => onShowLegal?.('terms')}>Terms</Button>
           {' '}and{' '}
-          <Button variant="link" className="underline" onClick={() => onShowLegal?.('privacy')}>Privacy Policy</Button>,
-          {' '}and confirm you’re 16 or older, or 13 to 15 with a parent’s OK.
+          <Button variant="link" className="underline" onClick={() => onShowLegal?.('privacy')}>Privacy Policy</Button>.
         </p>
         <TextLink question="Already have an account?" answer="Log in" onClick={onLogIn} />
       </AuthActions>

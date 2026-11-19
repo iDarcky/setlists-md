@@ -4,7 +4,7 @@
 
 ## The agreement
 
-These terms are an agreement between you and [Full name], a private individual based in Romania who runs Setlists.md ("we", "us"). They apply when you make an account or use the app at app.setlists.md or the website at setlists.md. Our [Privacy Policy](privacy) explains what we do with your data. If you create a church or band group, our [Church and band terms](church-terms) apply to that group as well.
+These terms are an agreement between you and Daniel Maghiș, a private individual based in Romania who runs Setlists.md ("we", "us"). They apply when you make an account or use the app at app.setlists.md or the website at setlists.md. Our [Privacy Policy](privacy) explains what we do with your data. If you create a church or band group, our [Church and band terms](church-terms) apply to that group as well.
 
 If you use Setlists.md for a church or band, you confirm you're allowed to act for it.
 

@@ -11,7 +11,7 @@
 
 ## Who runs Setlists.md
 
-Setlists.md is run by [Full name], a private individual based in Romania ("we", "us"). If you have any question about your data, write to **hello@setlists.md**. We read every message and reply within 30 days, usually much sooner.
+Setlists.md is run by Daniel Maghiș, a private individual based in Romania ("we", "us"). If you have any question about your data, write to **hello@setlists.md**. We read every message and reply within 30 days, usually much sooner.
 
 ## Two kinds of data, two people responsible
 
@@ -25,7 +25,7 @@ Setlists.md is run by [Full name], a private individual based in Romania ("we", 
 - **Group membership:** which groups you belong to, your role, the instruments you play, the dates you're available, and your replies when a leader asks who can play.
 - **Content:** the songs, charts, setlists, notes and change history that you and your teammates enter.
 - **Notifications:** if you turn on push notifications, we keep the address your browser gives us for sending them to your device.
-- **Emails we send:** when we email you (for example a password reset or a join request), our email provider records that the message was sent and delivered.
+- **Emails we send:** when we email you (for example a password reset or a join request), the sending service records that the message was sent and delivered.
 - **Technical records:** our hosting provider briefly logs requests (IP address, browser type, page and time) to keep the service running and stop abuse. If we turn on crash reports, a report is sent when the app breaks. Names, lyrics and other text on screen are hidden before the report leaves your device.
 
 ## What we don't do
@@ -54,10 +54,10 @@ We use a small number of providers. Each one handles data only to do its job for
 
 | Provider | What it does | Where |
 |---|---|---|
-| Supabase | Database, sign-in, file storage (profile photos) | Ireland (EU) |
+| Supabase | Database, sign-in, account emails, file storage (profile photos) | Ireland (EU) |
 | Vercel | Hosts the app and the website | United States, with servers worldwide |
-| Resend | Sends account emails | [to confirm] |
-| Sentry *(only once enabled)* | Crash reports, with on-screen text hidden | [to confirm] |
+| Resend *(planned, not used yet)* | Will send account emails | We'll add it here before we start |
+| Sentry *(planned, not used yet)* | Crash reports, with on-screen text hidden | We'll add it here before we start |
 | Your browser's push service (Apple, Google or Mozilla) | Delivers notifications you turned on | Depends on your device |
 
 **Song links.** If someone adds a Spotify or YouTube link to a song, we fetch its cover image from that service. A YouTube video plays inside the app only when you press play. Until then, YouTube receives nothing from you. Once it plays, YouTube's own privacy policy applies. We use YouTube's privacy-enhanced mode.

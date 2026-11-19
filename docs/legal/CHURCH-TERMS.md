@@ -7,7 +7,7 @@ These terms apply when you create a group on Setlists.md for a church, band or o
 ## Roles
 
 - **Your organisation** decides why and how members' data is used. It is the *controller*.
-- **We** ([Full name], Romania, hello@setlists.md) store and process that data only to run Setlists.md for you. We are the *processor*.
+- **We** (Daniel Maghiș, Romania, hello@setlists.md) store and process that data only to run Setlists.md for you. We are the *processor*.
 
 ## What we process for you
 

@@ -11,7 +11,7 @@
 
 ## Cine se ocupă de Setlists.md
 
-Setlists.md este administrat de [Nume complet], persoană fizică din România („noi”). Pentru orice întrebare despre datele tale, scrie-ne la **hello@setlists.md**. Citim fiecare mesaj și răspundem în cel mult 30 de zile, de obicei mult mai repede.
+Setlists.md este administrat de Daniel Maghiș, persoană fizică din România („noi”). Pentru orice întrebare despre datele tale, scrie-ne la **hello@setlists.md**. Citim fiecare mesaj și răspundem în cel mult 30 de zile, de obicei mult mai repede.
 
 ## Două tipuri de date, doi responsabili
 
@@ -25,7 +25,7 @@ Setlists.md este administrat de [Nume complet], persoană fizică din România (
 - **Apartenența la grup:** în ce grupuri ești, rolul tău, instrumentele la care cânți, zilele în care ești disponibil și răspunsurile tale când un lider întreabă cine poate cânta.
 - **Conținutul:** cântările, acordurile, listele, notițele și istoricul modificărilor introduse de tine și de colegii tăi.
 - **Notificări:** dacă pornești notificările push, păstrăm adresa primită de la browser pentru a le trimite pe dispozitivul tău.
-- **Emailurile pe care ți le trimitem:** când îți scriem (de exemplu pentru resetarea parolei sau o cerere de intrare în grup), furnizorul nostru de email înregistrează că mesajul a fost trimis și livrat.
+- **Emailurile pe care ți le trimitem:** când îți scriem (de exemplu pentru resetarea parolei sau o cerere de intrare în grup), serviciul care îl trimite înregistrează că mesajul a fost trimis și livrat.
 - **Înregistrări tehnice:** furnizorul de găzduire păstrează pentru scurt timp jurnalele cererilor (adresa IP, tipul de browser, pagina și ora), ca serviciul să meargă și să putem opri abuzurile. Dacă pornim rapoartele de erori, se trimite un raport când aplicația se blochează. Numele, versurile și orice alt text de pe ecran sunt ascunse înainte ca raportul să plece de pe dispozitivul tău.
 
 ## Ce nu facem
@@ -54,10 +54,10 @@ Lucrăm cu câțiva furnizori. Fiecare folosește datele doar pentru treaba pe c
 
 | Furnizor | Ce face | Unde |
 |---|---|---|
-| Supabase | Baza de date, autentificarea și stocarea fișierelor (pozele de profil) | Irlanda (UE) |
+| Supabase | Baza de date, autentificarea, emailurile legate de cont și stocarea fișierelor (pozele de profil) | Irlanda (UE) |
 | Vercel | Găzduiește aplicația și site-ul | Statele Unite, cu servere în toată lumea |
-| Resend | Trimite emailurile legate de cont | [de confirmat] |
-| Sentry *(doar după ce îl pornim)* | Rapoarte de erori, cu textul de pe ecran ascuns | [de confirmat] |
+| Resend *(planificat, nefolosit încă)* | Va trimite emailurile legate de cont | Completăm înainte să începem |
+| Sentry *(planificat, nefolosit încă)* | Rapoarte de erori, cu textul de pe ecran ascuns | Completăm înainte să începem |
 | Serviciul de notificări al browserului (Apple, Google sau Mozilla) | Livrează notificările pe care le-ai pornit | Depinde de dispozitiv |
 
 **Linkuri la cântări.** Dacă cineva adaugă un link de Spotify sau YouTube la o cântare, luăm imaginea de copertă de la acel serviciu. Un videoclip YouTube pornește în aplicație doar când apeși play. Până atunci, YouTube nu primește nimic de la tine. După ce pornește, se aplică politica de confidențialitate a YouTube. Folosim modul YouTube cu confidențialitate sporită.

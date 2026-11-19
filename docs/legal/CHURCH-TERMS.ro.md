@@ -7,7 +7,7 @@ Acești termeni se aplică atunci când creezi pe Setlists.md un grup pentru o b
 ## Roluri
 
 - **Organizația ta** decide de ce și cum sunt folosite datele membrilor. Ea este *operatorul*.
-- **Noi** ([Nume complet], România, hello@setlists.md) stocăm și prelucrăm aceste date doar ca să îți oferim Setlists.md. Suntem *persoana împuternicită*.
+- **Noi** (Daniel Maghiș, România, hello@setlists.md) stocăm și prelucrăm aceste date doar ca să îți oferim Setlists.md. Suntem *persoana împuternicită*.
 
 ## Ce prelucrăm pentru tine
 

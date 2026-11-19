@@ -4,7 +4,7 @@
 
 ## Înțelegerea
 
-Acești termeni sunt o înțelegere între tine și [Nume complet], persoană fizică din România care administrează Setlists.md („noi”). Se aplică atunci când îți faci cont sau folosești aplicația de la app.setlists.md ori site-ul setlists.md. [Politica de confidențialitate](privacy) explică ce facem cu datele tale. Dacă creezi un grup pentru o biserică sau o trupă, pentru acel grup se aplică și [Termenii pentru biserici și trupe](church-terms).
+Acești termeni sunt o înțelegere între tine și Daniel Maghiș, persoană fizică din România care administrează Setlists.md („noi”). Se aplică atunci când îți faci cont sau folosești aplicația de la app.setlists.md ori site-ul setlists.md. [Politica de confidențialitate](privacy) explică ce facem cu datele tale. Dacă creezi un grup pentru o biserică sau o trupă, pentru acel grup se aplică și [Termenii pentru biserici și trupe](church-terms).
 
 Dacă folosești Setlists.md pentru o biserică sau o trupă, confirmi că ai dreptul să acționezi în numele ei.
 
