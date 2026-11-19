@@ -238,6 +238,12 @@ Each team/church workspace is its own Stripe subscription, paid by the team
   subscribing (any signed-in user → checkout, workspace starts `unpaid` until
   the webhook confirms); while billing is dormant the `hasTeamPlan`
   entitlement gate stays so team features aren't given away for free.
+- **Billing columns are server-only** (`20261119_lock_team_billing_columns.sql`) — a
+  `before update` trigger on `teams` rejects changes to `plan`, `max_seats`,
+  `subscription_status`, `stripe_*` and `billing_plan` from requests made with a
+  user JWT; only the service role (webhook/checkout) or the SQL editor can change
+  them. INSERT is unguarded during the free beta; when billing goes live also set
+  the `subscription_status` default to `'unpaid'` (commented line in that file).
 - **Dormant by default** — the functions return `503 billing_not_configured`
   without `STRIPE_SECRET_KEY`, and the UI is hidden unless
   `VITE_STRIPE_ENABLED=true`. Turning it on requires the Stripe secrets +
