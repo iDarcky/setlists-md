@@ -15,6 +15,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = 'https://setlists.md';
+// The logo comes from the home page, so a new logo needs no change here.
+const indexHtml = readFileSync(join(ROOT, 'website/index.html'), 'utf8');
+const MARK = indexHtml.match(/<symbol id="mark"[\s\S]*?<\/symbol>/)[0];
 
 const DOCS = [
   { src: 'PRIVACY', page: 'privacy', app: true,
@@ -102,17 +105,21 @@ function page({ lang, doc, title, meta, body }) {
 <link rel="alternate" hreflang="en" href="${SITE}/${doc.page}">
 <link rel="alternate" hreflang="ro" href="${SITE}/ro/${doc.page}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:title" content="${esc(title)} · Setlists.md">
 <meta property="og:description" content="${esc(doc.desc[lang])}">
-<meta property="og:image" content="${SITE}/img/reader.webp">
+<meta property="og:image" content="${SITE}${lang === 'en' ? '' : '/ro'}/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/site.css">
 <script src="/site.js" defer></script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="mark" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#53796F"/><g fill="#fff"><rect x="120" y="156" width="272" height="40" rx="20"/><rect x="120" y="236" width="220" height="40" rx="20" opacity=".82"/><rect x="120" y="316" width="160" height="40" rx="20" opacity=".62"/></g></symbol>
+  ${MARK}
   <symbol id="menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></g></symbol>
 </svg>
