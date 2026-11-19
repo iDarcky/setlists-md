@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSpaceWords } from '@/hooks/useSpaceWords';
 import { menuItemClass } from '@/ui/shadcn/menu';
 import { createPortal } from 'react-dom';
 import { cn } from '@/ui/shadcn/utils';
@@ -35,6 +36,7 @@ const Row = ({ label, children }) => (
 const Switch = ({ on, onChange, label }) => <SharedSwitch checked={on} onCheckedChange={onChange} label={label} />;
 
 export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDelete }) {
+  const w = useSpaceWords();
   const [t, setT] = useState(() => {
     const x = { ...blankTemplate(), ...template, items: (template?.items || []).map(it => ({ ...it })) };
     // A pattern that is not "<name> #{n}" was written by hand: keep it.
@@ -46,7 +48,7 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
   // Numbered names: "<template name> #<n>" unless the leader typed their own
   // ("BBPT #424 AM"), whose last number becomes the counter.
   const numbered = !!splitPattern(t.namePattern);
-  const baseTitle = (t.templateName || '').trim() || 'Sunday Morning';
+  const baseTitle = (t.templateName || '').trim() || w.namePlaceholder;
   const defaultPattern = `${baseTitle} #{n}`;
   const effPattern = numbered ? (t.nameCustom ? t.namePattern : defaultPattern) : '';
   const width = t.nameCustom ? t.namePad : 1;
@@ -93,9 +95,9 @@ export function TemplateEditor({ template, setlists = [], onSave, onCancel, onDe
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[560px] flex-col gap-3 px-4 pb-16 pt-4">
           <div className="rounded-card material-base">
-            <Row label="Name"><Input value={t.templateName || ''} maxLength={60} placeholder="Sunday Morning" onChange={e => set({ templateName: e.target.value })} className="h-10" /></Row>
+            <Row label="Name"><Input value={t.templateName || ''} maxLength={60} placeholder={w.namePlaceholder} onChange={e => set({ templateName: e.target.value })} className="h-10" /></Row>
             <Row label="Day">{WEEKDAYS.map((d, i) => <Chip key={d} on={t.weekday === i} className="h-8 px-2.5 text-small" onClick={() => set({ weekday: i })}>{d}</Chip>)}</Row>
-            <Row label="Time"><TimeInput aria-label="Service time" value={t.time} onChange={v => set({ time: v })} /></Row>
+            <Row label="Time"><TimeInput aria-label="Start time" value={t.time} onChange={v => set({ time: v })} /></Row>
             <Row label="Place"><Input value={t.location || ''} maxLength={80} placeholder="Main hall" onChange={e => set({ location: e.target.value })} className="h-10" /></Row>
           </div>
 
@@ -257,7 +259,7 @@ export function TemplateView({ template: t, onEdit, onClose, embedded = false })
 
           <Caps>When</Caps>
           <div className="rounded-card material-base">
-            <Info label="Service" value={[serviceDay != null && WEEKDAYS[serviceDay], t.time].filter(Boolean).join(' ')} />
+            <Info label="When" value={[serviceDay != null && WEEKDAYS[serviceDay], t.time].filter(Boolean).join(' ')} />
             {t.rehearsalOn && <Info label="Rehearsal" value={[rehearsalDay, t.rehearsalTime].filter(Boolean).join(' ')} />}
             <Info label="Place" value={t.location} />
           </div>
@@ -267,7 +269,7 @@ export function TemplateView({ template: t, onEdit, onClose, embedded = false })
             {parts.length ? parts.map(x => (x.n > 1 ? `${x.n} ${partName(x.part)}` : partName(x.part))).join(', ') : <span className="text-muted-foreground">No parts picked</span>}
           </div>
 
-          <Caps>Order of service</Caps>
+          <Caps>Running order</Caps>
           <div className="rounded-card material-base">
             {items.length ? items.map((it, i) => (
               <div key={i} className="flex min-h-11 items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">

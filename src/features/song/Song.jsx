@@ -77,8 +77,8 @@ export default function Song({
   const menu = [
     onPlay && { label: 'Start a campfire with this song', sub: 'One song big, then pick what to sing next', onClick: () => onPlay(arrId) },
     { label: 'Print or save as PDF', onClick: () => printSong(song, { transpose: semis }) },
-    onMoveSong && { label: 'Move to another church', onClick: onMoveSong },
-    onCopySong && { label: 'Copy to another church', onClick: onCopySong },
+    onMoveSong && { label: 'Move to another church or band', onClick: onMoveSong },
+    onCopySong && { label: 'Copy to another church or band', onClick: onCopySong },
     onDelete && { label: 'Delete song', danger: true, onClick: onDelete },
   ].filter(Boolean);
   const shared = { keyCtl, arrangements, arrangementId: song._arrangementId, onArrangement: pickArrangement, onNewArrangement: newArrangement };

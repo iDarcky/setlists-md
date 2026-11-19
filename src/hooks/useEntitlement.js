@@ -6,8 +6,8 @@ import { useTeam } from '@/auth/useTeam';
 // the main limit and the database enforces them (`teams.max_seats`); the only
 // feature that depends on the group's plan is services, which is Church-only.
 //
-// Plan keys on a group: `team` (Band, 10 seats) and `church` (Church, 30
-// seats). Anything else ranks as `free`.
+// Plan keys on a group: `free` (5 seats), `team` (Band, 15 seats) and
+// `church` (Church, 40 seats); see lib/plans. Anything else ranks as `free`.
 const PLAN_RANK = { free: 0, team: 1, church: 2 };
 
 // Feature → minimum group plan. A feature with no entry here is open to
@@ -15,6 +15,8 @@ const PLAN_RANK = { free: 0, team: 1, church: 2 };
 // used to be listed (the old Pro and Sync tiers) and are free now.
 const FEATURE_GATES = {
   'multi-service': 'church',
+  // Who plays when: invites, availability, the band grid (2026-11-19).
+  schedule: 'church',
 };
 
 function rank(plan) {

@@ -1,32 +1,29 @@
 import { useState } from 'react';
 import { supabase } from '@/auth/supabase';
-import { sendChurchRequest, rememberChurchRequest, finishChurchRequest, forgetChurchRequest } from '@/lib/churchRequest';
-import { signupSource } from '@/lib/siteEntry';
+import { useTeam } from '@/auth/useTeam';
+import { rememberChurchRequest, finishChurchRequest } from '@/lib/churchRequest';
 import { inviteCodeFrom } from '@/lib/startFlow';
-import { ChooseView, RequestView, WaitingApprovalView, ReadyView, InviteLinkView } from './StartViews';
+import { ChooseView, NameView, ReadyView, InviteLinkView } from './StartViews';
 
 // The "after sign-up" screens for a signed-in account with no church or band
-// (App decides when, through lib/startFlow `startScreen`). During the beta a
-// church or band is set up by hand: the request goes to the same feedback
-// list as before, tagged [church request], with the account attached.
+// (App decides when, through lib/startFlow `startScreen`). Since 2026-11-19
+// a church or band is made at once on the Free plan (5 people); there is no
+// request and no waiting. "X is ready" then shows once, to invite people.
 
-const EMPTY = { church: '', place: '', people: '', note: '' };
+const EMPTY = { church: '', place: '' };
 
-function sentLabel(at) {
-  if (!at) return null;
-  const d = new Date(at);
-  const today = new Date();
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  return d.toDateString() === today.toDateString() ? `Today, ${time}` : `${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}, ${time}`;
-}
+const DEVICE_TZ = (() => {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch { return null; }
+})();
 
-// Keep the request in the account too, so another phone shows Waiting as well.
-// Best effort: the request itself is already sent.
+// Keep the "ready" step in the account too, so another phone doesn't show it again.
+// Best effort.
 async function saveToAccount(value) {
   try { await supabase?.auth.updateUser({ data: { start_request: value } }); } catch { /* offline */ }
 }
 
 export default function StartFlow({ screen, user, displayName, request, team, onRequestChange, onSignOut, onInviteBand, onOpenTeam, onJoinCode }) {
+  const { createTeam } = useTeam();
   const [step, setStep] = useState('choose');
   const [values, setValues] = useState(EMPTY);
   const [tried, setTried] = useState(false);
@@ -47,52 +44,29 @@ export default function StartFlow({ screen, user, displayName, request, team, on
     return <ReadyView church={team.name || request?.church || 'Your church'} onInvite={done(onInviteBand)} onOpen={done(onOpenTeam)} />;
   }
 
-  if (screen === 'waiting' && request) {
-    return (
-      <WaitingApprovalView
-        church={request.church}
-        email={user?.email}
-        sentLabel={sentLabel(request.at)}
-        onChange={() => {
-          forgetChurchRequest(userId);
-          saveToAccount(null);
-          setValues({ ...EMPTY, church: request.church });
-          setStep(request.kind === 'band' ? 'band' : 'church');
-          onRequestChange?.(null);
-        }}
-        onSignOut={onSignOut}
-      />
-    );
-  }
-
   if (step === 'church' || step === 'band') {
     const send = async () => {
       setTried(true);
-      if (!values.church.trim() || !values.place.trim()) return;
+      if (!values.church.trim()) return;
       setBusy(true);
       setMessage('');
+      const church = values.church.trim();
+      const req = { church, kind: step, at: Date.now() };
+      // Set first, so the moment the group exists the "ready" step shows.
+      onRequestChange?.(req);
       try {
-        await sendChurchRequest(supabase, {
-          ...values,
-          kind: step,
-          userId,
-          email: user?.email || null,
-          name: displayName || null,
-          from: user?.user_metadata?.signup_from || signupSource(),
-        });
-        const church = values.church.trim();
+        await createTeam({ name: church, location: values.place.trim() || null, kind: step === 'band' ? 'team' : 'church', timezone: DEVICE_TZ });
         rememberChurchRequest(userId, church, undefined, step);
-        const req = { church, kind: step, at: Date.now() };
         saveToAccount(req);
         setValues(EMPTY);
         setTried(false);
-        onRequestChange?.(req);
       } catch (err) {
-        setMessage(err?.message || 'That didn’t send. Check your connection and try again.');
+        onRequestChange?.(null);
+        setMessage(err?.message || 'That didn’t work. Check your connection and try again.');
       } finally { setBusy(false); }
     };
     return (
-      <RequestView kind={step} values={values} onChange={setValues} tried={tried} onSubmit={send}
+      <NameView kind={step} values={values} onChange={setValues} tried={tried} onSubmit={send}
         onBack={() => { setStep('choose'); setTried(false); setMessage(''); }} busy={busy} message={message} />
     );
   }

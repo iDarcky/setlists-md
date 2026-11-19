@@ -27,7 +27,7 @@ export function JoinInviteView({ church, alreadyIn, onCreateAccount, onLogIn, on
           mark={badge(church)}
           eyebrow={church?.name}
           size="display"
-          title="You’re invited to the worship team"
+          title="You’re invited to play"
           sub="Ask to join and a leader will let you in. Nothing to install yet."
         />
       </div>
@@ -141,7 +141,7 @@ export function YoureInView({ church, steps, onSkip, embedded }) {
         eyebrow={church?.name}
         size="display"
         title="You’re in!"
-        sub="Three quick things and you’re ready for Sunday."
+        sub="Three quick things and you’re ready to play."
       />
       <div className="flex flex-col">
         {steps.map((s, i) => (
@@ -169,14 +169,14 @@ export function YoureInView({ church, steps, onSkip, embedded }) {
 // ── Not approved ────────────────────────────────────────────────────────────
 
 export function DeclinedView({ church, onOpenApp, onSignOut, embedded }) {
-  const who = church?.name || 'The church';
+  const who = church?.name || 'The leader';
   return (
     <AuthLayout embedded={embedded}>
       <AuthHeader
         mark={badge(church, true)}
         eyebrow={church?.name}
         title="Not this time"
-        sub={`${who} didn’t approve this request. If that’s a mistake, talk to your worship leader. They can send you the link again.`}
+        sub={`${who} didn’t approve this request. If that’s a mistake, talk to your leader. They can send you the link again.`}
       />
       <AuthActions className="gap-1.5">
         <Button variant="outline" onClick={onOpenApp}>Open Setlists.md</Button>
@@ -189,8 +189,8 @@ export function DeclinedView({ church, onOpenApp, onSignOut, embedded }) {
 // ── The link doesn't work ───────────────────────────────────────────────────
 
 const BAD_LINK_COPY = {
-  invalid: ['This invite link doesn’t work', 'It may have been reset. Ask your worship leader for the new link.'],
-  disabled: ['This invite is paused', 'The church has switched its join link off for now. Ask your worship leader to turn it back on.'],
+  invalid: ['This invite link doesn’t work', 'It may have been reset. Ask your leader for the new link.'],
+  disabled: ['This invite is paused', 'The join link is switched off for now. Ask your leader to turn it back on.'],
   network: ['Couldn’t open this invite', 'Check your connection and try the link again.'],
 };
 

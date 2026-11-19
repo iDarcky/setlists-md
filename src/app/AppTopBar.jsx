@@ -89,7 +89,7 @@ export function AppTopBar({ church, onOpenChurches, unread, onOpenNotifications,
           <button
             type="button"
             onClick={onOpenChurches}
-            aria-label={`${church?.name}. Switch church`}
+            aria-label={`${church?.name}. Switch church or band`}
             className="flex h-11 min-h-0 min-w-0 cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-1.5 -ml-1.5 font-sans text-body font-semibold tracking-[-0.2px] text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
           >
             {churchInner}

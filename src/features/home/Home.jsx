@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useEntitlement } from '@/hooks/useEntitlement';
 import { FileText, List, Music } from 'lucide-react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
@@ -36,6 +37,8 @@ export default function Home({
   const { user } = useAuth();
   const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
+  // Who plays when is Church-only (2026-11-19).
+  const scheduleOn = useEntitlement('schedule').allowed;
   const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
@@ -85,7 +88,7 @@ export default function Home({
 
   const toCheck = leader ? songs.filter(needsCheck).length : 0;
   const needs = leader
-    ? [...needsYou({ joinRequests, setlists, schedules, setlistMap, now, noParts }), ...(toCheck ? [{ kind: 'check', count: toCheck }] : [])]
+    ? [...needsYou({ joinRequests, setlists, schedules, setlistMap, now, noParts, schedule: scheduleOn }), ...(toCheck ? [{ kind: 'check', count: toCheck }] : [])]
     : [];
   const onNeed = (it) => {
     if (it.kind === 'check') onOpenSongs?.();
@@ -111,7 +114,7 @@ export default function Home({
     [schedules, userId],
   );
   const steps = church && myMember && !settings?.homeSetupDone
-    ? setupSteps({ leader, songs, setlists, memberCount: (members || []).length, hasParts: myParts.length > 0, push, answered })
+    ? setupSteps({ leader, songs, setlists, memberCount: (members || []).length, hasParts: myParts.length > 0, push, answered, schedule: scheduleOn })
     : null;
   const allDone = !!steps && steps.every(s => s.done);
   useEffect(() => { if (allDone) onSetupDone?.(); }, [allDone]); // eslint-disable-line react-hooks/exhaustive-deps

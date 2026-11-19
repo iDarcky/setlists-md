@@ -1,13 +1,10 @@
 import { useId } from 'react';
 import { LabelInput } from '@/ui/blocks/LabelInput';
 import { Button } from '@/ui/shadcn/button';
-import { Input } from '@/ui/shadcn/input';
 import { Alert } from '@/ui/shadcn/alert';
-import { Toggle } from '@/ui/shadcn/toggle';
-import { Field, FieldGroup, FieldLabel, FieldSet, FieldLegend, FieldDescription, FieldError } from '@/ui/shadcn/field';
+import { FieldGroup } from '@/ui/shadcn/field';
 import { AuthLayout, AuthHeader, AuthActions, SuccessBadge } from '@/features/auth/AuthLayout';
-import { TeamIcon, MusicIcon, ChevronRightIcon, ClockIcon, CheckIcon } from '@/app/navIcons';
-import { SIZES } from '@/lib/startFlow';
+import { TeamIcon, MusicIcon, ChevronRightIcon } from '@/app/navIcons';
 
 // The "after sign-up" screens as plain views (mockup "After sign-up: start a
 // church or band"). StartFlow.jsx owns the state and the sending.
@@ -45,100 +42,42 @@ export function ChooseView({ name, onChurch, onBand, onInvite, onSignOut, embedd
     <AuthLayout embedded={embedded}>
       <AuthHeader title="What are you setting up?" sub={`${name ? `Hi ${name}, your` : 'Your'} account is ready. One more step.`} />
       <div className="flex flex-col gap-3">
-        <Choice icon={<TeamIcon size={22} />} title="A church" body="Services, a schedule and up to 30 people." onClick={onChurch} />
-        <Choice icon={<MusicIcon size={22} />} title="A band or small group" body="Shared songs and setlists for up to 10 people." onClick={onBand} />
+        <Choice icon={<TeamIcon size={22} />} title="A church" body="Songs and setlists for your worship team." onClick={onChurch} />
+        <Choice icon={<MusicIcon size={22} />} title="A band" body="Songs and setlists for any band: gigs, weddings, covers." onClick={onBand} />
         <Choice icon={<LinkIcon />} title="I have an invite link" body="Join the church or band that invited you." onClick={onInvite} />
       </div>
       <AuthActions className="gap-1.5">
-        <p className="m-0 text-center text-caption text-muted-foreground">Everything is free during the beta.</p>
+        <p className="m-0 text-center text-caption text-muted-foreground">Free for up to 5 people.</p>
         <Button variant="ghost" className="hover:bg-transparent" onClick={onSignOut}>Log out</Button>
       </AuthActions>
     </AuthLayout>
   );
 }
 
-// ── 2. Tell us about your church / band ─────────────────────────────────────
-export function RequestView({ kind = 'church', values, onChange, tried, onSubmit, onBack, busy, message, embedded }) {
+// ── 2. Name your church / band ──────────────────────────────────────────────
+// It is made at once, on Free (2026-11-19): no request, no waiting.
+export function NameView({ kind = 'church', values, onChange, tried, onSubmit, onBack, busy, message, embedded }) {
   const uid = useId();
   const band = kind === 'band';
   const set = (k) => (e) => onChange({ ...values, [k]: e.target.value });
-  const missing = { church: !values.church.trim(), place: !values.place.trim() };
+  const missing = !values.church.trim();
   return (
     <AuthLayout embedded={embedded} onBack={onBack}>
       <AuthHeader
-        title={band ? 'Tell us about your band' : 'Tell us about your church'}
-        sub={`During the beta we set up each ${band ? 'band' : 'church'} ourselves. It takes a minute to ask.`}
+        title={band ? 'What’s your band called?' : 'What’s your church called?'}
+        sub="You can change it later."
       />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); onSubmit(); }} noValidate>
-        <FieldGroup className="gap-6">
-          <div className="flex flex-col gap-3">
-            <LabelInput fill label={band ? 'Band or group name' : 'Church name'} autoComplete="organization" maxLength={120} value={values.church} onChange={set('church')}
-              error={tried && missing.church ? `Add the name your ${band ? 'band' : 'church'} goes by.` : null} />
-            <LabelInput fill label="City and country" autoComplete="address-level2" maxLength={120} value={values.place} onChange={set('place')}
-              error={tried && missing.place ? 'Add where it is, so we can tell it apart.' : null} />
-          </div>
-          <FieldSet>
-            <FieldLegend>How many people play or sing?</FieldLegend>
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              {SIZES[band ? 'band' : 'church'].map(s => (
-                <Toggle key={s} variant="option" pressed={values.people === s} onPressedChange={(on) => onChange({ ...values, people: on ? s : '' })}>{s}</Toggle>
-              ))}
-            </div>
-          </FieldSet>
-          <LabelInput fill label="Anything we should know? (optional)" maxLength={600} value={values.note} onChange={set('note')}
-            hint={band ? 'For example: the youth band at our church.' : 'For example: two services on Sunday.'} />
+        <FieldGroup className="gap-3">
+          <LabelInput fill label={band ? 'Band name' : 'Church name'} autoComplete="organization" maxLength={120} value={values.church} onChange={set('church')}
+            error={tried && missing ? `Add the name your ${band ? 'band' : 'church'} goes by.` : null} />
+          <LabelInput fill label="City (optional)" autoComplete="address-level2" maxLength={120} value={values.place} onChange={set('place')} />
         </FieldGroup>
       </form>
       {message && <Alert variant="danger">{message}</Alert>}
-      <AuthActions>
-        <Button type="submit" form={`${uid}-form`} loading={busy}>Send request</Button>
-      </AuthActions>
-    </AuthLayout>
-  );
-}
-
-// ── 3. Waiting for approval ─────────────────────────────────────────────────
-function Step({ state, title, sub }) {
-  return (
-    <li className="flex items-start gap-3.5 border-t border-border py-3.5 last:border-b">
-      <span
-        aria-hidden="true"
-        className={
-          state === 'done' ? 'mt-px flex size-6 shrink-0 items-center justify-center rounded-full bg-link text-background'
-          : state === 'now' ? 'mt-px size-6 shrink-0 rounded-full border-2 border-link bg-link shadow-[inset_0_0_0_4px_var(--background)]'
-          : 'mt-px size-6 shrink-0 rounded-full border border-input'
-        }
-      >
-        {state === 'done' && <CheckIcon size={14} />}
-      </span>
-      <span className="flex flex-col gap-0.5">
-        <span className="text-body font-medium">{title}</span>
-        {sub && <span className="text-caption text-muted-foreground">{sub}</span>}
-      </span>
-    </li>
-  );
-}
-
-export function WaitingApprovalView({ church, email, sentLabel, onChange, onSignOut, embedded }) {
-  return (
-    <AuthLayout embedded={embedded}>
-      <AuthHeader
-        mark={<Square><ClockIcon size={24} /></Square>}
-        title="Waiting for approval"
-        sub={<>We’re setting up <b className="font-semibold text-foreground">{church}</b>. We’ll email {email || 'you'} when it’s ready, usually within two days.</>}
-      />
-      <ol className="m-0 flex list-none flex-col p-0" aria-label="What happens next">
-        <Step state="done" title="Request sent" sub={sentLabel} />
-        <Step state="now" title={`We set up ${church}`} sub="Usually within two days" />
-        <Step title="You invite your band with one link" />
-      </ol>
-      <p className="m-0 rounded-card material-base px-4 py-3.5 text-small text-muted-foreground">
-        <b className="font-semibold text-foreground">While you wait:</b> add Setlists.md to your Home Screen, so it opens full screen and works offline.{' '}
-        <a className="text-link" href="https://setlists.md/help#install" target="_blank" rel="noreferrer">Show me how</a>
-      </p>
       <AuthActions className="gap-1.5">
-        <Button variant="ghost" className="hover:bg-transparent" onClick={onChange}>Change the request</Button>
-        <Button variant="ghost" className="hover:bg-transparent" onClick={onSignOut}>Log out</Button>
+        <Button type="submit" form={`${uid}-form`} loading={busy}>Create</Button>
+        <p className="m-0 text-center text-caption text-muted-foreground">Free for up to 5 people.</p>
       </AuthActions>
     </AuthLayout>
   );
@@ -148,9 +87,9 @@ export function WaitingApprovalView({ church, email, sentLabel, onChange, onSign
 export function ReadyView({ church, onInvite, onOpen, embedded }) {
   return (
     <AuthLayout embedded={embedded}>
-      <AuthHeader mark={<SuccessBadge />} title={`${church} is ready`} sub="Invite your band with one link. You approve each person who asks to join." />
+      <AuthHeader mark={<SuccessBadge />} title={`${church} is ready`} sub="Invite the others with one link. You let in each person who asks to join." />
       <AuthActions className="gap-1.5">
-        <Button onClick={onInvite}>Invite your band</Button>
+        <Button onClick={onInvite}>Invite people</Button>
         <Button variant="ghost" className="hover:bg-transparent" onClick={onOpen}>Open {church}</Button>
       </AuthActions>
     </AuthLayout>
@@ -169,7 +108,7 @@ export function InviteLinkView({ value, onChange, onSubmit, onBack, message, emb
       </form>
       <AuthActions className="gap-1.5">
         <Button type="submit" form={`${uid}-form`} disabled={!value.trim()}>Join</Button>
-        <p className="m-0 text-center text-caption text-muted-foreground">No link? Ask your worship leader to send one.</p>
+        <p className="m-0 text-center text-caption text-muted-foreground">No link? Ask your leader to send one.</p>
       </AuthActions>
     </AuthLayout>
   );

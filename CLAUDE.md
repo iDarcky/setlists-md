@@ -142,9 +142,15 @@ don't bring back a library that belongs to one person.
 - **Which mode a setlist opens in is decided by the clock**
   (`lib/openingMode.js`): live from 30 min before the service until it ends,
   practice otherwise. There is deliberately no manual way into live.
-- **Plans live on the group** (`teams.plan`), never on a person. The only gate
-  is `multi-service` → church; nothing that makes a chart readable is ever
-  gated. Pricing lives on the website.
+- **Plans live on the group** (`teams.plan`), never on a person: Free 5
+  people, Band (`team`) 15, Church 40 (`lib/plans.js`). Gates: `schedule` and
+  `multi-service` → church; nothing that makes a chart readable is ever gated.
+  Everyone starts a group on Free at once; one owned group per account; plans
+  change by hand (SQL) until payments exist.
+- **Church or band words.** `teams.kind` 'church' gets church words, anything
+  else plain band words (event, leader, date). Use `useSpaceWords()` /
+  `wordsFor(team)` (`lib/spaceWords.js`), never "service" or "worship leader"
+  in a screen a band can see.
 - **Preferences** that follow the account are only the keys in
   `PORTABLE_PREF_KEYS` (`app/usePreferenceSync.js`); hydrated once per user.
 

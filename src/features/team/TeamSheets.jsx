@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { wordsFor } from '@/lib/spaceWords';
 import { LabelInput } from '@/ui/blocks/LabelInput';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { cn } from '@/ui/shadcn/utils';
@@ -152,7 +153,7 @@ const FIELDS = [
   { id: 'location', label: 'City', placeholder: 'e.g. Cluj-Napoca' },
   { id: 'address', label: 'Address', placeholder: 'Street and number' },
   { id: 'website', label: 'Website', placeholder: 'e.g. gracechurch.ro', type: 'url' },
-  { id: 'ccli_licence', label: 'CCLI licence number', hint: 'Optional. Shown to your church only.', inputMode: 'numeric' },
+  { id: 'ccli_licence', label: 'CCLI licence number', hint: 'Optional. Shown to your group only.', inputMode: 'numeric' },
 ];
 
 /** Church info, edit. Only the owner sees it. */
@@ -197,7 +198,7 @@ export function ChurchBody({ team, onSave, onLogo, missingColumns = false }) {
 
 export function ChurchSheet({ open, onOpenChange, team, ...rest }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Church info">
+    <Sheet open={open} onOpenChange={onOpenChange} title={`${wordsFor(team).Space} info`}>
       {team && <ChurchBody team={team} {...rest} />}
     </Sheet>
   );

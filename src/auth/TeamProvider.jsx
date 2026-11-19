@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
 import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
+import { PLANS } from '@/lib/plans';
 import { canPlanServices, canWriteLibrary as roleCanWriteLibrary, canApproveJoins } from '@/lib/teamRoles';
 import { useTeamJoinRequests } from '@/hooks/useTeamJoinRequests';
 import { cachedTeams, cacheTeams, cachedMembers, cacheMembers } from '@/lib/launchCache';
@@ -309,36 +310,24 @@ export function TeamProvider({ children }) {
        * the new team becomes the active one.
        * @param {{ name: string, location?: string }} opts
        */
-      createTeam: async ({ name, location, plan: planArg, timezone }) => {
+      createTeam: async ({ name, location, kind, timezone }) => {
         guard();
-        // Cap how many Spaces one account can own (see MAX_OWNED_WORKSPACES).
+        // One owned church or band per account (MAX_OWNED_WORKSPACES).
         if (ownedWorkspaceCount >= MAX_OWNED_WORKSPACES) {
-          throw new Error(`You can create up to ${MAX_OWNED_WORKSPACES} workspaces. Contact support if you need more.`);
+          throw new Error('You already have a church or band of your own. Write to hello@setlists.md if you need another.');
         }
-        // Each workspace is its own billing unit. The `teams.plan` check
-        // constraint only allows 'team' | 'church' — never 'free'/'sync' — so
-        // we resolve a valid tier: an explicit choice wins, else fall back to
-        // the owner's account tier when it's already team/church, else 'team'.
-        // Once Stripe checkout is wired the tier comes from the selected price;
-        // subscription_status defaults to 'active' (see 20260604 migration).
-        const teamPlan = (planArg === 'church' || planArg === 'team')
-          ? planArg
-          : (plan === 'church' ? 'church' : 'team');
-        const maxSeats = teamPlan === 'church' ? 30 : 10;
-        // When Stripe billing is live, a new workspace starts UNPAID — its paid
-        // features gate off (via useEntitlement) until the webhook confirms
-        // payment and flips it to active. This is what stops a user from
-        // spinning up free working workspaces by abandoning checkout. When
-        // billing is dormant we rely on the DB default ('active') so workspaces
-        // are usable without any Stripe wiring.
+        // Every new group starts on Free (5 people) and is upgraded by hand.
+        // The database forces the same plan and seats on any new row.
+        const free = PLANS.free;
         const { data: newTeam, error: teamErr } = await supabase
           .from('teams')
           .insert({
             name,
             location: location || null,
             owner_id: user.id,
-            plan: teamPlan,
-            max_seats: maxSeats,
+            kind: kind === 'church' ? 'church' : 'team',
+            plan: free.key,
+            max_seats: free.seats,
             ...(timezone ? { timezone } : {}),
             ...(BILLING_ENABLED ? { subscription_status: 'unpaid' } : {}),
           })
@@ -569,7 +558,7 @@ export function TeamProvider({ children }) {
         setInvites([]);
       },
     };
-  }, [teams, teamsLoadedFor, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
+  }, [teams, teamsLoadedFor, activeTeamId, team, members, invites, loading, user?.id, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }

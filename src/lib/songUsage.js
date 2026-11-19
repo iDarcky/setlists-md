@@ -83,9 +83,9 @@ export function songUsage(setlists = [], songs = [], { range = '3m', service = '
       if (!a.last || sl.date > a.last) a.last = sl.date;
       if (key) a.keys[key] = (a.keys[key] || 0) + 1;
       if (sl.createdBy) a.leaders[sl.createdBy] = (a.leaders[sl.createdBy] || 0) + 1;
-      a.history.push({ setlistId: sl.id, date: sl.date, name: sl.name || 'Service', service: sl.service || '', leaderId: sl.createdBy || '', leaderName: sl.createdByName || '', key });
+      a.history.push({ setlistId: sl.id, date: sl.date, name: sl.name || 'Untitled setlist', service: sl.service || '', leaderId: sl.createdBy || '', leaderName: sl.createdByName || '', key });
     }
-    return { id: sl.id, date: sl.date, name: sl.name || 'Service', service: sl.service || '', leaderId: sl.createdBy || '', leaderName: sl.createdByName || '', songs: rows };
+    return { id: sl.id, date: sl.date, name: sl.name || 'Untitled setlist', service: sl.service || '', leaderId: sl.createdBy || '', leaderName: sl.createdByName || '', songs: rows };
   });
 
   const songRows = [...agg.values()].sort((a, b) => b.plays - a.plays || (b.last || '').localeCompare(a.last || '') || a.title.localeCompare(b.title));

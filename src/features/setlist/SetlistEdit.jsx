@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSpaceWords } from '@/hooks/useSpaceWords';
 import { createPortal } from 'react-dom';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
@@ -228,6 +229,7 @@ function AddSong({ open, onOpenChange, songs, setlist, setlists, at, onAdd }) {
 }
 
 function DetailsSheet({ open, onOpenChange, draft, onChange }) {
+  const w = useSpaceWords();
   const f = (k, label, type = 'text', props = {}) => (
     <label className="flex flex-col gap-2">
       <Label>{label}</Label>
@@ -237,7 +239,7 @@ function DetailsSheet({ open, onOpenChange, draft, onChange }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Name, date and time" className="h-auto max-h-[90dvh] sm:max-w-[480px]">
       <div className="flex flex-col gap-4">
-        {f('name', 'Name', 'text', { maxLength: 80, placeholder: 'Sunday Morning' })}
+        {f('name', 'Name', 'text', { maxLength: 80, placeholder: w.namePlaceholder })}
         <div className="grid grid-cols-2 gap-3">{f('date', 'Date', 'date')}{f('time', 'Time', 'time')}</div>
         {f('location', 'Place', 'text', { maxLength: 80, placeholder: 'Main hall' })}
         <div className="grid grid-cols-2 gap-3">{f('rehearsalDate', 'Rehearsal date', 'date')}{f('rehearsalTime', 'Rehearsal time', 'time')}</div>

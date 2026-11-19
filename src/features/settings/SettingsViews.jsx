@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import { useSpaceWords } from '@/hooks/useSpaceWords';
 import { LabelInput } from '@/ui/blocks/LabelInput';
 import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyNote } from '@/ui/shadcn/empty-state';
@@ -13,6 +14,7 @@ import { Alert } from '@/ui/shadcn/alert';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
 import { Avatar } from '@/app/AppTopBar';
+import { PLANS, PLAN_ORDER } from '@/lib/plans';
 import { PartsPicker } from '@/features/team/PartsPicker';
 import {
   BackIcon, UserIcon, BellIcon, CalendarIcon, ClockIcon, CloseIcon, PlusIcon,
@@ -266,13 +268,14 @@ export function DateTimeView({ firstDay = 'sunday', onFirstDay, clock = '12h', o
  */
 export function NotificationsSettingsView({ push = {}, onPush, reminderOptions = [], serviceReminders = [], onServiceReminders, rehearsalReminders = [], onRehearsalReminders, onBack, embedded }) {
   const [adding, setAdding] = useState(null); // 'service' | 'rehearsal'
+  const w = useSpaceWords();
   const status = !push.supported ? 'Not available here'
     : push.denied ? 'Blocked in your phone’s settings'
       : null;
   // No help lines on Settings pages (owner, 2026-11-14): only a status when
   // the switch can't work.
   const lists = {
-    service: { title: 'Before a service', value: serviceReminders, onChange: onServiceReminders },
+    service: { title: `Before a ${w.event}`, value: serviceReminders, onChange: onServiceReminders },
     rehearsal: { title: 'Before a rehearsal', value: rehearsalReminders, onChange: onRehearsalReminders },
   };
   const open = adding ? lists[adding] : null;
@@ -339,8 +342,9 @@ function ReminderList({ title, value = [], options, onRemove, onAdd }) {
 // ── The church ──────────────────────────────────────────────────────────────
 
 /**
- * Owner only (2026-11-14). Plans and prices live on the website.
- * @param {{ label, status, tone?, maxSeats?, usedSeats? }} plan
+ * Owner only (2026-11-14). The group's plan and seats, then the three plans
+ * with their prices (2026-11-19). No payments yet: a plan is changed by hand.
+ * @param {{ key?, label, status, tone?, maxSeats?, usedSeats? }} plan
  */
 export function PlanView({ church, plan, billingLive = false, onSubscribe, onManage, busy = false, error = '', onBack, embedded }) {
   const pct = plan?.maxSeats ? Math.min(100, Math.round((plan.usedSeats / plan.maxSeats) * 100)) : 0;
@@ -361,6 +365,29 @@ export function PlanView({ church, plan, billingLive = false, onSubscribe, onMan
           </>
         ) : null}
       </Group>
+      <GroupLabel>Plans</GroupLabel>
+      <Group>
+        {PLAN_ORDER.map(k => {
+          const p = PLANS[k];
+          const current = plan?.key === k;
+          return (
+            <div key={k} className={cn(rowBase, 'items-start py-3.5')}>
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="flex items-center gap-2 text-body font-medium">
+                  {p.label}
+                  {current && <span className="rounded-full bg-selected px-2 py-0.5 text-caption font-semibold text-link">Your plan</span>}
+                </span>
+                <span className="text-small text-muted-foreground">{p.blurb}</span>
+                {p.extra && <span className="text-caption text-muted-foreground">{p.extra}</span>}
+              </span>
+              <span className="shrink-0 pt-0.5 text-small font-medium">{p.price || 'Free'}</span>
+            </div>
+          );
+        })}
+      </Group>
+      <p className="m-0 pt-3 text-small text-muted-foreground">
+        To change your plan, write to <a className="text-link" href="mailto:hello@setlists.md">hello@setlists.md</a>.
+      </p>
       {billingLive ? (
         <div className="flex flex-col gap-2 pt-4">
           {onSubscribe && <Button loading={busy} onClick={onSubscribe}>Subscribe</Button>}
