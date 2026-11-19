@@ -77,7 +77,7 @@
       ]
     },
     {
-      "source": "/(site.css|home.css|site.js)",
+      "source": "/(site.css|site.js)",
       "headers": [
         {
           "key": "Cache-Control",

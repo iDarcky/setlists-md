@@ -20,14 +20,14 @@ working. That switch happens in its own step.
 
 ## Pages
 
-- `index.html` (/) — what it is, how it works, the small things, FAQ. Styles in `home.css`.
+- `index.html` (/) — what it is, how it works, the small things, FAQ.
 - `help.html` (/help) — contact, invite links, starting a church, Add to Home Screen.
 - No Romanian landing page (retired Nov 2026: the app is English only). `/ro`
   redirects to `/`; the Romanian legal pages live under `/ro/<page>`.
 - `robots.txt`, `sitemap.xml` — for Search Console. Add new pages to the sitemap.
 - `/privacy`, `/terms`, `/copyright` — linked in the footer, added in the legal PR.
 
-Help and legal pages use `site.css`; the home page uses `home.css`, the header menu in `site.js` (no inline scripts, so
+Every page uses `site.css` and the same header and footer (legal pages get theirs from `scripts/build-legal-pages.mjs`; bump `?v=` on the stylesheet link when it changes a lot), the header menu in `site.js` (no inline scripts, so
 the CSP is `script-src 'self'`). Header and footer are repeated in each page on
 purpose: no build step.
 
