@@ -18,7 +18,7 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8'))
 // mistaken for the real app. Production and local dev keep the normal ones.
 // The icons live in public/beta/ (scripts/brand/render_beta_icons.cjs).
 const IS_BETA = process.env.VERCEL_ENV === 'preview'
-const APP_NAME = IS_BETA ? 'setlists.md beta' : 'setlists.md'
+const APP_NAME = IS_BETA ? 'Setlists Beta' : 'setlists.md'
 const ICON_DIR = IS_BETA ? '/beta' : ''
 
 // index.html points at the normal icons; swap them for the beta ones.
@@ -28,7 +28,7 @@ const betaHtml = {
     if (!IS_BETA) return html
     return html
       .replace(/href="\/(apple-touch-icon\.png|favicon\.svg|favicon-32\.png|icon-192\.png|icon-512\.png)"/g, 'href="/beta/$1"')
-      .replace('content="setlists.md" />', 'content="Beta" />')
+      .replace('content="setlists.md" />', 'content="Setlists Beta" />')
       .replace('<title>setlists.md', '<title>[Beta] setlists.md')
   },
 }
@@ -101,7 +101,7 @@ export default defineConfig({
       registerType: 'prompt',
       manifest: {
         name: APP_NAME,
-        short_name: IS_BETA ? 'Beta' : 'setlists.md',
+        short_name: IS_BETA ? 'Setlists Beta' : 'setlists.md',
         description: 'Chord charts for worship teams',
         theme_color: '#0a0807',
         background_color: '#0a0807',
