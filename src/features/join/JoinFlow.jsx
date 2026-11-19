@@ -98,7 +98,7 @@ function YoureIn({ church, onGoSchedule, onSkipHome }) {
  *                                        the church home and loads it
  * @param {Function} onGoSchedule(teamId) "Say which dates you can play"
  * @param {Function} onSkipHome(teamId)   "Skip to Home"
- * @param {Function} onExit()             leave the flow (bad link, or wait in Personal)
+ * @param {Function} onExit()             leave the flow (bad link, or wait elsewhere)
  * @param {Function} [onPasswordSignIn](mode, church) the email + password screen,
  *                                        showing the church it is joining
  */

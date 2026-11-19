@@ -51,7 +51,7 @@ export default function SettingsPage({
   const toHub = onBack;
   const set = (key, value) => onUpdate(prev => ({ ...prev, [key]: value }));
 
-  const church = activeLibrary !== 'personal' && team && team.kind !== 'personal' ? team : null;
+  const church = activeLibrary && team ? team : null;
   const leader = !!church && (isAdmin || team?.owner_id === user?.id);
   const me = { name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null };
 

@@ -66,15 +66,14 @@ export default function Home({
     };
   }, [setlists, schedules, userId, setlistMap, now, inTeam, leader, members]);
 
-  // Personal library: every dated setlist is "yours".
-  const stripPlays = inTeam ? plays : setlists.filter(sl => sl.date).map(setlist => ({ setlist }));
+  const stripPlays = inTeam ? plays : [];
   const days = twoWeeks({ now, weekStart: settings?.firstDayOfWeek === 'monday' ? 'monday' : 'sunday', offset, setlists, plays: stripPlays, asks });
   // The day under the strip: the one picked, else the first day ahead with something on.
   const firstBusy = days.find(d => !d.isPast && (d.play || d.asked || d.services.length || d.rehearsals.length));
   const selected = picked && days.some(d => d.date === picked) ? picked : (firstBusy || days.find(d => d.isToday) || days[0])?.date;
 
   // What you play: a step on the one-time checklist (church only, once the roster is in).
-  const church = inTeam && team.kind !== 'personal';
+  const church = inTeam;
   const myMember = church ? (members || []).find(m => m.user_id === userId) : null;
   const myParts = useMemo(() => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))), [myMember?.instruments]);
   const [partsOpen, setPartsOpen] = useState(false);

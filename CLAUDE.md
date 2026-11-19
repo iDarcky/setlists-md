@@ -108,8 +108,8 @@ not a tab**: it opens only from the Schedule row on Home's two-weeks card and
 lights Home. **You** is the profile photo in the top bar, not a tab. Settings,
 team and church pages hang off You.
 
-**Main views:** `home`, `setlists` (a church gets the Schedule list in
-`mode="setlists"`, Upcoming / Past; Personal keeps the old `Setlists.jsx`),
+**Main views:** `home`, `setlists` (the Schedule list in
+`mode="setlists"`, Upcoming / Past),
 `schedule` (`SchedulePage`: invites, Next Sundays, You play, My availability
 calendar, and the Band grid for leaders), `library` (Songs), `song-hub`,
 `editor`, `setlist-view`, `setlist-build`, `setlist-read` (the one reading
@@ -118,7 +118,12 @@ route), `setlist-finale`.
 **Words the app uses.** Setlist (the songs for one service) · service
 template (a reusable starting point) · invite (a leader asking someone to
 play; the code still says `ask`/`pending`) · availability (one answer per
-day) · Space (a church, band or Personal library).
+day) · Space / group (a church or a band; there is no one-person library).
+
+**No group open.** `activeLibrary` is a group id or `null` (signed out, or
+not in a group yet: the start screens take over). `null` reads and writes
+nothing on the device and syncs nothing. Personal was removed on 2026-11-19;
+don't bring back a library that belongs to one person.
 
 **Data.**
 - **The server is the source of truth**; every device keeps an IndexedDB copy
@@ -212,7 +217,6 @@ follows `settings.theme` (`default` = OS).
 - Auth callback URL handling is split: OAuth stays on `/auth/callback` (dedicated `AuthCallback.jsx`). Magic links and recovery links land on `/` and rely on App.jsx's cleanup effect — don't add a new redirect target without wiring a matching cleanup branch.
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
-- `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
 - **The reader's live state is a FOLD, not a chip, and the ✕ is phone-conditional.**
   `LiveFold` paints into the chrome's top-right corner OUTSIDE the layout, so the
   song title is the same width live and off-live. On a phone (`!wide`) live drops

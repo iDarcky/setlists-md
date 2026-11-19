@@ -28,7 +28,7 @@ export function TeamProvider({ children }) {
   // The user whose memberships were last read from the server WITHOUT an
   // error. Until it matches the signed-in user, an empty `teams` means "not
   // known yet", not "in no church" — App must not drop a remembered church
-  // on that (the open-into-Personal-then-flicker on launch, 2026-11-03).
+  // on that (the flicker on launch, 2026-11-03).
   const [teamsLoadedFor, setTeamsLoadedFor] = useState(null);
   const loadedForUserRef = useRef(null);
   // Bumped to re-read memberships (e.g. a join request was just approved) or
@@ -220,7 +220,7 @@ export function TeamProvider({ children }) {
   // leaders only — must agree with `get_user_join_manager_teams()` in
   // 20261019_join_links.sql, or the list just comes back empty.
   const myActiveRole = team ? members.find(m => m.user_id === user?.id)?.role : null;
-  const canManageJoinLink = !!team && team.kind !== 'personal'
+  const canManageJoinLink = !!team
     && (team.owner_id === user?.id || canApproveJoins(myActiveRole));
   const {
     requests: joinRequests,

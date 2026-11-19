@@ -3,8 +3,8 @@
 // A church setlist's link is LIVE: the row points at the setlist's server row
 // and the guest reads the current setlist + songs through the
 // `get_shared_setlist` RPC (20261031_live_share_links.sql), which leaves out
-// who leads each song and everything else about people. A personal setlist, or
-// a project without that migration, still publishes a frozen snapshot.
+// who leads each song and everything else about people. A setlist with no
+// server row yet, or a project without that migration, still publishes a frozen snapshot.
 //
 // A link ends 3 hours after the service (24 hours after sharing when the
 // setlist has no date). There is no picker: the service decides.

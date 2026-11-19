@@ -1,95 +1,38 @@
 // Church-first defaults (docs/PLAN.md, "The product, in one paragraph"):
-// anyone who belongs to a church lands in that church; Personal stays for the
-// people who use it. Pure, so the rules are tested rather than eyeballed.
+// anyone who belongs to a church lands in that church. Pure, so the rules are
+// tested rather than eyeballed.
 
 /**
- * The Space to open into for someone in a church who has never picked one.
- * Returns null when nothing should change: a choice exists already — including
- * an explicit 'personal' — or there is no shared Space to pick.
- * A church beats a band; otherwise the first membership.
+ * The group to open into for someone in a church who has never picked one.
+ * Returns null when nothing should change: a choice exists already, or there
+ * is no group to pick. A church beats a band; otherwise the first membership.
  */
 export function churchDefaultSpaceId({ current, teams }) {
   if (current) return null;
-  const shared = (teams || []).filter(t => t && t.id && t.kind !== 'personal');
+  const shared = (teams || []).filter(t => t && t.id);
   if (shared.length === 0) return null;
   return (shared.find(t => t.kind === 'church' || t.plan === 'church') || shared[0]).id;
 }
 
 /**
- * Opening into the home Space, once per sign-in. Returns `{ done, switchTo }`:
- * `done` says the decision is final for this sign-in; until then the caller
- * asks again as `teams` and `activeLibrary` change. The memberships load after
- * the first render, so a home Space missing from `teams` means "not loaded
- * yet", never "gone" — deciding on that first empty list is what opened every
- * church member into Personal.
+ * Which group to open when none is open: the chosen home group while the user
+ * still belongs to it, else a church, else the first membership. Null when
+ * the user is in no group (the setup screen takes over).
  */
-export function homeSpaceStep({ target, activeLibrary, teams }) {
-  if (!target) return { done: false, switchTo: null };
-  if (target === 'personal' || activeLibrary !== 'personal') return { done: true, switchTo: null };
-  if ((teams || []).some(t => t && t.id === target)) return { done: true, switchTo: target };
-  return { done: false, switchTo: null };
+export function openingSpaceId({ defaultSpaceId, teams }) {
+  const list = (teams || []).filter(t => t && t.id);
+  if (defaultSpaceId && list.some(t => t.id === defaultSpaceId)) return defaultSpaceId;
+  return churchDefaultSpaceId({ current: null, teams: list });
 }
 
 /**
  * After being approved into `joinedTeamId`: it becomes home, unless home is
- * already another Space the user still belongs to (the first church you join
+ * already another group the user still belongs to (the first church you join
  * becomes home; a second one doesn't silently replace it).
  */
 export function defaultAfterJoin({ current, joinedTeamId, teamIds }) {
   if (!joinedTeamId) return current ?? null;
   const ids = new Set(teamIds || []);
-  if (current && current !== 'personal' && current !== joinedTeamId && ids.has(current)) return current;
+  if (current && current !== joinedTeamId && ids.has(current)) return current;
   return joinedTeamId;
-}
-
-/**
- * Does the personal library hold anything of the user's own? The three seeded
- * demo songs don't count; any setlist does.
- */
-export function hasOwnPersonalContent(songs, setlists, demoIds = []) {
-  const demos = new Set(demoIds);
-  if ((setlists || []).length > 0) return true;
-  return (songs || []).some(s => s && !demos.has(s.id));
-}
-
-/**
- * TEMPORARY (2026-10-25, owner's call): anyone in a church or band does not
- * get an EMPTY Personal, while we decide what Personal is for. Nothing is
- * deleted: its songs stay on this device (and on the server with cloud sync).
- * Since 2026-11-11 a church member whose Personal still holds songs or
- * setlists of their own sees it again, so they can move them into a church
- * or band (they were stuck before). People in no shared Space always have it.
- */
-export const PERSONAL_BLOCKED_IN_CHURCH = true;
-
-/**
- * Hide "Personal" from the Space switcher? Only for someone who belongs to a
- * church, has nothing of their own there, and hasn't asked to see it. Anything
- * uncertain keeps it visible (unless `blocked`, which hides it for every
- * church member — see PERSONAL_BLOCKED_IN_CHURCH):
- *   - `showPersonalPref === true`  (Settings → "Show my own songs and setlists")
- *   - not in any shared Space
- *   - personal content exists, or isn't known yet (`null`)
- *   - the account has personal cloud sync (its songs may live on another device)
- *   - Personal is the open Space, or the chosen home Space
- */
-export function shouldHidePersonal({
-  blocked = false,
-  showPersonalPref,
-  inChurch,
-  hasPersonalContent,
-  personalCloud = false,
-  activeIsPersonal = false,
-  defaultIsPersonal = false,
-}) {
-  if (!inChurch) return false;
-  // Blocked: hidden unless it is known to hold something of the user's own,
-  // or the account syncs Personal (its songs may be in the cloud, not on
-  // this device yet).
-  if (blocked) return !(hasPersonalContent === true || personalCloud);
-  if (showPersonalPref === true) return false;
-  if (hasPersonalContent !== false) return false;
-  if (personalCloud) return false;
-  if (activeIsPersonal || defaultIsPersonal) return false;
-  return true;
 }

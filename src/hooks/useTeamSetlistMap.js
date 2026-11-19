@@ -12,7 +12,7 @@ import { getSyncState } from '@/sync/tokens';
  * members) keeps it in `replica.rows.setlist[key].rowId`. This hook exposes
  * whichever the device has — the replica's wins when both exist.
  *
- * @param {string} libraryId — 'personal' or the team UUID
+ * @param {string|null} libraryId — the team UUID (null: no group open)
  * @param {*} [refreshKey] — optional; pass a value that changes when a sync
  *   completes (e.g. syncState.lastSync) so the mapping picks up setlists that
  *   were created/synced after mount instead of staying frozen at first read.
@@ -23,7 +23,7 @@ export function useTeamSetlistMap(libraryId, refreshKey) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!libraryId || libraryId === 'personal') {
+    if (!libraryId) {
       setMap({});
       return;
     }

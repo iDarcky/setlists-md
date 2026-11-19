@@ -69,9 +69,6 @@ export const PORTABLE_PREF_KEYS = [
   'language',
   'confirmBeforeDelete',
   'defaultSpaceId',
-  // Settings → General → "Show my own songs and setlists": keep Personal in
-  // the Space switcher even when it is empty (lib/spaceDefaults.js).
-  'showPersonalSpace',
   'tabSubdivision',
   'tabSize',
   'tabStringColor',

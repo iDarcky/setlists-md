@@ -130,7 +130,7 @@ describe('resolveMyInstrument', () => {
     })).toBe('bass-guitar');
   });
 
-  it('is null for a guest or a personal workspace', () => {
+  it('is null for a guest or with no group open', () => {
     expect(resolveMyInstrument({ userId: null, members })).toBeNull();
     expect(resolveMyInstrument({ userId: ME })).toBeNull();
     expect(resolveMyInstrument()).toBeNull();
