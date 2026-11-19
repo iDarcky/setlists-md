@@ -24,14 +24,6 @@ import { StartChurchCard, StartChurchSheet } from './StartChurch';
 // and hands it to HomeView. Schedules and the row-id map come from App, which
 // already keeps them live for the bell.
 
-function syncLine(syncState, now) {
-  if (!syncState?.provider) return { state: 'offline', label: 'On this device only' };
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return { state: 'offline', label: 'Offline' };
-  if (syncState.state === 'error') return { state: 'error', label: 'Not synced' };
-  if (syncState.state === 'syncing') return { state: 'pending', label: 'Syncing…' };
-  const mins = syncState.lastSync ? Math.round((now - new Date(syncState.lastSync).getTime()) / 60000) : null;
-  return { state: 'ok', label: mins == null || mins < 2 ? 'Up to date' : `Up to date · ${mins < 60 ? `${mins} min` : `${Math.round(mins / 60)} h`} ago` };
-}
 
 export default function Home({
   songs = [], setlists = [], settings, displayName, syncState,
@@ -180,7 +172,6 @@ export default function Home({
     <HomeView
       name={first}
       dateLabel={dateLabel}
-      sync={syncLine(syncState, now)}
       syncProblem={syncProblem(syncState, ticking, typeof navigator === 'undefined' || navigator.onLine !== false)
         ? { onRetry: onRetrySync } : null}
       setup={setup}

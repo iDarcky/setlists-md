@@ -19,9 +19,9 @@ function Row({ on, title, sub, name, onPick }) {
         on ? 'border-link bg-selected' : 'border-border bg-transparent hover:bg-raised/50')}>
       <span className={cn('size-5 shrink-0 rounded-full border-2', on ? 'border-[6px] border-link' : 'border-input')} aria-hidden="true" />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[16px] font-semibold">{title}</span>
-        {sub && <span className="truncate text-[13px] text-muted-foreground">{sub}</span>}
-        {name && <span className="truncate font-mono text-[12px] text-foreground">{name}</span>}
+        <span className="truncate text-body font-semibold">{title}</span>
+        {sub && <span className="truncate text-small text-muted-foreground">{sub}</span>}
+        {name && <span className="truncate font-mono text-caption text-foreground">{name}</span>}
       </span>
     </button>
   );
@@ -45,12 +45,12 @@ export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, onNew
     <div className="flex flex-col gap-3 font-sans">
       {!templates.length && onNewTemplate && (
         <div className="flex flex-col gap-2 rounded-card border border-link bg-selected px-4 py-3">
-          <b className="text-[16px]">Set up your Sunday once</b>
-          <p className="m-0 text-[14px] text-muted-foreground">A template fills in the day, time, rehearsal, band and order of service every week.</p>
+          <b className="text-body">Set up your Sunday once</b>
+          <p className="m-0 text-small text-muted-foreground">A template fills in the day, time, rehearsal, band and order of service every week.</p>
           <Button className="h-11 self-start" onClick={onNewTemplate}>New template</Button>
         </div>
       )}
-      {templates.length > 0 && <p className="m-0 -mt-1 text-[13px] text-muted-foreground">Pick a template. Everything in it can be changed after.</p>}
+      {templates.length > 0 && <p className="m-0 -mt-1 text-small text-muted-foreground">Pick a template. Everything in it can be changed after.</p>}
       {choices && (
         <div role="radiogroup" aria-label="Start from" className="flex flex-col gap-2">
           {kept && (
@@ -70,8 +70,8 @@ export function NewSetlistBody({ setlists = [], onCreate, onEditTemplates, onNew
       {choices && <Button className="h-12" onClick={create}>Continue</Button>}
       <div className="flex items-center justify-between gap-2">
         {/* Not a template: a plain way out, below the choices. */}
-        <Button variant="link" className="px-0 text-[14px]" onClick={empty}>Start an empty setlist</Button>
-        {onEditTemplates && templates.length > 0 && <Button variant="link" className="px-0 text-[14px]" onClick={onEditTemplates}>Edit templates</Button>}
+        <Button variant="link" className="px-0 text-small" onClick={empty}>Start an empty setlist</Button>
+        {onEditTemplates && templates.length > 0 && <Button variant="link" className="px-0 text-small" onClick={onEditTemplates}>Edit templates</Button>}
       </div>
     </div>
   );

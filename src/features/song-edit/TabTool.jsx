@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { BottomActions } from '@/ui/shadcn/bottom-actions';
@@ -7,17 +8,12 @@ import {
   TECHNIQUES, DURATIONS, slotsPerMeasure, beatLabels, makeGrid, gridToAscii, gridFromTab,
 } from '@/lib/tabGrid';
 
-const seg = 'h-9 min-h-0 cursor-pointer rounded-[7px] border-0 bg-transparent px-2.5 font-sans text-[13px] font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
-const segOn = 'bg-card text-foreground shadow-[0_1px_2px_rgba(0,0,0,.18)]';
-const padKey = 'flex h-11 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-raised font-mono text-[16px] font-semibold text-foreground outline-none active:bg-selected focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40';
+const seg = 'h-9 min-h-0 cursor-pointer rounded-[7px] border-0 bg-transparent px-2.5 font-sans text-small font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const padKey = 'flex h-11 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-raised font-mono text-body font-semibold text-foreground outline-none active:bg-selected focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40';
 
 function Seg({ items, value, onPick, label }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex gap-0.5 rounded-[10px] bg-raised p-[3px]">
-      {items.map(([v, l, title]) => (
-        <button key={v} type="button" role="radio" aria-checked={value === v} title={title} onClick={() => onPick(v)} className={cn(seg, value === v && segOn)}>{l}</button>
-      ))}
-    </div>
+    <Seg2 label={label} value={value} onChange={onPick} options={items.map(([v, l, title]) => ({ value: v, label: l, title }))} itemClassName="px-2.5" />
   );
 }
 
@@ -130,7 +126,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
         <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border px-3">
           {/* Phone: Cancel and Save sit in the bar at the bottom, under the thumb. */}
           <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={onClose}>Cancel</Button>
-          <b className="min-w-0 flex-1 truncate text-center text-[15px] font-semibold">{title}</b>
+          <b className="min-w-0 flex-1 truncate text-center text-body font-semibold">{title}</b>
           <Button size="sm" className="hidden sm:inline-flex" onClick={save}>{initialTab ? 'Save' : 'Add tab'}</Button>
         </div>
 
@@ -146,7 +142,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-3 py-3">
-          <div className="inline-block rounded-card border border-border bg-card px-2 py-2.5">
+          <div className="inline-block rounded-card material-base px-2 py-2.5">
             <div className="flex" style={{ marginLeft: 22 }}>
               {Array.from({ length: total }, (_, p) => (
                 <div key={p} className={cn('shrink-0 text-center font-mono', p % cpb === 0 ? 'text-[10px] font-bold text-muted-foreground' : 'text-[9px] text-muted-foreground/60')}
@@ -155,7 +151,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
             </div>
             {strings.map((name, s) => (
               <div key={s} className="flex items-center" style={{ height: 32 }}>
-                <div className="w-[22px] shrink-0 pr-1.5 text-right font-mono text-[12px] font-bold text-muted-foreground">{name}</div>
+                <div className="w-[22px] shrink-0 pr-1.5 text-right font-mono text-caption font-bold text-muted-foreground">{name}</div>
                 <div className="relative flex">
                   <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-border" />
                   {Array.from({ length: total }, (_, p) => {
@@ -171,7 +167,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
                           on && 'rounded-[5px] bg-selected shadow-[inset_0_0_0_1.5px_var(--link)]')}
                         style={{ width: CW, borderLeft: p > 0 && p % spm === 0 ? '2px solid var(--border)' : undefined }}>
                         {fret != null && (
-                          <span className="relative z-[1] rounded-[3px] bg-card px-0.5 font-mono text-[13px] font-bold leading-none text-[var(--chord)]">
+                          <span className="relative z-[1] rounded-[3px] bg-card px-0.5 font-mono text-small font-bold leading-none text-[var(--chord)]">
                             {fret}{t && <span className="ml-px text-[9px] text-muted-foreground">{t}</span>}
                           </span>
                         )}
@@ -186,7 +182,7 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
             <Seg label="Grid" value={cpb} items={[[1, '1/4'], [2, '1/8'], [4, '1/16']]} onPick={changeGrid} />
             <div className="flex items-center gap-1 rounded-[10px] bg-raised p-[3px]">
               <button type="button" aria-label="One bar less" disabled={measures <= 1} onClick={() => bars(-1)} className={cn(seg, 'w-9 px-0 disabled:opacity-40')}>−</button>
-              <span className="px-1 text-[13px] text-muted-foreground">{measures} {measures === 1 ? 'bar' : 'bars'}</span>
+              <span className="px-1 text-small text-muted-foreground">{measures} {measures === 1 ? 'bar' : 'bars'}</span>
               <button type="button" aria-label="One bar more" onClick={() => bars(1)} className={cn(seg, 'w-9 px-0')}>+</button>
             </div>
           </div>
@@ -206,8 +202,8 @@ export default function TabTool({ initialTab, time, title, onSave, onRemove, onC
             {Array.from({ length: 13 }, (_, i) => (high ? i + 12 : i)).filter(n => n <= 24).map(n => (
               <button key={n} type="button" className={padKey} onClick={() => put(n)}>{n}</button>
             ))}
-            {!high && <button type="button" className={cn(padKey, 'text-[13px] text-muted-foreground')} onClick={() => setHigh(true)}>13+</button>}
-            {high && <button type="button" className={cn(padKey, 'text-[13px] text-muted-foreground')} onClick={() => setHigh(false)}>0–12</button>}
+            {!high && <button type="button" className={cn(padKey, 'text-small text-muted-foreground')} onClick={() => setHigh(true)}>13+</button>}
+            {high && <button type="button" className={cn(padKey, 'text-small text-muted-foreground')} onClick={() => setHigh(false)}>0–12</button>}
           </div>
           <div className="flex items-center gap-2 pt-2">
             <Button variant="ghost" size="sm" disabled={cell == null} onClick={clear}>Clear note</Button>

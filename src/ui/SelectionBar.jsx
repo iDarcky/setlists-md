@@ -65,7 +65,7 @@ export function SelectionBar({ count, onClear, barRef, liftAboveNav = false, mor
   return (
     <div
       ref={barRef}
-      className="fixed left-1/2 -translate-x-1/2 z-[160] max-w-[calc(100vw-1.5rem)] rounded-[24px] border border-white/10 overflow-hidden"
+      className="fixed left-1/2 -translate-x-1/2 z-chrome max-w-[calc(100vw-1.5rem)] rounded-[24px] border border-white/10 overflow-hidden"
       style={{
         ...GLASS,
         bottom: liftAboveNav ? 'calc(env(safe-area-inset-bottom, 0px) + 96px)' : '24px',
@@ -91,7 +91,7 @@ export function SelectionBar({ count, onClear, barRef, liftAboveNav = false, mor
             {moreOpen && menuPos && createPortal(
               <div
                 ref={menuRef}
-                className="fixed z-[170] w-[210px] rounded-2xl border border-white/10 overflow-hidden py-1"
+                className="fixed z-menu w-[210px] rounded-2xl border border-white/10 overflow-hidden py-1"
                 style={{ ...GLASS, bottom: menuPos.bottom, right: menuPos.right }}
                 role="menu"
               >

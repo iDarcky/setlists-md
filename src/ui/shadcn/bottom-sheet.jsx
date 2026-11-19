@@ -91,7 +91,8 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
         tabIndex={-1}
         data-slot="bottom-sheet"
         className={cn(
-          'flex max-h-[calc(100dvh-64px)] flex-col rounded-t-sheet border-t border-border bg-card font-sans text-card-foreground outline-none',
+          // Material `modal` (ds.css): float fill, edge, highlight and modal shadow.
+          'flex max-h-[calc(100dvh-64px)] flex-col rounded-t-sheet border-t border-float-border bg-float font-sans text-card-foreground shadow-[var(--float-highlight),var(--shadow-modal)] outline-none',
           className,
         )}
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -107,7 +108,7 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
             ? <div aria-hidden="true" className="mx-auto mt-2 h-1 w-9 rounded-full bg-input" />
             : <div aria-hidden="true" className="h-2" />}
           <div className={cn('px-6 pb-2 pt-3', !dismissible && 'pb-1 pt-5')}>
-            <h2 id={titleId} className="m-0 text-[18px] font-semibold leading-6 tracking-[-0.2px]">{title}</h2>
+            <h2 id={titleId} className="m-0 text-heading">{title}</h2>
           </div>
           {description && <p id={descId} className="sr-only">{description}</p>}
         </Sheet.Header>

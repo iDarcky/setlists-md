@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { exchangeGoogleAuthCode } from '@/sync/google-drive';
 import { setActiveProvider } from '@/sync/tokens';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 
 // Handles the redirect from Google's consent screen at /auth/google-drive.
 // Calls the cloud-token-exchange Edge Function to swap the auth code for
@@ -75,7 +75,7 @@ export default function GoogleDriveCallback({ onDone, onCancel }) {
             <h1 className="text-heading-20 text-[var(--ds-gray-1000)] m-0">Couldn't connect Google Drive</h1>
             <p className="text-copy-14 text-[var(--ds-gray-700)] m-0">{errorMsg}</p>
             <div className="flex gap-2 justify-center mt-2">
-              <Button variant="secondary" size="sm" onClick={onCancel}>Back to app</Button>
+              <Button variant="outline" size="sm" onClick={onCancel}>Back to app</Button>
             </div>
           </>
         )}

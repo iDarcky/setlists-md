@@ -1,4 +1,4 @@
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 
 /**
  * What "live" means — said once, the first time you go there.
@@ -54,7 +54,7 @@ export default function LiveIntro({ onClose }) {
           <li>The <span aria-hidden="true">&#10005;</span> asks before it leaves, so a stray tap can&rsquo;t end the service.</li>
         </ul>
 
-        <Button variant="brand" size="lg" onClick={onClose} className="w-full">
+        <Button onClick={onClose} className="w-full">
           Got it
         </Button>
       </div>

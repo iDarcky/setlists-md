@@ -180,8 +180,10 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
    The stylesheet reads this through --shut rather than
    repeating it: the skin's height and the closed width are the
    same number by definition, and two places holding it is two
-   places to get it wrong. */
-const SHUT = 48;
+   places to get it wrong.
+   Setlists.md (15 Nov): 44, so it sits level with the + and the
+   calendar button in the page headers. */
+const SHUT = 44;
 /* the lens, and its inset. See the note above — this number
    is doing two jobs and they agree by construction.
 

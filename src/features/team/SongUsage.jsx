@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
@@ -15,7 +16,7 @@ const RANGE_WORDS = { '1m': 'in the last month', '3m': 'in 3 months', '6m': 'in 
 function Filter({ label, value, onChange, options }) {
   const current = options.find(o => o.value === value);
   return (
-    <label className={cn('relative flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-[14px] font-medium', value !== options[0].value ? 'border-foreground bg-raised' : 'border-chip-border')}>
+    <label className={cn('relative flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3.5 text-small font-medium', value !== options[0].value ? 'border-foreground bg-raised' : 'border-chip-border')}>
       <span>{current?.label}</span><ChevronDownIcon size={14} />
       <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0">
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -25,9 +26,9 @@ function Filter({ label, value, onChange, options }) {
 }
 
 const Stat = ({ n, label }) => (
-  <div className="flex flex-1 flex-col gap-0.5 rounded-card border border-border bg-card px-3.5 py-3">
+  <div className="flex flex-1 flex-col gap-0.5 rounded-card material-base px-3.5 py-3">
     <span className="text-[22px] font-semibold leading-7 tabular-nums">{n}</span>
-    <span className="text-[13px] text-muted-foreground">{label}</span>
+    <span className="text-small text-muted-foreground">{label}</span>
   </div>
 );
 
@@ -36,13 +37,13 @@ function SongRow({ row, max, nameOf, onOpen }) {
     <button type="button" onClick={() => onOpen(row)}
       className="flex w-full cursor-pointer flex-col gap-1.5 border-0 border-t border-border bg-transparent py-3 text-left font-sans text-foreground outline-none first:border-t-0 hover:bg-raised/50 focus-visible:ring-2 focus-visible:ring-ring">
       <span className="flex items-baseline gap-3">
-        <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{row.title}</span>
-        <span className="text-[15px] font-semibold tabular-nums">{row.plays}×</span>
+        <span className="min-w-0 flex-1 truncate text-body font-medium">{row.title}</span>
+        <span className="text-body font-semibold tabular-nums">{row.plays}×</span>
       </span>
       <span className="h-1.5 overflow-hidden rounded-full bg-raised" aria-hidden="true">
         <span className="block h-full rounded-full bg-link" style={{ width: `${Math.max(6, (row.plays / max) * 100)}%` }} />
       </span>
-      <span className="truncate text-[13px] text-muted-foreground">{[`Last ${shortDate(row.last)}`, leaderSplit(row.leaders, nameOf)].filter(Boolean).join(' · ')}</span>
+      <span className="truncate text-small text-muted-foreground">{[`Last ${shortDate(row.last)}`, leaderSplit(row.leaders, nameOf)].filter(Boolean).join(' · ')}</span>
     </button>
   );
 }
@@ -52,13 +53,13 @@ function ServiceRow({ s, nameOf }) {
   return (
     <div className="flex gap-3.5 border-t border-border py-3 first:border-t-0">
       <span className="flex w-10 shrink-0 flex-col items-center pt-0.5">
-        <span className="text-[18px] font-semibold leading-6 tabular-nums">{d.getDate()}</span>
-        <span className="text-[12px] text-muted-foreground">{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
+        <span className="text-heading font-semibold leading-6 tabular-nums">{d.getDate()}</span>
+        <span className="text-caption text-muted-foreground">{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="truncate text-[15px] font-medium">{s.name}</span>
-        <span className="truncate text-[13px] text-muted-foreground">{[s.service !== s.name && s.service, (nameOf(s.leaderId) || s.leaderName) && `${nameOf(s.leaderId) || s.leaderName} planned it`].filter(Boolean).join(' · ')}</span>
-        <span className="text-[14px] leading-5">{s.songs.map(x => x.key ? `${x.title} (${x.key})` : x.title).join(' · ') || <span className="text-muted-foreground">No songs</span>}</span>
+        <span className="truncate text-body font-medium">{s.name}</span>
+        <span className="truncate text-small text-muted-foreground">{[s.service !== s.name && s.service, (nameOf(s.leaderId) || s.leaderName) && `${nameOf(s.leaderId) || s.leaderName} planned it`].filter(Boolean).join(' · ')}</span>
+        <span className="text-small leading-5">{s.songs.map(x => x.key ? `${x.title} (${x.key})` : x.title).join(' · ') || <span className="text-muted-foreground">No songs</span>}</span>
       </span>
     </div>
   );
@@ -73,8 +74,8 @@ const SORTS = {
 
 function Th({ id, sort, onSort, children, className }) {
   return (
-    <th scope="col" aria-sort={id && sort === id ? (id === 'title' || id === 'key' ? 'ascending' : 'descending') : undefined} className={cn('h-10 px-3 text-left text-[13px] font-semibold text-muted-foreground', className)}>
-      {id ? <button type="button" onClick={() => onSort(id)} className={cn('inline-flex min-h-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-sans text-[13px] font-semibold', sort === id ? 'text-foreground' : 'text-muted-foreground')}>{children}{sort === id && <ChevronDownIcon size={12} />}</button> : children}
+    <th scope="col" aria-sort={id && sort === id ? (id === 'title' || id === 'key' ? 'ascending' : 'descending') : undefined} className={cn('h-10 px-3 text-left text-small font-semibold text-muted-foreground', className)}>
+      {id ? <button type="button" onClick={() => onSort(id)} className={cn('inline-flex min-h-0 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-sans text-small font-semibold', sort === id ? 'text-foreground' : 'text-muted-foreground')}>{children}{sort === id && <ChevronDownIcon size={12} />}</button> : children}
     </th>
   );
 }
@@ -91,11 +92,11 @@ function SongTable({ rows, nameOf, onOpen }) {
       <tbody>
         {sorted.map(r => (
           <tr key={r.songId} onClick={() => onOpen(r)} className="cursor-pointer border-b border-border hover:bg-raised/50">
-            <td className="h-12 px-3 text-[15px] font-medium"><button type="button" onClick={(e) => { e.stopPropagation(); onOpen(r); }} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-[15px] font-medium text-foreground">{r.title}</button></td>
-            <td className="px-3 text-right text-[15px] font-semibold tabular-nums">{r.plays}×</td>
-            <td className="px-3 text-[14px] text-muted-foreground">{shortDate(r.last)}</td>
-            <td className="px-3 text-[14px]">{usualKey(r.keys)}</td>
-            <td className="px-3 text-[14px] text-muted-foreground">{leaderSplit(r.leaders, nameOf)}</td>
+            <td className="h-12 px-3 text-body font-medium"><button type="button" onClick={(e) => { e.stopPropagation(); onOpen(r); }} className="min-h-0 cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-body font-medium text-foreground">{r.title}</button></td>
+            <td className="px-3 text-right text-body font-semibold tabular-nums">{r.plays}×</td>
+            <td className="px-3 text-small text-muted-foreground">{shortDate(r.last)}</td>
+            <td className="px-3 text-small">{usualKey(r.keys)}</td>
+            <td className="px-3 text-small text-muted-foreground">{leaderSplit(r.leaders, nameOf)}</td>
           </tr>
         ))}
       </tbody>
@@ -107,7 +108,7 @@ function SongTable({ rows, nameOf, onOpen }) {
 export function SongPlays({ row, range, nameOf, onOpenSong }) {
   return (
     <div className="flex flex-col gap-4 font-sans">
-      <p className="m-0 text-[15px] text-muted-foreground">
+      <p className="m-0 text-body text-muted-foreground">
         {row.plays} {row.plays === 1 ? 'time' : 'times'} {RANGE_WORDS[range] || ''}{usualKey(row.keys) && ` · usually in ${usualKey(row.keys)}`}
       </p>
       <div className="flex flex-col">
@@ -117,12 +118,12 @@ export function SongPlays({ row, range, nameOf, onOpenSong }) {
           return (
             <div key={`${h.setlistId}-${i}`} className="flex min-h-14 items-center gap-3.5 border-t border-border py-2 first:border-t-0">
               <span className="flex w-10 shrink-0 flex-col items-center">
-                <span className="text-[17px] font-semibold leading-6 tabular-nums">{d.getDate()}</span>
-                <span className="text-[12px] text-muted-foreground">{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
+                <span className="text-heading font-semibold leading-6 tabular-nums">{d.getDate()}</span>
+                <span className="text-caption text-muted-foreground">{d.toLocaleDateString('en-GB', { month: 'short' })}</span>
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-[15px] font-medium">{h.name}</span>
-                <span className="truncate text-[13px] text-muted-foreground">{[who && `${who} planned it`, h.key && `in ${h.key}`].filter(Boolean).join(' · ')}</span>
+                <span className="truncate text-body font-medium">{h.name}</span>
+                <span className="truncate text-small text-muted-foreground">{[who && `${who} planned it`, h.key && `in ${h.key}`].filter(Boolean).join(' · ')}</span>
               </span>
             </div>
           );
@@ -161,7 +162,7 @@ export default function SongUsage({ setlists = [], songs = [], nameOf = () => ''
         <div role="tablist" className="-mx-4 flex gap-5 border-b border-border px-4 @min-[640px]:-mx-6 @min-[640px]:px-6">
           {[['songs', 'Songs'], ['services', 'Services']].map(([id, label]) => (
             <button key={id} role="tab" aria-selected={tab === id} type="button" onClick={() => setTab(id)}
-              className={cn('-mb-px flex h-10 min-h-0 cursor-pointer items-center border-0 border-b-2 bg-transparent px-0 font-sans text-[15px] outline-none', tab === id ? 'border-foreground font-semibold text-foreground' : 'border-transparent font-medium text-muted-foreground')}>
+              className={cn('-mb-px flex h-10 min-h-0 cursor-pointer items-center border-0 border-b-2 bg-transparent px-0 font-sans text-body outline-none', tab === id ? 'border-foreground font-semibold text-foreground' : 'border-transparent font-medium text-muted-foreground')}>
               {label}
             </button>
           ))}
@@ -178,11 +179,11 @@ export default function SongUsage({ setlists = [], songs = [], nameOf = () => ''
             <div className="flex flex-col @min-[1024px]:hidden">{data.songs.map(r => <SongRow key={r.songId} row={r} max={max} nameOf={nameOf} onOpen={setOpen} />)}</div>
             <div className="hidden @min-[1024px]:block"><SongTable rows={data.songs} nameOf={nameOf} onOpen={setOpen} /></div>
           </>
-        ) : <p className="m-0 py-8 text-center text-[15px] text-muted-foreground">Nothing played in this time.</p>)}
+        ) : <EmptyNote className="py-8">Nothing played in this time.</EmptyNote>)}
 
         {tab === 'services' && (data.services.length
           ? <div className="flex flex-col">{data.services.map(s => <ServiceRow key={s.id} s={s} nameOf={nameOf} />)}</div>
-          : <p className="m-0 py-8 text-center text-[15px] text-muted-foreground">No services in this time.</p>)}
+          : <p className="m-0 py-8 text-center text-body text-muted-foreground">No services in this time.</p>)}
       </div>
 
       <Sheet open={!!open} onOpenChange={(o) => { if (!o) setOpen(null); }} title={open?.title || 'Song'}>

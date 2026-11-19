@@ -171,13 +171,13 @@ function SongCard({
               {has('key') && <span className="text-[var(--chord)] font-semibold">{songKey}</span>}
               {has('tempo') && (
                 <>
-                  {has('key') && <span className="text-[12px] opacity-50">•</span>}
+                  {has('key') && <span className="text-caption opacity-50">•</span>}
                   <span>{songTempo ? `${songTempo} BPM` : 'No Tempo'}</span>
                 </>
               )}
               {has('updated') && song.updatedAt && (
                 <>
-                  {(has('key') || has('tempo')) && <span className="text-[12px] opacity-50">•</span>}
+                  {(has('key') || has('tempo')) && <span className="text-caption opacity-50">•</span>}
                   <span className="text-label-12">{formatRelativeTime(song.updatedAt)}</span>
                 </>
               )}
@@ -220,7 +220,7 @@ function SongCard({
       <h3 className="text-heading-18 text-[var(--text-1)] m-0 leading-tight truncate">{song.title}</h3>
       <div className="flex items-center gap-2">
         <span className="text-label-12 text-[var(--text-2)] uppercase font-semibold">{song.key || 'C'}</span>
-        <span className="text-[var(--text-2)] text-[12px] opacity-60">•</span>
+        <span className="text-[var(--text-2)] text-caption opacity-60">•</span>
         <span className="text-label-12 text-[var(--text-2)]">{song.tempo ? `${song.tempo} BPM` : 'No Tempo'}</span>
       </div>
       {song.artist && <p className="text-copy-14 text-[var(--text-2)] mt-1 line-clamp-1">{song.artist}</p>}

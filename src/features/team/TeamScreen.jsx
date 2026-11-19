@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { toast } from '@/ui/use-toast';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 import { Button as ShadButton } from '@/ui/shadcn/button';
 import { Input } from '@/ui/Input';
 import PageHeader from '@/ui/PageHeader';
@@ -158,11 +157,11 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
             </div>
           )}
 
-          <Button type="submit" variant="brand" size="lg" className="w-full" disabled={busy || !name.trim() || !timezone}>
+          <Button type="submit" className="w-full" disabled={busy || !name.trim() || !timezone}>
             {busy ? (billingLive ? 'Starting checkout…' : 'Creating…') : (billingLive ? 'Continue to checkout' : 'Create Space')}
           </Button>
           {onCancel && (
-            <Button type="button" variant="secondary" size="lg" className="w-full" onClick={onCancel} disabled={busy}>
+            <Button type="button" variant="outline" className="w-full" onClick={onCancel} disabled={busy}>
               Cancel
             </Button>
           )}
@@ -245,11 +244,11 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
 
   const approve = (r) => run(r.id, async () => {
     setWaitMsg(null);
-    try { await onApproveJoin(r.id); toast({ title: `${r.display_name || 'They'} ${r.display_name ? 'is' : 'are'} in` }); } catch (err) { setWaitMsg({ kind: 'error', text: err.message || 'Something went wrong.' }); }
+    try { await onApproveJoin(r.id); } catch (err) { setWaitMsg({ kind: 'error', text: err.message || 'Something went wrong.' }); }
   });
   const decline = async (r) => {
     const ok = await confirm({ title: `Say no to ${r.display_name || 'this request'}?`, description: 'They will see that the request was not approved. They can ask again tomorrow.', confirmLabel: 'Say no', variant: 'danger' });
-    if (ok) run(r.id, async () => { try { await onDeclineJoin(r.id); toast({ title: `Said no to ${r.display_name || 'the request'}` }); } catch (err) { setWaitMsg({ kind: 'error', text: err.message }); } });
+    if (ok) run(r.id, async () => { try { await onDeclineJoin(r.id); } catch (err) { setWaitMsg({ kind: 'error', text: err.message }); } });
   };
   const approveAll = () => run('all', async () => {
     try {
@@ -297,7 +296,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
   }
 
   const footer = (
-    <div className="flex flex-col items-start gap-3 pt-4 text-[14px]">
+    <div className="flex flex-col items-start gap-3 pt-4 text-small">
       {onToggleDefaultSpace && (
         <ShadButton variant="link" onClick={onToggleDefaultSpace}>{isDefaultSpace ? 'Opens here when the app starts' : 'Open this church when the app starts'}</ShadButton>
       )}
