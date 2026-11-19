@@ -154,6 +154,7 @@ export function Waiting({ requests = [], onApprove, onDecline, onApproveAll, bus
         );
       })}
       {message && <p className={cn('m-0 pb-1 text-small', message.kind === 'error' ? 'text-danger' : 'text-muted-foreground')}>{message.text}</p>}
+      <p className="m-0 border-t border-border/60 pb-1 pt-2 text-caption text-muted-foreground">Under 16? Let them in only with a parent’s OK. Never under 13.</p>
     </section>
   );
 }

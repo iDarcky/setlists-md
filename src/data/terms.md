@@ -1,128 +1,87 @@
 # Terms of Service
 
-*Last updated: May 16, 2026*
+*Beta version. Last updated: 19 November 2026. A Romanian version is published alongside this one. Both versions carry equal weight.*
 
-These Terms of Service ("Terms") govern your use of Setlists.md (the
-"Service"), provided by the Setlists.md team ("we", "us", or
-"Setlists.md"). By creating an account or using the Service, you
-agree to these Terms.
+## The agreement
 
-## 1. The Service
+These terms are an agreement between you and [Full name], a private individual based in Romania who runs Setlists.md ("we", "us"). They apply when you make an account or use the app at app.setlists.md or the website at setlists.md. Our [Privacy Policy](https://setlists.md/privacy) explains what we do with your data. If you create a church or band group, our [Church and band terms](https://setlists.md/church-terms) apply to that group as well.
 
-Setlists.md is a Progressive Web App for creating, organising, and
-performing worship chord charts. The Service is available at
-[setlistsmd.insideahead.com](https://setlistsmd.insideahead.com) and
-through any native applications we may publish in the future.
+If you use Setlists.md for a church or band, you confirm you're allowed to act for it.
 
-## 2. Accounts
+## What Setlists.md is
 
-You may use Setlists.md without an account. If you create an
-account, you agree to:
+Setlists.md helps worship teams and bands keep their songs and chord charts in one place, build setlists, plan who plays when, and follow the same chart on stage. It works offline and syncs when you're back online.
 
-- Provide accurate information.
-- Keep your password confidential.
-- Be responsible for activity that happens under your account.
+## The beta
 
-You must be at least 13 years old to create an account.
+- Setlists.md is in beta and free while the beta lasts. Features can change, and things can break.
+- Before any paid plan starts, we'll email every group the price and the start date at least 30 days ahead. Nothing is charged unless a group chooses a paid plan. Small groups (up to 5 people) stay free.
+- Keep your own copy of anything you can't afford to lose. You can export your songs at any time.
 
-## 3. Plans and payment
+## Your account
 
-Setlists.md offers a free tier and the following paid plans:
+- Use your real name and an email address you check.
+- Keep your password to yourself. You're responsible for what's done with your account.
+- You need to be at least 13 to make an account. If you're 13 to 15, you also need a parent's or guardian's OK. See *Teens* in the Privacy Policy.
+- Tell us at hello@setlists.md if you think someone else has got into your account.
 
-- **Pro** — a one-time payment that unlocks Bring-Your-Own-Cloud sync
-  (Google Drive, Dropbox, OneDrive) and advanced layout features.
-- **Sync** — a monthly subscription that includes hosted cloud sync
-  and advanced layout features.
-- **Band** — a monthly subscription for small teams (up to 10
-  members).
-- **Church** — a monthly subscription for larger teams (up to 30
-  members) and multi-service planning.
+## Groups, leaders and members
 
-Pricing displayed in the app at the time of purchase is the price
-you pay. Subscriptions renew automatically until cancelled.
-One-time purchases are not refundable except where required by law.
-We may offer trials, discounts, or promotional pricing from time to
-time; the terms of those offers will be made clear at signup.
+- Each church or band has its own group. The person who creates it is the owner. The owner can make other people leaders (admins).
+- Leaders decide who joins, what role each person has, and what content the group keeps. Leaders are responsible for using members' data in line with the law, as set out in the Church and band terms.
+- Before approving someone aged 13 to 15, a leader must have their parent's or guardian's OK. Leaders must not add children under 13.
+- When you leave a group, the songs and setlists you added stay with the group.
 
-## 4. Your content
+## Your content
 
-Your songs, setlists, lyrics, and any other content you create or
-upload ("Your Content") belong to you. By using the Service you
-grant us a limited licence to store, transmit, and display Your
-Content solely to provide the Service to you and the people you
-share it with.
+- Songs, charts, setlists and notes belong to whoever added them, or to their church or band. We don't claim any ownership.
+- To run the service, we need your permission to store, copy, sync and display your content to you, your group, and anyone you share a guest link with. You give us that permission for as long as the content is on Setlists.md. It ends when the content is deleted.
 
-You are responsible for ensuring that you have the right to use Your
-Content, including the right to store and share any lyrics or
-musical works. Setlists.md does not grant you any rights to
-copyrighted songs.
+## Songs and copyright
 
-## 5. Acceptable use
+- Most worship songs are protected by copyright. You're responsible for having the right to add, print and share the songs you use, for example through your church's licence or the songwriter's permission.
+- Guest links show full lyrics and chords to anyone who has the link, until it expires. Share them only with people your licence or permission covers.
+- If you believe something on Setlists.md infringes your rights, see our [Copyright policy](https://setlists.md/copyright) and write to hello@setlists.md. We act on clear notices quickly.
 
-You agree not to:
+## Please don't
 
-- Use the Service to violate any law or the rights of others.
-- Upload malicious code or attempt to disrupt the Service.
-- Reverse-engineer, scrape, or abuse the Service in ways that
-  degrade it for other users.
-- Resell or rebrand the Service without our written permission.
-- Use the Service to distribute lyrics or sheet music you do not have
-  the rights to distribute.
+- Add anything illegal, hateful, or anything you have no right to share.
+- Try to get into another group's data or someone else's account.
+- Overload the service, probe it for weaknesses without our permission, or get around its limits.
+- Copy, resell or rebrand Setlists.md, or use it to build a competing product.
 
-We may suspend or terminate accounts that violate these rules.
+## Reporting content
 
-## 6. Third-party services
+Anyone, with or without an account, can report content they think is illegal or breaks these terms by writing to hello@setlists.md. Say where the content is and why it's a problem. We review every report fairly and without undue delay. If we remove or limit content, we tell the person who added it why, and they can ask us to look again.
 
-When you connect Google Drive, Dropbox, or OneDrive, your use of
-those services is governed by their own terms. Setlists.md is not
-responsible for the availability, security, or content of those
-third-party services.
+If someone breaks these rules, we may limit or suspend the account or group. Unless there's urgent harm or a legal reason not to, we'll explain why first and give you time to export your content.
 
-## 7. Termination
+## Our part
 
-You may stop using the Service or delete your account at any time
-from Settings → Account → Delete Account. We may suspend or
-terminate your access to the Service if you violate these Terms or
-if we discontinue the Service.
+- We work to keep Setlists.md running and your data safe, but we can't promise it will always be available or free of errors, especially during the beta.
+- The app, its design and its code belong to us. You get a personal right to use them through the service, and nothing more.
+- We may change or remove features. If a change takes away something important you rely on, we'll tell you ahead of time.
 
-On termination, hosted cloud files are retained for a 30-day grace
-period during which you can export them, after which they are
-permanently deleted.
+## Ending
 
-## 8. Disclaimers
+- You can delete your account at any time in Settings. Group owners can delete their group.
+- We can end the beta or close Setlists.md. If we do, we'll give at least 30 days' notice by email so you can export your library.
 
-The Service is provided "as is" and "as available", without
-warranties of any kind, express or implied, including merchantability,
-fitness for a particular purpose, or non-infringement. We do not
-warrant that the Service will be uninterrupted, error-free, or that
-your data will never be lost. **Always keep your own backups of
-important files.**
+## Liability
 
-## 9. Limitation of liability
+- Setlists.md is free during the beta, and you use it as it is.
+- We're not responsible for indirect losses, such as a service not going as planned or a chart not loading on stage. Keep a backup for important moments.
+- Nothing in these terms limits liability that the law doesn't allow us to limit, such as for harm we cause deliberately or through gross negligence, or your rights as a consumer.
 
-To the maximum extent permitted by law, the Setlists.md team will
-not be liable for any indirect, incidental, special, consequential,
-or punitive damages, or for any loss of data, profits, or revenue,
-arising out of or related to your use of the Service. Our total
-liability for any claim related to the Service is limited to the
-amount you paid us in the 12 months before the claim arose, or $50
-if you have not paid us.
+## Changes to these terms
 
-## 10. Changes to these Terms
+If we change these terms in a way that matters, we'll email you and show a notice in the app at least 14 days before the change applies. If you don't agree, you can delete your account before then.
 
-We may update these Terms from time to time. When we do, we will
-update the "Last updated" date at the top of this page and, for
-material changes, notify you in the app or by email. Your continued
-use of the Service after changes take effect means you accept the
-updated Terms.
+## Law and disputes
 
-## 11. Governing law
+Romanian law applies. If something goes wrong, write to us first, and we'll try to fix it together. If that doesn't work, the courts of Romania can decide. If you're a consumer living elsewhere in the EU, you also keep the protections of your own country's law and can go to your own local courts.
 
-These Terms are governed by the laws of the United States and the
-state in which the operator of Setlists.md is resident, without
-regard to conflict-of-laws principles.
+## Contact
 
-## 12. Contact
+hello@setlists.md
 
-Questions about these Terms? Email
-[support@setlistsmd.insideahead.com](mailto:support@setlistsmd.insideahead.com).

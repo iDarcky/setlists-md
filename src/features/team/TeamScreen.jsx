@@ -13,6 +13,7 @@ import { isSetlistUpcoming, setlistStartMs } from '@/lib/setlistTime';
 import { songUsage } from '@/lib/songUsage';
 import { getTeamJoinLink, resetTeamJoinLink, setTeamJoinLinkEnabled } from '@/features/join/joinApi';
 import TeamPage, { InviteCard, UsageEntry, Waiting } from './TeamPage';
+import { webPageUrl } from '@/features/legal/WebSheet';
 import { memberName } from '@/lib/teamPeople';
 import { PersonSheet, ChurchSheet } from './TeamSheets';
 import SongUsage from './SongUsage';
@@ -165,6 +166,11 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
               Cancel
             </Button>
           )}
+          <p className="text-copy-13 text-[var(--modes-text-muted)] m-0 text-center">
+            By creating a Space you accept the{' '}
+            <a href={webPageUrl('churchTerms')} target="_blank" rel="noopener noreferrer" className="underline">Church and band terms</a>
+            {' '}for your church or band.
+          </p>
         </form>
       </div>
     </div>
