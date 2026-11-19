@@ -3,24 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Setlists.md: chord charts and setlists for worship teams</title>
-<meta name="description" content="Build the setlist, tell the band, play from one screen on Sunday. Setlists.md is free during the beta.">
+<title>Setlists.md: worship planning app for chord charts, setlists and band schedules</title>
+<meta name="description" content="Plan the service, tell the band and play from one screen on Sunday. A worship planning app for churches and bands, free during the beta.">
 <link rel="canonical" href="https://setlists.md/">
-<link rel="alternate" hreflang="en" href="https://setlists.md/">
-<link rel="alternate" hreflang="ro" href="https://setlists.md/ro">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta property="og:title" content="Setlists.md: chord charts and setlists for worship teams">
-<meta property="og:description" content="Build the setlist, tell the band, play from one screen on Sunday. Setlists.md is free during the beta.">
+<meta property="og:title" content="Setlists.md: worship planning app for chord charts, setlists and band schedules">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Setlists.md">
+<meta property="og:description" content="Plan the service, tell the band and play from one screen on Sunday. A worship planning app for churches and bands, free during the beta.">
 <meta property="og:image" content="https://setlists.md/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+<meta property="og:url" content="https://setlists.md/">
+<meta name="theme-color" content="#11100E">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/site.css">
+<link rel="stylesheet" href="/home.css">
 <script src="/site.js" defer></script>
+<script type="application/ld+json">[{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Setlists.md", "url": "https://setlists.md/", "applicationCategory": "MusicApplication", "operatingSystem": "iOS, Android, Windows, macOS (web app)", "description": "Chord charts, setlists and the band's schedule in one app for worship teams. Works offline.", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free during the beta"}}, {"@context": "https://schema.org", "@type": "Organization", "name": "Setlists.md", "url": "https://setlists.md/", "logo": "https://setlists.md/apple-touch-icon.png"}, {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What happens when I join?", "acceptedAnswer": {"@type": "Answer", "text": "You make a free account in a minute, then tell us your church or band’s name and where it is. We set it up, usually within two days. Then you share one invite link with your team."}}, {"@type": "Question", "name": "What does it cost?", "acceptedAnswer": {"@type": "Answer", "text": "Nothing during the beta. Before that changes, every beta team hears the price and the date first, and nothing is charged unless you say yes."}}, {"@type": "Question", "name": "Does everyone in the band need to sign up?", "acceptedAnswer": {"@type": "Answer", "text": "Each person makes a free account from your invite link, and you approve who joins. Stand-ins can use a guest link with no account."}}, {"@type": "Question", "name": "Do we need to install anything?", "acceptedAnswer": {"@type": "Answer", "text": "No app store needed. It runs in Safari or Chrome. Add it to your Home Screen to use it full screen and offline."}}, {"@type": "Question", "name": "Can we bring our songs?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Import your PDFs or paste a chord sheet. Your library starts empty, so you only keep songs your church is allowed to use."}}]}]</script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -33,146 +36,100 @@
   <symbol id="info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></g></symbol>
 </svg>
 <a class="skip-link" href="#main">Skip to content</a>
-<div id="site">
-<header class="site-head" id="head">
-  <div class="wrap">
-    <a class="brand" href="/" aria-label="Setlists.md home"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
-    <nav class="nav" aria-label="Main">
-      <a href="/#how">How it works</a>
-      <a href="/#pricing">Pricing</a>
-      <a href="/help">Help</a>
-    </nav>
-    <div class="head-end">
-      <a class="lang" href="/ro" hreflang="ro" lang="ro" aria-label="Română">RO</a>
-      <a class="btn btn-ghost btn-sm login" href="https://app.setlists.md/?start=login&amp;from=site">Log in</a>
-      <a class="btn btn-gold btn-sm" href="https://app.setlists.md/?start=signup&amp;from=site">Join beta</a>
-      <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="mnav" aria-label="Menu"><svg width="22" height="22" aria-hidden="true"><use href="#menu"/></svg></button>
-    </div>
+<header class="head" id="head">
+  <div class="wrap row">
+    <a class="brand" href="/" aria-label="Setlists.md home"><svg aria-hidden="true"><use href="#mark"/></svg><span translate="no">setlists<span class="ext">.md</span></span></a>
+    <nav class="nav" aria-label="Main"><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="/help">Help</a><span class="sep" aria-hidden="true"></span><a href="https://app.setlists.md/?start=login&amp;from=site">Log in</a></nav>
+    <a class="btn btn-gold btn-sm join" href="https://app.setlists.md/?start=signup&amp;from=site">Join beta</a>
+    <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="mnav" aria-label="Menu"><svg width="22" height="22" aria-hidden="true"><use href="#menu"/></svg></button>
   </div>
-  <nav class="mnav wrap" id="mnav" aria-label="Main" hidden>
-    <a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/help">Help</a><a href="https://app.setlists.md/?start=login&amp;from=site">Log in</a><a href="/ro" hreflang="ro" lang="ro">Română</a>
-  </nav>
+  <nav class="mnav wrap" id="mnav" aria-label="Main" hidden><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="/help">Help</a><a href="https://app.setlists.md/?start=login&amp;from=site">Log in</a></nav>
 </header>
 
 <main id="main">
 <section class="hero">
-  <div class="wrap grid">
-    <h1 class="chorded" aria-label="Sunday, sorted.">
-      <span class="w" aria-hidden="true"><span class="c">G</span><span>Sunday,</span></span>
-      <span class="w" aria-hidden="true"><span class="c">D/F♯</span><span>sorted.</span></span>
-    </h1>
-    <div class="hero-text">
-      <p class="lede">Chord charts, setlists and the band's schedule in one app for worship teams. Plan on Tuesday, play on Sunday, from the same charts on every phone, iPad and laptop.</p>
-      <div class="hero-cta">
-        <a class="btn btn-gold" href="https://app.setlists.md/?start=signup&amp;from=site">Join beta</a>
-        <a class="link" href="#how">See how it works</a>
-      </div>
-      <p class="hero-note">Free during the beta. Free for good for teams of up to 5.</p>
+  <div class="wrap hero-grid">
+    <div>
+      <h1 class="chorded" aria-label="Sunday, sorted.">
+        <span class="w" aria-hidden="true"><span class="c">G</span><span>Sunday,</span></span>
+        <span class="w" aria-hidden="true"><span class="c">D/F♯</span><span>sorted.</span></span>
+      </h1>
+      <p class="lede">Chord charts, setlists and the band’s schedule, in one app for worship teams.</p>
+      <div class="cta"><a class="btn btn-gold" href="https://app.setlists.md/?start=signup&amp;from=site">Join beta</a><a class="btn btn-line" href="#how">See how it works</a></div>
+      <p class="note">Free during the beta.</p>
     </div>
-    <figure class="hero-shot">
-      <div class="shot"><picture><source media="(max-width: 719px)" srcset="img/live.webp" width="390" height="844"><img src="img/reader.webp" width="1280" height="800" fetchpriority="high" alt="The reader in live mode: Amazing Grace in G with gold chords over the words, section chips V1 to V4 at the top, cues like Start soft and Drums and bass, and a key change to A in verse 3."></picture></div>
-      <figcaption class="cap"><b>Live mode on Sunday.</b> The red line at the top means the set is live.</figcaption>
+  </div>
+  <div class="wrap">
+    <figure class="window">
+      <picture><source media="(max-width: 719px)" srcset="/img/live.webp" width="390" height="844"><img src="/img/reader.webp" width="1280" height="800" fetchpriority="high" alt="The reader in live mode: Amazing Grace in G with gold chords over the words, section chips V1 to V4 at the top, cues like Start soft and Drums and bass, and a key change to A in verse 3."></picture>
     </figure>
   </div>
 </section>
 
 <section class="sec" id="how">
   <div class="wrap">
-    <div class="grid">
-      <h2>How a week goes.</h2>
-      <div class="body">
-        <p class="intro">Leaders plan the service, the band says who's in, and everyone plays from the same chart. A change on Tuesday is on every music stand by Sunday.</p>
-        <div class="days">
-          <div class="day-row">
-            <h3><span class="day">Tuesday.</span> Build the setlist in minutes.</h3>
-            <p class="t">Pick songs from your church's library, set the key and who leads each one, and slot in the welcome and the offering. Mark it Ready and the whole band gets a notification.</p>
-            <div class="art"><div class="shot wide"><img src="img/setlist.webp" srcset="img/setlist-1280.webp 1280w, img/setlist.webp 2560w" sizes="(min-width: 900px) 760px, 100vw" width="2560" height="1440" loading="lazy" alt="A setlist for Sunday Morning on a laptop: a Play button, four songs with who leads, tempo and key, moments for welcome, offering and response, 32 minutes in total, and the band list: three of five said yes, one asked, one maybe."></div></div>
-          </div>
-          <div class="day-row">
-            <h3><span class="day">Wednesday.</span> Everyone knows when they're playing.</h3>
-            <p class="t">Musicians answer Yes, Maybe or No right from Home, and see the next service, rehearsal time and place on one card. Leaders see who's in while they plan. No group chat to scroll back through.</p>
-            <div class="art"><div class="shot phone crop"><img src="img/home.webp" width="780" height="1688" loading="lazy" alt="Home on a phone: Hi Joe, a Can you play? list with Yes, Maybe and No for three services, the next service, Sunday Morning, with an Open setlist button, and your next two weeks."></div></div>
-          </div>
-          <div class="day-row">
-            <h3><span class="day">Sunday.</span> Made for the stage.</h3>
-            <p class="t">Big, clear charts with the band's cues where you need them. Transpose for the singer on the day, see key changes where they happen, and swipe to the next song. The chart still opens when the church Wi-Fi doesn't.</p>
-            <div class="art"><div class="shot phone crop"><img src="img/live.webp" width="390" height="844" loading="lazy" alt="Live mode on a phone: a red line across the top, Amazing Grace in G, section chips V1 to V4 and T, gold chords over the words, cues Start soft and Drums and bass, and a Key of A marker in verse 3."></div></div>
-          </div>
-        </div>
-      </div>
+    <h2 class="say"><b>One app for the whole week.</b> A change on Tuesday is on every music stand by Sunday.</h2>
+    <div class="cols">
+      <article class="col">
+        <div class="pic"><img src="/img/setlist-1280.webp" width="1280" height="720" loading="lazy" alt="A setlist for Sunday Morning: four songs with who leads, tempo and key, and the band list."></div>
+        <h3>Build the setlist in minutes</h3>
+        <p>Pick songs, set the key and who leads each one, add the welcome and the offering. Mark it Ready and the band gets a notification.</p>
+      </article>
+      <article class="col">
+        <div class="pic phone"><img src="/img/home.webp" width="780" height="1688" loading="lazy" alt="Home on a phone: a Can you play? list with Yes, Maybe and No for three services."></div>
+        <h3>Know who’s playing</h3>
+        <p>Musicians answer Yes, Maybe or No from Home. Leaders see who’s in while they plan. No group chat to scroll back through.</p>
+      </article>
+      <article class="col">
+        <div class="pic phone"><img src="/img/live.webp" width="390" height="844" loading="lazy" alt="Live mode on a phone: Amazing Grace in G with gold chords over the words."></div>
+        <h3>Made for the stage</h3>
+        <p>Big, clear charts with the band’s cues. Transpose for the singer on the day and swipe to the next song, even when the Wi-Fi drops.</p>
+      </article>
     </div>
   </div>
 </section>
 
 <section class="sec">
   <div class="wrap">
-    <div class="grid">
-      <h2>And the small things.</h2>
-      <div class="body">
-        <dl class="things">
-          <div class="thing"><dt>Practice at home</dt><dd>Outside the service the same setlist opens in practice mode, so the band can run through it on Saturday.</dd></div>
-          <div class="thing"><dt>Works without Wi-Fi</dt><dd>Charts live on each device, so a weak signal in the sanctuary doesn't matter.</dd></div>
-          <div class="thing"><dt>Changes don't get lost</dt><dd>Edit a setlist after it's marked Ready and the band sees exactly what changed, inside the setlist.</dd></div>
-          <div class="thing"><dt>Stand-ins without accounts</dt><dd>Send a stand-in drummer a link to the set. It stops working a few hours after the service.</dd></div>
-          <div class="thing"><dt>Paper when you need it</dt><dd>Print the set bigger, smaller or lyrics only, or save it as a PDF, with the order on the first page.</dd></div>
-          <div class="thing"><dt>Your songs stay yours</dt><dd>Songs are kept in a plain text format. Export the whole library whenever you like.</dd></div>
-        </dl>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="sec" id="pricing">
-  <div class="wrap">
-    <div class="grid">
-      <h2>One price for the whole team.</h2>
-      <div class="body">
-        <p class="intro">Every person on the team gets every feature. No charge per musician.</p>
-        <div class="plans">
-          <div class="plan"><div class="top"><h3>Free</h3></div><p class="who">A small band or a few friends</p><p class="price"><span class="cur">$</span>0</p><p class="per">for good</p><ul><li>Up to 5 people</li></ul></div>
-          <div class="plan"><div class="top"><h3>Band</h3><p class="beta">Free in beta</p></div><p class="who">A worship band, youth team or church plant</p><p class="price"><span class="cur">$</span>14<span class="cents">.99</span></p><p class="per">a month for the whole band</p><ul><li>Up to 10 people</li></ul></div>
-          <div class="plan"><div class="top"><h3>Church</h3><p class="beta">Free in beta</p></div><p class="who">One service or several, each with its own band</p><p class="price"><span class="cur">$</span>24<span class="cents">.99</span></p><p class="per">a month for the whole church</p><ul><li>Up to 30 people</li></ul></div>
-        </div>
-        <p class="price-note"><b>Everything is free during the beta.</b> Before paid plans start, every beta team hears the price and the date, and nothing is charged unless you say yes.</p>
-        <p class="fine">Prices in US dollars. Local taxes may apply once paid plans start.</p>
-      </div>
-    </div>
+    <h2 class="say"><b>And the small things.</b> The details that make Sunday morning calmer for everyone on the team.</h2>
+    <dl class="things">
+      <div><dt>Practice at home</dt><dd>Outside the service the same setlist opens in practice mode, so the band can run through it on Saturday.</dd></div>
+      <div><dt>Works without Wi-Fi</dt><dd>Charts live on each device, so a weak signal in the sanctuary doesn’t matter.</dd></div>
+      <div><dt>Changes don’t get lost</dt><dd>Edit a setlist after it’s Ready and the band sees exactly what changed.</dd></div>
+      <div><dt>Stand-ins without accounts</dt><dd>Send a stand-in drummer a link to the set. It stops working a few hours after the service.</dd></div>
+      <div><dt>Paper when you need it</dt><dd>Print the set bigger, smaller or lyrics only, or save it as a PDF.</dd></div>
+      <div><dt>Bring your songs</dt><dd>Import your PDFs or paste a chord sheet, and it finds the verses and choruses for you.</dd></div>
+    </dl>
   </div>
 </section>
 
 <section class="sec" id="faq">
-  <div class="wrap">
-    <div class="grid">
-      <h2>Before you join.</h2>
-      <div class="body faq">
-        <details><summary>What happens when I join?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p class="a">You make a free account in a minute, then tell us your church or band's name and where it is. We set it up and email you, usually within two days. Then you share one invite link with your team.</p></details>
-        <details><summary>Does everyone in the band need to sign up?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p class="a">Each person makes a free account from your invite link, and you approve who joins, so the library stays inside your team. Stand-ins can use a guest link with no account.</p></details>
-        <details><summary>Do we need to install anything?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p class="a">No app store needed. It runs in Safari or Chrome. Add it to your Home Screen to use it full screen and offline. <a href="/help#install">See how to add it</a>.</p></details>
-        <details><summary>Can we bring our songs?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p class="a">Yes. Paste a chord sheet with the chords over the words and it finds the verses and choruses for you. Your library starts empty, so you only keep songs your church is allowed to use.</p></details>
-      </div>
+  <div class="wrap faq-grid">
+    <h2 class="say"><b>Before you join.</b> The questions leaders ask first.</h2>
+    <div class="faq">
+      <details><summary>What happens when I join?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p>You make a free account in a minute, then tell us your church or band’s name and where it is. We set it up, usually within two days. Then you share one invite link with your team.</p></details>
+      <details id="pricing"><summary>What does it cost?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p>Nothing during the beta. Before that changes, every beta team hears the price and the date first, and nothing is charged unless you say yes.</p></details>
+      <details><summary>Does everyone in the band need to sign up?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p>Each person makes a free account from your invite link, and you approve who joins. Stand-ins can use a guest link with no account.</p></details>
+      <details><summary>Do we need to install anything?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p>No app store needed. It runs in Safari or Chrome. Add it to your Home Screen to use it full screen and offline.</p></details>
+      <details><summary>Can we bring our songs?<svg aria-hidden="true"><use href="#plus"/></svg></summary><p>Yes. Import your PDFs or paste a chord sheet. Your library starts empty, so you only keep songs your church is allowed to use.</p></details>
     </div>
   </div>
 </section>
 
 <section class="closer">
   <div class="wrap">
-    <div class="grid"><div>
-      <h2>Get this Sunday's set to the band tonight.</h2>
-      <div class="act"><a class="btn btn-gold" href="https://app.setlists.md/?start=signup&amp;from=site">Join beta</a><p>Free during the beta.</p></div>
-    </div></div>
+    <h2>Get this Sunday’s set <br class="wide">to the band tonight.</h2>
+    <div class="cta"><a class="btn btn-gold" href="https://app.setlists.md/?start=signup&amp;from=site">Join beta</a><span class="note">Free during the beta.</span></div>
   </div>
 </section>
 </main>
 
 <footer class="foot">
-  <div class="wrap grid">
-    <a class="brand" href="/"><svg aria-hidden="true"><use href="#mark"/></svg><span>Setlists<span class="ext">.md</span></span></a>
-    <nav aria-label="Footer">
-      <a href="/#how">How it works</a><a href="/#pricing">Pricing</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/church-terms">Church terms</a><a href="/copyright">Copyright</a><a href="/ro" hreflang="ro" lang="ro">Română</a>
-    </nav>
-    <p class="made">© 2026 Setlists.md. Made in Romania for worship teams everywhere.</p>
+  <div class="wrap row">
+    <a class="brand" href="/" aria-label="Setlists.md home"><svg aria-hidden="true"><use href="#mark"/></svg><span translate="no">setlists<span class="ext">.md</span></span></a>
+    <nav aria-label="Footer"><a href="#how">How it works</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/church-terms">Church terms</a><a href="/copyright">Copyright</a></nav>
   </div>
+  <div class="wrap made">© 2026 Setlists.md · Made in Romania for worship teams everywhere.</div>
 </footer>
-</div>
 </body>
 </html>

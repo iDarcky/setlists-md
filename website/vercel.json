@@ -2,6 +2,16 @@
   "cleanUrls": true,
   "redirects": [
     {
+      "source": "/ro",
+      "destination": "/",
+      "permanent": false
+    },
+    {
+      "source": "/ro/",
+      "destination": "/",
+      "permanent": false
+    },
+    {
       "source": "/join/:code",
       "destination": "https://app.setlists.md/join/:code",
       "permanent": false
@@ -99,7 +109,7 @@
       ]
     },
     {
-      "source": "/(site.css|site.js)",
+      "source": "/(site.css|home.css|site.js)",
       "headers": [
         {
           "key": "Cache-Control",

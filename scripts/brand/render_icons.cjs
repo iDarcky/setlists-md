@@ -21,8 +21,6 @@ const ICONS = [
 const OG = [
   { out: path.join(web, 'og.png'), lang: 'en', head: 'Sunday, sorted.',
     sub: 'Chord charts, setlists and the band’s schedule in one app for worship teams.', foot: 'Free during the beta' },
-  { out: path.join(web, 'ro', 'og.png'), lang: 'ro', head: 'Duminica, rezolvată.',
-    sub: 'Acorduri, liste de cântări și programul trupei într-o singură aplicație pentru echipele de laudă.', foot: 'Gratuit pe durata versiunii beta' },
 ];
 
 (async () => {
