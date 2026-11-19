@@ -24,6 +24,8 @@ export interface FollowState {
   pos: FollowPos | null;
 }
 
+// shortcut: "the latest Lead tap wins" compares phone clocks; a few seconds
+// of skew between two phones could pick the wrong one if both tap at once.
 /** A leader not heard from for this long is gone (they send every 4s). */
 export const LEADER_TIMEOUT_MS = 12_000;
 export const HEARTBEAT_MS = 4_000;
@@ -59,9 +61,8 @@ interface Channel {
   on: (kind: string, filter: { event: string }, cb: (p: { payload: FollowMsg }) => void) => Channel;
   subscribe: () => Channel;
   send: (m: { type: string; event: string; payload: FollowMsg }) => void;
-  unsubscribe: () => void;
 }
-const supabase = supabaseJs as unknown as { channel: (topic: string, opts?: unknown) => Channel } | null;
+const supabase = supabaseJs as unknown as { channel: (topic: string, opts?: unknown) => Channel; removeChannel: (c: Channel) => unknown } | null;
 
 export function openFollow(room: string, onMsg: (m: FollowMsg) => void): FollowTransport {
   if (supabase) {
@@ -71,7 +72,10 @@ export function openFollow(room: string, onMsg: (m: FollowMsg) => void): FollowT
       .subscribe();
     return {
       send: msg => ch.send({ type: 'broadcast', event: 'follow', payload: msg }),
-      close: () => ch.unsubscribe(),
+      // removeChannel, not unsubscribe: supabase-js hands back an existing
+      // channel for the same topic, and adding a listener to a used one throws.
+      // Reopening the chart (or StrictMode's double effect) would hit that.
+      close: () => { supabase.removeChannel(ch); },
     };
   }
   if (typeof BroadcastChannel !== 'undefined') {
