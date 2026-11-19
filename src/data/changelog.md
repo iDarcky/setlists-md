@@ -62,7 +62,7 @@ A running log of what's new in setlists.md. Newest releases first.
 *November 2026*
 
 ### Added
-- **Import Melodia PDFs** — drop in PDFs (or a .zip of them) and they become charts. Two-column pages, wrapped lines, intros and tempo are read correctly.
+- **Import PDFs** — drop in PDFs (or a .zip of them) and they become charts. Two-column pages, wrapped lines, intros and tempo are read correctly.
 - **Check imported songs one by one** — imported songs get a "To check" tag, and Check next walks you through them in the editor.
 - **Copy verse 1 chords** to the other verses from the editor's ⋯ menu.
 

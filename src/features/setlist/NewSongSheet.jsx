@@ -11,7 +11,7 @@ import { ImportReviewSheet } from '@/features/songs/ImportSheets';
 // coming back). Two ways in, and both end with the song in the library,
 // tagged "To check", and in the setlist — without leaving it.
 //
-//   Import a file  PDF (Melodia), ChordPro, OpenSong, .md or a .zip
+//   Import a file  PDF, ChordPro, OpenSong, .md or a .zip
 //   Paste the song a title and the whole song in one box; sections are found
 //
 // `onCreate(songs)` gets the new song objects; the caller adds them to the
@@ -56,7 +56,7 @@ export function NewSongBody({ mode, setMode, title, setTitle, text, setText, bus
   }
   return (
     <div className="flex flex-col gap-2.5">
-      <Option icon={<FileIcon />} title={busy ? 'Reading…' : 'Import a file'} text="A PDF from Melodia, ChordPro, OpenSong, .md, or a .zip of many." onClick={onImport} disabled={busy} />
+      <Option icon={<FileIcon />} title={busy ? 'Reading…' : 'Import a file'} text="A PDF, ChordPro, OpenSong, .md, or a .zip of many." onClick={onImport} disabled={busy} />
       <Option icon={<PasteIcon />} title="Paste the song" text="A title and the whole song in one box." onClick={() => setMode('paste')} />
       {error && <p role="alert" className="m-0 text-small text-danger-text">{error}</p>}
       <p className="m-0 pt-1 text-small text-muted-foreground">It goes into Songs tagged “To check” and into this setlist. Only add songs your church has a licence for (CCLI).</p>
