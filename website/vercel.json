@@ -10,38 +10,6 @@
       "source": "/ro/",
       "destination": "/",
       "permanent": false
-    },
-    {
-      "source": "/join/:code",
-      "destination": "https://app.setlists.md/join/:code",
-      "permanent": false
-    },
-    {
-      "source": "/auth/:path*",
-      "destination": "https://app.setlists.md/auth/:path*",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "setlist"
-        }
-      ],
-      "destination": "https://app.setlists.md/",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "code"
-        }
-      ],
-      "destination": "https://app.setlists.md/",
-      "permanent": false
     }
   ],
   "headers": [
@@ -114,6 +82,19 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
         }
       ]
     }

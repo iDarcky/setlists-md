@@ -1,15 +1,5 @@
 // Header shadow on scroll + the phone menu. Everything else on the site is static.
 (function () {
-  // The app lived on this address until it moved to app.setlists.md. Send on
-  // what only the app understands: an icon added to a Home Screen before the
-  // move (it opens here, full screen) and sign-in links whose tokens ride in
-  // the #fragment, which the server-side redirects in vercel.json never see.
-  var standalone = navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
-  var authHash = /(access_token|refresh_token|error_description|type=recovery)/.test(location.hash);
-  if (location.pathname === '/' && (standalone || authHash)) {
-    location.replace('https://app.setlists.md/' + location.search + location.hash);
-    return;
-  }
   // Shown inside the app (help, privacy, terms, copyright with ?app=1): the
   // app draws its own header, so drop the site's menu and footer, and send
   // every link out to the browser instead of navigating inside the app's frame.
