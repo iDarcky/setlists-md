@@ -43,7 +43,7 @@ export function TeamProvider({ children }) {
   }, []);
   const reloadMembers = useCallback(() => setMembersReloadKey(k => k + 1), []);
 
-  // The user's personal tier drives whether they may create/own workspaces.
+  // The account's tier (profiles.subscription_tier) drives whether they may create/own workspaces.
   // (The legacy `profiles.plan` column was dropped in 20260522_plans_migration;
   // `subscription_tier` is the canonical field.)
   const plan = (profile?.subscription_tier || 'free').toLowerCase();
@@ -318,7 +318,7 @@ export function TeamProvider({ children }) {
         // Each workspace is its own billing unit. The `teams.plan` check
         // constraint only allows 'team' | 'church' — never 'free'/'sync' — so
         // we resolve a valid tier: an explicit choice wins, else fall back to
-        // the owner's personal tier when it's already team/church, else 'team'.
+        // the owner's account tier when it's already team/church, else 'team'.
         // Once Stripe checkout is wired the tier comes from the selected price;
         // subscription_status defaults to 'active' (see 20260604 migration).
         const teamPlan = (planArg === 'church' || planArg === 'team')
