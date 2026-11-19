@@ -162,10 +162,10 @@ export function InviteLinkView({ value, onChange, onSubmit, onBack, message, emb
   const uid = useId();
   return (
     <AuthLayout embedded={embedded} onBack={onBack}>
-      <AuthHeader title="Open your invite link" sub="Your leader sent you a link that starts with setlists.md/join. Tap it in your messages, or paste it here." />
+      <AuthHeader title="Open your invite link" sub="Your leader sent you a link that starts with app.setlists.md/join. Tap it in your messages, or paste it here." />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); onSubmit(); }} noValidate>
         <LabelInput fill label="Invite link" inputMode="url" autoCapitalize="none" autoComplete="off"
-          value={value} onChange={e => onChange(e.target.value)} error={message || null} hint="It starts with setlists.md/join/" />
+          value={value} onChange={e => onChange(e.target.value)} error={message || null} hint="It starts with app.setlists.md/join/" />
       </form>
       <AuthActions className="gap-1.5">
         <Button type="submit" form={`${uid}-form`} disabled={!value.trim()}>Join</Button>
