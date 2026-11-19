@@ -1,161 +1,112 @@
 # Privacy Policy
 
-*Last updated: May 16, 2026*
+*Beta version. Last updated: 19 November 2026. A Romanian version is published alongside this one. Both versions carry equal weight.*
 
-This Privacy Policy describes how the Setlists.md team ("we", "us", or
-"Setlists.md") collects, uses, and shares information when you use the
-Setlists.md web application available at
-[setlistsmd.insideahead.com](https://setlistsmd.insideahead.com) (the
-"Service").
+## The short version
 
-Setlists.md is built privacy-first: your songs and setlists live on
-your device by default. We only handle the minimum data needed to make
-optional features like accounts, sync, and cloud storage work.
+- We keep what your team needs to plan and play together: your name, your email, what you play and when you're free, and the songs and setlists your group adds.
+- Your church or band decides what goes into its group and who can see it. We look after that content for them.
+- We don't sell data, show ads, use tracking cookies or run analytics on you.
+- You can export your songs, fix your details or delete your account whenever you like.
 
-## 1. Information we collect
+## Who runs Setlists.md
 
-### 1.1 Information you provide
+Setlists.md is run by Daniel Maghiș, a private individual based in Romania ("we", "us"). If you have any question about your data, write to **hello@setlists.md**. We read every message and reply within 30 days, usually much sooner.
 
-- **Account information.** When you sign up we store your email
-  address, a hashed password (handled by Supabase Auth), and an
-  optional display name.
-- **Profile preferences.** If you opt in to cloud preferences, we
-  store non-sensitive UI settings (theme, layout, font size) so they
-  follow you across devices.
-- **Songs and setlists.** By default your songs and setlists are
-  stored only on your device using your browser's IndexedDB. They
-  never leave your device unless you turn on a sync option.
+## Two kinds of data, two people responsible
 
-### 1.2 Information you choose to sync
+**Your account.** This covers your name, email, password, profile photo and settings. We decide how it's used, so we are responsible for it (in GDPR terms, the *controller*).
 
-If you enable cloud sync, we store the chord-chart files you choose to
-sync. The location depends on the plan you choose:
+**Your group's content.** This covers songs, charts, setlists, services, schedules, notes, and who plays what and when. The church or band that owns the group decides what's added and who sees it, so the group is responsible for it (the *controller*). We store and process it on the group's behalf (the *processor*), following our [Church and band terms](https://setlists.md/church-terms). If you have a question about what your group keeps about you, ask your group's leaders first. If you can't reach them, write to us and we'll help.
 
-- **Pro (Bring-Your-Own-Cloud).** Files are stored in *your own*
-  Google Drive, Dropbox, or OneDrive account, inside a folder named
-  `SetlistsMD`. We never see the contents — your cloud provider gives
-  us a per-app token that can only read and write files our app
-  creates. We never request access to your other files.
-- **Sync, Band, and Church plans (Hosted Cloud).** Files are stored
-  in our managed Supabase project. They are transmitted over HTTPS
-  and stored at rest in Supabase's hosted Postgres infrastructure.
+## What we keep
 
-### 1.3 Information collected automatically
+- **Account:** name, email address, a scrambled (hashed) version of your password, profile photo if you add one, and your app settings.
+- **Group membership:** which groups you belong to, your role, the instruments you play, the dates you're available, and your replies when a leader asks who can play.
+- **Content:** the songs, charts, setlists, notes and change history that you and your teammates enter.
+- **Notifications:** if you turn on push notifications, we keep the address your browser gives us for sending them to your device.
+- **Emails we send:** when we email you (for example a password reset or a join request), the sending service records that the message was sent and delivered.
+- **Technical records:** our hosting provider briefly logs requests (IP address, browser type, page and time) to keep the service running and stop abuse. If we turn on crash reports, a report is sent when the app breaks. Names, lyrics and other text on screen are hidden before the report leaves your device.
 
-- **Hosting logs.** Our hosting provider (Vercel) records standard
-  request metadata such as IP address, user agent, and request path.
-  These logs are used to keep the Service running and to diagnose
-  outages. They are retained for a limited period in line with
-  Vercel's defaults.
-- **Local storage.** The app stores your songs, setlists, and UI
-  preferences in IndexedDB on your device. This data never leaves
-  your device unless you turn on sync.
+## What we don't do
 
-We do **not** use third-party analytics, advertising trackers, or
-marketing pixels.
+- We don't sell or rent personal data.
+- We don't show ads and don't let anyone track you for ads.
+- We don't use analytics or tracking cookies on the app or the website.
+- We don't use your songs or personal data to train AI models.
+- We don't read your group's content, except when you ask us for help with it or when we have to deal with a security problem or a legal request.
 
-## 2. How we use information
+## Why we use it
 
-We use the information described above to:
+| What we do | Why we're allowed to |
+|---|---|
+| Run your account, sync your library, show your group its content | Needed to give you the service you signed up for (contract) |
+| Send emails about your account, join requests and changes to these texts | Contract, and our legitimate interest in keeping you informed |
+| Keep the service secure, fix crashes, prevent abuse | Our legitimate interest in a working, safe service |
+| Send push notifications | Your choice. You turn them on and can turn them off at any time |
+| Keep records the law requires (for example invoices, once paid plans start) | Legal obligation |
 
-- Provide and maintain the Service.
-- Authenticate you and keep your account secure.
-- Sync your songs, setlists, and preferences across your devices when
-  you ask us to.
-- Diagnose technical problems and improve the product.
-- Respond to support requests.
+We will only send news or offers if you have said yes to them.
 
-We do **not** sell your personal data, and we do **not** share it with
-third parties for advertising.
+## Who helps us run it
 
-## 3. Google API Services and Limited Use disclosure
+We use a small number of providers. Each one handles data only to do its job for us, under a written agreement:
 
-When you connect Google Drive, Setlists.md requests the
-`drive.file` scope. This scope only grants access to files our app
-creates or that you explicitly open with our app. We cannot read or
-modify any other files in your Drive.
+| Provider | What it does | Where |
+|---|---|---|
+| Supabase | Database, sign-in, account emails, file storage (profile photos) | Ireland (EU) |
+| Vercel | Hosts the app and the website | United States, with servers worldwide |
+| Resend *(planned, not used yet)* | Will send account emails | We'll add it here before we start |
+| Sentry *(planned, not used yet)* | Crash reports, with on-screen text hidden | We'll add it here before we start |
+| Your browser's push service (Apple, Google or Mozilla) | Delivers notifications you turned on | Depends on your device |
 
-Setlists.md's use of information received from Google APIs adheres to
-the [Google API Services User Data
-Policy](https://developers.google.com/terms/api-services-user-data-policy),
-including the Limited Use requirements. In particular:
+**Song links.** If someone adds a Spotify or YouTube link to a song, we fetch its cover image from that service. A YouTube video plays inside the app only when you press play. Until then, YouTube receives nothing from you. Once it plays, YouTube's own privacy policy applies. We use YouTube's privacy-enhanced mode.
 
-- We use the data only to provide the user-facing features of
-  Setlists.md (storing, listing, reading, and writing your
-  chord-chart files inside the `SetlistsMD` folder).
-- We do not transfer the data to others unless doing so is necessary
-  to provide the Service, comply with the law, or as part of a
-  merger, acquisition, or sale of assets with notice to you.
-- We do not use the data for serving advertisements.
-- We do not allow humans to read the data unless we have your
-  affirmative consent, it is necessary for security purposes (such
-  as investigating abuse), to comply with the law, or the data has
-  been aggregated and anonymized.
+Some of these companies are based in the United States. Where data leaves the EU, they rely on the EU–US Data Privacy Framework or the European Commission's standard contractual clauses.
 
-Equivalent commitments apply to Dropbox and Microsoft OneDrive when
-you connect those providers.
+We may also share data if the law requires it, or to protect someone's safety. If Setlists.md is ever taken over by someone else, we will tell you before your data moves and becomes subject to a different policy.
 
-## 4. Cookies and similar technologies
+## Guest links
 
-We use a small number of strictly necessary cookies and local-storage
-keys to keep you signed in and to remember your last-used email
-address. We do not use cookies for tracking or advertising.
+A leader can share a setlist through a guest link, for example for a visiting musician. Anyone who has the link can see that setlist and its charts until the link expires, a few hours after the service. Guest links don't show members' emails or availability.
 
-## 5. Data retention
+## How long we keep it
 
-- **Account data** is retained for as long as your account is active.
-- **Hosted cloud files** are retained for as long as your subscription
-  is active, plus a short grace period (30 days) after cancellation
-  during which you can export them.
-- **BYO Cloud files** live in your own Google Drive / Dropbox /
-  OneDrive — we do not control retention.
-- **Local data** stays on your device until you clear it.
+- **Your account:** until you delete it in Settings. We remove it from the live database straight away. Any backup copies are overwritten within 90 days.
+- **Group content:** for as long as the group exists. When a group is deleted, its content is deleted with it, and backup copies are overwritten within 90 days. Content you added to a group stays with that group if you leave, because it belongs to the group.
+- **Deleted songs:** they stay in the trash on your device for 30 days so you can restore them. After that they're gone.
+- **Server logs and crash reports:** up to 90 days.
+- **Invoices (once paid plans start):** as long as Romanian accounting law requires.
 
-You can delete your account at any time from Settings → Account →
-Delete Account, which removes your profile and any hosted files we
-have stored for you.
+## Teens
 
-## 6. Your rights
+Many worship teams include teenagers. You need to be at least 13 to use Setlists.md. In Romania, you can agree to an online service on your own from the age of 16. If you're 13, 14 or 15, a parent or guardian needs to agree before you make an account. We don't allow accounts for children under 13. A leader who approves a member under 16 into their group confirms they have that parent's or guardian's OK. For younger members we only need a name, what they play and when they're free. Leaders shouldn't add anything more.
 
-Depending on where you live, you may have the right to:
+If you're a parent and think your child joined without your OK, write to us and we'll remove the account.
 
-- Access the personal data we hold about you.
-- Correct or update inaccurate data.
-- Delete your account and the personal data we hold.
-- Object to or restrict certain processing.
-- Receive a copy of your data in a portable format.
+## Your device
 
-To exercise any of these rights, email us at
-[support@setlistsmd.insideahead.com](mailto:support@setlistsmd.insideahead.com).
+To work offline, the app keeps your library and settings on your device (browser storage). It also keeps a sign-in token so you stay logged in. These are needed for the app to work and are never used for tracking. The website doesn't set cookies.
 
-## 7. Security
+## Keeping it safe
 
-We use HTTPS for all traffic, store passwords as salted hashes through
-Supabase Auth, and follow industry-standard practices. No service is
-100% secure; please use a strong, unique password and keep your
-account credentials safe.
+All traffic is encrypted (HTTPS). Passwords are stored only as hashes. Database rules allow each person to see only the groups they belong to. No system is perfectly safe. If a breach affects your data, we will tell you, and the authorities where required, without undue delay.
 
-## 8. Children
+## Your rights
 
-Setlists.md is not directed to children under 13, and we do not
-knowingly collect personal information from children under 13. If you
-believe a child has provided us with personal information, please
-contact us so we can delete it.
+You can ask us to:
 
-## 9. International users
+- show you the data we hold about you and give you a copy,
+- correct it,
+- delete it,
+- give it to you in a format you can move elsewhere (song export is already built into the app),
+- limit how we use it, or stop using it where we rely on legitimate interest,
+- stop anything you agreed to earlier, such as notifications.
 
-Setlists.md is operated from the United States. By using the Service
-you understand that your information may be processed in the United
-States and other countries where our hosting providers operate.
+Write to **hello@setlists.md**. We may ask you to confirm it's really you. Requests about group content are passed to the group's leaders, and we help them answer.
 
-## 10. Changes to this policy
+If you're unhappy with our answer, you can complain to the Romanian data protection authority (ANSPDCP, [dataprotection.ro](https://www.dataprotection.ro)) or to the authority in the country where you live.
 
-We may update this Privacy Policy from time to time. When we do, we
-will update the "Last updated" date at the top of this page and, for
-material changes, notify you in the app or by email.
+## Changes
 
-## 11. Contact
-
-If you have questions about this Privacy Policy or about how we
-handle your data, email us at
-[support@setlistsmd.insideahead.com](mailto:support@setlistsmd.insideahead.com).
+If we change this policy in a way that matters, we will email you and show a notice in the app at least 14 days before the change applies. The date at the top always shows the latest version.

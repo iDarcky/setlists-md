@@ -14,6 +14,7 @@ export const WEB_PAGES = {
   help: { title: 'Help', path: '/help' },
   privacy: { title: 'Privacy policy', path: '/privacy' },
   terms: { title: 'Terms of service', path: '/terms' },
+  churchTerms: { title: 'Church and band terms', path: '/church-terms' },
   copyright: { title: 'Copyright and takedowns', path: '/copyright' },
 };
 

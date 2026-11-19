@@ -66,53 +66,59 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // Transfer ownership of any teams this user owns rather than deleting them.
   // Preference order: earliest admin → earliest member → delete (no one left).
-  try {
-    const { data: ownedTeams } = await admin
-      .from('teams')
-      .select('id')
-      .eq('owner_id', userId);
+  // Every query's error is checked: a failed lookup must stop the whole
+  // deletion, never fall through to "nobody left, delete the team" (that
+  // would wipe a church's songs and setlists on a timeout).
+  const { data: ownedTeams, error: ownedErr } = await admin
+    .from('teams')
+    .select('id')
+    .eq('owner_id', userId);
+  if (ownedErr) return failed('look up your groups', ownedErr);
 
-    for (const team of (ownedTeams ?? [])) {
-      // 1. Look for the earliest-joined admin who isn't the departing owner.
-      const { data: admins } = await admin
+  for (const team of (ownedTeams ?? [])) {
+    // 1. The earliest-joined admin who isn't the departing owner.
+    const { data: admins, error: adminsErr } = await admin
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', team.id)
+      .eq('role', 'admin')
+      .neq('user_id', userId)
+      .order('joined_at', { ascending: true })
+      .limit(1);
+    if (adminsErr) return failed('look up group leaders', adminsErr);
+
+    let newOwnerId: string | undefined = admins?.[0]?.user_id;
+
+    if (!newOwnerId) {
+      // 2. No admin — promote the earliest regular member instead.
+      const { data: members, error: membersErr } = await admin
         .from('team_members')
         .select('user_id')
         .eq('team_id', team.id)
-        .eq('role', 'admin')
         .neq('user_id', userId)
         .order('joined_at', { ascending: true })
         .limit(1);
+      if (membersErr) return failed('look up group members', membersErr);
 
-      let newOwnerId: string | undefined = admins?.[0]?.user_id;
-
-      if (!newOwnerId) {
-        // 2. No admin — promote the earliest regular member instead.
-        const { data: members } = await admin
-          .from('team_members')
-          .select('user_id')
-          .eq('team_id', team.id)
-          .neq('user_id', userId)
-          .order('joined_at', { ascending: true })
-          .limit(1);
-
-        newOwnerId = members?.[0]?.user_id;
-      }
-
-      if (newOwnerId) {
-        // Transfer ownership and make sure the new owner is an admin.
-        await admin.from('teams').update({ owner_id: newOwnerId }).eq('id', team.id);
-        await admin
-          .from('team_members')
-          .update({ role: 'admin' })
-          .eq('team_id', team.id)
-          .eq('user_id', newOwnerId);
-      } else {
-        // Owner was the only member — nothing to preserve, delete the team.
-        await admin.from('teams').delete().eq('id', team.id);
-      }
+      newOwnerId = members?.[0]?.user_id;
     }
-  } catch {
-    // best-effort; continue to user delete
+
+    if (newOwnerId) {
+      // Transfer ownership and make sure the new owner is an admin.
+      const { error: ownerErr } = await admin
+        .from('teams').update({ owner_id: newOwnerId }).eq('id', team.id);
+      if (ownerErr) return failed('hand the group to another leader', ownerErr);
+      const { error: roleErr } = await admin
+        .from('team_members')
+        .update({ role: 'admin' })
+        .eq('team_id', team.id)
+        .eq('user_id', newOwnerId);
+      if (roleErr) return failed('make the new owner a leader', roleErr);
+    } else {
+      // Owner was the only member — nothing to preserve, delete the team.
+      const { error: teamDelErr } = await admin.from('teams').delete().eq('id', team.id);
+      if (teamDelErr) return failed('delete your empty group', teamDelErr);
+    }
   }
 
   // Profile row cascades from auth.users; explicit delete kept as defence-in-depth.
@@ -129,6 +135,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   return json({ ok: true }, 200);
 });
+
+// Stop before deleteUser: the account stays, and nothing is half-deleted that
+// a retry can't finish.
+function failed(step: string, err: { message?: string }): Response {
+  console.error(`delete-account: could not ${step}:`, err?.message);
+  return json({ ok: false, error: `Couldn't ${step}. Your account was not deleted. Please try again.` }, 500);
+}
 
 function json(body: DeleteResult, status: number): Response {
   return new Response(JSON.stringify(body), {

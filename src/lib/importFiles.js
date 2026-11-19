@@ -80,7 +80,7 @@ async function inspectZip(file, warnings = []) {
     const songs = [];
     const failed = [];
     // A folder of PDFs zipped up is how a leader brings a whole library from a
-    // site that only exports PDFs (Melodia.ro), so PDFs count as songs too.
+    // site that only exports PDFs, so PDFs count as songs too.
     for (const n of songNames) {
       const short = n.split('/').pop();
       try {
