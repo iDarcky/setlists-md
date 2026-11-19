@@ -110,3 +110,23 @@ if (!Element.prototype.hasPointerCapture) {
   Element.prototype.setPointerCapture = () => {};
   Element.prototype.releasePointerCapture = () => {};
 }
+
+// The phone sheets (ui/shadcn/bottom-sheet.jsx) read the visual viewport to
+// keep the on-screen keyboard off the field you type in; jsdom has none.
+if (!window.visualViewport) {
+  const vv = new EventTarget();
+  Object.assign(vv, { width: 390, height: 844, offsetTop: 0, offsetLeft: 0, pageTop: 0, pageLeft: 0, scale: 1 });
+  window.visualViewport = vv;
+  globalThis.visualViewport = vv;
+}
+
+// jsdom has <dialog> but not showModal()/close(), so a phone sheet's content
+// would stay closed (and hidden from queries). Toggle `open` like a browser.
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.show = function show() { this.setAttribute('open', ''); };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+}

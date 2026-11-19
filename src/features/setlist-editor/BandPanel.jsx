@@ -197,8 +197,6 @@ export default function BandPanel({ setlistId, setlistDate, onClose, readOnly = 
       const defaultRole = role || instrumentFilter || null;
       const created = await createSchedule(dbSetlistId, member.user_id, defaultRole, 'pending');
       if (vocal && created?.id) await updateSchedule(created.id, { vocal_part: vocal });
-      const parts = [defaultRole, vocal].filter(Boolean).join(' · ');
-      toast({ title: 'Added to the band', description: parts ? `Scheduled on ${parts}.` : 'Member has been scheduled.' });
     } catch (err) {
       console.error(err);
       toast({ title: 'Error', description: err.message || 'Could not add member to the band.', variant: 'error' });

@@ -145,13 +145,13 @@ export default function SetlistPage({
         <div className="-mx-2 flex flex-col">
           {items.map(([label, fn]) => (
             <button key={label} type="button" onClick={() => { setMenuOpen(false); fn(); }}
-              className="flex h-[52px] min-h-0 cursor-pointer items-center rounded-control border-0 bg-transparent px-2 text-left font-sans text-[16px] text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
+              className="flex h-[52px] min-h-0 cursor-pointer items-center rounded-control border-0 bg-transparent px-2 text-left font-sans text-body text-foreground outline-none hover:bg-raised focus-visible:bg-raised">
               {label}
             </button>
           ))}
           {leader && onDelete && (
             <button type="button" onClick={del}
-              className="flex h-[52px] min-h-0 cursor-pointer items-center rounded-control border-0 bg-transparent px-2 text-left font-sans text-[16px] text-danger outline-none hover:bg-raised focus-visible:bg-raised">
+              className="flex h-[52px] min-h-0 cursor-pointer items-center rounded-control border-0 bg-transparent px-2 text-left font-sans text-body text-danger outline-none hover:bg-raised focus-visible:bg-raised">
               Delete setlist
             </button>
           )}

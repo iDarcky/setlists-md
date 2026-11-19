@@ -1,4 +1,5 @@
 import { Fragment, useMemo } from 'react';
+import { EmptyNote } from '@/ui/shadcn/empty-state';
 import { cn } from '@/ui/shadcn/utils';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { buildSongFlow, repeatFirstIndex, repeatRuns } from '@/lib/songFlow';
@@ -18,8 +19,8 @@ import PlainLines from './PlainLines';
 // as the Reader, so the two never disagree about what the song IS.
 
 // A section's band cue: quiet grey text at the right of its name.
-const pillCls = 'ml-auto text-right text-[13px] italic text-muted-foreground';
-const nameCls = 'text-[12px] font-semibold uppercase tracking-[0.04em] text-muted-foreground';
+const pillCls = 'ml-auto text-right text-small italic text-muted-foreground';
+const nameCls = 'text-label text-muted-foreground';
 
 /**
  * @param {object} p
@@ -42,7 +43,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
   const runs = useMemo(() => repeatRuns(ordered, repeats), [ordered, repeats]);
 
   if (!ordered.length) {
-    return <p className="m-0 px-3 py-6 text-[15px] text-muted-foreground">No chart yet.</p>;
+    return <EmptyNote>No chart yet.</EmptyNote>;
   }
 
   const blocks = [];
@@ -71,7 +72,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
         el: (
           <div key={i} className="flex flex-wrap items-center gap-2 py-2">
             {name}
-            <span className="text-[13px] text-muted-foreground">again{times > 1 ? ` ×${times}` : ''}</span>
+            <span className="text-small text-muted-foreground">again{times > 1 ? ` ×${times}` : ''}</span>
             {cue && <span className={pillCls}>{cue}</span>}
           </div>
         ),
@@ -103,7 +104,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
         <section key={i} className="break-inside-avoid pb-5">
           <div className="flex flex-wrap items-center gap-2 pb-1">
             {name}
-            {times > 1 && <span className="text-[12px] font-semibold text-muted-foreground">×{times}</span>}
+            {times > 1 && <span className="text-caption font-semibold text-muted-foreground">×{times}</span>}
             {cue && <span className={pillCls}>{cue}</span>}
           </div>
           {body}

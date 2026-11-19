@@ -24,13 +24,13 @@ export function ChurchSheet({ open, onOpenChange, workspaces = [], activeId, onP
               aria-current={on ? 'true' : undefined}
               onClick={() => { onOpenChange?.(false); if (!on) onPick?.(w.id); }}
               className={cn(
-                'flex min-h-[52px] cursor-pointer items-center gap-3 rounded-control border-0 bg-transparent px-2 text-left font-sans text-[16px] text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
+                'flex min-h-[52px] cursor-pointer items-center gap-3 rounded-control border-0 bg-transparent px-2 text-left font-sans text-body text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring',
                 on && 'font-semibold',
               )}
             >
               {w.avatarUrl
                 ? <img src={w.avatarUrl} alt="" aria-hidden="true" className="size-8 rounded-[8px] object-cover" />
-                : <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-[8px] bg-raised text-[12px] font-bold text-link">{churchInitials(w.name)}</span>}
+                : <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-[8px] bg-raised text-caption font-bold text-link">{churchInitials(w.name)}</span>}
               <span className="min-w-0 flex-1 truncate">{w.name}</span>
               {on && <span className="text-link"><CheckIcon /></span>}
             </button>
@@ -40,7 +40,7 @@ export function ChurchSheet({ open, onOpenChange, workspaces = [], activeId, onP
           <button
             type="button"
             onClick={() => { onOpenChange?.(false); onNew(); }}
-            className="mt-1 flex min-h-[52px] cursor-pointer items-center gap-3 rounded-control border-0 border-t border-border bg-transparent px-2 text-left font-sans text-[16px] text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-1 flex min-h-[52px] cursor-pointer items-center gap-3 rounded-control border-0 border-t border-border bg-transparent px-2 text-left font-sans text-body text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span aria-hidden="true" className="flex size-8 items-center justify-center rounded-[8px] border border-dashed border-input"><PlusIcon size={16} /></span>
             New church or band

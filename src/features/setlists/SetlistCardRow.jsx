@@ -139,7 +139,7 @@ export default function SetlistCardRow({
         </button>
         <div className="flex items-center gap-2 shrink-0">
           <span
-            className="font-mono text-[12px] font-bold px-1.5 py-0.5 rounded-md"
+            className="font-mono text-caption font-bold px-1.5 py-0.5 rounded-md"
             style={{ background: 'var(--chord)', color: '#0a0a0a' }}
           >{displayKey}</span>
           {dur && <span className="hidden sm:inline text-label-11 text-[var(--ds-gray-600)] tabular-nums">{dur}</span>}

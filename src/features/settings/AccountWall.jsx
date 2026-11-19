@@ -1,4 +1,4 @@
-import { Button } from '@/ui/Button';
+import { Button } from '@/ui/shadcn/button';
 
 const KIND_LABELS = {
   song: 'song',
@@ -41,10 +41,10 @@ export default function AccountWall({ kind = 'song', savedItemTitle, onSaveLocal
         </p>
 
         <div className="flex flex-col gap-2">
-          <Button variant="brand" size="lg" onClick={onSaveLocal} className="w-full">
+          <Button onClick={onSaveLocal} className="w-full">
             Keep it local
           </Button>
-          <Button variant="secondary" size="lg" onClick={onSignIn} className="w-full">
+          <Button variant="outline" onClick={onSignIn} className="w-full">
             Sign in to sync
           </Button>
           <Button variant="ghost" size="sm" onClick={onSkip} className="w-full text-[var(--ds-gray-600)]">

@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { DateTile } from '@/ui/shadcn/date-tile';
+import { PageHeader } from '@/ui/shadcn/page-header';
+import { SectionLabel } from '@/ui/shadcn/section-label';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { cn } from '@/ui/shadcn/utils';
 import { formatClockTime } from '@/lib/dateFormat';
-import { ChevronLeftIcon } from '@/app/navIcons';
 import { CanYouPlay, AnswerDay } from './CanYouPlay';
 import { Segmented } from './ScheduleView';
 
@@ -21,7 +23,7 @@ const ANSWERS = [
 ];
 
 function Label({ children }) {
-  return <h2 className="m-0 px-0.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{children}</h2>;
+  return <SectionLabel className="px-0.5">{children}</SectionLabel>;
 }
 
 function Invite({ invite, clockFormat, onAnswer }) {
@@ -35,8 +37,8 @@ function Invite({ invite, clockFormat, onAnswer }) {
   return (
     <div className="flex flex-col gap-2.5 border-t border-border px-4 py-3 first:border-t-0">
       <div className="flex flex-col">
-        <span className="text-[14px] font-medium">Can you play {day(sl.date, { weekday: 'short', day: 'numeric', month: 'short' })}?</span>
-        <span className="text-[12px] leading-4 text-muted-foreground">{[sl.name || 'Setlist', clock(sl.time, clockFormat), part].filter(Boolean).join(' · ')}</span>
+        <span className="text-small font-medium">Can you play {day(sl.date, { weekday: 'short', day: 'numeric', month: 'short' })}?</span>
+        <span className="text-caption leading-4 text-muted-foreground">{[sl.name || 'Setlist', clock(sl.time, clockFormat), part].filter(Boolean).join(' · ')}</span>
       </div>
       <div role="group" aria-label={`Answer for ${sl.name || 'this setlist'}`} className="grid grid-cols-3 gap-2">
         {ANSWERS.map(a => (
@@ -46,7 +48,7 @@ function Invite({ invite, clockFormat, onAnswer }) {
             disabled={busy}
             onClick={() => answer(a.value)}
             className={cn(
-              'h-9 min-h-0 cursor-pointer rounded-control border font-sans text-[14px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
+              'h-9 min-h-0 cursor-pointer rounded-control border font-sans text-small font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',
               a.value === 'available' ? 'border-transparent bg-primary text-primary-foreground' : 'border-input bg-transparent text-foreground hover:bg-raised',
             )}
           >
@@ -60,7 +62,7 @@ function Invite({ invite, clockFormat, onAnswer }) {
 
 function Plays({ plays, clockFormat, onOpen }) {
   return (
-    <div className="overflow-hidden rounded-card border border-border bg-card">
+    <div className="overflow-hidden rounded-card material-base">
       {plays.map(({ setlist: sl, schedule }) => (
         <button
           key={schedule.id}
@@ -68,15 +70,12 @@ function Plays({ plays, clockFormat, onOpen }) {
           onClick={() => onOpen?.(sl)}
           className="flex w-full min-h-0 cursor-pointer items-center gap-3 border-0 border-t border-border bg-transparent px-4 py-3 text-left font-sans text-foreground outline-none first:border-t-0 hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="flex w-10 shrink-0 flex-col items-center leading-none">
-            <span className="text-[11px] font-semibold uppercase text-muted-foreground">{day(sl.date, { weekday: 'short' })}</span>
-            <span className="mt-1 text-[18px] font-semibold">{day(sl.date, { day: 'numeric' })}</span>
-          </span>
+          <DateTile size="sm" weekday={day(sl.date, { weekday: 'short' })} day={day(sl.date, { day: 'numeric' })} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[14px] font-medium">{sl.name || 'Setlist'}</span>
-            <span className="text-[12px] leading-4 text-muted-foreground">{[clock(sl.time, clockFormat), schedule.role].filter(Boolean).join(' · ')}</span>
+            <span className="truncate text-small font-medium">{sl.name || 'Setlist'}</span>
+            <span className="text-caption leading-4 text-muted-foreground">{[clock(sl.time, clockFormat), schedule.role].filter(Boolean).join(' · ')}</span>
           </span>
-          <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-selected px-2.5 text-[12px] font-semibold text-link">You play</span>
+          <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">You play</span>
         </button>
       ))}
     </div>
@@ -107,7 +106,7 @@ export default function SchedulePage({
       {invites.length > 0 && (
         <section aria-label="Can you play?" className="flex flex-col gap-2">
           <Label>Can you play? · {invites.length}</Label>
-          <div className="overflow-hidden rounded-card border border-border bg-card">
+          <div className="overflow-hidden rounded-card material-base">
             {invites.map(i => <Invite key={i.schedule.id} invite={i} clockFormat={clockFormat} onAnswer={onAnswer} />)}
           </div>
         </section>
@@ -129,12 +128,7 @@ export default function SchedulePage({
   return (
     <div data-slot="schedule" className="bg-background font-sans text-foreground">
       <div className={cn('mx-auto flex w-full flex-col gap-4 px-4 pb-8 pt-1 sm:px-6 sm:pt-6', wide ? 'max-w-[1180px]' : 'max-w-[680px]')}>
-        {onBack && (
-          <button type="button" onClick={onBack} className="-ml-1 flex min-h-0 w-fit cursor-pointer items-center gap-1 rounded-control border-0 bg-transparent px-1 py-1 font-sans text-[14px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-            <ChevronLeftIcon />Home
-          </button>
-        )}
-        <h1 className={cn('m-0 font-semibold leading-8 tracking-[-0.5px]', wide ? 'text-[28px]' : 'text-[24px]')}>Schedule</h1>
+        <PageHeader title="Schedule" onBack={onBack} backLabel="Home" wide={wide} />
         {showBand && wide ? (
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] items-start gap-6">
             {me}
