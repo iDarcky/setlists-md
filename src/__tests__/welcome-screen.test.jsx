@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 const auth = { signInWithApple: vi.fn(async () => ({})), signInWithGoogle: vi.fn(async () => ({})) };
@@ -7,7 +7,22 @@ vi.mock('@/auth/useAuth', () => ({ useAuth: () => auth }));
 import WelcomeScreen from '@/features/onboarding/WelcomeScreen';
 
 describe('WelcomeScreen', () => {
-  beforeEach(() => localStorage.clear());
+  beforeEach(() => {
+    localStorage.clear();
+    vi.stubEnv('VITE_ENABLE_APPLE_SIGNIN', 'true');
+    vi.stubEnv('VITE_ENABLE_GOOGLE_SIGNIN', 'true');
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  // A provider that isn't set up in Supabase shows no button.
+  it('shows only email while Apple and Google are off', () => {
+    vi.stubEnv('VITE_ENABLE_APPLE_SIGNIN', 'false');
+    vi.stubEnv('VITE_ENABLE_GOOGLE_SIGNIN', '');
+    render(<WelcomeScreen onSignIn={vi.fn()} onCreateAccount={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Apple/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Google/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Continue with email/ })).toBeInTheDocument();
+  });
 
   // 2026-11-20: Apple, Google or email, for new and returning people alike.
   it('offers Apple, Google and email', () => {

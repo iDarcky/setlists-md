@@ -54,13 +54,25 @@ export interface ProviderProps {
   busy?: 'apple' | 'google' | null;
 }
 
+/**
+ * Which providers are switched on: VITE_ENABLE_APPLE_SIGNIN / VITE_ENABLE_GOOGLE_SIGNIN
+ * = 'true', set once that provider is set up in Supabase Auth. With none on,
+ * email is the one main button. Read per call so tests can stub the env.
+ */
+function signInProviders(): { apple: boolean; google: boolean } {
+  const env = import.meta.env;
+  return { apple: env.VITE_ENABLE_APPLE_SIGNIN === 'true', google: env.VITE_ENABLE_GOOGLE_SIGNIN === 'true' };
+}
+
 /** Apple (ink), Google (outline), email (quiet): one sign-in for new and returning people. */
 export function ProviderButtons({ onApple, onGoogle, onEmail, busy }: ProviderProps) {
+  const { apple, google } = signInProviders();
+  const emailOnly = !apple && !google;
   return (
     <>
-      <Button onClick={onApple} loading={busy === 'apple'} disabled={!!busy}><AppleIcon /> Continue with Apple</Button>
-      <Button variant="outline" onClick={onGoogle} loading={busy === 'google'} disabled={!!busy}><GoogleIcon /> Continue with Google</Button>
-      <Button variant="ghost" className="hover:bg-transparent" onClick={onEmail} disabled={!!busy}><Mail size={18} strokeWidth={1.8} aria-hidden="true" /> Continue with email</Button>
+      {apple && <Button onClick={onApple} loading={busy === 'apple'} disabled={!!busy}><AppleIcon /> Continue with Apple</Button>}
+      {google && <Button variant="outline" onClick={onGoogle} loading={busy === 'google'} disabled={!!busy}><GoogleIcon /> Continue with Google</Button>}
+      <Button variant={emailOnly ? 'default' : 'ghost'} className={emailOnly ? undefined : 'hover:bg-transparent'} onClick={onEmail} disabled={!!busy}><Mail size={18} strokeWidth={1.8} aria-hidden="true" /> Continue with email</Button>
     </>
   );
 }

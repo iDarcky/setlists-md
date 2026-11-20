@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const auth = { user: null, profile: null, loading: false, updateProfile: vi.fn(() => Promise.resolve()) };
@@ -25,7 +25,10 @@ const CODE = 'abc23xyz9kmn';
 const PEEK = { status: 'ok', team_name: 'Grace Church', member_count: 12, leader_name: 'Ana', initials: 'GC' };
 
 describe('JoinFlow', () => {
+  afterEach(() => vi.unstubAllEnvs());
   beforeEach(() => {
+    vi.stubEnv('VITE_ENABLE_APPLE_SIGNIN', 'true');
+    vi.stubEnv('VITE_ENABLE_GOOGLE_SIGNIN', 'true');
     auth.user = null;
     auth.profile = null;
     api.peekJoinLink.mockReset();
