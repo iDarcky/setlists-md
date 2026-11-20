@@ -2,6 +2,53 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.27.0 — A new way in
+*November 2026*
+
+### Added
+- **New first screens.** Create an account or log in from the first screen, set up your team or join one with a 6-character code, and pick what you play.
+- **Join another team from inside the app**, from the team switcher or your team's page.
+- **Plans by team size.** Every team gets every feature. Free is for up to 5 people, Band up to 15, Church up to 40.
+- **A new Delete account screen.** If you lead a team, it goes to the next leader instead of being deleted.
+
+### Improved
+- **The phone's back gesture** goes back one screen while you sign up, instead of leaving.
+- **What you play** shows in the app as soon as you pick it.
+- **Phone sheets** scroll the whole artist list and only drag from the top.
+- **Emails show the logo.**
+
+### Fixed
+- **A full team says so** when someone tries to join, instead of leaving them waiting.
+
+## 0.26.1 — Setlists come back on the new address
+*November 2026*
+
+### Fixed
+- **Setlists and songs missing on the new address.** A phone that missed part of its first download at app.setlists.md now downloads everything again by itself.
+
+## 0.26.0 — New address, new Home
+*November 2026*
+
+### Added
+- **The app now lives at app.setlists.md.** setlists.md is the website. Sign in once at the new address, and add the new icon to your Home Screen.
+- **A new Home** — a get-ready checklist, an On now card, a + menu for new songs and setlists, and Schedule opens from Home.
+- **Schedule is about who plays when** — invites, the next Sundays, what you play and your availability in one place.
+- **New logo** — the taped setlist sheet.
+- **New privacy policy, terms, church terms and copyright pages**, in English and Romanian.
+
+### Improved
+- **Setlists is back in the bottom bar**, next to Home and Songs.
+- **Picking the band shows three in a row** everywhere a leader chooses who plays.
+- **One look across the app** — buttons, lists, sheets and search share the same parts, with the new dark colours.
+- **Phone sheets swipe like a native app.**
+- **The update pill** sits at the top in green.
+- **Profile photos** are limited to 1 MB images.
+
+### Fixed
+- **Each church or band only ever syncs its own songs**, so songs can't end up in the wrong Space.
+- **Deleting your account never deletes a church by mistake.**
+- **Edit template** sits above the phone's tab bar.
+
 ## 0.25.2 — Songs stay in their own Space
 *November 2026*
 
@@ -62,7 +109,7 @@ A running log of what's new in setlists.md. Newest releases first.
 *November 2026*
 
 ### Added
-- **Import Melodia PDFs** — drop in PDFs (or a .zip of them) and they become charts. Two-column pages, wrapped lines, intros and tempo are read correctly.
+- **Import PDF song sheets** — drop in PDFs (or a .zip of them) and they become charts. Two-column pages, wrapped lines, intros and tempo are read correctly.
 - **Check imported songs one by one** — imported songs get a "To check" tag, and Check next walks you through them in the editor.
 - **Copy verse 1 chords** to the other verses from the editor's ⋯ menu.
 

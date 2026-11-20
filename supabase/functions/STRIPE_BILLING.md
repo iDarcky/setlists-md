@@ -48,7 +48,7 @@ supabase secrets set \
   STRIPE_WEBHOOK_SECRET=whsec_… \
   STRIPE_PRICE_TEAM=price_… \
   STRIPE_PRICE_CHURCH=price_… \
-  APP_URL=https://setlists.md
+  APP_URL=https://app.setlists.md
 ```
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically. The

@@ -5,12 +5,33 @@ import tailwindcss from '@tailwindcss/vite'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
+import process from 'node:process'
 
 // Read the canonical app version from package.json so the UI never drifts
 // from the source of truth. We inject it as a build-time global rather than
 // importing the whole package.json into the client bundle.
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const pkg = JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8'))
+
+// Beta builds (beta.setlists.md and every PR preview: Vercel's "preview"
+// environment) get their own icons and name, so an installed beta can't be
+// mistaken for the real app. Production and local dev keep the normal ones.
+// The icons live in public/beta/ (scripts/brand/render_beta_icons.cjs).
+const IS_BETA = process.env.VERCEL_ENV === 'preview'
+const APP_NAME = IS_BETA ? 'Setlists Beta' : 'setlists.md'
+const ICON_DIR = IS_BETA ? '/beta' : ''
+
+// index.html points at the normal icons; swap them for the beta ones.
+const betaHtml = {
+  name: 'beta-icons-html',
+  transformIndexHtml(html) {
+    if (!IS_BETA) return html
+    return html
+      .replace(/href="\/(apple-touch-icon\.png|favicon\.svg|favicon-32\.png|icon-192\.png|icon-512\.png)"/g, 'href="/beta/$1"')
+      .replace('content="setlists.md" />', 'content="Setlists Beta" />')
+      .replace('<title>setlists.md', '<title>[Beta] setlists.md')
+  },
+}
 
 export default defineConfig({
   define: {
@@ -75,21 +96,22 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
+    betaHtml,
     VitePWA({
       registerType: 'prompt',
       manifest: {
-        name: 'setlists.md',
-        short_name: 'setlists.md',
+        name: APP_NAME,
+        short_name: IS_BETA ? 'Setlists Beta' : 'setlists.md',
         description: 'Chord charts for worship teams',
         theme_color: '#0a0807',
         background_color: '#0a0807',
         display: 'standalone',
         orientation: 'any',
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: '/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-          { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+          { src: `${ICON_DIR}/icon-192.png`, sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: `${ICON_DIR}/icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: `${ICON_DIR}/icon-512-maskable.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: `${ICON_DIR}/apple-touch-icon.png`, sizes: '180x180', type: 'image/png' }
         ]
       },
       workbox: {
@@ -115,6 +137,8 @@ export default defineConfig({
         // fonts most people never pick; the `fonts` runtime cache below keeps
         // the ones a device actually shows, so a picked font works offline.
         globIgnores: [
+          // Beta-only icons: the browser fetches whichever set the manifest names.
+          '**/beta/**',
           '**/assets/pdf-*.js', '**/pdf.worker*', '**/svguitar*',
           '**/assets/{inter,ibm-plex-sans,ibm-plex-mono,lora,eb-garamond,crimson-pro,fira-code,roboto-mono}-*.woff2',
         ],

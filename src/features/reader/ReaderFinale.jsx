@@ -36,7 +36,7 @@ const FLAVOUR = {
   live: {
     badge: 'Live',
     badgeClass: 'bg-danger-fill text-danger-text',
-    phrases: ['Service done.', 'And that\'s a wrap.', 'Lights down.', 'Big sound today.', 'Set delivered.'],
+    phrases: ['All done.', 'And that\'s a wrap.', 'Lights down.', 'Big sound today.', 'Set delivered.'],
     showBand: true,
   },
   practice: {

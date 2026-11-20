@@ -69,8 +69,9 @@ export default defineConfig([
     files: ['src/__tests__/webpush-crypto.test.js'],
     rules: { 'no-restricted-imports': 'off' },
   },
-{
-    // The new chart (src/features/chart-v2) is TypeScript, 2026-11-18.
+  {
+    // TypeScript: the new chart (src/features/chart-v2, 2026-11-18) and the
+    // new first-run screens (src/features/intro, 2026-11-20).
     files: ['src/**/*.{ts,tsx}'],
     extends: [
       ...tseslint.configs.recommended,
@@ -81,7 +82,10 @@ export default defineConfig([
       globals: { ...globals.browser, __APP_VERSION__: 'readonly' },
     },
     rules: {
-      'no-restricted-imports': ['error', { patterns: [{ group: ['../*'], message: "Use the '@/' alias, not '../'." }] }],
+      'no-restricted-imports': ['error', { patterns: [
+        { group: ['../*'], message: "Use the '@/' alias, not '../'." },
+        { group: ['@/components/*', '@/components'], message: 'src/components/ no longer exists. Use @/features/<feature>/, @/ui/ or @/app/.' },
+      ] }],
     },
   },
 ])

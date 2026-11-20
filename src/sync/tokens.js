@@ -17,12 +17,12 @@ const SYNC_DEFAULTS = {
   lastBackupTime: null,
 };
 
-export async function getSyncState(libraryId = 'personal') {
+export async function getSyncState(libraryId) {
   const state = await loadSyncState(libraryId);
   return { ...SYNC_DEFAULTS, ...(state || {}) };
 }
 
-export async function setActiveProvider(providerName, tokens, libraryId = 'personal') {
+export async function setActiveProvider(providerName, tokens, libraryId) {
   const state = await getSyncState(libraryId);
   state.activeProvider = providerName;
   state.tokens = tokens;
@@ -30,7 +30,7 @@ export async function setActiveProvider(providerName, tokens, libraryId = 'perso
   return state;
 }
 
-export async function clearProvider(libraryId = 'personal') {
+export async function clearProvider(libraryId) {
   const state = await getSyncState(libraryId);
   state.activeProvider = null;
   state.tokens = null;
@@ -38,19 +38,19 @@ export async function clearProvider(libraryId = 'personal') {
   return state;
 }
 
-export async function markBackupTime(iso, libraryId = 'personal') {
+export async function markBackupTime(iso, libraryId) {
   const state = await getSyncState(libraryId);
   state.lastBackupTime = iso;
   await saveSyncState(state, libraryId);
 }
 
-export async function updateTokens(tokens, libraryId = 'personal') {
+export async function updateTokens(tokens, libraryId) {
   const state = await getSyncState(libraryId);
   state.tokens = { ...state.tokens, ...tokens };
   await saveSyncState(state, libraryId);
 }
 
-export async function updateSyncManifest(manifest, libraryId = 'personal') {
+export async function updateSyncManifest(manifest, libraryId) {
   const state = await getSyncState(libraryId);
   state.syncManifest = manifest;
   state.lastSyncTime = new Date().toISOString();
@@ -58,7 +58,7 @@ export async function updateSyncManifest(manifest, libraryId = 'personal') {
   return state;
 }
 
-export async function updateSetlistManifest(manifest, libraryId = 'personal') {
+export async function updateSetlistManifest(manifest, libraryId) {
   const state = await getSyncState(libraryId);
   state.setlistManifest = manifest;
   state.lastSyncTime = new Date().toISOString();
@@ -66,7 +66,7 @@ export async function updateSetlistManifest(manifest, libraryId = 'personal') {
   return state;
 }
 
-export async function updateReplicaState(replica, libraryId = 'personal') {
+export async function updateReplicaState(replica, libraryId) {
   const state = await getSyncState(libraryId);
   state.replica = replica;
   state.lastSyncTime = new Date().toISOString();
@@ -74,7 +74,7 @@ export async function updateReplicaState(replica, libraryId = 'personal') {
   return state;
 }
 
-export async function setHashVersion(version, libraryId = 'personal') {
+export async function setHashVersion(version, libraryId) {
   const state = await getSyncState(libraryId);
   if (state.hashVersion === version) return state;
   state.hashVersion = version;
@@ -82,7 +82,7 @@ export async function setHashVersion(version, libraryId = 'personal') {
   return state;
 }
 
-export async function setPendingPush(pending, libraryId = 'personal') {
+export async function setPendingPush(pending, libraryId) {
   const state = await getSyncState(libraryId);
   if (state.pendingPush === pending) return state;
   state.pendingPush = pending;

@@ -18,24 +18,15 @@ const TRASH_KEY = (lib) => `${NEW_PREFIX}trash:${lib}`; // soft-deleted songs (3
  * This is a one-time operation per key.
  */
 async function migrateLegacyKeys() {
-  const keys = ['songs', 'setlists', 'settings', 'sync', 'tombstones'];
-  for (const k of keys) {
-    const oldKey = `${OLD_PREFIX}${k}`;
-    const newKey = `${NEW_PREFIX}${k}`;
-    try {
-      const oldData = await get(oldKey);
-      if (oldData !== undefined) {
-        const newData = await get(k === 'settings' ? newKey : `${newKey}:personal`);
-        // Only migrate if new key is empty
-        if (newData === undefined) {
-          await set(k === 'settings' ? newKey : `${newKey}:personal`, oldData);
-          await del(oldKey);
-          console.log(`[storage] Migrated legacy key: ${oldKey} -> ${newKey}`);
-        }
-      }
-    } catch (err) {
-      console.error(`[storage] Failed to migrate legacy key ${oldKey}:`, err);
+  const oldKey = `${OLD_PREFIX}settings`;
+  try {
+    const oldData = await get(oldKey);
+    if (oldData !== undefined && (await get(SETTINGS_KEY)) === undefined) {
+      await set(SETTINGS_KEY, oldData);
+      await del(oldKey);
     }
+  } catch (err) {
+    console.error(`[storage] Failed to migrate legacy key ${oldKey}:`, err);
   }
 }
 
@@ -192,7 +183,7 @@ function idsEqual(a, b) {
   return true;
 }
 
-export async function loadSongs(libraryId = 'personal') {
+export async function loadSongs(libraryId) {
   try {
     const idx = await get(SONG_IDX_KEY(libraryId));
     if (idx && Array.isArray(idx.ids)) {
@@ -227,7 +218,7 @@ async function writeAllSongs(libraryId, songs) {
   primeSongCaches(libraryId, songs);
 }
 
-export async function saveSongs(songs, libraryId = 'personal') {
+export async function saveSongs(songs, libraryId) {
   const list = Array.isArray(songs) ? songs.filter(s => s && typeof s.id === 'string') : [];
   const prev = songRefCache.get(libraryId) || new Map();
   const nextRefs = new Map();
@@ -253,7 +244,7 @@ export async function saveSongs(songs, libraryId = 'personal') {
   await Promise.all(ops);
 }
 
-export async function loadSetlists(libraryId = 'personal') {
+export async function loadSetlists(libraryId) {
   try {
     const raw = (await get(SETLISTS_KEY(libraryId))) || [];
     return sanitizeSetlists(raw);
@@ -262,7 +253,7 @@ export async function loadSetlists(libraryId = 'personal') {
   }
 }
 
-export async function saveSetlists(setlists, libraryId = 'personal') {
+export async function saveSetlists(setlists, libraryId) {
   await set(SETLISTS_KEY(libraryId), setlists);
 }
 
@@ -324,7 +315,7 @@ export async function saveSettings(settings) {
   await set(SETTINGS_KEY, settings);
 }
 
-export async function loadSyncState(libraryId = 'personal') {
+export async function loadSyncState(libraryId) {
   try {
     return (await get(SYNC_KEY(libraryId))) || null;
   } catch {
@@ -332,7 +323,7 @@ export async function loadSyncState(libraryId = 'personal') {
   }
 }
 
-export async function saveSyncState(state, libraryId = 'personal') {
+export async function saveSyncState(state, libraryId) {
   await set(SYNC_KEY(libraryId), state);
 }
 
@@ -349,7 +340,7 @@ export async function getStorageEstimate() {
   }
 }
 
-export async function loadTombstones(libraryId = 'personal') {
+export async function loadTombstones(libraryId) {
   try {
     return pruneTombstones(await get(TOMBSTONES_KEY(libraryId)));
   } catch {
@@ -357,14 +348,14 @@ export async function loadTombstones(libraryId = 'personal') {
   }
 }
 
-export async function saveTombstones(tombstones, libraryId = 'personal') {
+export async function saveTombstones(tombstones, libraryId) {
   await set(TOMBSTONES_KEY(libraryId), pruneTombstones(tombstones));
 }
 
 // ----- Sync conflicts (awaiting the user's keep-mine/keep-cloud/keep-both
 // choice) -----. Persisted so an unresolved conflict — and the user's only
 // surviving copy of their divergent local edit — survives a reload.
-export async function loadConflicts(libraryId = 'personal') {
+export async function loadConflicts(libraryId) {
   try {
     const list = await get(CONFLICTS_KEY(libraryId));
     return Array.isArray(list) ? list : [];
@@ -373,7 +364,7 @@ export async function loadConflicts(libraryId = 'personal') {
   }
 }
 
-export async function saveConflicts(list, libraryId = 'personal') {
+export async function saveConflicts(list, libraryId) {
   await set(CONFLICTS_KEY(libraryId), Array.isArray(list) ? list : []);
 }
 
@@ -385,7 +376,7 @@ function pruneTrash(list) {
   return (Array.isArray(list) ? list : []).filter(e => e && e.song && e.deletedAt > cutoff);
 }
 
-export async function loadTrash(libraryId = 'personal') {
+export async function loadTrash(libraryId) {
   try {
     return pruneTrash(await get(TRASH_KEY(libraryId)));
   } catch {
@@ -393,7 +384,7 @@ export async function loadTrash(libraryId = 'personal') {
   }
 }
 
-export async function saveTrash(list, libraryId = 'personal') {
+export async function saveTrash(list, libraryId) {
   await set(TRASH_KEY(libraryId), pruneTrash(list));
 }
 
@@ -440,22 +431,13 @@ export async function pushSongVersion(songId, doc) {
   }
 }
 
-export async function clearAll(libraryId = 'personal') {
-  // Per-song entries: enumerate keys under the library's song prefix.
-  try {
-    const prefix = `${NEW_PREFIX}song:${libraryId}:`;
-    const songKeys = (await keys()).filter(k => typeof k === 'string' && k.startsWith(prefix));
-    if (songKeys.length) await delMany(songKeys);
-  } catch { /* best-effort */ }
-  await del(SONG_IDX_KEY(libraryId));
-  await del(SONGS_KEY(libraryId)); // legacy blob, if any lingers
-  await del(SETLISTS_KEY(libraryId));
-  await del(SETTINGS_KEY); // Global
-  await del(SYNC_KEY(libraryId));
-  await del(TOMBSTONES_KEY(libraryId));
-  await del(TRASH_KEY(libraryId));
-  await del(CONFLICTS_KEY(libraryId));
-  songRefCache.delete(libraryId);
-  songIdsCache.delete(libraryId);
+// Everything this app keeps on the device: every group's library and the
+// settings. Used when an account is deleted, so the next person to sign in on
+// this device inherits nothing.
+export async function clearAll() {
+  const all = (await keys()).filter(k => typeof k === 'string' && k.startsWith(NEW_PREFIX));
+  if (all.length) await delMany(all);
+  songRefCache.clear();
+  songIdsCache.clear();
 }
 

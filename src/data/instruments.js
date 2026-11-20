@@ -225,7 +225,7 @@ export function wantsDiagrams(token) {
  *
  * ⚠ DEFAULTS TRUE, and the default is the whole reason to read this note. An
  * unknown token, a legacy label nothing maps, a user who never picked an
- * instrument, a personal (teamless) workspace — every one of those arrives here
+ * instrument, no group open — every one of those arrives here
  * as null, and they are the overwhelming majority of readers. "We do not know
  * what you play" must mean the reader looks exactly as it does today, never
  * "assume they cannot use a key".

@@ -116,6 +116,7 @@ function VersionLine({ version, labsUnlocked, onUnlockLabs }) {
 const LEGAL = [
   { id: 'privacy', label: 'Privacy policy' },
   { id: 'terms', label: 'Terms of service' },
+  { id: 'churchTerms', label: 'Church and band terms' },
   { id: 'copyright', label: 'Copyright and takedowns' },
 ];
 

@@ -4,7 +4,7 @@ import { supabase } from '@/auth/supabase';
 
 // Per-user PRIVATE notes ("My note") for a team workspace. Cloud-backed via the
 // team_notes table, cached in IndexedDB so notes are readable/writable offline
-// and pushed when back online. Personal workspaces don't use this (no split).
+// and pushed when back online.
 //
 // A scope is { songId?, setlistId?, sectionKey? }; unused parts are '' so they
 // match the table's NOT-NULL columns and the upsert conflict target.

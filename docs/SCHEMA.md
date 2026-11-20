@@ -190,7 +190,12 @@ group's plan include this?" and returns
 - A feature with **no entry** in `FEATURE_GATES` is open to everyone,
   everywhere. Chart style (themes, fonts, colours), chord shapes and import
   are all open. Do not add a gate for anything that makes a chart readable.
-- The only gate today is `multi-service` → `church`. It also needs the group's
+- Plans (2026-11-19, `lib/plans.js`): `free` 5 people, `team` (Band) 15,
+  `church` 40 (+10 for €5). Since 2026-11-20 they differ by seats only:
+  `FEATURE_GATES` is empty, so every plan gets the schedule and services.
+- New groups start on Free; `guard_new_team` (20261121) forces plan/seats
+  on any app insert and allows one owned group per account.
+- Until 2026-11-20 `multi-service` → `church` was gated; a gate also needs the group's
   `subscription_status` to be `active`/`trialing` (defaults to `active`).
 - `checkEntitlement(plan, feature)` is the pure version; it takes a GROUP plan.
 
@@ -238,6 +243,12 @@ Each team/church workspace is its own Stripe subscription, paid by the team
   subscribing (any signed-in user → checkout, workspace starts `unpaid` until
   the webhook confirms); while billing is dormant the `hasTeamPlan`
   entitlement gate stays so team features aren't given away for free.
+- **Billing columns are server-only** (`20261119_lock_team_billing_columns.sql`) — a
+  `before update` trigger on `teams` rejects changes to `plan`, `max_seats`,
+  `subscription_status`, `stripe_*` and `billing_plan` from requests made with a
+  user JWT; only the service role (webhook/checkout) or the SQL editor can change
+  them. INSERT is unguarded during the free beta; when billing goes live also set
+  the `subscription_status` default to `'unpaid'` (commented line in that file).
 - **Dormant by default** — the functions return `503 billing_not_configured`
   without `STRIPE_SECRET_KEY`, and the UI is hidden unless
   `VITE_STRIPE_ENABLED=true`. Turning it on requires the Stripe secrets +

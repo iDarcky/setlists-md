@@ -66,7 +66,7 @@ export const placeholderItem = (label = '') => ({ placeholder: true, ...(label ?
 export const TEMPLATE_KIND = 'service';
 export const isRealTemplate = (s) => !!s?.isTemplate && s.templateKind === TEMPLATE_KIND;
 export const templatesOf = (setlists = []) => setlists.filter(isRealTemplate);
-export const templateTitle = (t) => (t?.templateName || baseName(t) || 'Service').trim();
+export const templateTitle = (t) => (t?.templateName || baseName(t) || 'Untitled setlist').trim();
 
 const NUM_TOKEN = '{n}';
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

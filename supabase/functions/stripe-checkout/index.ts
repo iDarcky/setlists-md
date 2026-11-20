@@ -22,7 +22,7 @@
 //   STRIPE_SECRET_KEY        — sk_live_… / sk_test_…
 //   STRIPE_PRICE_TEAM        — price_… for the $12/mo Team tier
 //   STRIPE_PRICE_CHURCH      — price_… for the $24/mo Church tier
-//   APP_URL                  — e.g. https://setlists.md (success/cancel base)
+//   APP_URL                  — e.g. https://app.setlists.md (success/cancel base)
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';

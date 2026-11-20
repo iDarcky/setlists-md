@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseSongMd, songToMd } from '@/parser';
 import { songFromFlat, addArrangement, withArrangement } from '@/arrangements';
-import { DEMO_SONGS_MD } from '@/data/demos';
+import { PLAIN_SONGS_MD } from '@/__tests__/helpers/plainSongs';
 import { songDoc, docString, songFromDoc, isSongDoc } from '@/sync/songDoc';
 import { threeWayMergeSong } from '@/sync/merge';
 
@@ -72,8 +72,8 @@ describe('the song document (step 5)', () => {
     expect(merged.title).toBe('Retitled');
   });
 
-  it('the demo songs round-trip through markdown without loss (no upgrade churn for plain songs)', () => {
-    for (const md of DEMO_SONGS_MD) {
+  it('plain songs round-trip through markdown without loss (no upgrade churn for plain songs)', () => {
+    for (const md of PLAIN_SONGS_MD) {
       const song = fromMd(md);
       const again = fromMd(songToMd(song));
       expect(docString(again)).toBe(docString(song));

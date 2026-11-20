@@ -32,7 +32,7 @@ export default function Home({
   canAddSongs = false, onImportSongs, onImportSetlistFile, onEditImported, onBlank, onSetupDone, onRetrySync, onNotFound,
 }) {
   // New song and Import open their sheets here, on Home, not on Songs.
-  const [adding, setAdding] = useState(null); // null | 'add' | 'import'
+  const [adding, setAdding] = useState(null); // null | 'add' | 'new' | 'import'
   const { user } = useAuth();
   const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
@@ -66,15 +66,14 @@ export default function Home({
     };
   }, [setlists, schedules, userId, setlistMap, now, inTeam, leader, members]);
 
-  // Personal library: every dated setlist is "yours".
-  const stripPlays = inTeam ? plays : setlists.filter(sl => sl.date).map(setlist => ({ setlist }));
+  const stripPlays = inTeam ? plays : [];
   const days = twoWeeks({ now, weekStart: settings?.firstDayOfWeek === 'monday' ? 'monday' : 'sunday', offset, setlists, plays: stripPlays, asks });
   // The day under the strip: the one picked, else the first day ahead with something on.
   const firstBusy = days.find(d => !d.isPast && (d.play || d.asked || d.services.length || d.rehearsals.length));
   const selected = picked && days.some(d => d.date === picked) ? picked : (firstBusy || days.find(d => d.isToday) || days[0])?.date;
 
   // What you play: a step on the one-time checklist (church only, once the roster is in).
-  const church = inTeam && team.kind !== 'personal';
+  const church = inTeam;
   const myMember = church ? (members || []).find(m => m.user_id === userId) : null;
   const myParts = useMemo(() => Array.from(new Set((myMember?.instruments || []).map(normalize).filter(Boolean))), [myMember?.instruments]);
   const [partsOpen, setPartsOpen] = useState(false);
@@ -117,7 +116,7 @@ export default function Home({
   const allDone = !!steps && steps.every(s => s.done);
   useEffect(() => { if (allDone) onSetupDone?.(); }, [allDone]); // eslint-disable-line react-hooks/exhaustive-deps
   const onStep = (id) => {
-    if (id === 'song' && canAddSongs) setAdding('add');
+    if (id === 'song' && canAddSongs) setAdding('new');
     else if (id === 'import' && canAddSongs) setAdding('import');
     else if (id === 'parts') setPartsOpen(true);
     else if (id === 'setlist') onNewSetlist?.();
@@ -131,7 +130,7 @@ export default function Home({
 
   // The + menu: the three ways to start something a leader has.
   const create = [
-    canAddSongs && { icon: Music, label: 'New song', onSelect: () => setAdding('add') },
+    canAddSongs && { icon: Music, label: 'New song', onSelect: () => setAdding('new') },
     canAddSongs && onImportSongs && { icon: FileText, label: 'Import PDFs', onSelect: () => setAdding('import') },
     onNewSetlist && { icon: List, label: 'New setlist', onSelect: onNewSetlist, divider: true },
   ].filter(Boolean);

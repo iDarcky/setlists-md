@@ -2,35 +2,13 @@
   "cleanUrls": true,
   "redirects": [
     {
-      "source": "/join/:code",
-      "destination": "https://app.setlists.md/join/:code",
+      "source": "/ro",
+      "destination": "/",
       "permanent": false
     },
     {
-      "source": "/auth/:path*",
-      "destination": "https://app.setlists.md/auth/:path*",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "setlist"
-        }
-      ],
-      "destination": "https://app.setlists.md/",
-      "permanent": false
-    },
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "query",
-          "key": "code"
-        }
-      ],
-      "destination": "https://app.setlists.md/",
+      "source": "/ro/",
+      "destination": "/",
       "permanent": false
     }
   ],
@@ -60,7 +38,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self' https://gc.zgo.at; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://insideahead.goatcounter.com; connect-src 'self' https://insideahead.goatcounter.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         }
       ]
     },
@@ -85,7 +63,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors https://app.setlists.md https://beta.setlists.md https://*.vercel.app; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self' https://gc.zgo.at; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://insideahead.goatcounter.com; connect-src 'self' https://insideahead.goatcounter.com; frame-ancestors https://app.setlists.md https://beta.setlists.md https://*.vercel.app; base-uri 'self'; form-action 'self'"
         }
       ]
     },
@@ -104,6 +82,19 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
         }
       ]
     }

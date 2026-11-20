@@ -1,6 +1,6 @@
 // Copy verse 1's chords onto the verses that have none.
 //
-// Romanian charts (Melodia.ro above all) print chords on the first verse only:
+// Many Romanian song sheets print chords on the first verse only:
 // the verses share a melody and players are expected to carry the chords
 // across. A reader showing verse 3 bare is useless on a stage, so on import
 // the chords can be carried across for them.
@@ -10,7 +10,7 @@
 // letter. That needs no idea of words or syllables, so it works the same in
 // any language (owner, 2026-11-14).
 //
-// Tested against a Melodia chart that prints chords on every verse ("Când
+// Tested against a song sheet that prints chords on every verse ("Când
 // moartea-i înfrânt-o", 36 chords on verses 2-4): by location 28 land on the
 // right word, by syllable 29, by word 20. The syllable count it replaces only
 // understood Romanian.

@@ -155,7 +155,7 @@ that discipline is held everywhere and is why the app is demoable offline.
 - Entitlement resolution is context-aware (personal `subscription_tier` vs
   `team.plan` + `subscription_status`) and correct, but the rules live in prose
   in `CLAUDE.md`. One table in code, one test per row.
-- Google/Apple OAuth is disabled pending the domain split (PLAN critical path).
+- Continue with Apple / Google is on Welcome and the join link (2026-11-20, `features/intro`); the providers must be switched on in Supabase.
 
 ---
 

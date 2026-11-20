@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { useAuth } from './useAuth';
 import { TeamContext } from './TeamContext';
 import { BILLING_ENABLED, MAX_OWNED_WORKSPACES } from '@/lib/billingCheckout';
+import { PLANS } from '@/lib/plans';
 import { canPlanServices, canWriteLibrary as roleCanWriteLibrary, canApproveJoins } from '@/lib/teamRoles';
 import { useTeamJoinRequests } from '@/hooks/useTeamJoinRequests';
 import { cachedTeams, cacheTeams, cachedMembers, cacheMembers } from '@/lib/launchCache';
@@ -28,7 +29,7 @@ export function TeamProvider({ children }) {
   // The user whose memberships were last read from the server WITHOUT an
   // error. Until it matches the signed-in user, an empty `teams` means "not
   // known yet", not "in no church" — App must not drop a remembered church
-  // on that (the open-into-Personal-then-flicker on launch, 2026-11-03).
+  // on that (the flicker on launch, 2026-11-03).
   const [teamsLoadedFor, setTeamsLoadedFor] = useState(null);
   const loadedForUserRef = useRef(null);
   // Bumped to re-read memberships (e.g. a join request was just approved) or
@@ -43,7 +44,7 @@ export function TeamProvider({ children }) {
   }, []);
   const reloadMembers = useCallback(() => setMembersReloadKey(k => k + 1), []);
 
-  // The user's personal tier drives whether they may create/own workspaces.
+  // The account's tier (profiles.subscription_tier) drives whether they may create/own workspaces.
   // (The legacy `profiles.plan` column was dropped in 20260522_plans_migration;
   // `subscription_tier` is the canonical field.)
   const plan = (profile?.subscription_tier || 'free').toLowerCase();
@@ -220,7 +221,7 @@ export function TeamProvider({ children }) {
   // leaders only — must agree with `get_user_join_manager_teams()` in
   // 20261019_join_links.sql, or the list just comes back empty.
   const myActiveRole = team ? members.find(m => m.user_id === user?.id)?.role : null;
-  const canManageJoinLink = !!team && team.kind !== 'personal'
+  const canManageJoinLink = !!team
     && (team.owner_id === user?.id || canApproveJoins(myActiveRole));
   const {
     requests: joinRequests,
@@ -309,36 +310,23 @@ export function TeamProvider({ children }) {
        * the new team becomes the active one.
        * @param {{ name: string, location?: string }} opts
        */
-      createTeam: async ({ name, location, plan: planArg, timezone }) => {
+      createTeam: async ({ name, location, timezone }) => {
         guard();
-        // Cap how many Spaces one account can own (see MAX_OWNED_WORKSPACES).
+        // One owned church or band per account (MAX_OWNED_WORKSPACES).
         if (ownedWorkspaceCount >= MAX_OWNED_WORKSPACES) {
-          throw new Error(`You can create up to ${MAX_OWNED_WORKSPACES} workspaces. Contact support if you need more.`);
+          throw new Error('You already have a church or band of your own. Write to hello@setlists.md if you need another.');
         }
-        // Each workspace is its own billing unit. The `teams.plan` check
-        // constraint only allows 'team' | 'church' — never 'free'/'sync' — so
-        // we resolve a valid tier: an explicit choice wins, else fall back to
-        // the owner's personal tier when it's already team/church, else 'team'.
-        // Once Stripe checkout is wired the tier comes from the selected price;
-        // subscription_status defaults to 'active' (see 20260604 migration).
-        const teamPlan = (planArg === 'church' || planArg === 'team')
-          ? planArg
-          : (plan === 'church' ? 'church' : 'team');
-        const maxSeats = teamPlan === 'church' ? 30 : 10;
-        // When Stripe billing is live, a new workspace starts UNPAID — its paid
-        // features gate off (via useEntitlement) until the webhook confirms
-        // payment and flips it to active. This is what stops a user from
-        // spinning up free working workspaces by abandoning checkout. When
-        // billing is dormant we rely on the DB default ('active') so workspaces
-        // are usable without any Stripe wiring.
+        // Every new group starts on Free (5 people) and is upgraded by hand.
+        // The database forces the same plan and seats on any new row.
+        const free = PLANS.free;
         const { data: newTeam, error: teamErr } = await supabase
           .from('teams')
           .insert({
             name,
             location: location || null,
             owner_id: user.id,
-            plan: teamPlan,
-            max_seats: maxSeats,
+            plan: free.key,
+            max_seats: free.seats,
             ...(timezone ? { timezone } : {}),
             ...(BILLING_ENABLED ? { subscription_status: 'unpaid' } : {}),
           })
@@ -569,7 +557,7 @@ export function TeamProvider({ children }) {
         setInvites([]);
       },
     };
-  }, [teams, teamsLoadedFor, activeTeamId, team, members, invites, loading, user?.id, plan, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
+  }, [teams, teamsLoadedFor, activeTeamId, team, members, invites, loading, user?.id, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }

@@ -6,13 +6,13 @@ import { Button as ShadButton } from '@/ui/shadcn/button';
 import { Input } from '@/ui/Input';
 import PageHeader from '@/ui/PageHeader';
 import { useConfirm } from '@/ui/useConfirmHook';
-import { BILLING_ENABLED, startTeamCheckout } from '@/lib/billingCheckout';
 import { canManageMembers, canPlanServices } from '@/lib/teamRoles';
 import { joinUrl } from '@/lib/joinLink';
 import { isSetlistUpcoming, setlistStartMs } from '@/lib/setlistTime';
 import { songUsage } from '@/lib/songUsage';
 import { getTeamJoinLink, resetTeamJoinLink, setTeamJoinLinkEnabled } from '@/features/join/joinApi';
 import TeamPage, { InviteCard, UsageEntry, Waiting } from './TeamPage';
+import { webPageUrl } from '@/features/legal/WebSheet';
 import { memberName } from '@/lib/teamPeople';
 import { PersonSheet, ChurchSheet } from './TeamSheets';
 import SongUsage from './SongUsage';
@@ -37,10 +37,9 @@ const DEVICE_TZ = (() => {
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; }
 })();
 
-function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 'team', billingLive = false }) {
+function CreateTeamForm({ onCreate, onCancel }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [plan, setPlan] = useState(defaultPlan === 'church' ? 'church' : 'team');
   const [timezone, setTimezone] = useState(DEVICE_TZ);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -51,18 +50,13 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
     setBusy(true);
     setError(null);
     try {
-      await onCreate({ name: name.trim(), location: location.trim() || null, plan, timezone });
+      await onCreate({ name: name.trim(), location: location.trim() || null, timezone });
     } catch (err) {
       setError(err.message || 'Could not create team.');
     } finally {
       setBusy(false);
     }
   };
-
-  const TIERS = [
-    { id: 'team', label: 'Team', price: '$12/mo', seats: '10 seats', blurb: 'For a worship band.' },
-    { id: 'church', label: 'Church', price: '$24/mo', seats: '30 seats', blurb: 'For a whole church.' },
-  ];
 
   return (
     <div className="flex-1 flex items-center justify-center px-6 py-12">
@@ -76,18 +70,16 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 
         <div className="text-center">
           <h2 className="text-heading-24 text-[var(--modes-text)] m-0 mb-1">
-            {multiple ? 'Create a new Space' : 'Create your Space'}
+            Start your church or band
           </h2>
           <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
-            {multiple
-              ? 'Spin up another shared Space for a different band or church.'
-              : 'Set up a shared Space for your worship band or church.'}
+            Free for up to 5 people. Bigger groups move to Band (15) or Church (40).
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1">
-            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Team name</span>
+            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Name</span>
             <Input
               type="text"
               required
@@ -117,39 +109,8 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
             >
               {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>)}
             </select>
-            <span className="text-label-11 text-[var(--modes-text-dim)] normal-case tracking-normal">Used to send service &amp; rehearsal reminders at the right local time.</span>
+            <span className="text-label-11 text-[var(--modes-text-dim)] normal-case tracking-normal">Used to send reminders at the right local time.</span>
           </label>
-
-          {/* Tier picker — sets seats/features (and the price at checkout). */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">Plan</span>
-            <div className="grid grid-cols-2 gap-2">
-              {TIERS.map(t => {
-                const active = plan === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setPlan(t.id)}
-                    className="text-left rounded-xl p-3 border transition-all"
-                    style={{
-                      borderColor: active ? 'var(--color-brand)' : 'var(--modes-border)',
-                      boxShadow: active ? '0 0 0 1px var(--color-brand)' : 'none',
-                      background: active ? 'var(--color-brand-soft)' : 'var(--modes-surface)',
-                    }}
-                    aria-pressed={active}
-                  >
-                    <div className="flex items-baseline justify-between gap-1">
-                      <span className="text-copy-14 font-semibold text-[var(--modes-text)]">{t.label}</span>
-                      {billingLive && <span className="text-label-11 font-bold text-[var(--color-brand)]">{t.price}</span>}
-                    </div>
-                    <div className="text-label-11 text-[var(--modes-text-muted)] mt-0.5">{t.seats}</div>
-                    <div className="text-label-11 text-[var(--modes-text-dim)] mt-0.5">{t.blurb}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {error && (
             <div className="text-copy-13 px-3 py-2 rounded-lg" style={{ background: 'var(--ds-red-100)', color: 'var(--ds-red-1000)' }}>
@@ -158,13 +119,18 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
           )}
 
           <Button type="submit" className="w-full" disabled={busy || !name.trim() || !timezone}>
-            {busy ? (billingLive ? 'Starting checkout…' : 'Creating…') : (billingLive ? 'Continue to checkout' : 'Create Space')}
+            {busy ? 'Creating…' : 'Create'}
           </Button>
           {onCancel && (
             <Button type="button" variant="outline" className="w-full" onClick={onCancel} disabled={busy}>
               Cancel
             </Button>
           )}
+          <p className="text-copy-13 text-[var(--modes-text-muted)] m-0 text-center">
+            By creating a Space you accept the{' '}
+            <a href={webPageUrl('churchTerms')} target="_blank" rel="noopener noreferrer" className="underline">Church and band terms</a>
+            {' '}for your church or band.
+          </p>
         </form>
       </div>
     </div>
@@ -179,7 +145,7 @@ function CreateTeamForm({ onCreate, onCancel, multiple = false, defaultPlan = 't
 // ── The Team page (redesign 2026-10-31) ─────────────────────────────────────
 
 function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJoinLink, joinRequests, onApproveJoin, onDeclineJoin, onApproveAllJoins,
-  onRoleChange, onRemove, onUpdate, onLeave, onDelete, onBack, onCreate, isDefaultSpace, onToggleDefaultSpace,
+  onRoleChange, onRemove, onUpdate, onLeave, onDelete, onBack, onCreate, onJoin, isDefaultSpace, onToggleDefaultSpace,
   setlists = [], songs = [], schedules = [], setlistMap = {}, onOpenSong }) {
   const confirm = useConfirm();
   const { canSetParts, setMemberInstruments } = useTeam();
@@ -232,7 +198,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
       .map(({ sl, s }) => ({
         id: s.id,
         label: new Date(`${sl.date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
-        name: sl.name || sl.service || 'Service',
+        name: sl.name || sl.service || 'Untitled setlist',
         answer: s.availability || 'pending',
       }));
   }, [person, schedules, setlists, setlistMap, now]);
@@ -253,7 +219,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
   const approveAll = () => run('all', async () => {
     try {
       const res = await onApproveAllJoins();
-      if (res?.at_capacity) setWaitMsg({ kind: 'error', text: `Let in ${res.approved}. The church is full: ${res.remaining} still waiting.` });
+      if (res?.at_capacity) setWaitMsg({ kind: 'error', text: `Let in ${res.approved}. ${team.name || 'It'} is full: ${res.remaining} still waiting.` });
     } catch (err) { setWaitMsg({ kind: 'error', text: err.message }); }
   });
 
@@ -300,6 +266,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
       {onToggleDefaultSpace && (
         <ShadButton variant="link" onClick={onToggleDefaultSpace}>{isDefaultSpace ? 'Opens here when the app starts' : 'Open this church when the app starts'}</ShadButton>
       )}
+      {onJoin && <ShadButton variant="link" onClick={onJoin}>Join another team</ShadButton>}
       {onCreate && <ShadButton variant="link" onClick={onCreate}>Start another church or band</ShadButton>}
       {!isOwner && <ShadButton variant="link" className="text-danger" onClick={leave}>Leave {team.name}</ShadButton>}
       {isOwner && <ShadButton variant="link" className="text-danger" onClick={deleteChurch}>Delete this church</ShadButton>}
@@ -355,9 +322,9 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = 'personal', onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
+export default function TeamScreen({ onBack, onJoin, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = null, onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
   const { user } = useAuth();
-  const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, hasTeamPlan, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests } = useTeam();
+  const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests } = useTeam();
   // Fresh "Waiting" list every time the page opens (realtime can miss one).
   useEffect(() => { refreshJoinRequests?.(); }, [refreshJoinRequests]);
 
@@ -379,41 +346,19 @@ export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = fa
   const handleCreateTeam = async (data) => {
     const newTeam = await createTeam(data);
     setCreating(false);
-    // When billing is live, send the owner straight to checkout for the new
-    // workspace (each workspace is its own subscription). Until then, just
-    // switch into it. A failed/aborted checkout still leaves a usable
-    // workspace — the webhook flips status to active once paid.
-    if (newTeam && BILLING_ENABLED) {
-      try {
-        await startTeamCheckout(newTeam.id, newTeam.plan);
-        return;
-      } catch {
-        /* fall through to switching into the (unpaid) workspace */
-      }
-    }
     if (newTeam && onSwitchLibrary) {
       onSwitchLibrary(newTeam.id);
     }
   };
 
-  // Who may create a workspace. With Stripe billing live, creating *is*
-  // subscribing — any signed-in user can start one (it routes to checkout and
-  // is created unpaid until the webhook confirms payment). While billing is
-  // dormant we keep the entitlement gate so team features aren't given away for
-  // free.
-  // Eligible to create additional Spaces — but creation may be temporarily
-  // locked for testing (then we show a "contact support" note instead).
-  const eligibleToCreate = BILLING_ENABLED || hasTeamPlan;
-  const canCreate = eligibleToCreate && !atWorkspaceLimit;
-  const ownerTier = team?.owner_id === user?.id ? team?.plan : undefined;
+  // Anyone may start one group of their own (Free); one owned group per account.
+  const canCreate = !atWorkspaceLimit;
 
   // Show the create form when explicitly creating, or when the user has no
   // team yet (the original first-run path).
   const showCreate = creating || !team;
 
-  // First Space (no team) is onboarding and is NOT blocked by the lock; only
-  // creating ADDITIONAL Spaces is gated by `canCreate`.
-  const allowThisCreate = team ? canCreate : eligibleToCreate;
+  const allowThisCreate = canCreate;
 
   const inCreateSubmenu = creating && team;
 
@@ -441,9 +386,10 @@ export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = fa
         onDelete={async () => { await deleteTeam(); }}
         onBack={onBack}
         onCreate={canCreate ? () => setCreating(true) : null}
+        onJoin={onJoin}
         isDefaultSpace={defaultSpaceId === team.id}
         onToggleDefaultSpace={onSetDefaultSpace
-          ? () => onSetDefaultSpace(defaultSpaceId === team.id ? 'personal' : team.id)
+          ? () => onSetDefaultSpace(defaultSpaceId === team.id ? null : team.id)
           : undefined}
         setlists={setlists}
         songs={songs}
@@ -470,9 +416,6 @@ export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = fa
         <CreateTeamForm
           onCreate={handleCreateTeam}
           onCancel={team ? () => setCreating(false) : null}
-          multiple={!!team}
-          defaultPlan={ownerTier || 'team'}
-          billingLive={BILLING_ENABLED}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center px-6 py-12">
@@ -481,11 +424,11 @@ export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = fa
             style={{ background: 'var(--ds-background-100)', border: '1px solid var(--ds-gray-400)' }}
           >
             <h2 className="text-heading-20 text-[var(--ds-gray-1000)] m-0 leading-tight">
-              New groups are set up by hand for now
+              You already have one of your own
             </h2>
             <p className="text-copy-14 text-[var(--ds-gray-600)] m-0 leading-relaxed max-w-sm">
-              To join a church or band that already uses Setlists.md, ask its leader for the join link.
-              To start a new one, write to us and we will set it up for you.
+              One account can own one church or band. To join another, use Join another team on your team’s page, or open its leader’s invite link.
+              If you need to own a second one, write to hello@setlists.md.
             </p>
           </div>
         </div>

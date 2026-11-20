@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { planOf, planKeyOf } from '@/lib/plans';
 import { TemplatesList, TemplateEditor, TemplateView } from '@/features/setlist/TemplateEditor';
 import { templatesOf, blankTemplate } from '@/lib/newSetlist';
 import { useAuth } from '@/auth/useAuth';
@@ -30,7 +31,6 @@ const LAB_FLAGS = [
   { id: 'chartV2', label: 'New chart (work in progress) when you press Play' },
 ];
 
-const PLAN_NAMES = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
 const STATUS = { active: 'Active', trialing: 'Trial', past_due: 'Past due', unpaid: 'Unpaid', canceled: 'Cancelled' };
 const DAY_MS = 86400000;
 
@@ -52,7 +52,7 @@ export default function SettingsPage({
   const toHub = onBack;
   const set = (key, value) => onUpdate(prev => ({ ...prev, [key]: value }));
 
-  const church = activeLibrary !== 'personal' && team && team.kind !== 'personal' ? team : null;
+  const church = activeLibrary && team ? team : null;
   const leader = !!church && (isAdmin || team?.owner_id === user?.id);
   const me = { name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null };
 
@@ -189,7 +189,7 @@ export default function SettingsPage({
       return (
         <PlanView
           church={church}
-          plan={{ label: PLAN_NAMES[planKey] || planKey, status: STATUS[status] || 'Active', tone: billingOk ? null : 'bad', maxSeats: church.max_seats || null, usedSeats: members.length }}
+          plan={{ key: planKeyOf(planKey), label: planOf(planKey).label, status: STATUS[status] || 'Active', tone: billingOk ? null : 'bad', maxSeats: church.max_seats || null, usedSeats: members.length }}
           billingLive={BILLING_ENABLED}
           onSubscribe={!billingOk ? () => runBilling(() => startTeamCheckout(church.id, church.plan)) : undefined}
           onManage={() => runBilling(() => openBillingPortal(church.id))}

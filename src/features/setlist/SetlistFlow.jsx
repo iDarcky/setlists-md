@@ -295,7 +295,7 @@ function SongSettings({ item, song, people, setlists, draftId, nameOf, today, on
 export default function SetlistFlow({
   setlist, isNew = false, songs = [], setlists = [], peopleOf = () => [], nameOf = () => '',
   team = null, members = [], schedules = [], setlistMap = {}, createSchedule, deleteSchedule, ensureRow,
-  onSave, onCancel, onDirtyChange, initialStep, space = 'personal',
+  onSave, onCancel, onDirtyChange, initialStep, space,
   // New song from Add songs: App adds them to the library and hands back the
   // songs to put in the setlist (an existing title resolves to that song).
   onCreateSongs = null,

@@ -15,11 +15,10 @@ import { callEdgeFunction } from '@/sync/edge';
 export const BILLING_ENABLED =
   String(import.meta.env.VITE_STRIPE_ENABLED || '').toLowerCase() === 'true';
 
-// Cap how many workspaces one account may OWN. Without live billing there is
-// nothing stopping a user creating endless Spaces, so we limit creation to a
-// sane number for now (church/team tier is still granted manually in the DB).
-// First-Space onboarding counts toward the cap like any other owned Space.
-export const MAX_OWNED_WORKSPACES = Number(import.meta.env.VITE_MAX_OWNED_WORKSPACES) || 4;
+// One account owns at most one church or band (owner, 2026-11-19). If
+// someone needs to own more, we rethink it then. The database enforces the
+// same rule (20261121_plans_free_band_church.sql).
+export const MAX_OWNED_WORKSPACES = 1;
 
 // Where to point users who want more Spaces than the cap allows.
 export const SUPPORT_CONTACT = 'support@setlists.md';

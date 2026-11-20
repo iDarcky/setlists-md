@@ -26,7 +26,7 @@ export function songFacts(song, setlists = [], now = Date.now()) {
     next = {
       setlist: sl,
       label: dayLabel(sl.date),
-      name: sl.name || sl.title || 'Service',
+      name: sl.name || sl.title || 'Untitled setlist',
       position: songs.findIndex(it => it.songId === song.id) + 1,
     };
   }

@@ -61,8 +61,8 @@ export function upcomingSetlists(setlists = [], now = Date.now()) {
 
 /**
  * The service Home leads with. A member sees the next one they play; a leader
- * runs them all, so sees the church's next one. Without a team (a personal
- * library) it is simply the next dated setlist.
+ * runs them all, so sees the church's next one. Without a team it is simply
+ * the next dated setlist.
  * @returns {{ setlist, schedule } | null}
  */
 export function nextUp({ setlists = [], schedules = [], userId, setlistMap = {}, now = Date.now(), inTeam = false, leader = false }) {
