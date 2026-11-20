@@ -60,6 +60,7 @@ function canShare() {
 
 /** The leader's steps once the team exists. */
 function AfterCreate({ team, userId, request, onRequestChange, onOpenTeam }) {
+  const { reloadMembers } = useTeam();
   const [step, setStep] = useState('instruments');
   const [parts, setParts] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -98,6 +99,9 @@ function AfterCreate({ team, userId, request, onRequestChange, onOpenTeam }) {
           setError('');
           try {
             await saveMyInstruments(team.id, userId, parts);
+            // The team's members were read when it was made, before this
+            // save: read them again so You and People show the picks.
+            reloadMembers?.();
             setStep('invite');
           } catch (err) {
             setError(err?.message || 'That didn’t save. Check your connection and try again.');
