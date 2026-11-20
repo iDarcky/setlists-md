@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react';
-import { useMediaQuery } from '@/lib/useMediaQuery';
 import { parseImportFiles, IMPORT_ACCEPT } from '@/lib/importFiles';
 import { markToCheck } from '@/lib/importCheck';
 import { matchSongByTitle } from '@/lib/setlistLinks';
@@ -8,30 +7,24 @@ import { AddSongSheet } from './SongsSheets';
 import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
 
 /**
- * Adding songs: the Add a song sheet, the import picker and the review sheet,
+ * Adding songs: the New song sheet, the import picker and the review sheet,
  * opened in place on whichever page asked. Home's + used to jump to Songs and
  * open the sheet there, so closing it left you on another tab (owner,
- * 2026-11-15: "it's not ok").
+ * 2026-11-15: "it's not ok"). The + menu picks New song or Import directly,
+ * so there is no "Add a song" chooser any more (owner, 2026-11-20).
  *
- * @param {null|'add'|'new'|'import'} mode  which sheet is up ('new' skips
- *   the Add a song chooser and opens the details form)
+ * @param {null|'new'|'import'} mode  which sheet is up
  * @param {(mode) => void} onMode
  */
 export default function AddSongFlow({
-  mode, onMode, songs = [], onSearchCatalog, onImportSongs, onImportSetlistFile, onEditImported, onBlank,
+  mode, onMode, songs = [], onImportSongs, onImportSetlistFile, onEditImported, onBlank,
 }) {
-  const wide = useMediaQuery('(min-width: 640px)');
   const fileRef = useRef(null);
   const [reading, setReading] = useState(false);
   const [importError, setImportError] = useState('');
   const [review, setReview] = useState(null); // { items, failed, source }
   const artists = useMemo(() => libraryArtists(songs), [songs]);
 
-  // A phone has no drag and drop, so Import goes straight to the file picker.
-  const startImport = () => {
-    setImportError('');
-    if (wide) onMode('import'); else { onMode(null); fileRef.current?.click(); }
-  };
   const readFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
@@ -60,11 +53,8 @@ export default function AddSongFlow({
   return (
     <>
       <AddSongSheet
-        open={mode === 'add' || mode === 'new'}
-        direct={mode === 'new'}
-        onOpenChange={(o) => onMode(o ? mode : null)}
-        onSearch={onSearchCatalog}
-        onImport={onImportSongs ? startImport : null}
+        open={mode === 'new'}
+        onOpenChange={(o) => onMode(o ? 'new' : null)}
         onBlank={onBlank}
         songs={songs}
         artists={artists}
@@ -81,7 +71,7 @@ export default function AddSongFlow({
         <>
           <ImportPickSheet
             open={mode === 'import'}
-            onOpenChange={(o) => onMode(o ? 'import' : null)}
+            onOpenChange={(o) => { if (o) onMode('import'); else { onMode(null); setImportError(''); } }}
             onFiles={readFiles}
             onChoose={() => fileRef.current?.click()}
             busy={reading}

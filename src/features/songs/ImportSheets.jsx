@@ -4,36 +4,53 @@ import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { CheckIcon } from '@/app/navIcons';
 import { songKey } from '@/lib/songsData';
+import { useMediaQuery } from '@/lib/useMediaQuery';
+import { FileText } from 'lucide-react';
 
-// Import, rebuilt (canvas → Import + public domain). Pick files (a drop zone
-// from the iPad up; a phone goes straight to the file picker), then every song
-// is listed before anything is added. A song the library already has updates
-// in place; untick it to leave it alone.
+// Import, rebuilt (canvas → Import + public domain). Pick files, then every
+// song is listed before anything is added. A song the library already has
+// updates in place; untick it to leave it alone.
 
-const FileIcon = () => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M12 12v6M9 15l3 3 3-3" /></svg>
-);
+const FORMATS = 'PDFs, ChordPro, OpenSong, .md or a .zip';
 
-/** The drop zone. `onFiles(FileList)`; `onChoose` opens the file picker. */
+/**
+ * Pick the files. From the iPad up a centred dialog with a drop zone; a phone
+ * has no drag and drop, so it gets one line and Choose files (owner,
+ * 2026-11-20). `onFiles(FileList)`; `onChoose` opens the file picker.
+ */
 export function ImportPickSheet({ open, onOpenChange, onFiles, onChoose, busy = false, error = '' }) {
+  const wide = useMediaQuery('(min-width: 640px)');
   const [over, setOver] = useState(false);
   const depth = useRef(0);
+  const choose = (
+    <Button size={wide ? 'sm' : 'default'} className={cn(wide ? 'mt-1.5' : 'w-full')} disabled={busy} onClick={onChoose}>
+      {!wide && <FileText size={18} strokeWidth={1.8} aria-hidden="true" />}
+      {busy ? 'Reading files…' : 'Choose files'}
+    </Button>
+  );
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Import songs" className="h-auto sm:max-w-[520px]">
       <div className="flex flex-col gap-3.5">
-        <div
-          onDragEnter={(e) => { e.preventDefault(); depth.current += 1; setOver(true); }}
-          onDragLeave={(e) => { e.preventDefault(); depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); }}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); depth.current = 0; setOver(false); onFiles?.(e.dataTransfer.files); }}
-          className={cn('flex flex-col items-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-input px-5 py-9 text-center', over && 'border-link bg-selected')}
-        >
-          <span className="text-link"><FileIcon /></span>
-          <b className="text-body">{busy ? 'Reading files…' : 'Drop files here'}</b>
-          <span className="text-small text-muted-foreground">ChordPro, OpenSong, .md, text, PDF, or a .zip of many songs</span>
-          <Button size="sm" className="mt-1.5" disabled={busy} onClick={onChoose}>Choose files</Button>
-        </div>
-        {error && <p role="alert" className="m-0 text-small text-danger">{error}</p>}
+        {wide ? (
+          <div
+            onDragEnter={(e) => { e.preventDefault(); depth.current += 1; setOver(true); }}
+            onDragLeave={(e) => { e.preventDefault(); depth.current = Math.max(0, depth.current - 1); if (!depth.current) setOver(false); }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); depth.current = 0; setOver(false); onFiles?.(e.dataTransfer.files); }}
+            className={cn('flex flex-col items-center gap-2 rounded-[14px] border-[1.5px] border-dashed border-input px-5 py-9 text-center', over && 'border-foreground bg-raised')}
+          >
+            <span className="text-muted-foreground"><FileText size={22} strokeWidth={1.8} aria-hidden="true" /></span>
+            <b className="text-body">{busy ? 'Reading files…' : 'Drop files here'}</b>
+            <span className="text-small text-muted-foreground">{FORMATS}</span>
+            {choose}
+          </div>
+        ) : (
+          <>
+            <p className="m-0 text-small text-muted-foreground">{FORMATS}. Pick as many as you like.</p>
+            {choose}
+          </>
+        )}
+        {error && <p role="alert" className="m-0 text-small text-danger-text">{error}</p>}
         <p className="m-0 text-small text-muted-foreground">Next you’ll see every song before anything is added.</p>
       </div>
     </Sheet>

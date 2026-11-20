@@ -2440,6 +2440,7 @@ export default function App() {
               readOnly={isTeamReadOnly}
               onOpenSong={goChart}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}

@@ -10,6 +10,7 @@ import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
+import { CreateButton } from '@/ui/shadcn/create-button';
 import { useLongPress } from '@/lib/useLongPress';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useRevealList } from '@/hooks/useRevealList';
@@ -157,7 +158,7 @@ export function FilterSheet({ open, onOpenChange, sort, onSort, filters, onFilte
 export default function SongsView({
   leader = false, total = 0, rows = [], nextLabel = '', query = '', onQuery,
   sort = 'az', onSort, filters, onFilters, options = { keys: [], themes: [] },
-  onOpen, onEdit, onAdd, onTag, onDelete, onMove, onCopy, toCheck = 0, onCheckNext, embedded = false, layout = 'auto',
+  onOpen, onEdit, onAdd, create = [], onTag, onDelete, onMove, onCopy, toCheck = 0, onCheckNext, embedded = false, layout = 'auto',
 }) {
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -205,8 +206,8 @@ export default function SongsView({
             )}
             {selecting ? (
               <Button variant="outline" size="sm" onClick={stopSelect}>Done</Button>
-            ) : leader && onAdd ? (
-              <Button size="icon" aria-label="Add a song" className="size-11 shrink-0 rounded-control" onClick={onAdd}><Plus size={20} strokeWidth={2} aria-hidden="true" /></Button>
+            ) : leader ? (
+              <CreateButton items={create} />
             ) : null}
         </PageHeader>
 
