@@ -24,6 +24,7 @@ export default function FullscreenReader({
   // the practice row always open; the host's own tools row underneath.
   mode = undefined,
   practiceAlways = false,
+  practiceNote = null,
   footer = null,
   // Element 28 — where a locked control in the ☰ sends you.
 }) {
@@ -71,6 +72,7 @@ export default function FullscreenReader({
         onExit={onClose}
         mode={mode}
         practiceAlways={practiceAlways}
+        practiceNote={practiceNote}
         footer={footer}
       />
       <div

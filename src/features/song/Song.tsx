@@ -5,12 +5,10 @@ import { transposeKey, keyPrefersSharps, semitonesBetween } from '@/music';
 import { songFacts } from '@/lib/songPage';
 import { sectionTone as sectionToneJs } from '@/lib/sectionTone';
 import { transposeArrangement } from '@/lib/transposeArrangement';
-import { readerSettingKey } from '@/lib/readerConfig';
 import { FullscreenReader } from './typed';
 import { printSong } from '@/pdf/printSetlist';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { SongPage } from './SongPage';
-import { PracticeBar } from './PracticeBar';
 import type { Arrangement, Facts, MenuEntry, SectionCode, SongView } from './typed';
 
 // The song page: works out the facts from the library and setlists and hands
@@ -47,9 +45,6 @@ export default function Song({
   const [arrId, setArrId] = useState<string | undefined>(songInput?.arrangements ? songInput.defaultArrangementId : undefined);
   const [semis, setSemis] = useState(0);
   const [practice, setPractice] = useState(false);
-  // Practice's own switches. Notes start ON: Practice is where they live.
-  const [show, setShow] = useState<'chords' | 'lyrics'>('chords');
-  const [notes, setNotes] = useState(true);
   useWakeLock(settings?.keepAwake === true);
 
   const song: ResolvedSong | null = useMemo(
@@ -96,12 +91,6 @@ export default function Song({
     () => (song ? (buildSongFlow(song).ordered || []).map((sec: { type?: string } | null) => sectionTone(sec?.type, settings?.customSectionTypes)) : []),
     [song, settings?.customSectionTypes],
   );
-  // The reader's notes switches, set for Practice only; the saved settings are untouched.
-  const practiceSettings = useMemo(() => ({
-    ...settings,
-    [readerSettingKey('notes')]: notes ? 'on' : 'off',
-    [readerSettingKey('inlineNotes')]: notes ? 'on' : 'off',
-  }), [settings, notes]);
 
   if (!song) return null;
 
@@ -136,14 +125,15 @@ export default function Song({
       {practice && (
         <FullscreenReader
           song={song}
-          settings={practiceSettings}
+          // What the chart shows and whether notes show are the reader's ☰,
+          // the one place for them (owner, 2026-11-20).
+          settings={settings}
           onUpdateSettings={onUpdateSettings}
           mode="practice"
           practiceAlways
-          displayMode={show}
           selectedKey={shown}
           onSelectKey={pickKey}
-          footer={<PracticeBar show={show} onShow={setShow} notes={notes} onNotes={setNotes} bandNote={song.notes} />}
+          practiceNote={song.notes}
           onClose={() => setPractice(false)}
         />
       )}

@@ -25,7 +25,8 @@ vi.mock('@/lib/embedPlayers', () => ({
         this.getCurrentTime = () => 0;
         this.getAvailablePlaybackRates = () => [0.5, 0.75, 1, 1.25, 1.5];
         this.setPlaybackRate = setPlaybackRate;
-        this.playVideo = () => {};
+        // Playing is what opens the speed strip, so the mock reports it.
+        this.playVideo = () => this.opts.events.onStateChange({ data: 1, target: this });
         this.pauseVideo = () => {};
         this.seekTo = () => {};
         this.destroy = () => {};
@@ -122,6 +123,8 @@ const openTools = () => {
 };
 // Starting is the ROW's job, not the icon's.
 const startClick = () => fireEvent.click(screen.getByRole('button', { name: 'Start the click' }));
+// The −/+ shows only while its tool is on (owner, 2026-11-20).
+const playTrack = () => fireEvent.click(screen.getByRole('button', { name: 'Play backing track' }));
 
 // The play button is in the DOM (disabled) from the first frame, so its mere
 // presence is NOT readiness — the rate list only arrives with the player's
@@ -144,7 +147,7 @@ describe('element 12 — getting to the tools', () => {
     openSongActions();
     expect(screen.getByRole('button', { name: 'Practice tools' })).toBeTruthy();
     // The row is not chrome you pay for while reading.
-    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start the click' })).toBeNull();
   });
 
   it('the icon opens the row and does NOT start the click', () => {
@@ -152,8 +155,9 @@ describe('element 12 — getting to the tools', () => {
     // tool announcing itself before being asked.
     renderReader();
     openTools();
-    expect(screen.getByLabelText('Click tempo up')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Start the click' })).toBeTruthy();
+    // Its −/+ waits until the click is on.
+    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
     expect(FakeAudioContext.scheduled ?? []).toHaveLength(0);
   });
 
@@ -172,7 +176,7 @@ describe('element 12 — getting to the tools', () => {
     // tap to get back to it.
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Close practice tools' }));
-    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start the click' })).toBeNull();
   });
 
   it('silencing the click keeps the row — the track controls must survive it', () => {
@@ -181,7 +185,8 @@ describe('element 12 — getting to the tools', () => {
     startClick();
     fireEvent.click(screen.getByRole('button', { name: 'Stop the click' }));
     expect(screen.getByRole('button', { name: 'Start the click' })).toBeTruthy();
-    expect(screen.getByLabelText('Click tempo up')).toBeTruthy();
+    // The tempo strip goes with the click; the tool stays.
+    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
   });
 
   it('leaves the toggle off when the device has no Web Audio at all', () => {
@@ -198,12 +203,14 @@ describe('element 12 — slow-down', () => {
   it('starts at the song’s written tempo', () => {
     renderReader();
     openTools();
+    startClick();
     expect(screen.getByText('90')).toBeTruthy();
   });
 
   it('steps in whole bpm, both ways', () => {
     renderReader();
     openTools();
+    startClick();
     fireEvent.pointerDown(screen.getByLabelText('Click tempo down'));
     expect(screen.getByText('89')).toBeTruthy();
     fireEvent.pointerDown(screen.getByLabelText('Click tempo up'));
@@ -214,6 +221,7 @@ describe('element 12 — slow-down', () => {
   it('offers one tap back to the written tempo, and only once you have left it', () => {
     renderReader();
     openTools();
+    startClick();
     expect(screen.queryByLabelText('Back to the written tempo, 90')).toBeNull();
     fireEvent.pointerDown(screen.getByLabelText('Click tempo down'));
     const back = screen.getByLabelText('Back to the written tempo, 90');
@@ -224,6 +232,7 @@ describe('element 12 — slow-down', () => {
   it('falls back to a usable tempo when the song has none written', () => {
     render(<Reader song={makeSong({ tempo: '' })} settings={{}} mode="practice" onExit={() => {}} />);
     openTools();
+    startClick();
     // 100, not 40: `Number('')` is 0 and would have clamped to the floor.
     expect(screen.getByText('100')).toBeTruthy();
   });
@@ -248,7 +257,9 @@ describe('element 12 — the backing track', () => {
     );
     openTools();
     await trackReady();
-    expect(screen.getByRole('button', { name: 'Play backing track' })).toBeTruthy();
+    expect(screen.queryByText('1×')).toBeNull();
+    playTrack();
+    expect(screen.getByRole('button', { name: 'Pause backing track' })).toBeTruthy();
     expect(screen.getByText('1×')).toBeTruthy();
   });
 
@@ -263,6 +274,8 @@ describe('element 12 — the backing track', () => {
     );
     openTools();
     await trackReady();
+    startClick();
+    playTrack();
 
     fireEvent.pointerDown(screen.getByLabelText('Backing-track speed down'));
     // Steps through the rates the player actually offers, so it can never land
@@ -296,6 +309,7 @@ describe('element 12 — leaving a song', () => {
     // A click left running from the last song is confidently wrong.
     expect(screen.getByRole('button', { name: 'Start the click' })).toBeTruthy();
     // And the tempo is the NEW song's, not the one left over.
+    startClick();
     expect(screen.getByText('130')).toBeTruthy();
   });
 });
@@ -322,7 +336,7 @@ describe('element 12 — when the service starts', () => {
     // What App does when the ☰'s Live switch is flipped.
     rerender(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
 
-    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start the click' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Stop the click' })).toBeNull();
   });
 
@@ -334,7 +348,7 @@ describe('element 12 — when the service starts', () => {
     rerender(<Reader song={makeSong()} settings={{}} mode="live" onExit={() => {}} />);
     rerender(<Reader song={makeSong()} settings={{}} mode="practice" onExit={() => {}} />);
     // Closed, not remembered: live closed it, and coming back is a fresh ask.
-    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start the click' })).toBeNull();
   });
 });
 
@@ -348,6 +362,7 @@ describe('element 12 — the practice tempo stays in the session', () => {
     render(<Reader song={makeSong()} settings={{}} mode="practice"
       onExit={() => {}} onUpdateSong={onUpdateSong} />);
     openTools();
+    startClick();
     fireEvent.pointerDown(screen.getByLabelText('Click tempo down'));
     expect(screen.queryByRole('button', { name: /^Save/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Tap tempo/ })).toBeNull();

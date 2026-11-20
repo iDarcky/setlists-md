@@ -346,6 +346,9 @@ export default function Reader({
   // backing track) is simply THERE, and the unlabelled circle that toggled it
   // goes. Only meaningful where `can.practiceTools` is true.
   practiceAlways = false,
+  // The arrangement's note for the band, shown over the practice row while the
+  // ☰'s Notes switch is on (the song page's Practice; nowhere else shows it).
+  practiceNote = null,
   // Element 10, 'swipe': a horizontal-dominant swipe on the chart advances.
   // Vertical scroll is untouched — the gesture only fires past a threshold
   // where |dx| clearly beats |dy|.
@@ -2482,6 +2485,11 @@ export default function Reader({
           )}
           {showChrome && practiceRowOpen && (
             <div className={`reader-row-in wide-container py-1${footer ? ' border-b' : ''}`} style={footer ? rule : undefined}>
+              {practiceNote?.trim() && (settings?.readerNotes || 'on') === 'on' && (
+                <p className="m-0 pb-1.5 pt-0.5 line-clamp-2 text-left text-small leading-5" style={{ color: 'var(--chart-text, var(--ds-gray-1000))' }}>
+                  <b className="font-semibold">Note: </b>{practiceNote.trim()}
+                </p>
+              )}
               <ReaderPracticeRow
                 song={song}
                 bpm={bpm}

@@ -33,13 +33,21 @@ describe('Song page', () => {
     expect(screen.queryByText(/Soft start/)).toBeNull();
   });
 
-  it('Practice opens the reader in practice mode, with the notes and the switches', () => {
+  it('Practice opens the reader in practice mode: the band note, then Click', () => {
     render(<Song song={song()} settings={{}} layout="phone" />);
     fireEvent.click(screen.getByRole('button', { name: 'Practice' }));
     const reader = screen.getByRole('dialog', { name: /full screen/ });
     expect(within(reader).queryByText('Live')).toBeNull();
     expect(within(reader).getByText(/Soft start/)).toBeTruthy();
-    fireEvent.click(within(reader).getByRole('button', { name: 'Notes' }));
+    expect(within(reader).getByRole('button', { name: 'Start the click' })).toBeTruthy();
+    // Lyrics only and Notes are the ☰'s, not a second set down here.
+    expect(within(reader).queryByRole('button', { name: 'Notes' })).toBeNull();
+  });
+
+  it('the ☰ Notes switch is what hides the band note in Practice', () => {
+    render(<Song song={song()} settings={{ readerNotes: 'off' }} layout="phone" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Practice' }));
+    const reader = screen.getByRole('dialog', { name: /full screen/ });
     expect(within(reader).queryByText(/Soft start/)).toBeNull();
   });
 

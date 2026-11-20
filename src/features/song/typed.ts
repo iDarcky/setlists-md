@@ -67,6 +67,7 @@ export const FullscreenReader = FullscreenReaderJs as unknown as ComponentType<{
   onUpdateSettings?: (key: string, value: unknown) => void;
   mode?: 'live' | 'practice';
   practiceAlways?: boolean;
+  practiceNote?: string;
   displayMode?: 'chords' | 'lyrics';
   selectedKey?: string;
   onSelectKey?: (key: string) => void;
