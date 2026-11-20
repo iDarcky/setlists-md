@@ -44,7 +44,7 @@ describe('Setlist: a song the library does not have', () => {
     expect(screen.getByText('No song called “Oceans” yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New song “Oceans”' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Import PDFs' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Keep a “Oceans” slot, choose later' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep an “Oceans” slot, choose later' })).toBeInTheDocument();
   });
   it('New song opens the same details sheet, named, saying where it goes', () => {
     setup();
@@ -55,7 +55,7 @@ describe('Setlist: a song the library does not have', () => {
   });
   it('a kept slot reads "Oceans · no chart yet"', () => {
     setup();
-    fireEvent.click(screen.getByRole('button', { name: 'Keep a “Oceans” slot, choose later' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep an “Oceans” slot, choose later' }));
     expect(screen.getByText('· no chart yet', { exact: false })).toBeInTheDocument();
   });
 });

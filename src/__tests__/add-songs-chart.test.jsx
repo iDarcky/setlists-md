@@ -64,3 +64,19 @@ describe('New song details', () => {
     expect(screen.getByRole('radio', { name: '4/4' })).toHaveAttribute('aria-checked', 'true');
   });
 });
+
+describe('Import: a scanned PDF', () => {
+  it('says it is a photo and offers to paste the words', async () => {
+    const { ImportScanSheet } = await import('@/features/songs/ImportScanSheet');
+    const onPaste = vi.fn();
+    render(<ImportScanSheet open scans={['Viața mea.pdf']} readCount={5} onSkip={vi.fn()} onPaste={onPaste} />);
+    expect(screen.getByText('Viața mea.pdf is a photo of a page.')).toBeInTheDocument();
+    expect(screen.getByText('The other 5 songs were read. You’ll see them next.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Paste the words instead' }));
+    expect(onPaste).toHaveBeenCalledWith('Viața mea.pdf');
+  });
+  it('finds the scans among the failed files', async () => {
+    const { scannedFiles } = await import('@/lib/importFiles');
+    expect(scannedFiles(['a.pdf (scanned image — no text to read)', 'b.txt'])).toEqual(['a.pdf']);
+  });
+});

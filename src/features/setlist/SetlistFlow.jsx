@@ -236,7 +236,7 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
       {/* Not searching, or found something: the same two rows, under the list. */}
       {(onNewSong || onImport) && !(empty && q.trim()) && newRows}
       <Button variant="link" className="self-start text-small" onClick={() => onEmptySlot(q.trim())}>
-        {q.trim() ? `Keep a “${q.trim()}” slot, choose later` : 'Add an empty “Song”, choose later'}
+        {q.trim() ? `Keep ${/^[aeiou]/i.test(q.trim()) ? 'an' : 'a'} “${q.trim()}” slot, choose later` : 'Add an empty “Song”, choose later'}
       </Button>
     </div>
   );
