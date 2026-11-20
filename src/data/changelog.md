@@ -2,6 +2,30 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.27.0 — A new way in
+*November 2026*
+
+### Added
+- **New first screens.** Create an account or log in from the first screen, set up your team or join one with a 6-character code, and pick what you play.
+- **Join another team from inside the app**, from the team switcher or your team's page.
+- **Plans by team size.** Every team gets every feature. Free is for up to 5 people, Band up to 15, Church up to 40.
+- **A new Delete account screen.** If you lead a team, it goes to the next leader instead of being deleted.
+
+### Improved
+- **The phone's back gesture** goes back one screen while you sign up, instead of leaving.
+- **What you play** shows in the app as soon as you pick it.
+- **Phone sheets** scroll the whole artist list and only drag from the top.
+- **Emails show the logo.**
+
+### Fixed
+- **A full team says so** when someone tries to join, instead of leaving them waiting.
+
+## 0.26.1 — Setlists come back on the new address
+*November 2026*
+
+### Fixed
+- **Setlists and songs missing on the new address.** A phone that missed part of its first download at app.setlists.md now downloads everything again by itself.
+
 ## 0.26.0 — New address, new Home
 *November 2026*
 
