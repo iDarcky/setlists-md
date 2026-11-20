@@ -10,7 +10,6 @@ import {
   clearPendingJoin,
 } from '@/lib/joinLink';
 import WebSheet from '@/features/legal/WebSheet';
-import { lastEmail } from '@/lib/lastEmail';
 import { SigningInView } from '@/features/intro/IntroAuthViews';
 import { InstrumentsView } from '@/features/intro/IntroStartViews';
 import { JoinInviteView, WaitingView, YoureInView, DeclinedView, BadLinkView } from '@/features/intro/IntroJoinViews';
@@ -225,7 +224,8 @@ export default function JoinFlow({ code, onJoined, onSkipHome, onExit, onPasswor
         church={church}
         invitedBy={peek?.leader_name}
         {...providers}
-        onEmail={() => onPasswordSignIn?.(lastEmail() ? 'signin' : 'signup', church)}
+        onCreateAccount={() => onPasswordSignIn?.('signup', church)}
+        onLogIn={() => onPasswordSignIn?.('signin', church)}
         onShowLegal={setLegal}
       />
       <WebSheet page={legal} onClose={() => setLegal(null)} />

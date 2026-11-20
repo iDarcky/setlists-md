@@ -44,7 +44,9 @@ describe('JoinFlow', () => {
     expect(screen.getByText('Ana invited you. A leader lets you in.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Continue with Apple/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Continue with Google/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Continue with email/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Log in/ }));
+    expect(onPasswordSignIn).toHaveBeenCalledWith('signin', { name: 'Grace Church', logoUrl: null, initials: 'GC' });
+    fireEvent.click(screen.getByRole('button', { name: /Sign up with email/ }));
     expect(onPasswordSignIn).toHaveBeenCalledWith('signup', { name: 'Grace Church', logoUrl: null, initials: 'GC' });
     expect(JSON.parse(localStorage.getItem('setlists-md:pending-join'))).toMatchObject({ code: CODE, stage: 'auth' });
   });

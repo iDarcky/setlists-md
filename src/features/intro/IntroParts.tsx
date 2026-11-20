@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { Check, Mail } from 'lucide-react';
 import { JOIN_PARTS, toggleJoinPart } from '@/lib/joinLink';
-import { Button, LogoMark } from './ui';
+import { Button, LogoMark, TextLink } from './ui';
 
 const AppleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.5-1-2.5-3.9zM14 5.5c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1.1.1 2.1-.6 2.8-1.4z" /></svg>
@@ -50,7 +50,8 @@ export function ChordHeadline() {
 export interface ProviderProps {
   onApple: () => void;
   onGoogle: () => void;
-  onEmail: () => void;
+  onCreateAccount: () => void;
+  onLogIn: () => void;
   busy?: 'apple' | 'google' | null;
 }
 
@@ -64,15 +65,26 @@ function signInProviders(): { apple: boolean; google: boolean } {
   return { apple: env.VITE_ENABLE_APPLE_SIGNIN === 'true', google: env.VITE_ENABLE_GOOGLE_SIGNIN === 'true' };
 }
 
-/** Apple (ink), Google (outline), email (quiet): one sign-in for new and returning people. */
-export function ProviderButtons({ onApple, onGoogle, onEmail, busy }: ProviderProps) {
+/**
+ * The way in. Email only: Create account (ink) and Log in (outline), one tap
+ * from the first screen. With Apple / Google on, they lead and email goes quiet.
+ */
+export function ProviderButtons({ onApple, onGoogle, onCreateAccount, onLogIn, busy }: ProviderProps) {
   const { apple, google } = signInProviders();
-  const emailOnly = !apple && !google;
+  if (!apple && !google) {
+    return (
+      <>
+        <Button onClick={onCreateAccount}>Create account</Button>
+        <Button variant="outline" onClick={onLogIn}>Log in</Button>
+      </>
+    );
+  }
   return (
     <>
       {apple && <Button onClick={onApple} loading={busy === 'apple'} disabled={!!busy}><AppleIcon /> Continue with Apple</Button>}
       {google && <Button variant="outline" onClick={onGoogle} loading={busy === 'google'} disabled={!!busy}><GoogleIcon /> Continue with Google</Button>}
-      <Button variant={emailOnly ? 'default' : 'ghost'} className={emailOnly ? undefined : 'hover:bg-transparent'} onClick={onEmail} disabled={!!busy}><Mail size={18} strokeWidth={1.8} aria-hidden="true" /> Continue with email</Button>
+      <Button variant="ghost" className="hover:bg-transparent" onClick={onCreateAccount} disabled={!!busy}><Mail size={18} strokeWidth={1.8} aria-hidden="true" /> Sign up with email</Button>
+      <TextLink question="Have an account?" answer="Log in" onClick={onLogIn} />
     </>
   );
 }
