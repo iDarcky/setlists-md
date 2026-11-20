@@ -63,13 +63,13 @@ export function WaitingView({ church, name, parts, onSignOut, embedded }: {
 
 // ── J3 You're in ────────────────────────────────────────────────────────────
 
-export function YoureInView({ church, leaderName, onContinue, embedded }: {
-  church?: Church | null; leaderName?: string | null; onContinue: () => void; embedded?: boolean;
+export function YoureInView({ church, onContinue, embedded }: {
+  church?: Church | null; onContinue: () => void; embedded?: boolean;
 }) {
   return (
     <AuthLayout embedded={embedded}>
       <SuccessBadge />
-      <AuthHeader title={`You’re in ${nameOf(church)}`} sub={leaderName ? `${leaderName} let you in.` : undefined} />
+      <AuthHeader title={`You’re in ${nameOf(church)}`} />
       <FormActions><Button onClick={onContinue}>Continue</Button></FormActions>
     </AuthLayout>
   );

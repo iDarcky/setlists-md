@@ -51,7 +51,6 @@ export const OneTimeCode = OneTimeCodeJs as unknown as ComponentType<{
   letters?: boolean;
   answer?: 'Accept' | 'Reject' | null;
   onFull?: (code: string) => void;
-  onCodeChange?: (code: string) => void;
   label?: string;
 }>;
 

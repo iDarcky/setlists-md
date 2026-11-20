@@ -165,13 +165,13 @@ export function InviteTeamView({ code, url, copied, onCopy, onShare, onLater, on
         <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
           <span className="truncate font-mono text-small text-muted-foreground">{url ? url.replace(/^https?:\/\//, '') : '…'}</span>
           <Button variant="link" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-small" onClick={onCopy} disabled={!url}>
-            {copied ? <><Check size={14} aria-hidden="true" /> Copied</> : <><Copy size={14} aria-hidden="true" /> Copy link</>}
+            {copied ? <><Check size={14} strokeWidth={1.8} aria-hidden="true" /> Copied</> : <><Copy size={14} strokeWidth={1.8} aria-hidden="true" /> Copy link</>}
           </Button>
         </div>
       </Card>
       {error && <Alert variant="danger">{error}</Alert>}
       <FormActions>
-        {onShare && <Button onClick={onShare} disabled={!url}><Share size={18} aria-hidden="true" /> Share invite</Button>}
+        {onShare && <Button onClick={onShare} disabled={!url}><Share size={18} strokeWidth={1.8} aria-hidden="true" /> Share invite</Button>}
         <Button variant={onShare ? 'ghost' : 'default'} className={onShare ? 'hover:bg-transparent' : undefined} onClick={onLater}>
           {onShare ? 'Later' : 'Continue'}
         </Button>
@@ -198,7 +198,7 @@ export function GetAppView({ teamName, install, alerts, onOpen, onBack, progress
       <div className="flex flex-col">
         {rows.map(([icon, s]) => (
           <div key={s.title} className="flex items-center gap-3.5 border-t border-border py-4 last:border-b">
-            <IconSquare>{s.done ? <Check size={20} strokeWidth={2.2} /> : icon}</IconSquare>
+            <IconSquare>{s.done ? <Check size={20} strokeWidth={1.8} /> : icon}</IconSquare>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
               <span className="text-body font-semibold">{s.title}</span>
               <span className="text-small text-muted-foreground">{s.body}</span>

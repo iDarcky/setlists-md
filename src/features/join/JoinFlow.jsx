@@ -10,17 +10,13 @@ import {
   clearPendingJoin,
 } from '@/lib/joinLink';
 import WebSheet from '@/features/legal/WebSheet';
+import { lastEmail } from '@/lib/lastEmail';
 import { SigningInView } from '@/features/intro/IntroAuthViews';
 import { InstrumentsView } from '@/features/intro/IntroStartViews';
 import { JoinInviteView, WaitingView, YoureInView, DeclinedView, BadLinkView } from '@/features/intro/IntroJoinViews';
 import { useProviderSignIn } from '@/features/intro/useProviderSignIn';
 import GetAppScreen from '@/features/start/GetAppScreen';
 import { peekJoinLink, requestToJoin } from './joinApi';
-
-// Has this device logged in before? Then email means Log in.
-function knownEmail() {
-  try { return !!window.localStorage.getItem('setlists-md:last-email'); } catch { return false; }
-}
 
 // ── The flow ────────────────────────────────────────────────────────────────
 
@@ -189,7 +185,7 @@ export default function JoinFlow({ code, onJoined, onSkipHome, onExit, onPasswor
     if (inStep === 'app') {
       return <GetAppScreen teamName={church?.name} onOpen={() => onSkipHome?.(teamId)} progress={null} />;
     }
-    return <YoureInView church={church} leaderName={peek?.leader_name} onContinue={() => setInStep('app')} />;
+    return <YoureInView church={church} onContinue={() => setInStep('app')} />;
   }
 
   if (step === 'declined') {
@@ -229,7 +225,7 @@ export default function JoinFlow({ code, onJoined, onSkipHome, onExit, onPasswor
         church={church}
         invitedBy={peek?.leader_name}
         {...providers}
-        onEmail={() => onPasswordSignIn?.(knownEmail() ? 'signin' : 'signup', church)}
+        onEmail={() => onPasswordSignIn?.(lastEmail() ? 'signin' : 'signup', church)}
         onShowLegal={setLegal}
       />
       <WebSheet page={legal} onClose={() => setLegal(null)} />

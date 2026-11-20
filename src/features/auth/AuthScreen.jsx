@@ -4,15 +4,12 @@ import { useAuth } from '@/auth/useAuth';
 import WebSheet from '@/features/legal/WebSheet';
 import { termsAcceptance } from '@/features/legal/termsVersion';
 import { friendlyAuthError } from './friendlyAuthError';
+import { LAST_EMAIL_KEY, lastEmail } from '@/lib/lastEmail';
 import { AuthLayout, AuthHeader, LogoMark } from './AuthLayout';
 import { CreateAccountView, LogInView, ResetPasswordView, CheckEmailView } from '@/features/intro/IntroAuthViews';
 
-const LAST_EMAIL_KEY = 'setlists-md:last-email';
 const RESEND_COOLDOWN_MS = 30_000;
 
-function lastEmail() {
-  try { return window.localStorage.getItem(LAST_EMAIL_KEY) || ''; } catch { return ''; }
-}
 
 function rememberEmail(value) {
   if (!value) return;

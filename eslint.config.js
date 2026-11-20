@@ -81,7 +81,10 @@ export default defineConfig([
       globals: { ...globals.browser, __APP_VERSION__: 'readonly' },
     },
     rules: {
-      'no-restricted-imports': ['error', { patterns: [{ group: ['../*'], message: "Use the '@/' alias, not '../'." }] }],
+      'no-restricted-imports': ['error', { patterns: [
+        { group: ['../*'], message: "Use the '@/' alias, not '../'." },
+        { group: ['@/components/*', '@/components'], message: 'src/components/ no longer exists. Use @/features/<feature>/, @/ui/ or @/app/.' },
+      ] }],
     },
   },
 ])

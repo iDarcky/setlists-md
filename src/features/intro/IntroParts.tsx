@@ -1,7 +1,7 @@
 // Small pieces the first-run screens share (mockup "first-run v9",
 // 2026-11-20). Plain views: values in, events out.
 import type { ReactNode } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Mail } from 'lucide-react';
 import { JOIN_PARTS, toggleJoinPart } from '@/lib/joinLink';
 import { Button, LogoMark } from './ui';
 
@@ -10,9 +10,6 @@ const AppleIcon = () => (
 );
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h5.9c-.3 1.4-1 2.5-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8z" /><path fill="#34A853" d="M12 23c3 0 5.4-1 7.2-2.7l-3.5-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.2-4.5H2.2v2.8C4 20.6 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.8 14.2c-.2-.7-.4-1.4-.4-2.2s.1-1.5.4-2.2V7H2.2C1.4 8.5 1 10.2 1 12s.4 3.5 1.2 5l3.6-2.8z" /><path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.1-3.1C17.4 2.2 15 1 12 1 7.7 1 4 3.4 2.2 7l3.6 2.8C6.7 7.3 9.1 5.4 12 5.4z" /></svg>
-);
-const MailIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>
 );
 
 /** The logo on one line: the mark and the wordmark. */
@@ -63,7 +60,7 @@ export function ProviderButtons({ onApple, onGoogle, onEmail, busy }: ProviderPr
     <>
       <Button onClick={onApple} loading={busy === 'apple'} disabled={!!busy}><AppleIcon /> Continue with Apple</Button>
       <Button variant="outline" onClick={onGoogle} loading={busy === 'google'} disabled={!!busy}><GoogleIcon /> Continue with Google</Button>
-      <Button variant="ghost" className="hover:bg-transparent" onClick={onEmail} disabled={!!busy}><MailIcon /> Continue with email</Button>
+      <Button variant="ghost" className="hover:bg-transparent" onClick={onEmail} disabled={!!busy}><Mail size={18} strokeWidth={1.8} aria-hidden="true" /> Continue with email</Button>
     </>
   );
 }
@@ -86,12 +83,9 @@ export function FormActions({ children }: { children: ReactNode }) {
 }
 
 /** An icon on a raised square, over a heading. */
-export function IconSquare({ tone, children }: { tone?: 'danger'; children: ReactNode }) {
+export function IconSquare({ children }: { children: ReactNode }) {
   return (
-    <span
-      aria-hidden="true"
-      className={`flex size-11 shrink-0 items-center justify-center rounded-control ${tone === 'danger' ? 'bg-danger-fill text-danger-text' : 'bg-raised text-foreground'}`}
-    >
+    <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-control bg-raised text-foreground">
       {children}
     </span>
   );
@@ -130,7 +124,7 @@ export function PartPicker({ value, onChange }: { value: string[]; onChange: (ne
             onClick={() => onChange(toggleJoinPart(value, p.id))}
             className={`inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border px-4 font-sans text-body font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${on ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:bg-raised'}`}
           >
-            {on && <Check size={16} strokeWidth={2.2} aria-hidden="true" />}
+            {on && <Check size={16} strokeWidth={1.8} aria-hidden="true" />}
             {p.label}
           </button>
         );

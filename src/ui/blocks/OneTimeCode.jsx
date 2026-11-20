@@ -139,8 +139,6 @@ letters = false,
 /* Setlists.md: a real check. With onFull, a full row waits in "check"
    until `answer` turns "Accept" or "Reject"; `answer` null = still checking. */
 onFull,
-/* Setlists.md: called on every change, the row as typed (lower-case) */
-onCodeChange,
 /* Setlists.md: the screen reader's name for the field */
 label, } = {}) {
     const n = length === 4 ? 4 : 6;
@@ -253,7 +251,6 @@ label, } = {}) {
             wake();
         }
         setCode(next);
-        onCodeChange?.(next);
         if (next.length < n)
             return;
         /* full: a beat of checking, then the answer */
@@ -295,7 +292,6 @@ label, } = {}) {
             wake();
             later(() => {
                 setCode("");
-                onCodeChange?.("");
                 setPhase("type");
                 input.current?.focus();
             }, SHAKE_MS + n * 45 + 160);
