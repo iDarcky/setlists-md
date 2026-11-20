@@ -21,7 +21,10 @@ import { useDragReorder, moveItem } from './useDragReorder';
 import { MomentFields, NoteEditor, Grip, NOTE_MAX } from './SetlistEdit';
 import { Chip, DateSheet, TimeInput, TimeSigInput } from './WhenPickers';
 import BandSection from './BandSection';
-import NewSongSheet from './NewSongSheet';
+import AddSongFlow from '@/features/songs/AddSongFlow';
+import SongEdit from '@/features/song-edit/SongEdit';
+import { songFromDetails } from '@/features/song-edit/newSongDetails';
+import { FileText, CalendarDays } from 'lucide-react';
 import { writeNewDraft } from '@/lib/setlistDraft';
 
 // New setlist (canvas → New setlist v2): the template pop-up picks where to
@@ -159,7 +162,7 @@ const shortDate = (date) => (date ? new Date(`${date}T12:00:00`).toLocaleDateStr
  * "Add songs": search, then one line per song (key · last played) with +.
  * Plain on purpose (2026-11-04: the three-column picker was "too busy").
  */
-function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview, previewId, onEmptySlot, searchRef, onNewSong }) {
+function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview, previewId, onEmptySlot, searchRef, onNewSong, onImport }) {
   const [q, setQ] = useState('');
   const inSet = new Set((draft.items || []).map(i => i?.songId).filter(Boolean));
   const suggested = useMemo(() => suggestSongs({ songs, setlist: draft, setlists, at, limit: 8 }), [songs, draft, setlists, at]);
@@ -172,6 +175,24 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
     groups = [{ label: 'Suggested', list: suggested.map(x => x.song) }, { label: 'All songs', list: sorted.filter(s => !ids.has(s.id)) }];
   } else groups = [{ label: 'All songs', list: sorted }];
   const empty = groups.every(g => !g.list.length);
+  const row = 'flex min-h-[56px] w-full cursor-pointer items-center gap-3 rounded-card border bg-transparent px-3.5 py-2 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
+  const dot = 'flex size-9 shrink-0 items-center justify-center rounded-full bg-raised [&_svg]:size-[18px]';
+  const newRows = (
+    <div className="flex flex-col gap-2">
+      {onNewSong && (
+        <button type="button" onClick={() => onNewSong(q.trim())} className={cn(row, 'border-dashed border-input')}>
+          <span className={dot}><PlusIcon size={18} /></span>
+          <span className="min-w-0 flex-1 truncate text-body font-semibold">New song{q.trim() ? ` “${q.trim()}”` : ''}</span>
+        </button>
+      )}
+      {onImport && (
+        <button type="button" onClick={onImport} className={cn(row, 'border-border')}>
+          <span className={dot}><FileText strokeWidth={1.8} /></span>
+          <span className="min-w-0 flex-1 truncate text-body font-semibold">Import PDFs</span>
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
@@ -180,18 +201,16 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
         <span className="truncate text-small text-muted-foreground">{filling ? `filling song ${filling}` : '+ fills the next “Song”'}</span>
       </div>
       <Input ref={searchRef} type="search" inputMode="search" placeholder="Search the library" value={q} onChange={e => setQ(e.target.value)} className="h-11" />
-      {/* A song the library doesn't have yet, without leaving the setlist (QA 11 Nov). */}
-      {onNewSong && (
-        <button type="button" onClick={() => onNewSong(q.trim())}
-          className="flex min-h-[52px] w-full cursor-pointer items-center gap-2 rounded-card border border-dashed border-input bg-transparent px-3 py-1.5 text-left font-sans text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="truncate text-small font-semibold">New song{q.trim() ? `: “${q.trim()}”` : ''}</span>
-            <span className="truncate text-caption text-muted-foreground">Not in the library? Import a PDF or file, or paste it</span>
-          </span>
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-input"><PlusIcon size={18} /></span>
-        </button>
+      {/* A song the library doesn't have yet, without leaving the setlist (QA
+          11 Nov): the + menu's two jobs, named for what you typed (approved
+          mockup, 2026-11-20). */}
+      {(onNewSong || onImport) && empty && q.trim() && (
+        <>
+          <p className="m-0 px-1 pt-1 text-small text-muted-foreground">No song called “{q.trim()}” yet.</p>
+          {newRows}
+        </>
       )}
-      {groups.map(({ label, list }) => (list.length > 0 || !label) && (
+      {groups.map(({ label, list }) => (list.length > 0 || (!label && !(empty && q.trim()))) && (
         <div key={label || 'results'} className="flex flex-col gap-2">
           {label && <span className="pt-1 text-label text-muted-foreground">{label}</span>}
           <div className="rounded-card material-base">
@@ -210,12 +229,14 @@ function AddSongs({ songs, draft, setlists, at, today, filling, onAdd, onPreview
                 </div>
               );
             })}
-            {empty && <p className="m-0 px-4 py-6 text-center text-small text-muted-foreground">{q.trim() ? `No song matches “${q}”.` : 'No songs in the library yet.'}</p>}
+            {empty && !q.trim() && <p className="m-0 px-4 py-6 text-center text-small text-muted-foreground">No songs in the library yet.</p>}
           </div>
         </div>
       ))}
+      {/* Not searching, or found something: the same two rows, under the list. */}
+      {(onNewSong || onImport) && !(empty && q.trim()) && newRows}
       <Button variant="link" className="self-start text-small" onClick={() => onEmptySlot(q.trim())}>
-        {q.trim() ? `Keep a “${q.trim()}” slot, choose the song later` : 'Add an empty “Song”, choose later'}
+        {q.trim() ? `Keep a “${q.trim()}” slot, choose later` : 'Add an empty “Song”, choose later'}
       </Button>
     </div>
   );
@@ -314,7 +335,9 @@ export default function SetlistFlow({
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const [ready, setReady] = useState(false);           // Save and mark ready
   const [removed, setRemoved] = useState(null);        // { item, index } — for Undo
-  const [newSong, setNewSong] = useState(null);        // the search words, while New song is open
+  const [adding, setAdding] = useState(null);          // null | 'new' | 'import': AddSongFlow, as on Songs
+  const [newTitle, setNewTitle] = useState('');        // the search words, for New song
+  const [writing, setWriting] = useState(null);        // a new song on the chart page, over the setlist
   const searchRef = useRef(null);
   const libRef = useRef(null);
   const template = templates.find(t => t.id === draft.templateId) || null;
@@ -332,6 +355,9 @@ export default function SetlistFlow({
   }, [removed]);
 
   const people = peopleOf(draft);
+  // "Sunday, 23 Nov" on the New song sheet; "Sunday" on its buttons.
+  const setlistLong = draft.name?.trim() || longDay(draft.date) || 'this setlist';
+  const setlistShort = setlistLong.split(',')[0].trim() || 'the setlist';
   const items = draft.items || [];
   const order = buildOrder(draft, songs, nameOf);
   const setItems = (fn) => setDraft(d => ({ ...d, items: fn(d.items || []) }));
@@ -387,7 +413,14 @@ export default function SetlistFlow({
     setSlot(null);
     setPreviewId(null);
   };
-  const emptySlot = (label) => { setItems(xs => [...xs, placeholderItem(label)]); };
+  // "Keep an Oceans slot": where the search started (the "Song" being filled),
+  // else at the end.
+  const emptySlot = (label) => {
+    const at = fillAt;
+    if (at >= 0) setItems(xs => xs.map((x, j) => (j === at ? { ...x, ...placeholderItem(label) } : x)));
+    else setItems(xs => [...xs, placeholderItem(label)]);
+    setSlot(null);
+  };
   // "+ Add song": a new "Song" slot at the end, then straight to the library to fill it.
   const addSongSlot = () => { const at = items.length; setItems(xs => [...xs, placeholderItem()]); setSlot(at); setOpen(null); goToLibrary(); };
   const addMoment = () => { setItems(xs => [...xs, { type: 'break', label: '', note: '', duration: 0 }]); setOpen(items.length); };
@@ -442,6 +475,7 @@ export default function SetlistFlow({
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className={cn('truncate', r.kind === 'moment' ? 'text-small text-muted-foreground' : 'text-body font-semibold')}>
                     {r.kind === 'moment' && !it.label ? 'New moment' : r.title}
+                    {isSlot && it.label && <span className="font-normal text-muted-foreground"> · no chart yet</span>}
                   </span>
                   {!isSlot && r.kind === 'song' && <span className="truncate text-caption text-muted-foreground">{[r.tempo && `${r.tempo} BPM`, r.time].filter(Boolean).join(' · ') || ' '}</span>}
                   {!isSlot && r.kind === 'song' && (() => {
@@ -520,7 +554,8 @@ export default function SetlistFlow({
     <AddSongs songs={songs} draft={draft} setlists={setlists} at={fillAt >= 0 ? fillAt : items.length} today={today}
       filling={slot != null ? fillingN : null} onAdd={addSong} onEmptySlot={emptySlot} searchRef={searchRef}
       onPreview={wide ? (id) => { setPeek(null); setPreviewId(id); } : null} previewId={previewId}
-      onNewSong={onCreateSongs ? (q) => setNewSong(q) : null} />
+      onNewSong={onCreateSongs ? (q) => { setNewTitle(q); setAdding('new'); } : null}
+      onImport={onCreateSongs ? () => setAdding('import') : null} />
   );
 
   const bandBlock = (
@@ -657,8 +692,24 @@ export default function SetlistFlow({
           onCancel={() => setNoteFor(null)} onDone={(text) => { patchItem(noteFor, { note: text }); setNoteFor(null); }} />
       )}
       {onCreateSongs && (
-        <NewSongSheet open={newSong != null} onOpenChange={(o) => { if (!o) setNewSong(null); }}
-          initialTitle={newSong || ''} onCreate={addCreated} />
+        <AddSongFlow
+          mode={adding}
+          onMode={setAdding}
+          songs={songs}
+          newTitle={newTitle}
+          addTo={setlistShort}
+          newNote={<span className="flex items-center gap-2.5"><CalendarDays size={16} className="shrink-0 text-muted-foreground" /><span>It goes into Songs and into <b className="font-semibold">{setlistLong}</b>.</span></span>}
+          onImportSongs={addCreated}
+          onBlank={(d) => setWriting(songFromDetails(d))}
+        />
+      )}
+      {writing && (
+        // The chart page, same as any new song; only the button says where it goes.
+        <div className="fixed inset-0 z-fullscreen bg-background">
+          <SongEdit song={writing} mode="new" askDetails={false} library={songs} addLabel={`Add to ${setlistShort}`}
+            onSave={(out) => { addCreated([out]); setWriting(null); return true; }}
+            onBack={() => setWriting(null)} />
+        </div>
       )}
     </div>
   );

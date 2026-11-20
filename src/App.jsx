@@ -325,6 +325,8 @@ export default function App() {
   const [importQueue, setImportQueue] = useState(null);
   // Walking a leader through the batch-imported songs still tagged "To check".
   const [checkRun, setCheckRun] = useState(false);
+  // Songs skipped in this Check next run: they stay "To check" but don't come round again.
+  const checkSkipped = useRef(new Set());
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -1473,7 +1475,7 @@ export default function App() {
 
     // Checking batch-imported songs: straight on to the next one.
     if (checkRun) {
-      const next = songs.find(s => s.id !== song.id && needsCheck(s));
+      const next = songs.find(s => s.id !== song.id && needsCheck(s) && !checkSkipped.current.has(s.id));
       if (next) { navigate('editor', { song: next, replace: true }); return; }
       setCheckRun(false);
       toast({ title: 'All imported songs checked' });
@@ -1849,7 +1851,8 @@ export default function App() {
     const kept = list.length - fresh.length;
     toast({
       title: fresh.length === 1 ? `Added "${fresh[0].title || 'Untitled'}"` : fresh.length ? `Added ${fresh.length} songs` : 'Already in Songs',
-      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.` : 'Tagged “To check” in Songs.',
+      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.`
+        : fresh.some(needsCheck) ? 'Added to Songs and to this setlist. Tagged “To check” in Songs.' : 'Added to Songs and to this setlist.',
     });
     return out;
   };
@@ -2444,7 +2447,7 @@ export default function App() {
               onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
-              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { setCheckRun(true); goEditor(first); } }}
+              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { checkSkipped.current = new Set(); setCheckRun(true); goEditor(first); } }}
               onBlank={isTeamReadOnly ? null : (details) => goEditor(null, null, '', details || null)}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
@@ -2525,7 +2528,16 @@ export default function App() {
               historyTeamId={activeLibrary}
               mode={editTarget.mode}
               askDetails={!editNewDetails}
-              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? { left: songs.filter(needsCheck).length } : null}
+              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? {
+                left: songs.filter(s => needsCheck(s) && !checkSkipped.current.has(s.id)).length,
+                onSkip: () => {
+                  checkSkipped.current.add(editTarget.song.id);
+                  const next = songs.find(s => needsCheck(s) && !checkSkipped.current.has(s.id));
+                  if (next) { navigate('editor', { song: next, replace: true }); return; }
+                  setCheckRun(false);
+                  goToMainView('library');
+                },
+              } : null}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               initialArrangementId={editArrangementId}

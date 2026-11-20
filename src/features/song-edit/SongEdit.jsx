@@ -37,7 +37,7 @@ const Reader = lazy(() => import('@/features/reader/Reader'));
 import { BackIcon, PlusIcon } from '@/app/navIcons';
 import { SwipeTabs } from './SwipeTabs';
 import { StartChart } from './StartChart';
-import { canFillVerseChords, fillVerseChords } from '@/lib/verseChords';
+import { canFillVerseChords, fillVerseChords, verseChordsHint } from '@/lib/verseChords';
 
 // The song editor, built from zero (canvas → "Song, edit and chart", Edit
 // row). Two tabs instead of four: **Chart** is the chart itself, editable in
@@ -985,7 +985,7 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
   );
 }
 
-export default function SongEdit({ askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+export default function SongEdit({ addLabel = '', askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -1014,6 +1014,7 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
   const [saving, setSaving] = useState(false);
   const [folded, setFolded] = useState(() => new Set()); // `${arrId}:${index}` of sections folded shut
   const [history, setHistory] = useState(false);
+  const [hintOff, setHintOff] = useState(false); // the verse-chords hint, closed
   const { members = [] } = useTeam() || {};
   const nameOf = (uid) => members.find(m => m.user_id === uid)?.profile?.display_name || null;
   const dirty = working !== song;
@@ -1092,6 +1093,13 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
     dropDraft();
     onDirtyChange?.(false);
     onBack?.();
+  };
+  // Checking: leave this one tagged "To check" and open the next.
+  const skip = async () => {
+    if (dirty && !(await confirm({ title: 'Skip without saving?', description: 'Your changes to this song will be lost. It stays “To check”.', confirmLabel: 'Skip', variant: 'danger' }))) return;
+    dropDraft();
+    onDirtyChange?.(false);
+    checking?.onSkip?.();
   };
   const save = async () => {
     // A song needs a name; Info opens with the title box focused.
@@ -1231,7 +1239,22 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
       onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song, true); setArrId(r.arrangementId); closeAll(); } : null} />
   );
 
-  const saveLabel = fresh ? 'Add song' : checking && !dirty ? 'Looks good' : 'Save';
+  // Checking imported songs: the button also opens the next one.
+  const saveLabel = fresh ? (addLabel || 'Add song')
+    : checking ? `${dirty ? 'Save' : 'Looks good'}${checking.left > 1 ? ' · next' : ''}`
+    : 'Save';
+  // "Verse 2 has no chords. Copy Verse 1's?" over the chart, for a song
+  // that is new or being checked (the ⋯ menu has it for any song).
+  const hint = (fresh || checking) && !hintOff && !whole && tab === 'chart' && !pick ? verseChordsHint(arr.sections) : null;
+  const hintBar = hint && (
+    <div role="status" className="mx-3 mb-2 flex shrink-0 items-center gap-3 rounded-card material-menu py-2 pl-3.5 pr-2">
+      <span className="min-w-0 flex-1 text-small font-medium">
+        {hint.to.length === 1 ? `${hint.to[0]} has no chords.` : `${hint.to.length} verses have no chords.`} Copy {hint.from}’s?
+      </span>
+      <Button size="sm" variant="outline" onClick={() => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); }}>Copy</Button>
+      <button type="button" aria-label="Not now" onClick={() => setHintOff(true)} className={cn(iconBtn, 'size-9 text-muted-foreground')}><Svg size={16}><path d="M18 6 6 18M6 6l12 12" /></Svg></button>
+    </div>
+  );
 
   if (step === 'details' && !draftFound) {
     return (
@@ -1270,7 +1293,9 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
           mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
-        {wide && <Button variant="outline" size="sm" className="ml-1" onClick={cancel}>Cancel</Button>}
+        {wide && (checking?.onSkip
+          ? <Button variant="outline" size="sm" className="ml-1" onClick={skip}>Skip</Button>
+          : <Button variant="outline" size="sm" className="ml-1" onClick={cancel}>Cancel</Button>)}
         {wide && <Button size="sm" className="ml-1" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{saveLabel}</Button>}
       </div>
       {draftFound && (
@@ -1361,10 +1386,14 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
           </div>
         );
       })()}
+      {hintBar}
       {!wide && !pick && !tabEdit && (
         // Phone: Cancel and Save sit under the thumb (user, 13 Nov), not in the top corners.
+        // Checking: Skip leaves the song tagged and opens the next one.
         <div className="flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
-          <Button variant="outline" className="flex-1" onClick={cancel}>Cancel</Button>
+          {checking?.onSkip
+            ? <Button variant="outline" className="flex-1" onClick={skip}>Skip</Button>
+            : <Button variant="outline" className="flex-1" onClick={cancel}>Cancel</Button>}
           <Button className="flex-[2]" onClick={save} disabled={!canSave} loading={saving}>{saveLabel}</Button>
         </div>
       )}

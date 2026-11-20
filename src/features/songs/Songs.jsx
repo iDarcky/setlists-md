@@ -25,6 +25,7 @@ export default function Songs({
   const [tagIds, setTagIds] = useState(null);
   const [moveCopy, setMoveCopy] = useState(null); // { action, ids }
   const q = useDeferredValue(query);
+  const leader = !readOnly;
 
   const stats = useMemo(() => playStats(setlists, now), [setlists, now]);
   const next = useMemo(() => nextSetlistSongs(setlists, now), [setlists, now]);
@@ -39,10 +40,10 @@ export default function Songs({
       line: playLine(stats[song.id], now),
       stat: stats[song.id],
       next: next.ids.has(song.id),
+      check: leader && needsCheck(song),
     }));
-  }, [songs, q, sort, stats, filters, now, next]);
+  }, [songs, q, sort, stats, filters, now, next, leader]);
 
-  const leader = !readOnly;
   const canMoveCopy = leader && otherChurches.length > 0;
 
   return (
@@ -69,6 +70,7 @@ export default function Songs({
           onNewSetlist,
         }) : []}
         onAdd={leader ? () => setAdding('new') : null}
+        onImport={leader && onImportSongs ? () => setAdding('import') : null}
         onTag={leader && onTagSongs ? (ids) => setTagIds(ids) : null}
         onDelete={leader ? onDeleteSongs : null}
         onMove={canMoveCopy && onMoveSongs ? (ids) => setMoveCopy({ action: 'move', ids }) : null}

@@ -41,7 +41,21 @@ describe('SongEdit — checking an imported song', () => {
     const onSave = vi.fn();
     render(<SongEdit song={melodia()} mode="edit" checking={{ left: 3 }} onSave={onSave} onBack={() => {}} layout="phone" />);
     expect(screen.getByText(/^Checking · 3 left/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Looks good' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Looks good · next' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
+  });
+
+  it('Skip opens the next one without saving', () => {
+    const onSave = vi.fn();
+    const onSkip = vi.fn();
+    render(<SongEdit song={melodia()} mode="edit" checking={{ left: 2, onSkip }} onSave={onSave} onBack={() => {}} layout="phone" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    return waitFor(() => { expect(onSkip).toHaveBeenCalled(); expect(onSave).not.toHaveBeenCalled(); });
+  });
+
+  it('offers to copy verse 1’s chords to a verse that has none', () => {
+    render(<SongEdit song={melodia()} mode="edit" checking={{ left: 1 }} onSave={() => {}} onBack={() => {}} layout="phone" />);
+    const bar = screen.getByText(/has no chords\. Copy/);
+    expect(bar).toBeTruthy();
   });
 });

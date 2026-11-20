@@ -57,7 +57,7 @@ function OrderRow({ row, onOpen, now = false }) {
         leading={<span className="flex w-5 justify-end text-small tabular-nums">{row.n}</span>}
         title={row.title}
         titleClassName="text-muted-foreground"
-        sub="To be chosen"
+        sub={row.title && row.title !== 'Song' ? 'No chart yet' : 'To be chosen'}
       />
     );
   }

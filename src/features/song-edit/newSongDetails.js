@@ -1,5 +1,7 @@
 // Pure helpers for the new-song details form (NewSongForm.jsx).
 import { songKey } from '@/lib/songsData';
+import { songFromFlat } from '@/arrangements';
+import { generateId } from '@/parser';
 
 /** Every artist in the library, most used first. "A, B" counts as two. */
 export function libraryArtists(songs = []) {
@@ -23,4 +25,17 @@ export const EMPTY_DETAILS = { title: '', artist: '', key: '', tempo: null, time
 export function sameSongLine(song) {
   const k = songKey(song);
   return `You already have ${song.title}${song.artist ? ` by ${song.artist}` : ''}${k ? `, in ${k}` : ''}.`;
+}
+
+/** A new, empty song from the details sheet, ready for the chart page. */
+export function songFromDetails(d = {}) {
+  const song = songFromFlat({ id: generateId() });
+  const a = song.arrangements[0];
+  song.title = (d.title || '').trim();
+  song.artist = (d.artist || '').trim();
+  a.name = 'Main';
+  a.key = d.key || '';
+  if (d.tempo) a.tempo = d.tempo;
+  if (d.time) a.time = d.time.trim();
+  return song;
 }

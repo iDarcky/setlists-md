@@ -6,6 +6,7 @@ import { CheckIcon } from '@/app/navIcons';
 import { songKey } from '@/lib/songsData';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { FileText } from 'lucide-react';
+import { Spinner } from '@/ui/shadcn/spinner';
 
 // Import, rebuilt (canvas → Import + public domain). Pick files, then every
 // song is listed before anything is added. A song the library already has
@@ -18,7 +19,7 @@ const FORMATS = 'PDFs, ChordPro, OpenSong, .md or a .zip';
  * has no drag and drop, so it gets one line and Choose files (owner,
  * 2026-11-20). `onFiles(FileList)`; `onChoose` opens the file picker.
  */
-export function ImportPickSheet({ open, onOpenChange, onFiles, onChoose, busy = false, error = '' }) {
+export function ImportPickSheet({ open, onOpenChange, onFiles, onChoose, busy = false, error = '', progress = [] }) {
   const wide = useMediaQuery('(min-width: 640px)');
   const [over, setOver] = useState(false);
   const depth = useRef(0);
@@ -28,6 +29,28 @@ export function ImportPickSheet({ open, onOpenChange, onFiles, onChoose, busy = 
       {busy ? 'Reading files…' : 'Choose files'}
     </Button>
   );
+  // Reading: each file as it goes (approved mockup, import row).
+  if (busy && progress.length > 1) {
+    const mark = (st) => (st === 'done' ? <span className="text-muted-foreground"><CheckIcon size={16} /></span>
+      : st === 'reading' ? <Spinner />
+      : st === 'failed' ? <span className="text-caption text-[var(--chord)]">can’t read</span>
+      : <span className="text-caption text-muted-foreground">waiting</span>);
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange} title="Import songs" className="h-auto sm:max-w-[520px]">
+        <div className="flex flex-col gap-3" aria-live="polite">
+          <div className="flex items-center gap-3"><Spinner /><b className="text-body font-semibold">Reading {progress.length} files…</b></div>
+          <div className="overflow-hidden rounded-card material-base">
+            {progress.map(f => (
+              <div key={f.name} className="flex min-h-12 items-center gap-3 border-t border-border px-4 py-2 first:border-t-0">
+                <span className="min-w-0 flex-1 truncate text-body">{f.name}</span>{mark(f.state)}
+              </div>
+            ))}
+          </div>
+          <p className="m-0 text-small text-muted-foreground">Next you’ll see every song before anything is added.</p>
+        </div>
+      </Sheet>
+    );
+  }
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Import songs" className="h-auto sm:max-w-[520px]">
       <div className="flex flex-col gap-3.5">
@@ -70,8 +93,9 @@ function Box({ on }) {
  * @param {string[]} failed               files that could not be read ("name (why)")
  * @param {(songs) => void} onAdd          the ticked songs
  * @param {(song) => void} [onEditFirst]   one song: open it in the editor instead
+ * @param {string} [addTo]                a setlist's name: "Add 3 songs to Sunday"
  */
-export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [], source = '', onAdd, onEditFirst }) {
+export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [], source = '', onAdd, onEditFirst, addTo = '' }) {
   const [off, setOff] = useState(() => new Set());
   const n = items.length;
   const dupes = items.filter(i => i.existing).length;
@@ -82,8 +106,19 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
   const title = n === 1 ? 'Import 1 song' : `Import ${n} songs`;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={title} className="sm:max-w-[560px]">
-      <div className="flex min-h-full flex-col gap-3">
+    <Sheet open={open} onOpenChange={onOpenChange} title={title} className="sm:max-w-[560px]"
+      footer={(
+        <div className="flex w-full flex-col gap-2">
+          <div className="flex gap-2">
+            <Button className="flex-1" disabled={!picked.length} onClick={add}>
+              {n === 1 ? 'Add song' : `Add ${picked.length} song${picked.length === 1 ? '' : 's'}`}{addTo ? ` to ${addTo}` : ''}
+            </Button>
+            {n === 1 && onEditFirst && <Button variant="outline" className="flex-1" onClick={() => { onOpenChange?.(false); onEditFirst(items[0].song); }}>Edit first</Button>}
+          </div>
+          <span className="text-center text-caption text-muted-foreground">They’re tagged “To check”, so you can go through them one by one.</span>
+        </div>
+      )}>
+      <div className="flex flex-col gap-3">
         {source && (
           <p className="m-0 text-small text-muted-foreground">
             From <b className="font-medium text-foreground">{source}</b>.{n > 1 ? ' Untick any you don’t want.' : ''}
@@ -140,15 +175,6 @@ export function ImportReviewSheet({ open, onOpenChange, items = [], failed = [],
             </div>
           </>
         )}
-        <div className="sticky bottom-0 -mx-6 mt-auto flex flex-col gap-2 border-t border-border bg-card px-6 pb-1 pt-3">
-          <div className="flex gap-2">
-            <Button className="flex-1" disabled={!picked.length} onClick={add}>
-              {n === 1 ? 'Add song' : `Add ${picked.length} song${picked.length === 1 ? '' : 's'}`}
-            </Button>
-            {n === 1 && onEditFirst && <Button variant="outline" className="flex-1" onClick={() => { onOpenChange?.(false); onEditFirst(items[0].song); }}>Edit first</Button>}
-          </div>
-          <span className="text-center text-caption text-muted-foreground">They’re tagged “To check”, so you can go through them one by one.</span>
-        </div>
       </div>
     </Sheet>
   );
