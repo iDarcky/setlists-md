@@ -387,6 +387,9 @@ export function createReplicaEngine(onStatusChange, teamId, {
   let syncing = false;
   let debounceTimer = null;
   let lastPushAt = 0;
+  // One repair pull per engine (see `missingLocally`), so a row that can never
+  // be held locally (an unreadable one) cannot turn every sync into a full pull.
+  let repaired = false;
   const setStatus = (state, extra = {}) => onStatusChange?.({ state, ...extra });
 
   // In-memory replica state. `initialized` = a persisted replica exists (a
@@ -590,13 +593,46 @@ export function createReplicaEngine(onStatusChange, teamId, {
     return { tombstones: { songs, setlists }, changed };
   }
 
+  // How many rows the replica says this device holds that are neither in
+  // App's arrays nor waiting to be deleted (tombstoned) or created (dirty).
+  function missingLocally(songs, setlists, tombstones) {
+    const have = {
+      song: new Set((songs || []).map(s => s?.id)),
+      setlist: new Set((setlists || []).map(sl => sl?.id)),
+    };
+    const gone = {
+      song: new Set((tombstones?.songs || []).map(t => t?.id)),
+      setlist: new Set((tombstones?.setlists || []).map(t => t?.id)),
+    };
+    let missing = 0;
+    for (const kind of KINDS) {
+      for (const key of Object.keys(mem.rows[kind] || {})) {
+        if (!have[kind].has(key) && !gone[kind].has(key) && !(key in mem.dirty[kind])) missing += 1;
+      }
+    }
+    return missing;
+  }
+
   async function runFullSync(songs, setlists, tombstones) {
     const state = await loadPersisted();
     const fresh = !mem.initialized;
     if (!fresh && !mem.seeded) seed(songs, setlists);
     if (!fresh) markDirty(songs, setlists);
 
-    const { changes, nextSeq } = await fetchAll(fresh ? 0 : mem.since);
+    // The server set we hold a cursor for is not on this device: re-read the
+    // feed from the start so the missing rows come back. The cursor is saved
+    // inside a sync, but App can still drop that sync's result (a Space switch
+    // mid-sync, a startup sync that lost a race); from then on every delta
+    // pull came back empty and the device never saw the rows again — a
+    // phone on a new address showed only what it had made there itself
+    // (2026-11-20). Only tombstones delete, so the re-read cannot remove
+    // anything; it just reconciles every row again.
+    const repair = !fresh && !repaired && missingLocally(songs, setlists, tombstones);
+    if (repair) {
+      repaired = true;
+      console.warn(`[replica] ${libraryId}: ${repair} known row(s) missing on this device; re-reading the feed`);
+    }
+    const { changes, nextSeq } = await fetchAll(fresh || repair ? 0 : mem.since);
     const ctx = buildCtx(songs, setlists);
     if (fresh) {
       mem.rows = ctx.rows = emptyRows();
