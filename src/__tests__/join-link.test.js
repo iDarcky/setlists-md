@@ -175,6 +175,13 @@ describe('which screen', () => {
     expect(joinStepFor({ peek: { ...ok, my_status: 'declined' }, signedIn: true })).toBe('about');
     expect(joinStepFor({ peek: ok, signedIn: true })).toBe('about');
   });
+  it('says a full team is full, unless you are in or already waiting', () => {
+    const full = { ...ok, is_full: true };
+    expect(joinStepFor({ peek: full, signedIn: false })).toBe('full');
+    expect(joinStepFor({ peek: full, signedIn: true })).toBe('full');
+    expect(joinStepFor({ peek: { ...full, is_member: true }, signedIn: true })).toBe('in');
+    expect(joinStepFor({ peek: { ...full, my_status: 'pending' }, signedIn: true })).toBe('waiting');
+  });
   it('finds the request this flow is about', () => {
     const rows = [
       { id: '3', team_id: 'B', status: 'pending' },

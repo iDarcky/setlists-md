@@ -184,9 +184,12 @@ export function churchInitials(name) {
  */
 export function joinStepFor({ peek, signedIn }) {
   if (!peek || peek.status !== 'ok') return 'error';
-  if (!signedIn) return 'landing';
+  // Signed out, a full team says so before anyone makes an account for it.
+  // (A member who is signed out can still open the app and log in.)
+  if (!signedIn) return peek.is_full ? 'full' : 'landing';
   if (peek.is_member) return 'in';
   if (peek.my_status === 'pending') return 'waiting';
+  if (peek.is_full) return 'full';
   return 'about';
 }
 

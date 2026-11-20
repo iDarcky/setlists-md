@@ -12,7 +12,7 @@ import {
 import WebSheet from '@/features/legal/WebSheet';
 import { SigningInView } from '@/features/intro/IntroAuthViews';
 import { InstrumentsView } from '@/features/intro/IntroStartViews';
-import { JoinInviteView, WaitingView, YoureInView, DeclinedView, BadLinkView } from '@/features/intro/IntroJoinViews';
+import { JoinInviteView, WaitingView, YoureInView, DeclinedView, TeamFullView, BadLinkView } from '@/features/intro/IntroJoinViews';
 import { useProviderSignIn } from '@/features/intro/useProviderSignIn';
 import GetAppScreen from '@/features/start/GetAppScreen';
 import { peekJoinLink, requestToJoin } from './joinApi';
@@ -136,6 +136,8 @@ export default function JoinFlow({ code, onJoined, onSkipHome, onExit, onPasswor
         setStep('in');
       } else if (res?.status === 'declined') {
         setStep('declined');
+      } else if (res?.status === 'full') {
+        setStep('full');
       } else {
         setPeek(p => ({ ...(p || {}), status: res?.status || 'invalid' }));
         setStep('error');
@@ -189,6 +191,10 @@ export default function JoinFlow({ code, onJoined, onSkipHome, onExit, onPasswor
 
   if (step === 'declined') {
     return <DeclinedView church={church} onAnotherCode={leave} onSignOut={signOutAndLeave} />;
+  }
+
+  if (step === 'full') {
+    return <TeamFullView church={church} onAnotherCode={leave} onSignOut={signedIn ? signOutAndLeave : undefined} />;
   }
 
   if (step === 'waiting') {

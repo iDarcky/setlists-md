@@ -74,6 +74,23 @@ describe('JoinFlow', () => {
     expect(JSON.parse(localStorage.getItem('setlists-md:pending-join'))).toMatchObject({ code: CODE, stage: 'requested', requestId: 'r1' });
   });
 
+  it('a full team says so before sign-in, and when the seat goes while asking', async () => {
+    api.peekJoinLink.mockResolvedValue({ ...PEEK, is_full: true });
+    const { unmount } = render(<JoinFlow code={CODE} />);
+    expect(await screen.findByText('Grace Church is full')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Setlists.md' })).toBeInTheDocument();
+    unmount();
+
+    auth.user = { id: 'u1', email: 'kid@x.com' };
+    auth.profile = { id: 'u1', display_name: 'kid' };
+    api.peekJoinLink.mockResolvedValue({ ...PEEK, is_full: false, team_id: 't1' });
+    api.requestToJoin.mockResolvedValue({ status: 'full', team_id: 't1' });
+    render(<JoinFlow code={CODE} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText('Grace Church is full')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
+  });
+
   it('a failed send says why and can retry', async () => {
     auth.user = { id: 'u1', email: 'kid@x.com' };
     auth.profile = { id: 'u1', display_name: 'kid' };

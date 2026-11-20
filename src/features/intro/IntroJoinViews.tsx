@@ -1,5 +1,6 @@
 // Joining from a code or a link (mockup "first-run v9", 2026-11-20): the
-// invite, Waiting for a leader, You're in, Didn't let you in, and the
+// invite, Waiting for a leader, You're in, Didn't let you in, The team is
+// full, and the
 // link that doesn't work. Values in, events out: JoinFlow holds the
 // state. `church` is { name, logoUrl, initials } from the link's peek.
 import { joinPartLabel } from '@/lib/joinLink';
@@ -87,6 +88,23 @@ export function DeclinedView({ church, onAnotherCode, onSignOut, embedded }: {
       <FormActions>
         <Button variant="outline" onClick={onAnotherCode}>Enter another code</Button>
         <Button variant="ghost" className="hover:bg-transparent" onClick={onSignOut}>Log out</Button>
+      </FormActions>
+    </AuthLayout>
+  );
+}
+
+// ── J5 The team is full ─────────────────────────────────────────────────────
+
+export function TeamFullView({ church, onAnotherCode, onSignOut, embedded }: {
+  church?: Church | null; onAnotherCode: () => void; onSignOut?: () => void; embedded?: boolean;
+}) {
+  return (
+    <AuthLayout embedded={embedded}>
+      {badge(church, true)}
+      <AuthHeader title={`${church?.name || 'The team'} is full`} sub="Ask your leader to make room, then open the invite again." />
+      <FormActions>
+        <Button variant="outline" onClick={onAnotherCode}>{onSignOut ? 'Enter another code' : 'Open Setlists.md'}</Button>
+        {onSignOut && <Button variant="ghost" className="hover:bg-transparent" onClick={onSignOut}>Log out</Button>}
       </FormActions>
     </AuthLayout>
   );
