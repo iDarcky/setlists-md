@@ -30,7 +30,7 @@ describe('StartChurch', () => {
     expect(onSend).not.toHaveBeenCalled();
     expect(screen.getByText('Add the name your band knows it by.')).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('Church or band name'), { target: { value: 'Grace Chapel' } });
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Grace Chapel' } });
     fireEvent.change(screen.getByLabelText('Town and country'), { target: { value: 'Cluj, Romania' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
     await waitFor(() => expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ church: 'Grace Chapel', place: 'Cluj, Romania' })));
@@ -40,7 +40,7 @@ describe('StartChurch', () => {
   it('keeps the form open and says so when sending fails', async () => {
     render(<Host onSend={async () => { throw new Error('No connection'); }} />);
     fireEvent.click(screen.getByRole('button', { name: 'Ask to start a church' }));
-    fireEvent.change(await screen.findByLabelText('Church or band name'), { target: { value: 'X' } });
+    fireEvent.change(await screen.findByLabelText('Team name'), { target: { value: 'X' } });
     fireEvent.change(screen.getByLabelText('Town and country'), { target: { value: 'Y' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send request' }));
     expect(await screen.findByText('No connection')).toBeTruthy();

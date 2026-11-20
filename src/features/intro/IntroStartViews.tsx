@@ -108,7 +108,7 @@ export function NameTeamView({ value, onChange, onSubmit, onBack, tried, busy, e
       <Progress step={2} of={5} />
       <AuthHeader title="Name your team" />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); onSubmit(); }} noValidate>
-        <LabelInput fill label="Church or band name" autoComplete="organization" maxLength={120}
+        <LabelInput fill label="Team name" autoComplete="organization" maxLength={120}
           value={value} onChange={e => onChange(e.target.value)} onFocus={scrollFieldIntoView}
           error={tried && missing ? 'Add the name people know it by.' : null} />
       </form>

@@ -99,7 +99,7 @@ describe('StartFlow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     expect(await screen.findByText('Add the name people know it by.')).toBeTruthy();
     expect(sent).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Church or band name'), { target: { value: 'Grace Church' } });
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Grace Church' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(sent).toHaveBeenCalled());
     expect(sent.mock.calls[0][0]).toMatchObject({ name: 'Grace Church', location: null });
@@ -112,7 +112,7 @@ describe('StartFlow', () => {
     const onRequestChange = vi.fn();
     render(<StartFlow screen="choose" user={user} request={null} onRequestChange={onRequestChange} />);
     fireEvent.click(screen.getByRole('button', { name: /Create a team/ }));
-    fireEvent.change(screen.getByLabelText('Church or band name'), { target: { value: 'X' } });
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'X' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     expect(await screen.findByText('Network down')).toBeTruthy();
     expect(onRequestChange).toHaveBeenLastCalledWith(null);
