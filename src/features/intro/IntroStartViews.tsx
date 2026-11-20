@@ -36,7 +36,6 @@ export function JoinOrCreateView({ name, onJoin, onCreate, onSignOut, embedded }
 }) {
   return (
     <AuthLayout embedded={embedded}>
-      <Progress step={1} of={3} />
       <AuthHeader title={name ? `Hi ${name}, let’s get you set up` : 'Let’s get you set up'} />
       <div className="grid grid-cols-2 gap-3">
         <Tile icon={<Link2 size={20} strokeWidth={1.8} />} title="Join a team" body="Your leader gave you a code or a link." onClick={onJoin} />
