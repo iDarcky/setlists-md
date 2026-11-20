@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { churchInitials } from '@/lib/joinLink';
 
@@ -24,6 +25,7 @@ const TickIcon = () => (
  * @param {boolean}  [embedded] fills its parent instead of the window (/design)
  */
 export function AuthLayout({ onBack, embedded = false, className, children }) {
+  const back = useBackGesture(embedded ? null : onBack);
   return (
     <div
       data-slot="auth-layout"
@@ -44,7 +46,7 @@ export function AuthLayout({ onBack, embedded = false, className, children }) {
         {onBack && (
           <button
             type="button"
-            onClick={onBack}
+            onClick={back}
             className="absolute left-3.5 flex h-11 cursor-pointer items-center gap-1.5 rounded-control border-0 bg-transparent pl-2 pr-3 font-sans text-body font-medium text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring @min-[640px]:left-5"
             style={{ top: 'calc(12px + env(safe-area-inset-top))' }}
           >
@@ -58,6 +60,29 @@ export function AuthLayout({ onBack, embedded = false, className, children }) {
       </div>
     </div>
   );
+}
+
+/**
+ * The phone's back gesture (Android back, the browser's Back) does what the
+ * screen's ← Back does (2026-11-20; before, it left the step it was on and
+ * landed on an older screen). A screen with onBack keeps ONE history entry
+ * on top, marked `introBack`; a pop runs the current screen's onBack. The
+ * next screen reuses that entry instead of pushing another, so walking
+ * forward and back never piles entries up. The ← Back button goes through
+ * history too, so both ways out stay in step.
+ */
+function useBackGesture(onBack) {
+  const ref = useRef(onBack);
+  useEffect(() => { ref.current = onBack; });
+  const on = !!onBack;
+  useEffect(() => {
+    if (!on) return undefined;
+    if (!window.history.state?.introBack) window.history.pushState({ introBack: true }, '');
+    const handler = () => ref.current?.();
+    window.addEventListener('popstate', handler);
+    return () => window.removeEventListener('popstate', handler);
+  }, [on]);
+  return on ? () => window.history.back() : undefined;
 }
 
 /** The app's mark, with ink lines (no green, 2026-11-20). 32px over a form. */
