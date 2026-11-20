@@ -1,11 +1,15 @@
 # `delete-account` Edge Function
 
-Implements the in-app "Delete account" flow surfaced in `Account.jsx`.
+Implements the in-app "Delete account" flow (`settings/DeleteAccountScreen.jsx`,
+opened from `Account.jsx`).
 
 ## What it does
 
 1. Verifies the caller's JWT and resolves their `user.id`.
-2. If they own any teams, deletes those teams (cascades members via FK).
+2. Hands each team they own to the earliest-joined admin, else the
+   earliest-joined member, and makes that person an admin. A team is deleted
+   only when the owner is its only member. Any failed lookup stops the whole
+   deletion before anything is removed.
 3. Deletes their `profiles` row (defence-in-depth).
 4. Calls `auth.admin.deleteUser(userId)` to remove the auth record. This
    cascades to any remaining FK-referenced rows (`team_members`, etc.).

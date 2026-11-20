@@ -3,7 +3,7 @@
 // Signing you in. Values in, events out, no Supabase: AuthScreen,
 // WelcomeScreen, RecoveryScreen and AuthCallback hold the state.
 import { useId } from 'react';
-import { Mail } from 'lucide-react';
+import { Mail, TriangleAlert } from 'lucide-react';
 import { AuthLayout, AuthHeader, AuthActions, TextLink, Button, LabelInput, Alert, Spinner, ChurchBadge, SuccessBadge } from './ui';
 import { ChordHeadline, FormActions, IconSquare, Legal, ProviderButtons, Wordmark } from './IntroParts';
 import { scrollFieldIntoView } from './scrollFieldIntoView';
@@ -30,7 +30,7 @@ export function WelcomeView({ embedded, onShowLegal, error, ...providers }: Prov
       <div className="mt-24 flex flex-col items-center gap-3 text-center @min-[640px]:mt-0">
         <Wordmark />
         <div className="mt-6"><ChordHeadline /></div>
-        <p className="m-0 mt-1 text-body text-muted-foreground">Chord charts, setlists and who’s playing, for your church band.</p>
+        <p className="m-0 mt-1 text-body text-muted-foreground">Chord charts, setlists and who’s playing, for your band.</p>
       </div>
       <AuthActions className="gap-2.5">
         {error && <Alert variant="danger">{error}</Alert>}
@@ -158,7 +158,7 @@ export function CheckEmailView({ email, what = 'a link', onResend, onBack, resen
       <Note message={message} />
       <FormActions>
         {resendLeft > 0 || busy
-          ? <p role="status" className="m-0 flex min-h-11 items-center justify-center text-body text-muted-foreground">
+          ? <p className="m-0 flex min-h-11 items-center justify-center text-body text-muted-foreground">
               {busy ? 'Sending…' : `Nothing yet? Send it again in ${resendLeft}s`}
             </p>
           : <TextLink question="Nothing yet?" answer="Send it again" onClick={onResend} />}
@@ -218,6 +218,45 @@ export function SigningInView({ error, onBack, label = 'Signing you in…', embe
         <Spinner className="size-6" />
         <span className="text-body">{label}</span>
       </div>
+    </AuthLayout>
+  );
+}
+
+// ── E3 Delete your account ──────────────────────────────────────────────────
+
+/**
+ * What happens to the team the person owns decides the warning
+ * (supabase/functions/delete-account): it passes to another leader (or the
+ * person who joined first), or, when the owner is alone in it, it goes too.
+ */
+export type OwnedTeam = { name: string; alone: boolean } | null;
+
+export function DeleteAccountView({ owned, teamName, confirm, onConfirmChange, onDelete, onCancel, busy, error, embedded }: {
+  owned: OwnedTeam; teamName?: string | null; confirm: string; onConfirmChange: (v: string) => void;
+  onDelete: () => void; onCancel: () => void; busy?: boolean; error?: string | null; embedded?: boolean;
+}) {
+  const uid = useId();
+  const ready = confirm.trim().toUpperCase() === 'DELETE';
+  const keeps = owned ? (owned.alone ? null : owned.name) : teamName;
+  return (
+    <AuthLayout onBack={onCancel} embedded={embedded}>
+      <IconSquare><TriangleAlert size={22} strokeWidth={1.8} /></IconSquare>
+      <AuthHeader
+        title="Delete your account?"
+        sub={`Your name and email are removed for good.${keeps ? ` Songs you added stay with ${keeps}.` : ''}`}
+      />
+      {owned && (owned.alone
+        ? <Alert variant="danger">You’re the only one in {owned.name}, so it’s deleted too, with all its songs and setlists.</Alert>
+        : <Alert variant="info">You own {owned.name}. It passes to another leader, or to the person who joined first.</Alert>)}
+      <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (ready) onDelete(); }} noValidate>
+        <LabelInput fill label="Type DELETE to confirm" autoComplete="off" autoCapitalize="characters" name="confirm-delete"
+          value={confirm} onChange={e => onConfirmChange(e.target.value)} onFocus={scrollFieldIntoView} />
+      </form>
+      {error && <Alert variant="danger">{error}</Alert>}
+      <FormActions>
+        <Button type="submit" form={`${uid}-form`} variant="destructive" disabled={!ready} loading={busy}>Delete account</Button>
+        <Button variant="ghost" className="hover:bg-transparent" onClick={onCancel} disabled={busy}>Cancel</Button>
+      </FormActions>
     </AuthLayout>
   );
 }
