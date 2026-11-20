@@ -13,7 +13,7 @@ import { CheckIcon, PlusIcon } from './navIcons';
  */
 export function ChurchSheet({ open, onOpenChange, workspaces = [], activeId, onPick, onNew }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Switch church" className="h-auto max-h-[80dvh] sm:max-w-[440px]">
+    <Sheet open={open} onOpenChange={onOpenChange} title="Switch church or band" className="h-auto max-h-[80dvh] sm:max-w-[440px]">
       <div className="-mx-2 flex flex-col">
         {workspaces.map(w => {
           const on = w.id === activeId;

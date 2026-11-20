@@ -34,7 +34,7 @@ alter table public.teams
 
 alter table public.teams drop constraint if exists teams_plan_check;
 alter table public.teams
-  add constraint teams_plan_check check (plan in ('team', 'church'));
+  add constraint teams_plan_check check (plan in ('free', 'team', 'church'));
 
 commit;
 

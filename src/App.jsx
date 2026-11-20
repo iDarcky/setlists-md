@@ -1,4 +1,5 @@
 import { applyReaderLook, READER_LOOK_FLAG } from '@/lib/readerLook';
+import { planOf } from '@/lib/plans';
 import { syncStatus } from '@/lib/syncStatus';
 import AppToaster from "@/ui/AppToaster";
 import { toast } from "@/ui/use-toast";
@@ -70,11 +71,9 @@ import { useTeamSchedules } from '@/hooks/useTeamSchedules';
 import { useTeamNotifications } from '@/hooks/useTeamNotifications';
 import useShrinkOldAvatar from '@/hooks/useShrinkOldAvatar';
 import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
-import { BILLING_ENABLED, SUPPORT_CONTACT } from '@/lib/billingCheckout';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 // The group's plan, as the You page's Subscription row names it.
-const PLAN_LABELS = { free: 'Free', team: 'Band', church: 'Church' };
 
 // Leaving an editor with changes not saved: one wording for every way out
 // (Cancel, Back, a tab in the nav, the phone's back swipe).
@@ -180,7 +179,7 @@ function createEngineForLibrary(libraryId, onStatusChange, opts = {}) {
 export default function App() {
   const { user, profile, signOut, updateProfile, loading: authLoading, isConfigured: accountsEnabled } = useAuth();
   useShrinkOldAvatar(user, profile, updateProfile);
-  const { team, teams, members, myRole, setActiveTeam, isAdmin, canWriteLibrary, hasTeamPlan, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
+  const { team, teams, members, myRole, setActiveTeam, isAdmin, canWriteLibrary, atWorkspaceLimit, loading: teamLoading, teamsLoaded, refreshTeams, pendingJoinCount = 0 } = useTeam();
   const signedOutSettled = !authLoading && !user?.id;
   // Launch: give memberships a few seconds to say which church to open before
   // falling back to whatever is open (offline, slow network).
@@ -388,7 +387,7 @@ export default function App() {
     storageFullShownRef.current = true;
     confirm({
       title: 'This device is out of space',
-      description: 'Your last changes couldn’t be saved here. Anything already synced is safe with your church.\n\nTo fix it: delete some photos, videos or apps you don’t need, then reopen Setlists.md. If you use it in a browser, clearing other websites’ data helps too.',
+      description: 'Your last changes couldn’t be saved here. Anything already synced is safe online.\n\nTo fix it: delete some photos, videos or apps you don’t need, then reopen Setlists.md. If you use it in a browser, clearing other websites’ data helps too.',
       confirmLabel: 'Got it',
       cancelLabel: null,
     });
@@ -500,7 +499,7 @@ export default function App() {
       handleJoinedSpace(decision.team_id, { switchTo: activeLibrary ? null : 'home' });
       toast({ title: `You're in ${decision.team_name || 'the team'}`, description: 'A leader approved your request.' });
     } else {
-      toast({ title: 'Join request not approved', description: 'Talk to your worship leader if that is a mistake.' });
+      toast({ title: 'Join request not approved', description: 'Talk to your leader if that is a mistake.' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchJoin, myJoinRequests]);
@@ -976,7 +975,7 @@ export default function App() {
   const currentWorkspaceNameRef = useRef('');
   onlyLeadersRef.current = () => confirm({
     title: 'Only leaders can change this',
-    description: `You can see everything in ${currentWorkspaceNameRef.current || 'your church'}, but changing songs and setlists is for its leaders. If something needs fixing, tell one of them.`,
+    description: `You can see everything in ${currentWorkspaceNameRef.current || 'this group'}, but changing songs and setlists is for its leaders. If something needs fixing, tell one of them.`,
     confirmLabel: 'OK',
     cancelLabel: null,
   });
@@ -1296,7 +1295,7 @@ export default function App() {
       if (!Number.isNaN(d.getTime()) && d < today) {
         const ok = await confirm({
           title: 'Edit a past setlist?',
-          description: "This setlist's date has already passed. Editing changes the record of a service that already happened. Continue?",
+          description: "This setlist's date has already passed. Editing changes the record of something that already happened. Continue?",
           confirmLabel: 'Edit anyway',
           variant: 'brand',
         });
@@ -1376,8 +1375,8 @@ export default function App() {
   // Who may create additional Spaces. Eligible accounts (billing on, or
   // team/church tier) can create up to the owned-workspace cap; once they hit
   // it we surface a "limit reached / contact support" affordance instead.
-  const eligibleToCreateWorkspace = BILLING_ENABLED || hasTeamPlan;
-  const canCreateWorkspace = eligibleToCreateWorkspace && !atWorkspaceLimit;
+  // Since 2026-11-19 anyone may start one (Free) group; one owned group per account.
+  const canCreateWorkspace = !atWorkspaceLimit;
   // Schedule opens from Home now (it left the nav pill on 2026-11-15).
   const goSchedule = () => navigate('schedule');
 
@@ -2711,7 +2710,7 @@ export default function App() {
                 people: members?.length || 0,
               } : null}
               subscription={activeLibrary && team && team.owner_id === user?.id
-                ? { label: PLAN_LABELS[(team.plan || 'free').toLowerCase()] || team.plan }
+                ? { label: planOf(team.plan).label }
                 : null}
               onSubscription={() => goToMainView('settings', { settingsPanel: 'plan' })}
               userId={user?.id || null}

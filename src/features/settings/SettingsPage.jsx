@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { planOf, planKeyOf } from '@/lib/plans';
 import { TemplatesList, TemplateEditor, TemplateView } from '@/features/setlist/TemplateEditor';
 import { templatesOf, blankTemplate } from '@/lib/newSetlist';
 import { useAuth } from '@/auth/useAuth';
@@ -29,7 +30,6 @@ const LAB_FLAGS = [
   { id: 'moveBetweenChurches', label: 'Move or copy songs to another church' },
 ];
 
-const PLAN_NAMES = { free: 'Free', sync: 'Sync', team: 'Band', church: 'Church' };
 const STATUS = { active: 'Active', trialing: 'Trial', past_due: 'Past due', unpaid: 'Unpaid', canceled: 'Cancelled' };
 const DAY_MS = 86400000;
 
@@ -188,7 +188,7 @@ export default function SettingsPage({
       return (
         <PlanView
           church={church}
-          plan={{ label: PLAN_NAMES[planKey] || planKey, status: STATUS[status] || 'Active', tone: billingOk ? null : 'bad', maxSeats: church.max_seats || null, usedSeats: members.length }}
+          plan={{ key: planKeyOf(planKey), label: planOf(planKey).label, status: STATUS[status] || 'Active', tone: billingOk ? null : 'bad', maxSeats: church.max_seats || null, usedSeats: members.length }}
           billingLive={BILLING_ENABLED}
           onSubscribe={!billingOk ? () => runBilling(() => startTeamCheckout(church.id, church.plan)) : undefined}
           onManage={() => runBilling(() => openBillingPortal(church.id))}

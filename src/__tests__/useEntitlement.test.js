@@ -21,12 +21,12 @@ describe('checkEntitlement', () => {
     }
   });
 
-  it('keeps services for Church groups only', () => {
-    expect(checkEntitlement('church', 'multi-service').allowed).toBe(true);
-    expect(checkEntitlement('team', 'multi-service').allowed).toBe(false);
-    expect(checkEntitlement('free', 'multi-service').allowed).toBe(false);
-    expect(checkEntitlement(null, 'multi-service').allowed).toBe(false);
-    expect(checkEntitlement('team', 'multi-service').requiredPlan).toBe('church');
+  it('gives every plan every feature: plans differ by seats only', () => {
+    for (const plan of ['free', 'team', 'church', null]) {
+      for (const feature of ['multi-service', 'schedule']) {
+        expect(checkEntitlement(plan, feature).allowed).toBe(true);
+      }
+    }
   });
 
   it('is case-insensitive for plan names', () => {
@@ -34,10 +34,6 @@ describe('checkEntitlement', () => {
     expect(checkEntitlement('Team', 'multi-service').currentPlan).toBe('team');
   });
 
-  it('has no Pro override', () => {
-    // A third argument used to unlock features for `profiles.is_pro`.
-    expect(checkEntitlement('team', 'multi-service', true).allowed).toBe(false);
-  });
 });
 
 describe('PLAN_RANK', () => {

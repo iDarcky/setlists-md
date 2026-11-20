@@ -227,7 +227,7 @@ function NextUp({ next, leader, clockFormat, onOpen, onPlay, onMarkReady }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-0.5">
             <span className="text-[12px] font-semibold uppercase leading-4 tracking-[0.06em] text-link">{when}</span>
-            <h3 className="m-0 truncate text-[18px] font-semibold leading-[26px] tracking-[-0.2px]">{sl.name || 'Service'}</h3>
+            <h3 className="m-0 truncate text-[18px] font-semibold leading-[26px] tracking-[-0.2px]">{sl.name || 'Untitled setlist'}</h3>
             <p className="m-0 truncate text-[14px] leading-5 text-muted-foreground">{sub}</p>
           </div>
           {sl.status === 'ready' && (
@@ -305,8 +305,8 @@ function needView(it) {
   if (it.kind === 'check') return { icon: FileCheck, title: it.count === 1 ? '1 imported song to check' : `${it.count} imported songs to check`, sub: 'Open each one and fix what’s off' };
   const sl = it.setlist;
   const when = shortDate(sl.date);
-  if (it.kind === 'noband') return { icon: List, title: `${sl.name || 'Service'} has no band yet`, sub: when };
-  return { icon: Music, title: `${sl.name || 'Service'} has no songs`, sub: when };
+  if (it.kind === 'noband') return { icon: List, title: `${sl.name || 'Untitled setlist'} has no band yet`, sub: when };
+  return { icon: Music, title: `${sl.name || 'Untitled setlist'} has no songs`, sub: when };
 }
 
 function NeedsYou({ asks = [], needs = [], onAnswer, onOpenSetlist, onNeed, limit = 4 }) {
@@ -349,8 +349,8 @@ function TwoWeeks({ days, offset, onOffset, selected, onSelect, clockFormat, onO
   const sel = days.find(d => d.date === selected) || null;
   const lines = sel
     ? [
-        ...sel.services.map(sl => ({ sl, title: sl.name || 'Service', sub: [clock(sl.time, clockFormat), sel.play ? 'You play' : sel.asked ? 'You’re invited' : null].filter(Boolean).join(' · ') })),
-        ...sel.rehearsals.map(sl => ({ sl, title: `Rehearsal · ${sl.name || 'Service'}`, sub: [clock(sl.rehearsalTime, clockFormat), sl.rehearsalLocation].filter(Boolean).join(' · ') })),
+        ...sel.services.map(sl => ({ sl, title: sl.name || 'Untitled setlist', sub: [clock(sl.time, clockFormat), sel.play ? 'You play' : sel.asked ? 'You’re invited' : null].filter(Boolean).join(' · ') })),
+        ...sel.rehearsals.map(sl => ({ sl, title: `Rehearsal · ${sl.name || 'Untitled setlist'}`, sub: [clock(sl.rehearsalTime, clockFormat), sl.rehearsalLocation].filter(Boolean).join(' · ') })),
       ]
     : [];
   const arrow = 'flex size-8 min-h-0 cursor-pointer items-center justify-center rounded-control border-0 bg-transparent p-0 text-muted-foreground outline-none hover:bg-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-35 disabled:hover:bg-transparent';
