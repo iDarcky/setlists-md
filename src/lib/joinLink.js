@@ -5,9 +5,10 @@
 // a try/catch'd localStorage wrapper) so it can be unit-tested without React
 // or Supabase.
 
-// Must agree with the DB check `code ~ '^[a-z0-9]{8,32}$'`. Codes are minted
+// Must agree with the DB check `code ~ '^[a-z0-9]{6,32}$'` (6 since
+// 20261122_short_join_codes.sql; older codes are 12). Codes are minted
 // lower-case; links typed or autocorrected to upper-case still resolve.
-const CODE_RE = /^[a-z0-9]{8,32}$/;
+const CODE_RE = /^[a-z0-9]{6,32}$/;
 
 /** Normalise a code (trim, lower-case). Returns null if it can't be a code. */
 export function normalizeJoinCode(raw) {

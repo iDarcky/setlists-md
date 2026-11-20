@@ -1,10 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/auth/useAuth';
-import { useInstallPrompt } from '@/hooks/useInstallPrompt';
-import { usePushSubscription } from '@/push/usePushSubscription';
 import { useMyJoinRequests } from '@/hooks/useMyJoinRequests';
 import {
-  alreadyInLine,
   autoJoinName,
   churchFromPeek,
   joinStepFor,
@@ -12,76 +9,17 @@ import {
   savePendingJoin,
   clearPendingJoin,
 } from '@/lib/joinLink';
+import WebSheet from '@/features/legal/WebSheet';
+import { SigningInView } from '@/features/intro/IntroAuthViews';
+import { InstrumentsView } from '@/features/intro/IntroStartViews';
+import { JoinInviteView, WaitingView, YoureInView, DeclinedView, BadLinkView } from '@/features/intro/IntroJoinViews';
+import { useProviderSignIn } from '@/features/intro/useProviderSignIn';
+import GetAppScreen from '@/features/start/GetAppScreen';
 import { peekJoinLink, requestToJoin } from './joinApi';
-import {
-  JoinInviteView,
-  AboutYouView,
-  WaitingView,
-  YoureInView,
-  DeclinedView,
-  BadLinkView,
-  OpeningView,
-} from './JoinViews';
 
-const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint'));
-
-// ── You're in: the three steps keep their live state here ─────────────────
-
-function YoureIn({ church, onGoSchedule, onSkipHome }) {
-  const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
-  const push = usePushSubscription();
-  const [showIOSHint, setShowIOSHint] = useState(false);
-  const [installAnswered, setInstallAnswered] = useState(false);
-
-  const installDone = isStandalone || installAnswered;
-  let installAction = null;
-  if (!installDone && canInstall) {
-    installAction = {
-      label: 'Install',
-      onClick: async () => {
-        const outcome = await promptInstall();
-        if (outcome === 'accepted') setInstallAnswered(true);
-      },
-    };
-  } else if (!installDone && isIOS) {
-    installAction = { label: 'Show me how', onClick: () => setShowIOSHint(true) };
-  }
-  const installBody = installDone
-    ? 'Done. Open it from your home screen from now on.'
-    : (canInstall || isIOS)
-      ? 'Opens full screen, like a real app.'
-      : 'In your browser menu, pick “Add to Home Screen” or “Install app”.';
-
-  let pushAction = null;
-  let pushBody = 'Hear when a leader invites you to play.';
-  if (push.subscribed) {
-    pushBody = 'On. You’ll hear when you’re asked to play.';
-  } else if (push.denied) {
-    pushBody = 'Alerts are blocked for this site. Allow them in your browser settings.';
-  } else if (!push.supported) {
-    pushBody = isIOS ? 'On iPhone, put the app on your home screen first, then turn alerts on there.' : 'This browser can’t show alerts.';
-  } else {
-    pushAction = { label: 'Turn on', onClick: () => push.enable(), busy: push.busy };
-  }
-
-  return (
-    <>
-      <YoureInView
-        church={church}
-        steps={[
-          { title: 'Put the app on your phone', body: installBody, done: installDone, action: installAction },
-          { title: 'Turn on alerts', body: pushBody, done: push.subscribed, action: pushAction },
-          { title: 'Say which dates you can play', body: 'So leaders know who’s free.', action: { label: 'Open the schedule', onClick: onGoSchedule, primary: true } },
-        ]}
-        onSkip={onSkipHome}
-      />
-      {showIOSHint && (
-        <Suspense fallback={null}>
-          <IOSInstallHint onClose={() => setShowIOSHint(false)} />
-        </Suspense>
-      )}
-    </>
-  );
+// Has this device logged in before? Then email means Log in.
+function knownEmail() {
+  try { return !!window.localStorage.getItem('setlists-md:last-email'); } catch { return false; }
 }
 
 // ── The flow ────────────────────────────────────────────────────────────────
@@ -89,20 +27,20 @@ function YoureIn({ church, onGoSchedule, onSkipHome }) {
 /**
  * `/join/<code>` — ask to join a church from its join link.
  *
- * landing (signed out) → about you → waiting (live) → you're in.
+ * landing (signed out: Apple, Google or email) → What do you play? (the
+ * ask) → waiting (live) → you're in → get the app. New screens 2026-11-20.
  * The code sits in localStorage (`lib/joinLink.js`) so it survives the OAuth
  * redirect and the magic-link tab; App resumes here after sign-in.
  *
  * @param {string}   code
  * @param {Function} onJoined(teamId)     approved / already a member — App makes
  *                                        the church home and loads it
- * @param {Function} onGoSchedule(teamId) "Say which dates you can play"
- * @param {Function} onSkipHome(teamId)   "Skip to Home"
+ * @param {Function} onSkipHome(teamId)   "Open <church>", the last screen
  * @param {Function} onExit()             leave the flow (bad link, or wait elsewhere)
  * @param {Function} [onPasswordSignIn](mode, church) the email + password screen,
  *                                        showing the church it is joining
  */
-export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onExit, onPasswordSignIn }) {
+export default function JoinFlow({ code, onJoined, onSkipHome, onExit, onPasswordSignIn }) {
   const { user, profile, loading: authLoading, updateProfile, signOut } = useAuth();
   const signedIn = !!user;
   const [peek, setPeek] = useState(null);
@@ -113,6 +51,9 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
   const [submitted, setSubmitted] = useState(null); // { requestId, teamId, name, parts }
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
+  const [legal, setLegal] = useState(null);
+  const [inStep, setInStep] = useState('in'); // in → app
+  const providers = useProviderSignIn();
   const joinedFiredRef = useRef(false);
 
   const fireJoined = useCallback((teamId) => {
@@ -211,25 +152,14 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
     }
   };
 
-  // Opening the link is the ask. Once signed in, send the request straight
-  // away with the account's name, so nobody lands on a second screen they
-  // can skip (2026-11-08: someone tapped "Not now" there and no leader ever
-  // heard of them). The name/parts form only comes back if the send fails.
-  const autoAskedRef = useRef(false);
+  // The name goes out without a question (account name, sign-up name or
+  // the email's first part); "What do you play?" is the one screen before
+  // the request, and Continue sends it even with nothing picked.
   const autoName = autoJoinName({
     profileName: profile?.display_name,
-    signupName: user?.user_metadata?.name,
+    signupName: user?.user_metadata?.name || user?.user_metadata?.full_name,
     email: user?.email,
   });
-  useEffect(() => {
-    if (step !== 'about' || autoAskedRef.current || !signedIn || !autoName) return;
-    autoAskedRef.current = true;
-    ask(autoName);
-    // ask is recreated every render; the ref makes this fire once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, signedIn, autoName]);
-  // Until the automatic send fails (an error message), "about" is a loading state.
-  const autoAsking = step === 'about' && !!autoName && !message;
 
   const leave = () => {
     // A finished or broken flow should not reopen on the next launch.
@@ -247,7 +177,7 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
 
   const church = churchFromPeek(peek);
 
-  if (step === 'loading') return <OpeningView />;
+  if (step === 'loading') return <SigningInView label="Opening your invite…" />;
 
   if (step === 'error') {
     const reason = peekError && !peek ? 'network' : peek?.status === 'disabled' ? 'disabled' : 'invalid';
@@ -256,50 +186,53 @@ export default function JoinFlow({ code, onJoined, onGoSchedule, onSkipHome, onE
 
   if (step === 'in') {
     const teamId = submitted?.teamId || peek?.team_id || null;
-    return <YoureIn church={church} onGoSchedule={() => onGoSchedule?.(teamId)} onSkipHome={() => onSkipHome?.(teamId)} />;
+    if (inStep === 'app') {
+      return <GetAppScreen teamName={church?.name} onOpen={() => onSkipHome?.(teamId)} progress={null} />;
+    }
+    return <YoureInView church={church} leaderName={peek?.leader_name} onContinue={() => setInStep('app')} />;
   }
 
   if (step === 'declined') {
-    return <DeclinedView church={church} onOpenApp={leave} onSignOut={signOutAndLeave} />;
+    return <DeclinedView church={church} onAnotherCode={leave} onSignOut={signOutAndLeave} />;
   }
 
   if (step === 'waiting') {
     return (
       <WaitingView
         church={church}
-        name={submitted?.name || myRequest?.display_name || name}
+        name={submitted?.name || myRequest?.display_name || name || autoName}
         parts={submitted?.parts || myRequest?.parts || []}
         onSignOut={signOutAndLeave}
       />
     );
   }
 
-  if (autoAsking) return <OpeningView />;
-
   if (step === 'about') {
     return (
-      <AboutYouView
-        church={church}
-        name={name}
-        onNameChange={setName}
+      <InstrumentsView
         parts={parts}
         onPartsChange={setParts}
-        onSubmit={ask}
-        onNotNow={leave}
+        progress={{ step: 3, of: 3 }}
+        name={name}
+        onNameChange={autoName ? undefined : setName}
+        onContinue={() => ask(autoName || name)}
         busy={busy}
-        message={message?.text}
+        error={message?.text}
       />
     );
   }
 
   // landing
   return (
-    <JoinInviteView
-      church={church}
-      alreadyIn={alreadyInLine({ leaderName: peek?.leader_name, memberCount: peek?.member_count })}
-      onCreateAccount={() => onPasswordSignIn?.('signup', church)}
-      onLogIn={() => onPasswordSignIn?.('signin', church)}
-      onNotNow={leave}
-    />
+    <>
+      <JoinInviteView
+        church={church}
+        invitedBy={peek?.leader_name}
+        {...providers}
+        onEmail={() => onPasswordSignIn?.(knownEmail() ? 'signin' : 'signup', church)}
+        onShowLegal={setLegal}
+      />
+      <WebSheet page={legal} onClose={() => setLegal(null)} />
+    </>
   );
 }

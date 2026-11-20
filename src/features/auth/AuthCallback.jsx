@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/auth/supabase';
+import { SigningInView } from '@/features/intro/IntroAuthViews';
 
 /**
  * Handles the OAuth / magic-link redirect.
@@ -42,27 +43,5 @@ export default function AuthCallback({ onDone }) {
     return () => { cancelled = true; };
   }, [onDone]);
 
-  return (
-    <div data-theme-variant="modes" className="min-h-screen flex items-center justify-center px-6">
-      <div className="modes-card max-w-sm p-8 text-center">
-        {error ? (
-          <>
-            <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-2">Sign-in failed</h2>
-            <p className="text-copy-14 text-[var(--modes-text-muted)] m-0 mb-4">{error}</p>
-            <button
-              onClick={onDone}
-              className="text-[var(--color-brand)] font-semibold bg-transparent border-none cursor-pointer"
-            >
-              Back
-            </button>
-          </>
-        ) : (
-          <>
-            <h2 className="text-heading-20 text-[var(--modes-text)] m-0 mb-2">Signing you in…</h2>
-            <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">One moment.</p>
-          </>
-        )}
-      </div>
-    </div>
-  );
+  return <SigningInView error={error} onBack={onDone} />;
 }

@@ -26,6 +26,8 @@ describe('join code parsing', () => {
   });
   it('rejects anything the DB would reject', () => {
     expect(normalizeJoinCode('short')).toBeNull();
+    // 6-character codes since 20261122_short_join_codes.sql.
+    expect(normalizeJoinCode('K7M2QX')).toBe('k7m2qx');
     expect(normalizeJoinCode('has space in')).toBeNull();
     expect(normalizeJoinCode('bad-chars!!')).toBeNull();
     expect(normalizeJoinCode('a'.repeat(33))).toBeNull();

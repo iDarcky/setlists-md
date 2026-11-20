@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { signupSource, forgetSignupSource } from '@/lib/siteEntry';
 import { useAuth } from '@/auth/useAuth';
-import { Button } from '@/ui/shadcn/button';
 import WebSheet from '@/features/legal/WebSheet';
 import { termsAcceptance } from '@/features/legal/termsVersion';
 import { friendlyAuthError } from './friendlyAuthError';
 import { AuthLayout, AuthHeader, LogoMark } from './AuthLayout';
-import { CreateAccountView, LogInView, ForgotPasswordView } from './AuthViews';
+import { CreateAccountView, LogInView, ResetPasswordView, CheckEmailView } from '@/features/intro/IntroAuthViews';
 
 const LAST_EMAIL_KEY = 'setlists-md:last-email';
 const RESEND_COOLDOWN_MS = 30_000;
@@ -31,7 +30,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
   const { signInWithPassword, signUpWithPassword, resetPassword, resendVerification, isConfigured } = useAuth();
 
   const [mode, setMode] = useState(defaultMode); // 'signin' | 'signup' | 'reset'
-  const [values, setValues] = useState(() => ({ name: '', email: lastEmail(), password: '', confirm: '' }));
+  const [values, setValues] = useState(() => ({ name: '', email: lastEmail(), password: '' }));
   const [busy, setBusy] = useState(null); // which button is spinning
   const [message, setMessage] = useState(null); // { kind: 'info'|'success'|'error', text, action? }
   const [resetSent, setResetSent] = useState(false);
@@ -69,7 +68,6 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     setPendingVerification(email);
     setResendAt(Date.now() + RESEND_COOLDOWN_MS);
     setNow(Date.now());
-    setMessage({ kind: 'info', text: `Check ${email} to confirm your account.` });
   });
 
   const logIn = () => run('submit', async () => {
@@ -86,7 +84,8 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     if (error) throw error;
     rememberEmail(email);
     setResetSent(true);
-    setMessage({ kind: 'success', text: `Sent. Check ${email} for a link to pick a new password.` });
+    setResendAt(Date.now() + RESEND_COOLDOWN_MS);
+    setNow(Date.now());
   });
 
   const resend = () => {
@@ -112,17 +111,26 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
     );
   }
 
-  // "Didn't get it?" rides on the confirmation message.
-  const shownMessage = message && pendingVerification && message.kind === 'info'
-    ? {
-      ...message,
-      action: (
-        <Button variant="link" className="mt-1 block font-semibold" disabled={!!busy || resendLeft > 0} onClick={resend}>
-          {busy === 'resend' ? 'Sending…' : resendLeft > 0 ? `Send again in ${resendLeft}s` : 'Didn’t get it? Send it again'}
-        </Button>
-      ),
-    }
-    : message;
+  const resendReset = () => {
+    if (resendLeft > 0) return;
+    sendReset();
+  };
+
+  // B2: the link is on its way (confirm the account, or pick a new password).
+  if (pendingVerification || (mode === 'reset' && resetSent)) {
+    const confirming = !!pendingVerification;
+    return (
+      <CheckEmailView
+        email={confirming ? pendingVerification : values.email.trim()}
+        what={confirming ? 'a link to confirm your account' : 'a link to pick a new password'}
+        onResend={confirming ? resend : resendReset}
+        onBack={() => { setPendingVerification(null); go(confirming ? 'signup' : 'signin'); }}
+        resendLeft={resendLeft}
+        busy={busy === 'resend' || busy === 'reset'}
+        message={message}
+      />
+    );
+  }
 
   return (
     <>
@@ -135,7 +143,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
           onLogIn={() => go('signin')}
           onShowLegal={setLegal}
           busy={busy}
-          message={shownMessage}
+          message={message}
           joining={joining}
         />
       )}
@@ -148,19 +156,18 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
           onForgot={() => go('reset')}
           onCreateAccount={() => go('signup')}
           busy={busy}
-          message={shownMessage}
+          message={message}
           joining={joining}
         />
       )}
       {mode === 'reset' && (
-        <ForgotPasswordView
+        <ResetPasswordView
           email={values.email}
           onChange={(v) => change('email', v)}
           onSubmit={sendReset}
           onBack={() => go('signin')}
           busy={busy}
-          message={shownMessage}
-          sent={resetSent}
+          message={message}
         />
       )}
       <WebSheet page={legal} onClose={() => setLegal(null)} />

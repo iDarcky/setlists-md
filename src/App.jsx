@@ -2208,11 +2208,6 @@ export default function App() {
           <JoinFlow
             code={joinCode}
             onJoined={(teamId) => handleJoinedSpace(teamId)}
-            onGoSchedule={(teamId) => {
-              leaveJoinFlow();
-              setView('home');
-              if (teamId) setPendingSpaceSwitch({ teamId, view: 'schedule' });
-            }}
             onSkipHome={(teamId) => {
               leaveJoinFlow();
               setView('home');
@@ -2331,7 +2326,6 @@ export default function App() {
             team={teams[0] || null}
             onRequestChange={setStartRequest}
             onSignOut={handleSignOut}
-            onInviteBand={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'team' }); }}
             onOpenTeam={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'home' }); }}
             onJoinCode={(code) => { setJoinCode(code); setView('join'); }}
           />

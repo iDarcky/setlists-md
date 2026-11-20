@@ -3,6 +3,7 @@ import globals from 'globals'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
+import tseslint from 'typescript-eslint'
 
 export default defineConfig([
   globalIgnores(['dist', '.claude']),
@@ -67,5 +68,20 @@ export default defineConfig([
     // implementation, which lives outside src/ and so has no '@/' path.
     files: ['src/__tests__/webpush-crypto.test.js'],
     rules: { 'no-restricted-imports': 'off' },
+  },
+  {
+    // The new first-run screens (src/features/intro) are TypeScript, 2026-11-20.
+    files: ['src/**/*.{ts,tsx}'],
+    extends: [
+      ...tseslint.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      globals: { ...globals.browser, __APP_VERSION__: 'readonly' },
+    },
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['../*'], message: "Use the '@/' alias, not '../'." }] }],
+    },
   },
 ])

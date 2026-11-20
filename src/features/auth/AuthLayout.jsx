@@ -60,11 +60,11 @@ export function AuthLayout({ onBack, embedded = false, className, children }) {
   );
 }
 
-/** The app's mark. 32px over a form, 56px on Welcome. */
+/** The app's mark, with ink lines (no green, 2026-11-20). 32px over a form. */
 export function LogoMark({ size = 32, className }) {
   return (
     <img
-      src="/setlists-md-mark.svg"
+      src="/setlists-md-mark-ink.svg"
       alt=""
       aria-hidden="true"
       width={size}
@@ -84,7 +84,7 @@ export function ChurchBadge({ name, logoUrl, initials, quiet = false }) {
       aria-hidden="true"
       className={cn(
         'flex size-10 items-center justify-center rounded-[10px] bg-raised text-body font-semibold',
-        quiet ? 'text-muted-foreground' : 'text-link',
+        quiet ? 'text-muted-foreground' : 'text-foreground',
       )}
     >
       {initials || churchInitials(name)}
@@ -92,10 +92,10 @@ export function ChurchBadge({ name, logoUrl, initials, quiet = false }) {
   );
 }
 
-/** The green tick square on "You're in!". */
+/** The tick square on "You're in". Neutral, like the church badge. */
 export function SuccessBadge() {
   return (
-    <div aria-hidden="true" className="flex size-10 items-center justify-center rounded-[10px] bg-success-fill text-success-text">
+    <div aria-hidden="true" className="flex size-10 items-center justify-center rounded-[10px] bg-raised text-foreground">
       <TickIcon />
     </div>
   );
