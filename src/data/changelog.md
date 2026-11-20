@@ -2,6 +2,12 @@
 
 A running log of what's new in setlists.md. Newest releases first.
 
+## 0.26.1 — Setlists come back on the new address
+*November 2026*
+
+### Fixed
+- **Setlists and songs missing on the new address.** A phone that missed part of its first download at app.setlists.md now downloads everything again by itself.
+
 ## 0.26.0 — New address, new Home
 *November 2026*
 
