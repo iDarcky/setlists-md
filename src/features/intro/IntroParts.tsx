@@ -1,7 +1,7 @@
 // Small pieces the first-run screens share (mockup "first-run v9",
 // 2026-11-20). Plain views: values in, events out.
 import type { ReactNode } from 'react';
-import { Check, Mail } from 'lucide-react';
+import { Mail } from 'lucide-react';
 import { JOIN_PARTS, toggleJoinPart } from '@/lib/joinLink';
 import { Button, LogoMark, TextLink } from './ui';
 
@@ -134,7 +134,7 @@ export function Progress({ step, of }: { step: number; of: number }) {
   );
 }
 
-/** Instruments as wrapping pills; picked = ink with a tick. */
+/** Instruments as wrapping pills; picked = ink fill, no tick, so nothing moves when you tap (2026-11-20). */
 export function PartPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   return (
     <div role="group" aria-label="What do you play?" className="flex flex-wrap gap-2">
@@ -146,9 +146,8 @@ export function PartPicker({ value, onChange }: { value: string[]; onChange: (ne
             type="button"
             aria-pressed={on}
             onClick={() => onChange(toggleJoinPart(value, p.id))}
-            className={`inline-flex h-11 cursor-pointer items-center gap-1.5 rounded-full border px-4 font-sans text-body font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${on ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:bg-raised'}`}
+            className={`inline-flex h-11 cursor-pointer items-center rounded-full border px-4 font-sans text-body font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${on ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-foreground hover:bg-raised'}`}
           >
-            {on && <Check size={16} strokeWidth={1.8} aria-hidden="true" />}
             {p.label}
           </button>
         );
