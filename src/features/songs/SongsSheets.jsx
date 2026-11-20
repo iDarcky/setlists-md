@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useSpaceWords } from '@/hooks/useSpaceWords';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
@@ -100,7 +99,6 @@ export function TagSheet({ open, onOpenChange, count = 0, tags = [], onAdd }) {
 /** Move or copy to another church the user leads. */
 export function ChurchPickerSheet({ open, onOpenChange, action = 'copy', count = 0, songTitle, churches = [], onPick }) {
   const [busy, setBusy] = useState(null);
-  const w = useSpaceWords();
   const pick = async (id) => {
     setBusy(id);
     try { await onPick?.(id); onOpenChange?.(false); } finally { setBusy(null); }
@@ -110,8 +108,8 @@ export function ChurchPickerSheet({ open, onOpenChange, action = 'copy', count =
       <div className="flex flex-col gap-2">
         <p className="m-0 text-small text-muted-foreground">
           {action === 'move'
-            ? (songTitle || count === 1 ? `It leaves this ${w.space}’s library.` : `They leave this ${w.space}’s library.`)
-            : `This ${w.space} keeps its copy.`}
+            ? (songTitle || count === 1 ? 'It leaves this church’s library.' : 'They leave this church’s library.')
+            : 'This church keeps its copy.'}
         </p>
         <div className="flex flex-col overflow-hidden rounded-card border border-border">
           {churches.map(c => (

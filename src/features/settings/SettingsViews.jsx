@@ -1,5 +1,4 @@
 import { useId, useState } from 'react';
-import { useSpaceWords } from '@/hooks/useSpaceWords';
 import { LabelInput } from '@/ui/blocks/LabelInput';
 import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyNote } from '@/ui/shadcn/empty-state';
@@ -268,14 +267,13 @@ export function DateTimeView({ firstDay = 'sunday', onFirstDay, clock = '12h', o
  */
 export function NotificationsSettingsView({ push = {}, onPush, reminderOptions = [], serviceReminders = [], onServiceReminders, rehearsalReminders = [], onRehearsalReminders, onBack, embedded }) {
   const [adding, setAdding] = useState(null); // 'service' | 'rehearsal'
-  const w = useSpaceWords();
   const status = !push.supported ? 'Not available here'
     : push.denied ? 'Blocked in your phone’s settings'
       : null;
   // No help lines on Settings pages (owner, 2026-11-14): only a status when
   // the switch can't work.
   const lists = {
-    service: { title: `Before a ${w.event}`, value: serviceReminders, onChange: onServiceReminders },
+    service: { title: 'Before a service', value: serviceReminders, onChange: onServiceReminders },
     rehearsal: { title: 'Before a rehearsal', value: rehearsalReminders, onChange: onRehearsalReminders },
   };
   const open = adding ? lists[adding] : null;

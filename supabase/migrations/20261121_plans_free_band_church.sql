@@ -1,21 +1,19 @@
--- Plans: Free, Band and Church (decided 2026-11-19).
+-- Plans: Free, Band and Church (decided 2026-11-19, seats only 2026-11-20).
 --
---   Free    plan 'free'    5 people   songs + setlists
---   Band    plan 'team'   15 people   songs + setlists           €9.99/month
---   Church  plan 'church' 40 people   + schedule and services    €19.99/month
+--   Free    plan 'free'     5 people   free
+--   Band    plan 'team'    15 people   €9.99/month
+--   Church  plan 'church'  40 people   €19.99/month  (+10 people for €5)
 --
--- `teams.kind` says what the group IS ('church' or 'team' = a band) and picks
--- the words the app uses; `teams.plan` says what it PAYS for. No payments
--- yet: a plan is changed by hand in the SQL editor (examples at the bottom).
+-- The plans differ by seats only: every group gets every feature, and the
+-- app uses the same words for churches and bands. No payments yet: a plan is
+-- changed by hand in the SQL editor (examples at the bottom).
 --
 -- What it does (one transaction, all or nothing):
 --   1. lets `plan` be 'free' and makes Free the default for a new group;
---   2. marks the three churches as kind 'church' (they were all 'team');
---   3. raises Church groups from 30 to 40 seats;
---   4. a new group made from the app always starts on Free with 5 seats,
+--   2. raises Church groups from 30 to 40 seats (Band stays 15);
+--   3. a new group made from the app always starts on Free with 5 seats,
 --      whatever the app sends, and one account may own only one group.
--- Nothing is deleted. XB (Band) keeps its schedule rows in the database; the
--- app just stops showing the schedule on Band.
+-- Nothing is deleted and no existing group loses anything.
 --
 -- Run it before the app with this change reaches people: an older app would
 -- still be able to make groups, and they'd simply start on Free.
@@ -30,14 +28,11 @@ alter table public.teams
 alter table public.teams alter column plan set default 'free';
 alter table public.teams alter column max_seats set default 5;
 
--- 2. Churches are churches (the app shows church words only for these).
-update public.teams set kind = 'church' where plan = 'church' and kind = 'team';
-
--- 3. Church is 40 people now; Band is 15.
+-- 2. Church is 40 people now; Band is 15.
 update public.teams set max_seats = 40 where plan = 'church' and max_seats < 40;
 update public.teams set max_seats = 15 where plan = 'team'   and max_seats < 15;
 
--- 4. A group made from the app: Free, 5 seats, and one per owner.
+-- 3. A group made from the app: Free, 5 seats, and one per owner.
 create or replace function public.guard_new_team()
 returns trigger
 language plpgsql
@@ -65,9 +60,7 @@ begin
   new.plan := 'free';
   new.max_seats := 5;
   new.subscription_status := 'active';
-  if new.kind is null or new.kind not in ('team', 'church') then
-    new.kind := 'team';
-  end if;
+  new.kind := 'team';
   return new;
 end;
 $$;
@@ -81,8 +74,8 @@ create trigger trg_guard_new_team
 commit;
 
 -- Check afterwards:
---   select name, kind, plan, max_seats from public.teams order by created_at;
---   (Providenta, Beta-Church, Inchinare Sincera: church / church / 40; XB: team / team / 15)
+--   select name, plan, max_seats from public.teams order by created_at;
+--   (Providenta, Beta-Church, Inchinare Sincera: church / 40; XB: team / 15)
 --
 -- Changing a group's plan by hand (SQL editor):
 --   Band:   update public.teams set plan = 'team',   max_seats = 15 where name = '…';

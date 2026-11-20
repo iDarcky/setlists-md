@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { wordsFor } from '@/lib/spaceWords';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { Button } from '@/ui/shadcn/button';
@@ -41,7 +40,6 @@ const DEVICE_TZ = (() => {
 function CreateTeamForm({ onCreate, onCancel }) {
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [kind, setKind] = useState('church');
   const [timezone, setTimezone] = useState(DEVICE_TZ);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -52,20 +50,13 @@ function CreateTeamForm({ onCreate, onCancel }) {
     setBusy(true);
     setError(null);
     try {
-      await onCreate({ name: name.trim(), location: location.trim() || null, kind, timezone });
+      await onCreate({ name: name.trim(), location: location.trim() || null, timezone });
     } catch (err) {
       setError(err.message || 'Could not create team.');
     } finally {
       setBusy(false);
     }
   };
-
-  // Church or band decides the words the app uses (lib/spaceWords). Every
-  // new group starts on Free (lib/plans); the plan is changed by hand.
-  const KINDS = [
-    { id: 'church', label: 'A church', blurb: 'Services and a worship team.' },
-    { id: 'team', label: 'A band', blurb: 'Gigs, covers, weddings, any band.' },
-  ];
 
   return (
     <div className="flex-1 flex items-center justify-center px-6 py-12">
@@ -82,7 +73,7 @@ function CreateTeamForm({ onCreate, onCancel }) {
             Start your church or band
           </h2>
           <p className="text-copy-14 text-[var(--modes-text-muted)] m-0">
-            Free for up to 5 people. Bigger groups move to Band or Church.
+            Free for up to 5 people. Bigger groups move to Band (15) or Church (40).
           </p>
         </div>
 
@@ -94,7 +85,7 @@ function CreateTeamForm({ onCreate, onCancel }) {
               required
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={kind === 'church' ? 'e.g. Grace Church' : 'e.g. The Late Shift'}
+              placeholder="e.g. Grace Church Worship"
             />
           </label>
 
@@ -120,32 +111,6 @@ function CreateTeamForm({ onCreate, onCancel }) {
             </select>
             <span className="text-label-11 text-[var(--modes-text-dim)] normal-case tracking-normal">Used to send reminders at the right local time.</span>
           </label>
-
-          <div className="flex flex-col gap-1.5">
-            <span className="text-label-12 text-[var(--modes-text-muted)] uppercase tracking-wider">This is</span>
-            <div className="grid grid-cols-2 gap-2">
-              {KINDS.map(t => {
-                const active = kind === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setKind(t.id)}
-                    className="text-left rounded-xl p-3 border transition-all"
-                    style={{
-                      borderColor: active ? 'var(--color-brand)' : 'var(--modes-border)',
-                      boxShadow: active ? '0 0 0 1px var(--color-brand)' : 'none',
-                      background: active ? 'var(--color-brand-soft)' : 'var(--modes-surface)',
-                    }}
-                    aria-pressed={active}
-                  >
-                    <div className="text-copy-14 font-semibold text-[var(--modes-text)]">{t.label}</div>
-                    <div className="text-label-11 text-[var(--modes-text-dim)] mt-0.5">{t.blurb}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {error && (
             <div className="text-copy-13 px-3 py-2 rounded-lg" style={{ background: 'var(--ds-red-100)', color: 'var(--ds-red-1000)' }}>
@@ -287,9 +252,8 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
     const ok = await confirm({ title: `Leave ${team.name}?`, description: 'You lose access to its songs and setlists. You can ask to join again with the link.', confirmLabel: 'Leave', variant: 'danger' });
     if (ok) { setPersonId(null); await onLeave(); }
   };
-  const w = wordsFor(team);
   const deleteChurch = async () => {
-    const ok = await confirm({ title: `Delete "${team.name}"?`, description: `Everyone is removed and the ${w.space}, its songs and setlists are deleted. This cannot be undone.`, confirmLabel: 'Delete', variant: 'danger' });
+    const ok = await confirm({ title: `Delete "${team.name}"?`, description: 'Everyone is removed and the church, its songs and setlists are deleted. This cannot be undone.', confirmLabel: 'Delete', variant: 'danger' });
     if (ok) await onDelete();
   };
 
@@ -300,11 +264,11 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
   const footer = (
     <div className="flex flex-col items-start gap-3 pt-4 text-small">
       {onToggleDefaultSpace && (
-        <ShadButton variant="link" onClick={onToggleDefaultSpace}>{isDefaultSpace ? 'Opens here when the app starts' : `Open this ${w.space} when the app starts`}</ShadButton>
+        <ShadButton variant="link" onClick={onToggleDefaultSpace}>{isDefaultSpace ? 'Opens here when the app starts' : 'Open this church when the app starts'}</ShadButton>
       )}
       {onCreate && <ShadButton variant="link" onClick={onCreate}>Start another church or band</ShadButton>}
       {!isOwner && <ShadButton variant="link" className="text-danger" onClick={leave}>Leave {team.name}</ShadButton>}
-      {isOwner && <ShadButton variant="link" className="text-danger" onClick={deleteChurch}>Delete this {w.space}</ShadButton>}
+      {isOwner && <ShadButton variant="link" className="text-danger" onClick={deleteChurch}>Delete this church</ShadButton>}
     </div>
   );
 

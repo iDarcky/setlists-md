@@ -150,7 +150,7 @@ export function whoCanPlay({ setlists = [], availability = [], schedules = [], s
  * waiting to join; services in the next `horizonDays` with nobody on the band;
  * and ones with no songs.
  */
-export function needsYou({ joinRequests = [], setlists = [], schedules = [], setlistMap = {}, now = Date.now(), horizonDays = 21, noParts = [], schedule = true }) {
+export function needsYou({ joinRequests = [], setlists = [], schedules = [], setlistMap = {}, now = Date.now(), horizonDays = 21, noParts = [] }) {
   const items = [];
   if (joinRequests.length) {
     const names = joinRequests.map(r => r.display_name || r.email?.split('@')[0]).filter(Boolean);
@@ -161,8 +161,7 @@ export function needsYou({ joinRequests = [], setlists = [], schedules = [], set
   const horizon = now + horizonDays * DAY_MS;
   for (const sl of upcomingSetlists(setlists, now)) {
     if (setlistStartMs(sl) > horizon) break;
-    // No schedule on this plan (Free, Band): nobody is picked, so don't nag.
-    if (schedule && bandFor(sl, schedules, setlistMap).length === 0) items.push({ kind: 'noband', setlist: sl });
+    if (bandFor(sl, schedules, setlistMap).length === 0) items.push({ kind: 'noband', setlist: sl });
     if (!(sl.items || []).some(i => i.songId)) items.push({ kind: 'nosongs', setlist: sl });
   }
   return items;
@@ -258,7 +257,7 @@ const isDemo = (s) => typeof s?.id === 'string' && s.id.startsWith('demo-');
  */
 export function setupSteps({
   leader = false, songs = [], setlists = [], memberCount = 0, hasParts = false,
-  push = null, answered = false, schedule = true,
+  push = null, answered = false,
 } = {}) {
   if (leader) {
     const mine = songs.filter(s => !isDemo(s)).length;
@@ -267,12 +266,12 @@ export function setupSteps({
       { id: 'import', title: 'Import your song PDFs', sub: 'Many at once, then check each one', done: mine >= 10 },
       { id: 'parts', title: 'Pick what you play', sub: 'Your charts open on your part', done: hasParts },
       { id: 'setlist', title: 'Make your first setlist', sub: 'Pick a date and add songs', done: setlists.length > 0 },
-      { id: 'invite', title: 'Invite the others', sub: 'Send one link, you approve who joins', done: memberCount > 1 },
+      { id: 'invite', title: 'Invite your band', sub: 'Send one link, you approve who joins', done: memberCount > 1 },
     ];
   }
   return [
     { id: 'parts', title: 'Pick what you play', sub: 'Your charts open on your part', done: hasParts },
-    ...(push?.supported && schedule ? [{ id: 'push', title: 'Turn on notifications', sub: 'Hear when a leader invites you to play', done: !!push.subscribed }] : []),
-    ...(schedule ? [{ id: 'answer', title: 'Answer your first ask', sub: 'Say if you can play on a date', done: answered }] : []),
+    ...(push?.supported ? [{ id: 'push', title: 'Turn on notifications', sub: 'Hear when a leader invites you to play', done: !!push.subscribed }] : []),
+    { id: 'answer', title: 'Answer your first ask', sub: 'Say if you can play on a date', done: answered },
   ];
 }

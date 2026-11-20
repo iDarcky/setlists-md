@@ -4,7 +4,7 @@ import { Button } from '@/ui/shadcn/button';
 import { Alert } from '@/ui/shadcn/alert';
 import { FieldGroup } from '@/ui/shadcn/field';
 import { AuthLayout, AuthHeader, AuthActions, SuccessBadge } from '@/features/auth/AuthLayout';
-import { TeamIcon, MusicIcon, ChevronRightIcon } from '@/app/navIcons';
+import { TeamIcon, ChevronRightIcon } from '@/app/navIcons';
 
 // The "after sign-up" screens as plain views (mockup "After sign-up: start a
 // church or band"). StartFlow.jsx owns the state and the sending.
@@ -37,40 +37,37 @@ function Choice({ icon, title, body, onClick }) {
 }
 
 // ── 1. What are you setting up? ─────────────────────────────────────────────
-export function ChooseView({ name, onChurch, onBand, onInvite, onSignOut, embedded }) {
+export function ChooseView({ name, onStart, onInvite, onSignOut, embedded }) {
   return (
     <AuthLayout embedded={embedded}>
       <AuthHeader title="What are you setting up?" sub={`${name ? `Hi ${name}, your` : 'Your'} account is ready. One more step.`} />
       <div className="flex flex-col gap-3">
-        <Choice icon={<TeamIcon size={22} />} title="A church" body="Songs and setlists for your worship team." onClick={onChurch} />
-        <Choice icon={<MusicIcon size={22} />} title="A band" body="Songs and setlists for any band: gigs, weddings, covers." onClick={onBand} />
+        <Choice icon={<TeamIcon size={22} />} title="Start a church or band" body="Songs, setlists and who plays when. Free for up to 5 people." onClick={onStart} />
         <Choice icon={<LinkIcon />} title="I have an invite link" body="Join the church or band that invited you." onClick={onInvite} />
       </div>
       <AuthActions className="gap-1.5">
-        <p className="m-0 text-center text-caption text-muted-foreground">Free for up to 5 people.</p>
         <Button variant="ghost" className="hover:bg-transparent" onClick={onSignOut}>Log out</Button>
       </AuthActions>
     </AuthLayout>
   );
 }
 
-// ── 2. Name your church / band ──────────────────────────────────────────────
+// ── 2. Name your church or band ─────────────────────────────────────────────
 // It is made at once, on Free (2026-11-19): no request, no waiting.
-export function NameView({ kind = 'church', values, onChange, tried, onSubmit, onBack, busy, message, embedded }) {
+export function NameView({ values, onChange, tried, onSubmit, onBack, busy, message, embedded }) {
   const uid = useId();
-  const band = kind === 'band';
   const set = (k) => (e) => onChange({ ...values, [k]: e.target.value });
   const missing = !values.church.trim();
   return (
     <AuthLayout embedded={embedded} onBack={onBack}>
       <AuthHeader
-        title={band ? 'What’s your band called?' : 'What’s your church called?'}
+        title="What’s it called?"
         sub="You can change it later."
       />
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); onSubmit(); }} noValidate>
         <FieldGroup className="gap-3">
-          <LabelInput fill label={band ? 'Band name' : 'Church name'} autoComplete="organization" maxLength={120} value={values.church} onChange={set('church')}
-            error={tried && missing ? `Add the name your ${band ? 'band' : 'church'} goes by.` : null} />
+          <LabelInput fill label="Church or band name" autoComplete="organization" maxLength={120} value={values.church} onChange={set('church')}
+            error={tried && missing ? 'Add the name people know it by.' : null} />
           <LabelInput fill label="City (optional)" autoComplete="address-level2" maxLength={120} value={values.place} onChange={set('place')} />
         </FieldGroup>
       </form>

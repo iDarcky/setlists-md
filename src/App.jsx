@@ -1,5 +1,4 @@
 import { applyReaderLook, READER_LOOK_FLAG } from '@/lib/readerLook';
-import { checkEntitlement } from '@/hooks/useEntitlement';
 import { planOf } from '@/lib/plans';
 import { syncStatus } from '@/lib/syncStatus';
 import AppToaster from "@/ui/AppToaster";
@@ -75,7 +74,6 @@ import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
 
 const QUOTA_WARN_THRESHOLD = 0.8;
 // The group's plan, as the You page's Subscription row names it.
-const NO_SCHEDULES = [];
 
 // Leaving an editor with changes not saved: one wording for every way out
 // (Cancel, Back, a tab in the nav, the phone's back swipe).
@@ -190,15 +188,7 @@ export default function App() {
     const t = setTimeout(() => setHomeSpaceTimedOut(true), 4000);
     return () => clearTimeout(t);
   }, []);
-  // The schedule (who plays when) is Church-only (2026-11-19). On Free and
-  // Band nothing reads the schedule rows and nothing can make one, so every
-  // screen below simply sees an empty schedule.
-  const scheduleOn = checkEntitlement(team?.plan, 'schedule').allowed;
-  const teamSchedules = useTeamSchedules(scheduleOn ? team?.id : null);
-  const schedules = scheduleOn ? teamSchedules.schedules : NO_SCHEDULES;
-  const schedulesLoaded = scheduleOn ? teamSchedules.loaded : true;
-  const { updateSchedule, deleteSchedule } = teamSchedules;
-  const createSchedule = scheduleOn ? teamSchedules.createSchedule : null;
+  const { schedules, loaded: schedulesLoaded, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
   const canEdit = canWriteLibrary;
@@ -1388,10 +1378,7 @@ export default function App() {
   // Since 2026-11-19 anyone may start one (Free) group; one owned group per account.
   const canCreateWorkspace = !atWorkspaceLimit;
   // Schedule opens from Home now (it left the nav pill on 2026-11-15).
-  const goSchedule = scheduleOn ? () => navigate('schedule') : null;
-  // A link or notification into the schedule of a group without one lands on Home.
-  const scheduleClosed = !!team && !scheduleOn && (view === 'schedule' || view === 'scheduling');
-  useEffect(() => { if (scheduleClosed) goToMainView('home'); }, [scheduleClosed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const goSchedule = () => navigate('schedule');
 
   // Song CRUD
   // Accepts either a v2-shaped song (with arrangements[]) or a flat shape
@@ -2811,7 +2798,7 @@ export default function App() {
               onOpenSong={(id) => { const s = songs.find(x => x.id === id); if (s) goChart(s); }}
             />
           )}
-          {view === 'schedule' && scheduleOn && (
+          {view === 'schedule' && (
             <Schedule
               setlists={setlists}
               schedules={schedules}
@@ -2826,7 +2813,7 @@ export default function App() {
               firstDayOfWeek={settings?.firstDayOfWeek || 'sunday'}
             />
           )}
-          {view === 'scheduling' && scheduleOn && (
+          {view === 'scheduling' && (
             <SchedulingGrid
               setlists={setlists}
               onBack={goSchedule}

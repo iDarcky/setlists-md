@@ -163,7 +163,7 @@ function Mine({ me, onAnswer }) {
 export default function SetlistView({
   setlist, order, head, me, band = [], leader = false, embedded = false,
   onBack, backLabel = 'Back', onPlay, onEdit, onMarkReady, onAnswer, onRunSheet, onMenu, onBand, bandSlot = null, changes = [], nowIdx = null,
-  myId = null, showBand = true,
+  myId = null,
 }) {
   const [tab, setTab] = useState('order');
   const [moment, setMoment] = useState(null);
@@ -176,7 +176,7 @@ export default function SetlistView({
 
   return (
     <div data-slot="setlist-view" className={cn('@container bg-background font-sans text-foreground', embedded && 'absolute inset-0 overflow-y-auto')}>
-      <div className={cn('mx-auto flex w-full max-w-[1180px] flex-col px-4 pb-32 @min-[640px]:px-6 @min-[1024px]:grid @min-[1024px]:gap-x-8', showBand ? '@min-[1024px]:grid-cols-[minmax(0,1fr)_360px]' : '@min-[1024px]:grid-cols-1', '@min-[1024px]:gap-y-4 @min-[1024px]:pb-12')}>
+      <div className={cn('mx-auto flex w-full max-w-[1180px] flex-col px-4 pb-32 @min-[640px]:px-6 @min-[1024px]:grid @min-[1024px]:grid-cols-[minmax(0,1fr)_360px] @min-[1024px]:gap-x-8 @min-[1024px]:gap-y-4 @min-[1024px]:pb-12')}>
         <div className="flex min-w-0 flex-col gap-3 @min-[1024px]:col-start-1 @min-[1024px]:row-start-1">
           {/* QA 11 Nov (owner): the back button had a whole row to itself —
               "good space that's lost". It is a small ← on the title's row now,
@@ -201,7 +201,7 @@ export default function SetlistView({
                 {!ready && onMarkReady && <Button variant="outline" size="sm" onClick={onMarkReady}>Mark ready</Button>}
                 {onEdit && <Button variant="outline" size="sm" onClick={onEdit}>Edit</Button>}
               </span>}
-              {onRunSheet && <Button variant="ghost" size="icon" aria-label="Running order" title="Running order" onClick={onRunSheet}><ListIcon /></Button>}
+              {onRunSheet && <Button variant="ghost" size="icon" aria-label="Service order" title="Service order" onClick={onRunSheet}><ListIcon /></Button>}
               {onMenu && <Button variant="ghost" size="icon" aria-label="More" onClick={onMenu}><MoreIcon /></Button>}
             </div>
           </div>
@@ -223,7 +223,6 @@ export default function SetlistView({
           </div>
 
           {/* Style C (owner, 11 Nov): each tab takes half the width, green underline. */}
-          {showBand ? <>
           <div role="tablist" className="-mx-4 grid grid-cols-2 border-b border-border @min-[640px]:-mx-6 @min-[1024px]:hidden">
             {tabs.map(([id, label, extra]) => (
               <button key={id} role="tab" aria-selected={tab === id} type="button" onClick={() => setTab(id)}
@@ -233,19 +232,18 @@ export default function SetlistView({
             ))}
           </div>
           <div className="@min-[1024px]:hidden">{tab === 'order' ? orderEl : bandEl}</div>
-          </> : <div className="@min-[1024px]:hidden">{orderEl}</div>}
         </div>
         {/* Order and band share a row on desktop, so the band starts level
             with the first song (QA 11 Nov: "the band is higher than the
             songs"). */}
         <div className="hidden @min-[1024px]:col-start-1 @min-[1024px]:row-start-2 @min-[1024px]:block @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:px-4 @min-[1024px]:py-1">{orderEl}</div>
 
-        {showBand && <aside className="hidden @min-[1024px]:col-start-2 @min-[1024px]:row-start-2 @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-2 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
+        <aside className="hidden @min-[1024px]:col-start-2 @min-[1024px]:row-start-2 @min-[1024px]:flex @min-[1024px]:flex-col @min-[1024px]:gap-2 @min-[1024px]:self-start @min-[1024px]:rounded-card @min-[1024px]:border @min-[1024px]:border-border @min-[1024px]:bg-card @min-[1024px]:p-5">
           <div className="flex items-center justify-between pb-1 text-label text-muted-foreground">
             <span>Band{band.length ? ` · ${band.filter(b => b.status === 'available').length} of ${band.length} said yes` : ''}</span>
           </div>
           {bandEl}
-        </aside>}
+        </aside>
       </div>
 
       {leader && !ready && onMarkReady && (

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useSpaceWords } from '@/hooks/useSpaceWords';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { cn } from '@/ui/shadcn/utils';
 import { Switch as SharedSwitch } from '@/ui/shadcn/switch';
@@ -32,8 +31,7 @@ import { writeNewDraft } from '@/lib/setlistDraft';
 // half-made; a new setlist's band picks travel with it as `plannedBand` and
 // the setlist page sends those asks once it is saved.
 
-// Without the schedule (Free, Band plans) there is no band to pick here.
-const stepsFor = (bandOn) => [['details', bandOn ? 'Details and band' : 'Details'], ['songs', 'Songs']];
+const STEPS = [['details', 'Details and band'], ['songs', 'Songs']];
 
 const WIDE = '(min-width: 1024px)';
 const sub = (cb) => { const m = window.matchMedia(WIDE); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb); };
@@ -61,7 +59,6 @@ const lastLine = (lp, song, nameOf) => {
 /* ── Step 1 · Details ─────────────────────────────────────────────────────── */
 
 function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, setNameTouched }) {
-  const w = useSpaceWords();
   const [sheet, setSheet] = useState(null);   // 'date' | 'rDate'
   const weekday = Number.isInteger(template?.weekday) ? template.weekday : (draft.date ? new Date(`${draft.date}T12:00:00`).getDay() : 0);
   const dates = useMemo(() => {
@@ -88,7 +85,7 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
     <div className="flex flex-col gap-3">
       <div className="rounded-card material-base">
         <Field label="Name">
-          <Input value={draft.name || ''} maxLength={80} placeholder={w.namePlaceholder} aria-label="Setlist name"
+          <Input value={draft.name || ''} maxLength={80} placeholder="Sunday Morning" aria-label="Setlist name"
             onChange={e => { setNameTouched(true); setDraft(d => ({ ...d, name: e.target.value })); }}
             className="h-10 font-mono font-semibold" />
         </Field>
@@ -97,7 +94,7 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
           <Chip dashed className="h-8 px-3 text-small" onClick={() => setSheet('date')}>Other…</Chip>
         </Field>
         <Field label="Time">
-          <TimeInput aria-label="Start time" value={draft.time} onChange={v => setDraft(d => ({ ...d, time: v }))} />
+          <TimeInput aria-label="Service time" value={draft.time} onChange={v => setDraft(d => ({ ...d, time: v }))} />
         </Field>
         <Field label="Place">
           <Input value={draft.location || ''} maxLength={80} placeholder="Main hall" aria-label="Place" onChange={e => setDraft(d => ({ ...d, location: e.target.value }))} className="h-10" />
@@ -121,7 +118,7 @@ function ServiceStep({ wide, draft, setDraft, template, setlists, nameTouched, s
       )}
 
       {(sheet === 'date' || sheet === 'rDate') && (
-        <DateSheet key={sheet} open onOpenChange={o => { if (!o) setSheet(null); }} title={sheet === 'date' ? 'Date' : 'Rehearsal date'}
+        <DateSheet key={sheet} open onOpenChange={o => { if (!o) setSheet(null); }} title={sheet === 'date' ? 'Service date' : 'Rehearsal date'}
           value={sheet === 'date' ? draft.date : draft.rehearsalDate} marked={sheet === 'date' ? weekday : null}
           onPick={(v) => { if (sheet === 'date') setDate(v); else setDraft(d => ({ ...d, rehearsalDate: v })); setSheet(null); }} />
       )}
@@ -401,8 +398,6 @@ export default function SetlistFlow({
 
   const previewSong = previewId ? songs.find(s => s.id === previewId) : null;
   const peekSong = peek ? songs.find(s => s.id === peek.songId) : null;
-  const bandOn = !!(team && createSchedule);
-  const STEPS = stepsFor(bandOn);
   const idx = STEPS.findIndex(([k]) => k === step);
   const nextStep = STEPS[idx + 1];
   const save = (final = false) => {
@@ -528,10 +523,10 @@ export default function SetlistFlow({
       onNewSong={onCreateSongs ? (q) => setNewSong(q) : null} />
   );
 
-  const bandBlock = bandOn && (
+  const bandBlock = (
     <div className="flex flex-col gap-3">
       <Caps>Band</Caps>
-      {(
+      {team ? (
         <div className="rounded-card material-base px-4">
           <BandSection
             key={isNew ? 'plan' : 'live'}
@@ -542,12 +537,14 @@ export default function SetlistFlow({
             onPlanChange={(adds, extra) => { setBandExtra(extra); setDraft(d => (JSON.stringify(d.plannedBand || []) === JSON.stringify(adds) ? d : { ...d, plannedBand: adds })); }}
           />
         </div>
+      ) : (
+        <p className="m-0 rounded-card bg-raised px-4 py-3 text-small text-muted-foreground">The band is picked in a church space.</p>
       )}
     </div>
   );
   const serviceBlock = (
     <div className="flex flex-col gap-3">
-      {wide && <Caps>Details</Caps>}
+      {wide && <Caps>Service</Caps>}
       <ServiceStep wide={wide} draft={draft} setDraft={setDraft} template={template} setlists={setlists} nameTouched={nameTouched} setNameTouched={setNameTouched} />
     </div>
   );
@@ -556,7 +553,7 @@ export default function SetlistFlow({
   let body;
   if (step === 'details') {
     body = wide
-      ? <div className={cn('mx-auto grid w-full gap-8 px-6 pb-16 pt-4', bandOn ? 'max-w-[1100px] grid-cols-2' : 'max-w-[600px] grid-cols-1')}>{serviceBlock}{bandBlock}</div>
+      ? <div className="mx-auto grid w-full max-w-[1100px] grid-cols-2 gap-8 px-6 pb-16 pt-4">{serviceBlock}{bandBlock}</div>
       : <div className="mx-auto flex w-full max-w-[600px] flex-col gap-5 px-4 pb-44 pt-2">{serviceBlock}{bandBlock}</div>;
   } else if (wide) {
     body = (

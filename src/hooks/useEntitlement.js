@@ -3,21 +3,19 @@ import { useTeam } from '@/auth/useTeam';
 
 // The plan lives on the GROUP (`teams.plan`), never on a person. A member is
 // never checked for a plan of their own: no Pro, no tier on the account. Seats are
-// the main limit and the database enforces them (`teams.max_seats`); the only
-// feature that depends on the group's plan is services, which is Church-only.
+// the only limit and the database enforces them (`teams.max_seats`).
 //
 // Plan keys on a group: `free` (5 seats), `team` (Band, 15 seats) and
-// `church` (Church, 40 seats); see lib/plans. Anything else ranks as `free`.
+// `church` (Church, 40 seats); see lib/plans. Since 2026-11-20 the plans
+// differ by seats only: every plan gets every feature. Anything else ranks
+// as `free`.
 const PLAN_RANK = { free: 0, team: 1, church: 2 };
 
 // Feature → minimum group plan. A feature with no entry here is open to
 // everyone, everywhere. Chart style, fonts, colours, themes and chord shapes
-// used to be listed (the old Pro and Sync tiers) and are free now.
-const FEATURE_GATES = {
-  'multi-service': 'church',
-  // Who plays when: invites, availability, the band grid (2026-11-19).
-  schedule: 'church',
-};
+// used to be listed (the old Pro and Sync tiers) and are free now; services
+// (`multi-service`) were Church-only until 2026-11-20.
+const FEATURE_GATES = {};
 
 function rank(plan) {
   return PLAN_RANK[(plan || 'free').toLowerCase()] ?? 0;

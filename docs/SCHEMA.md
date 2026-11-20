@@ -191,13 +191,11 @@ group's plan include this?" and returns
   everywhere. Chart style (themes, fonts, colours), chord shapes and import
   are all open. Do not add a gate for anything that makes a chart readable.
 - Plans (2026-11-19, `lib/plans.js`): `free` 5 people, `team` (Band) 15,
-  `church` 40 (+10 for €5). Gates: `schedule` (who plays when: invites,
-  availability, the band on a setlist) and `multi-service`, both → `church`.
-  App.jsx hands every screen an empty schedule when the gate is closed.
+  `church` 40 (+10 for €5). Since 2026-11-20 they differ by seats only:
+  `FEATURE_GATES` is empty, so every plan gets the schedule and services.
 - New groups start on Free; `guard_new_team` (20261121) forces plan/seats
-  on any app insert and allows one owned group per account. `teams.kind`
-  ('church' | 'team') picks church or band words (`lib/spaceWords.js`).
-- Older note: the gate `multi-service` → `church` It also needs the group's
+  on any app insert and allows one owned group per account.
+- Until 2026-11-20 `multi-service` → `church` was gated; a gate also needs the group's
   `subscription_status` to be `active`/`trialing` (defaults to `active`).
 - `checkEntitlement(plan, feature)` is the pure version; it takes a GROUP plan.
 

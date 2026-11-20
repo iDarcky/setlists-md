@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { useTeam } from '@/auth/useTeam';
-import { useEntitlement } from '@/hooks/useEntitlement';
 import { useAuth } from '@/auth/useAuth';
 import { bandFor } from '@/lib/homeData';
 import { partLabel } from '@/data/instruments';
@@ -34,8 +33,6 @@ export default function SetlistPage({
 }) {
   const { user } = useAuth();
   const { team, members = [], isAdmin, canManageBand } = useTeam();
-  // Who plays on it is part of the schedule: Church-only (2026-11-19).
-  const scheduleOn = useEntitlement('schedule').allowed;
   const confirm = useConfirm();
   const [now] = useState(() => Date.now());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -134,8 +131,7 @@ export default function SetlistPage({
         myId={user?.id || null}
         onRunSheet={order.rows.length ? () => setRunOpen(true) : null}
         onMenu={() => setMenuOpen(true)}
-        onBand={leader && scheduleOn ? onEdit : null}
-        showBand={scheduleOn}
+        onBand={leader ? onEdit : null}
         changes={changesSinceReady(setlist, songs)}
         nowIdx={live.state === 'during' ? live.idx : null}
         bandSlot={leader && team && createSchedule ? (

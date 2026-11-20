@@ -77,39 +77,30 @@ describe('churchRequest with a kind', () => {
 describe('StartFlow', () => {
   const user = { id: 'u1', email: 'joe@example.com', user_metadata: {} };
 
-  it('church: asks the name, then makes it at once on Free', async () => {
+  it('asks the name, then makes it at once on Free', async () => {
     const onRequestChange = vi.fn();
     render(<StartFlow screen="choose" user={user} displayName="Joe Doe" request={null} onRequestChange={onRequestChange} />);
     expect(screen.getByText('Hi Joe, your account is ready. One more step.')).toBeTruthy();
-    fireEvent.click(screen.getByText('A church'));
+    fireEvent.click(screen.getByText('Start a church or band'));
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
-    expect(await screen.findByText('Add the name your church goes by.')).toBeTruthy();
+    expect(await screen.findByText('Add the name people know it by.')).toBeTruthy();
     expect(sent).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Church name'), { target: { value: 'Grace Church' } });
+    fireEvent.change(screen.getByLabelText('Church or band name'), { target: { value: 'Grace Church' } });
     fireEvent.change(screen.getByLabelText('City (optional)'), { target: { value: 'Cluj' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(sent).toHaveBeenCalled());
-    expect(sent.mock.calls[0][0]).toMatchObject({ name: 'Grace Church', location: 'Cluj', kind: 'church' });
-    expect(onRequestChange.mock.calls[0][0]).toMatchObject({ church: 'Grace Church', kind: 'church' });
+    expect(sent.mock.calls[0][0]).toMatchObject({ name: 'Grace Church', location: 'Cluj' });
+    expect(sent.mock.calls[0][0]).not.toHaveProperty('kind');
+    expect(onRequestChange.mock.calls[0][0]).toMatchObject({ church: 'Grace Church' });
     await waitFor(() => expect(sentChurchRequest('u1')).toMatchObject({ church: 'Grace Church' }));
-  });
-
-  it('band: makes a band (kind team), city optional', async () => {
-    render(<StartFlow screen="choose" user={user} request={null} />);
-    fireEvent.click(screen.getByText('A band'));
-    expect(screen.getByText('What’s your band called?')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Band name'), { target: { value: 'Late Shift' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
-    await waitFor(() => expect(sent).toHaveBeenCalled());
-    expect(sent.mock.calls[0][0]).toMatchObject({ name: 'Late Shift', location: null, kind: 'team' });
   });
 
   it('a failed create says why and clears the hand-up', async () => {
     sent.mockRejectedValueOnce(new Error('You already have a church or band of your own.'));
     const onRequestChange = vi.fn();
     render(<StartFlow screen="choose" user={user} request={null} onRequestChange={onRequestChange} />);
-    fireEvent.click(screen.getByText('A band'));
-    fireEvent.change(screen.getByLabelText('Band name'), { target: { value: 'X' } });
+    fireEvent.click(screen.getByText('Start a church or band'));
+    fireEvent.change(screen.getByLabelText('Church or band name'), { target: { value: 'X' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     expect(await screen.findByText(/already have a church or band/)).toBeTruthy();
     expect(onRequestChange).toHaveBeenLastCalledWith(null);

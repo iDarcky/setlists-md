@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { wordsFor } from '@/lib/spaceWords';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { ListRow } from '@/ui/shadcn/list-row';
 import QRCode from 'qrcode';
@@ -54,7 +53,7 @@ export function ChurchCard({ team, peopleCount, services = [], onEdit }) {
     team.ccli_licence && { d: ICONS.licence, text: `CCLI ${team.ccli_licence}`, label: 'Licence number' },
   ].filter(Boolean);
   return (
-    <section aria-label={`${wordsFor(team).Space} info`} className="flex flex-col gap-4 rounded-card material-base p-4 sm:p-5">
+    <section aria-label="Church info" className="flex flex-col gap-4 rounded-card material-base p-4 sm:p-5">
       <div className="flex items-center gap-3.5">
         <ChurchMark name={team.name} url={team.logo_url} size={52} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">

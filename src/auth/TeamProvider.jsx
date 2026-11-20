@@ -310,7 +310,7 @@ export function TeamProvider({ children }) {
        * the new team becomes the active one.
        * @param {{ name: string, location?: string }} opts
        */
-      createTeam: async ({ name, location, kind, timezone }) => {
+      createTeam: async ({ name, location, timezone }) => {
         guard();
         // One owned church or band per account (MAX_OWNED_WORKSPACES).
         if (ownedWorkspaceCount >= MAX_OWNED_WORKSPACES) {
@@ -325,7 +325,6 @@ export function TeamProvider({ children }) {
             name,
             location: location || null,
             owner_id: user.id,
-            kind: kind === 'church' ? 'church' : 'team',
             plan: free.key,
             max_seats: free.seats,
             ...(timezone ? { timezone } : {}),

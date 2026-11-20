@@ -44,19 +44,19 @@ export default function StartFlow({ screen, user, displayName, request, team, on
     return <ReadyView church={team.name || request?.church || 'Your church'} onInvite={done(onInviteBand)} onOpen={done(onOpenTeam)} />;
   }
 
-  if (step === 'church' || step === 'band') {
+  if (step === 'new') {
     const send = async () => {
       setTried(true);
       if (!values.church.trim()) return;
       setBusy(true);
       setMessage('');
       const church = values.church.trim();
-      const req = { church, kind: step, at: Date.now() };
+      const req = { church, at: Date.now() };
       // Set first, so the moment the group exists the "ready" step shows.
       onRequestChange?.(req);
       try {
-        await createTeam({ name: church, location: values.place.trim() || null, kind: step === 'band' ? 'team' : 'church', timezone: DEVICE_TZ });
-        rememberChurchRequest(userId, church, undefined, step);
+        await createTeam({ name: church, location: values.place.trim() || null, timezone: DEVICE_TZ });
+        rememberChurchRequest(userId, church);
         saveToAccount(req);
         setValues(EMPTY);
         setTried(false);
@@ -66,7 +66,7 @@ export default function StartFlow({ screen, user, displayName, request, team, on
       } finally { setBusy(false); }
     };
     return (
-      <NameView kind={step} values={values} onChange={setValues} tried={tried} onSubmit={send}
+      <NameView values={values} onChange={setValues} tried={tried} onSubmit={send}
         onBack={() => { setStep('choose'); setTried(false); setMessage(''); }} busy={busy} message={message} />
     );
   }
@@ -90,8 +90,7 @@ export default function StartFlow({ screen, user, displayName, request, team, on
   return (
     <ChooseView
       name={first}
-      onChurch={() => setStep('church')}
-      onBand={() => setStep('band')}
+      onStart={() => setStep('new')}
       onInvite={() => setStep('invite')}
       onSignOut={onSignOut}
     />
