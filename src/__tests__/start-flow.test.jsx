@@ -168,3 +168,16 @@ describe('StartFlow', () => {
     expect(sentChurchRequest('u1').done).toBe(true);
   });
 });
+
+// 2026-11-20: Join another team, from inside the app, opens on the code.
+describe('StartFlow from inside the app', () => {
+  it('opens on the code, and Back leaves', async () => {
+    const onClose = vi.fn();
+    render(<StartFlow screen="choose" initialStep="code" user={{ id: 'u1' }} onClose={onClose} />);
+    expect(screen.getByText('Enter your invite code')).toBeInTheDocument();
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => window.dispatchEvent(new PopStateEvent('popstate')));
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    back.mockRestore();
+  });
+});

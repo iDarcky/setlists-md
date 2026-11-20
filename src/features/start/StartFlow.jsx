@@ -136,9 +136,14 @@ function AfterCreate({ team, userId, request, onRequestChange, onOpenTeam }) {
   return <GetAppScreen teamName={name} onOpen={finish} onBack={() => setStep('invite')} progress={{ step: 5, of: 5 }} />;
 }
 
-export default function StartFlow({ screen, user, displayName, request, team, onRequestChange, onSignOut, onOpenTeam, onJoinCode }) {
+/**
+ * @param {string} [initialStep] 'code' opens straight on "Enter your invite
+ *   code": Join another team, from inside the app (2026-11-20)
+ * @param {Function} [onClose] Back from that first step leaves the flow
+ */
+export default function StartFlow({ screen, user, displayName, request, team, onRequestChange, onSignOut, onOpenTeam, onJoinCode, initialStep = 'choose', onClose }) {
   const { createTeam } = useTeam();
-  const [step, setStep] = useState('choose'); // choose | code | paste | new | owned
+  const [step, setStep] = useState(initialStep); // choose | code | paste | new | owned
   const [church, setChurch] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -147,7 +152,10 @@ export default function StartFlow({ screen, user, displayName, request, team, on
   const [link, setLink] = useState('');
   const userId = user?.id;
   const first = (displayName || '').trim().split(/\s+/)[0];
-  const back = () => { setStep('choose'); setTried(false); setMessage(''); setAnswer(null); };
+  const back = () => {
+    if (onClose && step === initialStep) { onClose(); return; }
+    setStep('choose'); setTried(false); setMessage(''); setAnswer(null);
+  };
 
   if (screen === 'ready' && team) {
     return <AfterCreate team={team} userId={userId} request={request} onRequestChange={onRequestChange} onOpenTeam={onOpenTeam} />;
