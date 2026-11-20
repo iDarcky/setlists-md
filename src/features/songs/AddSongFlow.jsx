@@ -13,7 +13,8 @@ import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
  * open the sheet there, so closing it left you on another tab (owner,
  * 2026-11-15: "it's not ok").
  *
- * @param {null|'add'|'import'} mode  which sheet is up
+ * @param {null|'add'|'new'|'import'} mode  which sheet is up ('new' skips
+ *   the Add a song chooser and opens the details form)
  * @param {(mode) => void} onMode
  */
 export default function AddSongFlow({
@@ -59,8 +60,9 @@ export default function AddSongFlow({
   return (
     <>
       <AddSongSheet
-        open={mode === 'add'}
-        onOpenChange={(o) => onMode(o ? 'add' : null)}
+        open={mode === 'add' || mode === 'new'}
+        direct={mode === 'new'}
+        onOpenChange={(o) => onMode(o ? mode : null)}
         onSearch={onSearchCatalog}
         onImport={onImportSongs ? startImport : null}
         onBlank={onBlank}
