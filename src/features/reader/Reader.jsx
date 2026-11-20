@@ -342,6 +342,10 @@ export default function Reader({
   // Nov, row 171). Null = the tempo is a read-out.
   onSelectTempo = null,
   footer,
+  // The song page's Practice (owner, 2026-11-20): the practice row (click +
+  // backing track) is simply THERE, and the unlabelled circle that toggled it
+  // goes. Only meaningful where `can.practiceTools` is true.
+  practiceAlways = false,
   // Element 10, 'swipe': a horizontal-dominant swipe on the chart advances.
   // Vertical scroll is untouched — the gesture only fires past a threshold
   // where |dx| clearly beats |dy|.
@@ -494,7 +498,7 @@ export default function Reader({
   // no way to walk into the next song with a click you forgot was running.
   // The song's own panel — element 1's newest surface, opened by the title.
   // See `SongInfoSheet` for what is in it and what deliberately is not.
-  const [practiceOpen, setPracticeOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(practiceAlways);
   const metronome = useMetronome();
 
   // The tempo is DERIVED, not re-seeded by an effect. It is stamped with the
@@ -2577,7 +2581,7 @@ export default function Reader({
           dirty={editing && isDirty(editBase, song)}
           // Null in live as of 2026-08-09 (`readerConfig`), so live shows
           // neither circle — it is the reading view and nothing else.
-          onPractice={config.can.practiceTools ? togglePractice : null}
+          onPractice={config.can.practiceTools && !practiceAlways ? togglePractice : null}
           practiceOpen={practiceRowOpen}
           practiceRunning={metronome.running}
           // The sticky bottom block, PLUS the docked ☰ — both are below these

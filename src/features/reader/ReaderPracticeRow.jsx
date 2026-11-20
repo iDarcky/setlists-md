@@ -59,7 +59,9 @@ export default function ReaderPracticeRow({
           // min-h-0: the global `button { min-height: 44px }` on phones turns
           // every small control in the reader into a capsule otherwise. This
           // has cost four rounds before — see docs/READER.md.
-          className="min-h-0 shrink-0 w-8 h-8 rounded-lg grid place-items-center cursor-pointer border disabled:cursor-default disabled:opacity-40"
+          // Labelled (owner, 2026-11-20: people did not know what the bare
+          // icon was).
+          className="min-h-0 shrink-0 h-8 px-2 rounded-lg inline-flex items-center gap-1.5 text-[13px] font-medium cursor-pointer border disabled:cursor-default disabled:opacity-40"
           style={{
             background: clickRunning ? 'var(--chord)' : 'transparent',
             borderColor: clickRunning ? 'var(--chord)' : 'var(--chart-rule, var(--ds-gray-400))',
@@ -69,6 +71,7 @@ export default function ReaderPracticeRow({
           {clickRunning
             ? <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
             : <MetronomeIcon />}
+          Click
         </button>
 
         <Stepper

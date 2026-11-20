@@ -20,6 +20,11 @@ import { useChartSystemBars } from '@/lib/systemBars';
 export default function FullscreenReader({
   song, settings, onUpdateSettings, displayMode, selectedKey, onSelectKey, onClose,
   onUpdateSong = null,
+  // Practice from the song page (2026-11-20): practice mode, so no Live pill;
+  // the practice row always open; the host's own tools row underneath.
+  mode = undefined,
+  practiceAlways = false,
+  footer = null,
   // Element 28 — where a locked control in the ☰ sends you.
 }) {
   useChartSystemBars();
@@ -64,6 +69,9 @@ export default function FullscreenReader({
         selectedKey={selectedKey}
         onSelectKey={onSelectKey}
         onExit={onClose}
+        mode={mode}
+        practiceAlways={practiceAlways}
+        footer={footer}
       />
       <div
         aria-hidden="true"

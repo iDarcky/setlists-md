@@ -984,12 +984,22 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
   );
 }
 
-export default function SongEdit({ addLabel = '', askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+export default function SongEdit({ addLabel = '', askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, start = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
   // Undo / redo: every change is a step, except quick typing, which is one.
-  const [hist, setHist] = useState(() => ({ past: [], present: song, future: [], at: 0 }));
+  // `start`: the song page's empty chart sends you here to paste or to write
+  // (owner, 2026-11-20). Write begins with an empty verse, open for typing.
+  const [seed] = useState(() => {
+    if (start?.mode !== 'write') return { song, words: null };
+    const id = song.arrangements?.some(a => a.id === initialArrangementId) ? initialArrangementId : song.defaultArrangementId || song.arrangements?.[0]?.id;
+    const base = getArrangement(song, id) || song.arrangements?.[0];
+    if (!base || base.sections?.length) return { song, words: null };
+    const r = addSection(base, -1, 'Verse');
+    return { song: withArrangement(song, base.id, () => r.arr), words: r.index };
+  });
+  const [hist, setHist] = useState(() => ({ past: [], present: seed.song, future: [], at: 0 }));
   const working = hist.present;
   // `step` forces its own undo step (a new arrangement is never folded into a rename).
   const setWorking = useCallback((u, step = false) => setHist((h) => {
@@ -1006,17 +1016,17 @@ export default function SongEdit({ addLabel = '', askDetails = true, song, libra
   const [tab, setTab] = useState('chart'); // chart | info
   const [preview, setPreview] = useState(false); // the read-only chart, beside (wide) or instead of (phone) the editor
   const [step, setStep] = useState(mode === 'new' && askDetails ? 'details' : null); // a new song asks the basics first
-  const [whole, setWhole] = useState(null); // null | 'paste' | 'text'
+  const [whole, setWhole] = useState(start?.mode === 'paste' ? 'paste' : null); // null | 'paste' | 'text'
   const [editing, setEditing] = useState(null); // { sec, line }: an open key change
   const [pick, setPick] = useState(null); // { sec, line, pos }: the letter the chord bar is for
-  const [words, setWords] = useState(null); // the section typed as words
+  const [words, setWords] = useState(seed.words); // the section typed as words
   const [saving, setSaving] = useState(false);
   const [folded, setFolded] = useState(() => new Set()); // `${arrId}:${index}` of sections folded shut
   const [history, setHistory] = useState(false);
   const [hintOff, setHintOff] = useState(false); // the verse-chords hint, closed
   const { members = [] } = useTeam() || {};
   const nameOf = (uid) => members.find(m => m.user_id === uid)?.profile?.display_name || null;
-  const dirty = working !== song;
+  const dirty = working !== seed.song; // an empty verse from `start` is not a change yet
   const fresh = mode !== 'edit';
   // No song without a name, and none without a single line of words or chords.
   const hasLines = working.arrangements.some(x => (x.sections || []).some(sc => (sc.lines || []).some(l => (typeof l === 'string' ? l.trim() : l))));
@@ -1121,7 +1131,7 @@ export default function SongEdit({ addLabel = '', askDetails = true, song, libra
   // Nothing written yet: Paste the song or Write it (the paste box opens from
   // the first; ⌘V on the desktop pastes straight in).
   const pasting = whole === 'paste';
-  const [pasted, setPasted] = useState('');
+  const [pasted, setPasted] = useState(start?.text || '');
   const openPaste = useCallback((text) => { setPasted(text || ''); setWhole('paste'); }, []);
   const writeIt = () => { const r = addSection(arr, -1, 'Verse'); onArr(r.arr); setWords(r.index); setWhole(null); };
   const useSections = ({ sections, structure, meta = {} }) => {
