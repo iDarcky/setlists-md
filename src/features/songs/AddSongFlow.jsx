@@ -3,7 +3,7 @@ import { parseImportFiles, IMPORT_ACCEPT } from '@/lib/importFiles';
 import { markToCheck } from '@/lib/importCheck';
 import { matchSongByTitle } from '@/lib/setlistLinks';
 import { libraryArtists } from '@/features/song-edit/newSongDetails';
-import { AddSongSheet } from './SongsSheets';
+import { NewSongSheet } from './NewSongSheet';
 import { ImportPickSheet, ImportReviewSheet } from './ImportSheets';
 
 /**
@@ -52,10 +52,10 @@ export default function AddSongFlow({
 
   return (
     <>
-      <AddSongSheet
+      <NewSongSheet
         open={mode === 'new'}
         onOpenChange={(o) => onMode(o ? 'new' : null)}
-        onBlank={onBlank}
+        onNext={(d) => onBlank?.(d)}
         songs={songs}
         artists={artists}
       />

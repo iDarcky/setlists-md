@@ -21,7 +21,7 @@ describe('SongEdit — copy verse 1 chords', () => {
     render(<SongEdit song={melodia()} mode="import" onSave={onSave} onBack={() => {}} layout="phone" />);
     fireEvent.click(screen.getByRole('button', { name: 'More ways to edit' }));
     fireEvent.click(await screen.findByRole('button', { name: /Copy verse 1 chords/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add song' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const saved = onSave.mock.calls[0][0];
     expect(saved.arrangements[0].sections[1].lines[0]).toBe('[Bb]Isuse, eu acum');
@@ -40,7 +40,7 @@ describe('SongEdit — checking an imported song', () => {
   it('lets an unchanged song be kept with "Looks good" and says how many are left', async () => {
     const onSave = vi.fn();
     render(<SongEdit song={melodia()} mode="edit" checking={{ left: 3 }} onSave={onSave} onBack={() => {}} layout="phone" />);
-    expect(screen.getByText('Checking · 3 left')).toBeTruthy();
+    expect(screen.getByText(/^Checking · 3 left/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Looks good' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
   });

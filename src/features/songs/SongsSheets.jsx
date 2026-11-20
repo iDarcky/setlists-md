@@ -3,40 +3,8 @@ import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
 import { Input } from '@/ui/shadcn/input';
-import { NewSongForm } from '@/features/song-edit/NewSongForm';
-import { detailsMissing, EMPTY_DETAILS } from '@/features/song-edit/newSongDetails';
-import { normalizeText } from '@/lib/search';
 
-// The Songs page's smaller sheets: New song, Tag, and Move/Copy to another church.
-
-/**
- * New song: the details first, then Next: Chart opens the editor with them
- * filled in and the chart gets the whole screen. The + menu opens it directly
- * (the old Add a song chooser was dropped, owner 2026-11-20).
- */
-export function AddSongSheet({ open, onOpenChange, onBlank, songs = [], artists = [] }) {
-  const [details, setDetails] = useState(EMPTY_DETAILS);
-  const close = (o) => { onOpenChange?.(o); if (!o) setDetails(EMPTY_DETAILS); };
-  const missing = detailsMissing(details);
-  const sameTitle = (() => {
-    const t = normalizeText(details.title || '').trim();
-    return t ? songs.find(x => normalizeText(x.title || '').trim() === t) || null : null;
-  })();
-  const next = () => { if (missing) return; const d = details; close(false); onBlank?.(d); };
-
-  return (
-    <Sheet open={open} onOpenChange={close} title="New song" className="h-auto max-h-[92dvh] sm:max-w-[480px]">
-      <form className="flex flex-col gap-3.5" onSubmit={(e) => { e.preventDefault(); next(); }}>
-        <NewSongForm value={details} onChange={setDetails} artists={artists} sameTitle={sameTitle} />
-        {missing && <p className="m-0 text-small text-muted-foreground">Still needs {missing}.</p>}
-        <div className="flex gap-2 pt-1">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => close(false)}>Cancel</Button>
-          <Button type="submit" className="flex-[2]" disabled={!!missing}>Next: Chart</Button>
-        </div>
-      </form>
-    </Sheet>
-  );
-}
+// The Songs page's smaller sheets: Tag, and Move/Copy to another church.
 
 /** Add a tag to every picked song. Tags already in the library are one tap. */
 export function TagSheet({ open, onOpenChange, count = 0, tags = [], onAdd }) {

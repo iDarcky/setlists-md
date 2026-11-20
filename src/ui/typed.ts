@@ -4,6 +4,7 @@
 import type { ComponentType, MouseEvent, ReactNode } from 'react';
 import { Button as ButtonJs } from '@/ui/shadcn/button';
 import { Popover as PopoverJs, PopoverTrigger as PopoverTriggerJs, PopoverContent as PopoverContentJs } from '@/ui/shadcn/popover';
+import { Sheet as SheetJs } from '@/ui/shadcn/sheet';
 import { MenuItem as MenuItemJs, MenuSeparator as MenuSeparatorJs, menuContent as menuContentJs } from '@/ui/shadcn/menu';
 
 type Kids = { children?: ReactNode; className?: string };
@@ -12,6 +13,7 @@ export const Button = ButtonJs as unknown as ComponentType<Kids & {
   variant?: 'default' | 'outline' | 'ghost' | 'link' | 'destructive' | 'secondary';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   type?: 'button' | 'submit';
+  form?: string;
   disabled?: boolean;
   loading?: boolean;
   onClick?: (e: MouseEvent<HTMLButtonElement>) => void;
@@ -37,3 +39,12 @@ export const MenuItem = MenuItemJs as unknown as ComponentType<Kids & {
 }>;
 export const MenuSeparator = MenuSeparatorJs as unknown as ComponentType<{ className?: string }>;
 export const menuContent: string = menuContentJs;
+
+export const Sheet = SheetJs as unknown as ComponentType<Kids & {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: ReactNode;
+  description?: string;
+  footer?: ReactNode;
+  dismissible?: boolean;
+}>;
