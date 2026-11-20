@@ -26,6 +26,8 @@ describe('join code parsing', () => {
   });
   it('rejects anything the DB would reject', () => {
     expect(normalizeJoinCode('short')).toBeNull();
+    // 6-character codes since 20261122_short_join_codes.sql.
+    expect(normalizeJoinCode('K7M2QX')).toBe('k7m2qx');
     expect(normalizeJoinCode('has space in')).toBeNull();
     expect(normalizeJoinCode('bad-chars!!')).toBeNull();
     expect(normalizeJoinCode('a'.repeat(33))).toBeNull();
@@ -172,6 +174,13 @@ describe('which screen', () => {
     expect(joinStepFor({ peek: { ...ok, my_status: 'pending' }, signedIn: true })).toBe('waiting');
     expect(joinStepFor({ peek: { ...ok, my_status: 'declined' }, signedIn: true })).toBe('about');
     expect(joinStepFor({ peek: ok, signedIn: true })).toBe('about');
+  });
+  it('says a full team is full, unless you are in or already waiting', () => {
+    const full = { ...ok, is_full: true };
+    expect(joinStepFor({ peek: full, signedIn: false })).toBe('full');
+    expect(joinStepFor({ peek: full, signedIn: true })).toBe('full');
+    expect(joinStepFor({ peek: { ...full, is_member: true }, signedIn: true })).toBe('in');
+    expect(joinStepFor({ peek: { ...full, my_status: 'pending' }, signedIn: true })).toBe('waiting');
   });
   it('finds the request this flow is about', () => {
     const rows = [

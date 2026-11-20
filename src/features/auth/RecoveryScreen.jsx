@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '@/auth/useAuth';
-import { NewPasswordView } from './AuthViews';
+import { NewPasswordView } from '@/features/intro/IntroAuthViews';
 
 // The reset link lands here (type=recovery in the URL). State and Supabase
-// only; the screen itself is NewPasswordView, shared with /design.
+// only; the screen itself is NewPasswordView (features/intro).
 
 function friendlyAuthError(err) {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
@@ -26,7 +26,7 @@ function friendlyAuthError(err) {
 
 export default function RecoveryScreen({ onBack, onDone }) {
   const { updatePassword, signOut } = useAuth();
-  const [values, setValues] = useState({ password: '', confirm: '' });
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [done, setDone] = useState(false);
@@ -36,7 +36,7 @@ export default function RecoveryScreen({ onBack, onDone }) {
     setBusy(true);
     setMessage(null);
     try {
-      const { error } = await updatePassword(values.password);
+      const { error } = await updatePassword(password);
       if (error) throw error;
       setDone(true);
       setTimeout(() => onDone?.(), 1200);
@@ -59,8 +59,8 @@ export default function RecoveryScreen({ onBack, onDone }) {
 
   return (
     <NewPasswordView
-      values={values}
-      onChange={(k, v) => setValues(p => ({ ...p, [k]: v }))}
+      password={password}
+      onChange={setPassword}
       onSubmit={handleSubmit}
       onBack={handleBack}
       busy={busy}
