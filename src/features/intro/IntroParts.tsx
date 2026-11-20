@@ -32,7 +32,7 @@ const HEADLINE: Array<Array<[string, string]>> = [
 /** "Sunday, sorted." on two lines, with chords over the words like a chart. */
 export function ChordHeadline() {
   return (
-    <h1 aria-label="Sunday, sorted." className="m-0 flex flex-col items-center gap-2 text-[48px] font-semibold leading-none tracking-[-1.5px]">
+    <h1 aria-label="Sunday, sorted." className="m-0 flex flex-col items-center gap-2 text-[56px] font-semibold leading-none tracking-[-2px]">
       {HEADLINE.map((line, i) => (
         <span key={i} aria-hidden="true" className="flex">
           {line.map(([chord, word]) => (

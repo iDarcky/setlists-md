@@ -27,11 +27,9 @@ export function WelcomeView({ embedded, onShowLegal, error, ...providers }: Prov
 }) {
   return (
     <AuthLayout embedded={embedded} className="gap-7">
-      <div className="mt-24 flex flex-col items-center gap-3 text-center @min-[640px]:mt-0">
-        <Wordmark />
-        <div className="mt-6"><ChordHeadline /></div>
-        <p className="m-0 mt-1 text-body text-muted-foreground">Chord charts, setlists and who’s playing, for your band.</p>
-      </div>
+      {/* Logo on top, the headline alone in the middle, the buttons at the bottom (no subtitle, 2026-11-20). */}
+      <div className="flex justify-center"><Wordmark /></div>
+      <div className="flex flex-1 items-center justify-center @min-[640px]:flex-none @min-[640px]:py-12"><ChordHeadline /></div>
       <AuthActions className="gap-2.5">
         {error && <Alert variant="danger">{error}</Alert>}
         <ProviderButtons {...providers} />
