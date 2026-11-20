@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { SwipeTabs } from '@/features/song-edit/SwipeTabs';
 import { StartChart } from '@/features/song-edit/StartChart';
 import { NewSongSheet } from '@/features/songs/NewSongSheet';
+import { KeyGrid } from '@/features/song-edit/NewSongForm';
 import { sameSongLine, EMPTY_DETAILS } from '@/features/song-edit/newSongDetails';
 
 describe('SwipeTabs', () => {
@@ -61,7 +62,17 @@ describe('New song details', () => {
     expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Next: Chart' })).toBeDisabled();
     expect(screen.getByDisplayValue('Oceans')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: '4/4' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('combobox', { name: 'Time' })).toHaveValue('4/4');
+    expect(screen.queryByText(/Still needs/)).toBeNull();
+  });
+  it('the key has only ♭ and ♯, and tapping one again clears it', () => {
+    const onPick = vi.fn();
+    render(<KeyGrid value="Bb" onPick={onPick} />);
+    expect(screen.queryByRole('button', { name: 'Natural' })).toBeNull();
+    const flat = screen.getByRole('button', { name: 'Flat' });
+    expect(flat).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(flat);
+    expect(onPick).toHaveBeenLastCalledWith('B');
   });
 });
 

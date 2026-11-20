@@ -973,7 +973,6 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
             <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
           </div>
         )}
-        {missing && <p className="m-0 text-small text-muted-foreground">Still needs {missing}.</p>}
       </form>
       {!wide && (
         <div className="sticky bottom-0 mt-auto flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">

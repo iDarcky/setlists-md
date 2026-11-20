@@ -61,7 +61,6 @@ export function NewSongSheet({ open, onOpenChange, onNext, songs = [], artists =
       <form id={FORM_ID} className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); next(); }}>
         {note && <div className="rounded-card bg-raised px-3.5 py-2.5 text-small">{note}</div>}
         <NewSongForm value={details} onChange={setDetails} artists={artists} sameTitle={sameTitle} />
-        {missing && <p className="m-0 text-small text-muted-foreground">Still needs {missing}.</p>}
       </form>
     </Sheet>
   );
