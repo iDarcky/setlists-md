@@ -831,6 +831,22 @@ describe('edit mode — locking and the section controls', () => {
     expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[C]my [G]hope']);
   });
 
+  it('keeps chords typed in Source through a trip to Lyrics (INS-82)', () => {
+    const onUpdateSong = vi.fn();
+    open({ onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
+    fireEvent.click(screen.getByText('Source'));
+    // A chord-only line on top: it shows as an empty line in Lyrics.
+    fireEvent.change(screen.getByLabelText('Section lyrics and chords'), { target: { value: '[G]  [D]\n[C]my hope' } });
+    fireEvent.click(screen.getByText('Lyrics'));
+    // Deleting the empty-looking line must not slide its chords onto the words.
+    fireEvent.change(screen.getByLabelText('Section lyrics'), { target: { value: 'my hope is built' } });
+    fireEvent.click(screen.getByText('Source'));
+    expect(screen.getByLabelText('Section lyrics and chords').value).toBe('[C]my hope is built');
+    fireEvent.click(screen.getByText('Save'));
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[C]my hope is built']);
+  });
+
   it('leaves the song alone when the lyric edit is cancelled', () => {
     const onUpdateSong = vi.fn();
     open({ onUpdateSong });
