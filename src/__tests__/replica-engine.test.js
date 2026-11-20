@@ -254,6 +254,51 @@ describe('replica engine — a member device mirrors the feed', () => {
   });
 });
 
+describe('replica engine — a device that lost rows it has a cursor for', () => {
+  // 2026-11-20: a phone on a new address saved the cursor of its first pull,
+  // but the app dropped that pull's result. Every later delta pull came back
+  // empty, so it only ever showed what it had made itself.
+  it('a member re-reads the feed once and gets the missing rows back', async () => {
+    const s1 = mkSong('s1', 'One', 'a');
+    const old = mkSetlist('sl1', 'Last Sunday');
+    const db = { team_songs: [songRow(s1)], team_setlists: [setlistRow(old)], __rpcs: [] };
+    const B = makeMember('B', db);
+    await B.sync();
+    B.songs = []; B.setlists = []; // the result never reached the app
+
+    await B.sync();
+
+    expect(B.songs.map(s => s.id)).toEqual(['s1']);
+    expect(B.setlists.map(sl => sl.id)).toEqual(['sl1']);
+    const pulls = db.__rpcs.filter(c => c.name === 'sync_changes');
+    expect(pulls[pulls.length - 1].args.p_since).toBe(0);
+  });
+
+  it('a writer gets them back, keeps its own new setlist and deletes nothing', async () => {
+    const old = mkSetlist('sl1', 'Last Sunday');
+    const db = { team_songs: [], team_setlists: [setlistRow(old)], __rpcs: [] };
+    const A = makeWriter('A', db);
+    await A.sync();
+    A.setlists = [mkSetlist('mine', 'Made here')];
+
+    await A.sync();
+
+    expect(A.setlists.map(sl => sl.id).sort()).toEqual(['mine', 'sl1']);
+    expect(db.team_setlists.map(r => r.setlist_key).sort()).toEqual(['mine', 'sl1']);
+    expect(db.__rpcs.some(c => c.name === 'apply_ops' && c.args?.p_ops?.some?.(o => o.op === 'delete'))).toBe(false);
+  });
+
+  it('a device holding everything keeps pulling only the delta', async () => {
+    const s1 = mkSong('s1', 'One', 'a');
+    const db = { team_songs: [songRow(s1)], team_setlists: [], __rpcs: [] };
+    const B = makeMember('B', db);
+    await B.sync();
+    await B.sync();
+    const pulls = db.__rpcs.filter(c => c.name === 'sync_changes');
+    expect(pulls[pulls.length - 1].args.p_since).toBeGreaterThan(0);
+  });
+});
+
 describe('replica engine — converges with a writer on the replica', () => {
   it('create / edit / delete / setlist rename all reach the member', async () => {
     const db = { team_songs: [], team_setlists: [] };
