@@ -2226,7 +2226,10 @@ export default function App() {
   // password reset) draw at once.
   const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
   const settlingHomeSpace = !publicView && waitingForHomeSpace({
-    userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
+    // The timer is only for someone with a team on this device (offline or
+    // a slow network: open what's here). Nobody else gets the app before
+    // the server answers (owner, 22 Nov 2026).
+    userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut && expectsTeam(user?.id),
     loaded, teamId: team?.id || null, schedulesLoaded: !team?.id || schedulesLoaded,
     teamCount: teams.length,
   });

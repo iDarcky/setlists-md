@@ -243,7 +243,7 @@ export function DeleteAccountView({ owned, teamName, confirm, onConfirmChange, o
   const keeps = owned ? (owned.alone ? null : owned.name) : teamName;
   return (
     <AuthLayout onBack={onCancel} embedded={embedded}>
-      <IconSquare><TriangleAlert size={22} strokeWidth={1.8} /></IconSquare>
+      <div className="self-center"><IconSquare><TriangleAlert size={22} strokeWidth={1.8} /></IconSquare></div>
       <AuthHeader
         title="Delete your account?"
         sub={`Your name and email are removed for good.${keeps ? ` Songs you added stay with ${keeps}.` : ''}`}

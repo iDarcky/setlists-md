@@ -64,9 +64,9 @@ export function EnterCodeView({ onCode, answer, error, onPasteLink, onBack, busy
     <AuthLayout onBack={onBack} embedded={embedded}>
       <Progress step={2} of={3} />
       <AuthHeader title="Enter your invite code" sub="Ask your leader for the 6-character code." />
-      {/* Left, under the heading; the boxes one step lighter than the page
+      {/* Centred under the heading; the boxes one step lighter than the page
           so they read as fields in dark mode (QA 22 Nov 2026). */}
-      <div className="otp-on-page flex justify-start">
+      <div className="otp-on-page flex justify-center">
         <OneTimeCode length={6} letters answer={answer ?? null} onFull={onCode} label="Invite code, 6 characters" />
       </div>
       {error && <Alert variant="danger">{error}</Alert>}
@@ -168,10 +168,10 @@ export function InviteTeamView({ code, url, copied, sharedCopied, onCopy, onShar
     <AuthLayout onBack={onBack} embedded={embedded}>
       <Progress step={4} of={5} />
       <AuthHeader title="Invite your team" sub="They tap Join a team in Setlists.md and type this code. You let them in." />
-      <Card>
+      <Card className="items-center text-center">
         <CardLabel>Your team’s code</CardLabel>
         <span className="font-mono text-[40px] font-semibold leading-tight tracking-[8px]" aria-label={code ? code.toUpperCase().split('').join(' ') : undefined}>{code ? code.toUpperCase() : '······'}</span>
-        <div className="flex border-t border-border pt-3">
+        <div className="flex self-stretch justify-center border-t border-border pt-3">
           <Button variant="link" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-small" onClick={onCopy} disabled={!code}>
             {copied ? <><Check size={14} strokeWidth={1.8} aria-hidden="true" /> Copied</> : <><Copy size={14} strokeWidth={1.8} aria-hidden="true" /> Copy code</>}
           </Button>
