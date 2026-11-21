@@ -7,7 +7,8 @@ import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
-import AppSkeleton from "@/ui/AppSkeleton";
+import AppSkeleton, { PlainLoading } from "@/ui/AppSkeleton";
+import { expectsTeam } from "@/lib/launchCache";
 import { isQuotaError } from "@/lib/storageErrors";
 import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
@@ -118,7 +119,10 @@ import { TEMPLATE_KIND } from '@/lib/newSetlist';
 import { needsCheck, clearCheck } from '@/lib/importCheck';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
-const StartFlow = lazy(() => import('@/features/start/StartFlow'));
+// Fetched early for anyone without a team (see the preload effect), so the
+// set-up screens never wait on their code behind a loading screen.
+const loadStartFlow = () => import('@/features/start/StartFlow');
+const StartFlow = lazy(loadStartFlow);
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
 // PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
 // 2026-08-11 and the three old surfaces were deleted on 2026-10-11.
@@ -242,12 +246,25 @@ export default function App() {
   ));
   // The church/band this account asked us to set up (the "after sign-up"
   // screens, lib/startFlow): from this device, else from the account.
-  const [startRequest, setStartRequest] = useState(null);
+  // Worked out during render when the account changes (not in an effect),
+  // so the first signed-in frame already knows whether set-up is unfinished.
   const startRequestUser = user?.id || null;
   const startRequestMeta = user?.user_metadata?.start_request;
+  const readStartRequest = () => (startRequestUser ? storedRequest(sentChurchRequest(startRequestUser), { start_request: startRequestMeta }) : null);
+  const [startRequestState, setStartRequestState] = useState(() => ({ user: startRequestUser, meta: startRequestMeta, value: readStartRequest() }));
+  let startRequest = startRequestState.value;
+  if (startRequestState.user !== startRequestUser || startRequestState.meta !== startRequestMeta) {
+    startRequest = readStartRequest();
+    setStartRequestState({ user: startRequestUser, meta: startRequestMeta, value: startRequest });
+  }
+  const setStartRequest = useCallback((value) => {
+    setStartRequestState(prev => ({ ...prev, value: typeof value === 'function' ? value(prev.value) : value }));
+  }, []);
+  // The set-up screens (and Join another team) load their code as soon as
+  // someone is signed in, so opening them never shows a loading screen.
   useEffect(() => {
-    setStartRequest(startRequestUser ? storedRequest(sentChurchRequest(startRequestUser), { start_request: startRequestMeta }) : null);
-  }, [startRequestUser, startRequestMeta]);
+    if (startRequestUser) loadStartFlow().catch(() => { /* offline: Suspense retries */ });
+  }, [startRequestUser]);
   // After joining, switch into the new Space as soon as TeamProvider has it:
   // { teamId, view }. Membership loads asynchronously after approval.
   const [pendingSpaceSwitch, setPendingSpaceSwitch] = useState(null);
@@ -2190,8 +2207,11 @@ export default function App() {
   // Signed in and the space not fully known yet: the app's shape in grey,
   // never a half-filled Home. One loading screen, not a skeleton and
   // then a logo splash.
-  if (settlingHomeSpace) return <AppSkeleton />;
-  if (!loaded && !publicView && (authLoading || user?.id)) return <AppSkeleton />;
+  // No team coming (signed out, or not in one yet): the page colour only,
+  // never a team space that flashes before the welcome or set-up screens.
+  const launchPlaceholder = expectsTeam(user?.id) ? <AppSkeleton /> : <PlainLoading />;
+  if (settlingHomeSpace) return launchPlaceholder;
+  if (!loaded && !publicView && (authLoading || user?.id)) return launchPlaceholder;
   if (!loaded) {
     return (
       <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
@@ -2319,7 +2339,7 @@ export default function App() {
   if (startShows) {
     return (
       <ErrorBoundary>
-        <Suspense fallback={<AppSkeleton />}>
+        <Suspense fallback={<PlainLoading />}>
           <StartFlow
             screen={startShows}
             user={user}
