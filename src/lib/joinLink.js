@@ -222,3 +222,8 @@ export function findJoinRequest(rows, { teamId, requestId } = {}) {
 export function churchFromPeek(peek) {
   return { name: peek?.team_name || '', logoUrl: peek?.logo_url || null, initials: peek?.initials || null };
 }
+
+/** What Share invite sends: the code first, the link after it. */
+export function inviteMessage(teamName, code) {
+  return `Join ${teamName} on Setlists.md with the code ${String(code || '').toUpperCase()}, or tap the link:`;
+}

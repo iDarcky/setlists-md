@@ -7,7 +7,7 @@ import { Button } from '@/ui/shadcn/button';
 import { Avatar } from '@/app/AppTopBar';
 import { BackIcon, ChevronRightIcon, EditIcon, PinIcon } from '@/app/navIcons';
 import { displayTokens } from '@/data/instruments';
-import { joinPartLabel } from '@/lib/joinLink';
+import { inviteMessage, joinPartLabel } from '@/lib/joinLink';
 import { ROLE_GROUPS, groupOf, memberName } from '@/lib/teamPeople';
 
 // The Team page (canvas → "Team, church and song usage"). Everyone sees the
@@ -174,12 +174,14 @@ export function UsageEntry({ summary, onOpen }) {
   );
 }
 
-/** The join link: Copy, Send…, QR, on/off and reset live under "More". */
-export function InviteCard({ teamName, url, enabled = true, loading = false, error = null, onToggle, onReset, busy = null }) {
-  const [copied, setCopied] = useState(false);
+/** Invite people: the code is the star; the link only travels inside Share
+ *  invite (owner, 21 Nov 2026). QR, on/off and New code sit below. */
+export function InviteCard({ teamName, code = '', url, enabled = true, loading = false, error = null, onToggle, onReset, busy = null }) {
+  const [copied, setCopied] = useState(null);
   const [qr, setQr] = useState(null);
   const [showQr, setShowQr] = useState(false);
   const canSend = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const shown = String(code || '').toUpperCase();
 
   useEffect(() => {
     if (!url || !showQr) return undefined;
@@ -188,39 +190,43 @@ export function InviteCard({ teamName, url, enabled = true, loading = false, err
     return () => { cancelled = true; };
   }, [url, showQr]);
 
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* blocked: the link is selectable */ }
+  const flash = (what) => { setCopied(what); setTimeout(() => setCopied(null), 1800); };
+  const copyCode = async () => {
+    try { await navigator.clipboard.writeText(shown); flash('code'); } catch { /* blocked: the code is on screen */ }
   };
-  const send = async () => {
-    try { await navigator.share({ title: `Join ${teamName}`, text: `Join ${teamName} on Setlists.md`, url }); } catch { /* dismissed */ }
+  const share = async () => {
+    const text = inviteMessage(teamName, code);
+    if (canSend) {
+      try { await navigator.share({ title: `Join ${teamName}`, text, url }); } catch { /* dismissed */ }
+      return;
+    }
+    try { await navigator.clipboard.writeText(`${text}\n${url}`); flash('invite'); } catch { /* blocked */ }
   };
 
   return (
     <section aria-label="Invite people" className="flex flex-col gap-3 rounded-card material-base p-4 sm:p-5">
       <div className="flex flex-col gap-1">
         <h2 className="m-0 text-heading font-semibold">Invite people</h2>
-        <p className="m-0 text-small leading-5 text-muted-foreground">Anyone with the link can ask to join. You let them in.</p>
+        <p className="m-0 text-small leading-5 text-muted-foreground">They tap Join a team in Setlists.md and type this code. You let them in.</p>
       </div>
       {loading && <p className="m-0 text-small text-muted-foreground">One moment…</p>}
       {error && !url && <p className="m-0 text-small text-danger">{error}</p>}
       {url && (
         <>
-          <div className={cn('truncate rounded-control border border-input bg-raised px-3.5 py-3 font-mono text-small', !enabled && 'opacity-50')} title={url}>
-            {url.replace(/^https?:\/\//, '')}
+          <div className={cn('flex items-center justify-between gap-3 rounded-control border border-input bg-raised px-4 py-3', !enabled && 'opacity-50')}>
+            <span className="font-mono text-[32px] font-semibold leading-tight tracking-[6px]" aria-label={`Code ${shown.split('').join(' ')}`}>{shown}</span>
+            <Button variant="link" className="shrink-0 text-small" disabled={!enabled} onClick={copyCode}>{copied === 'code' ? 'Copied' : 'Copy code'}</Button>
           </div>
-          {!enabled && <p className="m-0 text-small text-muted-foreground">The link is off. Nobody can ask to join with it.</p>}
-          <div className="flex gap-2">
-            <Button className="flex-1" disabled={!enabled} onClick={copy}><Icon d={ICONS.copy} />{copied ? 'Copied' : 'Copy'}</Button>
-            {canSend && <Button className="flex-1" variant="outline" disabled={!enabled} onClick={send}><Icon d={ICONS.send} />Send…</Button>}
-          </div>
+          {!enabled && <p className="m-0 text-small text-muted-foreground">Invites are off. Nobody can ask to join with this code or its link.</p>}
+          <Button disabled={!enabled} onClick={share}><Icon d={ICONS.send} />{copied === 'invite' ? 'Invite copied' : 'Share invite'}</Button>
           <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1 text-small">
             <Button variant="link" disabled={!enabled} onClick={() => setShowQr(v => !v)}>{showQr ? 'Hide QR code' : 'QR code'}</Button>
-            {onToggle && <Button variant="link" disabled={busy === 'toggle'} onClick={() => onToggle(!enabled)}>{enabled ? 'Turn the link off' : 'Turn the link on'}</Button>}
-            {onReset && <Button variant="link" className="text-danger" disabled={!!busy} onClick={onReset}>New link</Button>}
+            {onToggle && <Button variant="link" disabled={busy === 'toggle'} onClick={() => onToggle(!enabled)}>{enabled ? 'Turn invites off' : 'Turn invites on'}</Button>}
+            {onReset && <Button variant="link" className="text-danger" disabled={!!busy} onClick={onReset}>New code</Button>}
           </div>
           {showQr && enabled && qr && (
             <div className="flex flex-col items-center gap-2 pt-1">
-              <img src={qr} alt={`QR code for the ${teamName} join link`} width="200" height="200" className="rounded-control bg-white p-2" />
+              <img src={qr} alt={`QR code to join ${teamName}`} width="200" height="200" className="rounded-control bg-white p-2" />
               <span className="text-small text-muted-foreground">Put it on the screen at rehearsal. Phones can scan it.</span>
             </div>
           )}
