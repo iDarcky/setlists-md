@@ -19,6 +19,7 @@ A running log of what's new in setlists.md. Newest releases first.
 
 ### Fixed
 - **A full team says so** when someone tries to join, instead of leaving them waiting.
+- **Lines with only chords** keep their chords, in order, when you edit a song.
 
 ## 0.26.1 — Setlists come back on the new address
 *November 2026*
