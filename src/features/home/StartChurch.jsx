@@ -73,7 +73,7 @@ export function StartChurchSheet({ open, onOpenChange, email, onSend }) {
         </p>
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="sc-church">Church or band name</FieldLabel>
+            <FieldLabel htmlFor="sc-church">Team name</FieldLabel>
             <Input id="sc-church" autoComplete="organization" value={values.church} onChange={set('church')} aria-invalid={tried && missing.church} />
             {tried && missing.church && <FieldError>Add the name your band knows it by.</FieldError>}
           </Field>

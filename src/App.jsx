@@ -329,6 +329,8 @@ export default function App() {
   const checkSkipped = useRef(new Set());
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
+  // Join another team: the invite-code screen over the app (2026-11-20).
+  const [joinAnotherOpen, setJoinAnotherOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
   // Account-wall modal state — surfaced after the user saves their first
   // local item (song or setlist) without being signed in.
@@ -2211,11 +2213,6 @@ export default function App() {
           <JoinFlow
             code={joinCode}
             onJoined={(teamId) => handleJoinedSpace(teamId)}
-            onGoSchedule={(teamId) => {
-              leaveJoinFlow();
-              setView('home');
-              if (teamId) setPendingSpaceSwitch({ teamId, view: 'schedule' });
-            }}
             onSkipHome={(teamId) => {
               leaveJoinFlow();
               setView('home');
@@ -2334,7 +2331,6 @@ export default function App() {
             team={teams[0] || null}
             onRequestChange={setStartRequest}
             onSignOut={handleSignOut}
-            onInviteBand={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'team' }); }}
             onOpenTeam={(teamId) => { handleJoinedSpace(teamId, { switchTo: 'home' }); }}
             onJoinCode={(code) => { setJoinCode(code); setView('join'); }}
           />
@@ -2799,6 +2795,7 @@ export default function App() {
           {view === 'team' && (
             <TeamScreen
               onBack={goBack}
+              onJoin={accountsEnabled ? () => setJoinAnotherOpen(true) : undefined}
               onSwitchLibrary={switchWorkspace}
               initialCreate={teamCreateIntent}
               onCreateHandled={() => setTeamCreateIntent(false)}
@@ -2852,6 +2849,16 @@ export default function App() {
           activeId={activeLibrary}
           onPick={leaveEditing(switchWorkspace)}
           onNew={canCreateWorkspace ? leaveEditing(goNewWorkspace) : undefined}
+          onJoin={() => setJoinAnotherOpen(true)}
+        />
+      )}
+      {joinAnotherOpen && user?.id && (
+        <StartFlow
+          screen="choose"
+          initialStep="code"
+          user={user}
+          onClose={() => setJoinAnotherOpen(false)}
+          onJoinCode={(code) => { setJoinAnotherOpen(false); setJoinCode(code); setView('join'); }}
         />
       )}
       {/* Workspace destination picker for move/copy from the song kebab. */}

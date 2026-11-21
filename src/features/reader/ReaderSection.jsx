@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { sectionIdentity, resolveSectionColors } from '@/lib/sectionIdentity';
 import SectionBlock from '@/features/chart/SectionBlock';
-import { serializeTabBlock, lineToPlacement, placementToLine, CUE_MAX_CHARS } from '@/parser';
+import { serializeTabBlock, lineToPlacement, CUE_MAX_CHARS } from '@/parser';
+import { reattachChords } from '@/lib/reattachChords';
 
 /**
  * One section — elements 3, 4 and 5.
@@ -74,9 +75,9 @@ const asText = (l) => {
  * source, we can follow the same model here too"*).
  *
  * - **Lyrics** (default) shows the words with the chord markers stripped, and
- *   puts the chords back on save by CHARACTER POSITION — `lineToPlacement` /
- *   `placementToLine` in `parser.js`, the same pair `ArrangeTabV2` uses. A
- *   position past the end of a shortened line is clamped to the end rather than
+ *   puts the chords back on save by CHARACTER POSITION, each line's chords onto
+ *   the same line matched by its words (`lib/reattachChords.js`). A position
+ *   past the end of a shortened line is clamped to the end rather than
  *   dropped, which is what the editor means by "nudged to fit".
  * - **Source** is the raw `.md`, brackets and all, for anything that isn't a
  *   word: adding a chord where there is none, a tab block, a key change.
@@ -99,31 +100,30 @@ function LyricEditor({ section, onSave, onCancel }) {
     ? lines.map(l => lineToPlacement(l).plainText).join('\n')
     : lines.map(asText).join('\n')));
 
+  // The lines the Lyrics box puts its chords back onto: the section as saved,
+  // or the Source text as it was when you switched from Source to Lyrics, so
+  // chords typed in Source survive a trip through Lyrics.
+  const [base, setBase] = useState(() => lines.map(l => (typeof l === 'string' ? l : '')));
+
   const switchTo = (next) => {
     if (next === mode) return;
     // Re-derive from the CURRENT text so a switch never silently discards what
     // was just typed.
     if (next === 'source') {
-      const src = text.split('\n').map((plainText, i) => {
-        const original = typeof lines[i] === 'string' ? lines[i] : '';
-        const { chords } = lineToPlacement(original);
-        return placementToLine({ plainText, chords: clampChords(chords, plainText) });
-      });
-      setText(src.join('\n'));
+      setText(reattachChords(base, text.split('\n')).join('\n'));
     } else {
-      setText(text.split('\n').map(l => lineToPlacement(l).plainText).join('\n'));
+      const src = text.split('\n');
+      setBase(src);
+      setText(src.map(l => lineToPlacement(l).plainText).join('\n'));
     }
     setMode(next);
   };
 
   const commit = () => {
     if (mode === 'source') { onSave(text); return; }
-    // Lyrics: re-attach each line's original chords at their old positions.
-    onSave(text.split('\n').map((plainText, i) => {
-      const original = typeof lines[i] === 'string' ? lines[i] : '';
-      const { chords } = lineToPlacement(original);
-      return placementToLine({ plainText, chords: clampChords(chords, plainText) });
-    }).join('\n'));
+    // Lyrics: each line's chords go back on that same line, matched by its
+    // words, not by its line number (see reattachChords).
+    onSave(reattachChords(base, text.split('\n')).join('\n'));
   };
 
   return (
@@ -186,13 +186,6 @@ function ModeTab({ id, label, active, onPick, disabled = false }) {
       {label}
     </button>
   );
-}
-
-// A chord whose position is past the end of a shortened line moves to the end
-// rather than disappearing — the editor's "nudged to fit".
-function clampChords(chords, plainText) {
-  const max = (plainText || '').length;
-  return chords.map(c => ({ ...c, pos: Math.min(c.pos, max) }));
 }
 
 export default function ReaderSection({

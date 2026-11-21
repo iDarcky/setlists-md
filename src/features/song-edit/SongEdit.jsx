@@ -276,7 +276,9 @@ function WordsRun({ lines, onChange, autoFocus, placeholder }) {
     const caret = from + add.text.length;
     requestAnimationFrame(() => { try { ta.setSelectionRange(caret, caret); } catch { /* unmounted */ } });
   };
-  const chordAt = new Map(w.marks.filter(m => !m.notes).map(m => [m.at, m.chord]));
+  // Chords sharing a letter (a chord-only line) are drawn together, in order.
+  const chordAt = new Map();
+  for (const m of w.marks) if (!m.notes) chordAt.set(m.at, chordAt.has(m.at) ? `${chordAt.get(m.at)} ${m.chord}` : m.chord);
   const rows = w.text.split('\n');
   const starts = rows.reduce((acc, r, k) => [...acc, k ? acc[k - 1] + rows[k - 1].length + 1 : 0], []);
   const box = 'm-0 whitespace-pre-wrap break-words px-3 py-1.5 font-sans text-heading leading-[46px] [overflow-wrap:anywhere]';

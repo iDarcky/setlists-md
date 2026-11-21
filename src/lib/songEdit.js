@@ -160,12 +160,21 @@ export function blocksToSections(blocks) {
   return { sections, structure: plain ? null : order, meta };
 }
 
-/** Put `chord` at letter `pos` of a line, replacing one already there; null removes it. */
+/**
+ * Put `chord` at letter `pos` of a line, replacing one already there; null removes it.
+ * Only the first chord at `pos` is replaced: a chord-only line ("[Am][G][C]")
+ * has all its chords at 0, and changing one must not wipe the rest (INS-82).
+ */
 export function setChordAt(value, pos, chord) {
   const { clean, notes } = extractInlineNotes(value);
   const { plainText, chords } = lineToPlacement(clean);
-  const rest = chords.filter(c => c.pos !== pos);
-  const next = placementToLine({ plainText, chords: chord ? [...rest, { chord, pos }] : rest });
+  const at = chords.findIndex(c => c.pos === pos);
+  const next = placementToLine({
+    plainText,
+    chords: at < 0
+      ? (chord ? [...chords, { chord, pos }] : chords)
+      : chords.flatMap((c, k) => (k !== at ? [c] : chord ? [{ chord, pos }] : [])),
+  });
   return notes.length ? `${next} ${notes.map(n => `{!${n}}`).join(' ')}` : next;
 }
 
@@ -283,15 +292,17 @@ export function wordsToLines(text, marks) {
   let at = 0;
   for (const r of rows) { starts.push(at); at += r.length + 1; }
   const lineOf = (p) => { let k = 0; while (k + 1 < starts.length && starts[k + 1] <= p) k++; return k; };
-  const chords = rows.map(() => new Map());
+  // Several chords can share a spot (a chord-only line, "[Am][G][C]"): keep
+  // them all, in order. A Map by position kept only the last one (INS-82).
+  const chords = rows.map(() => []);
   const notes = rows.map(() => []);
   for (const m of marks) {
     const k = lineOf(Math.max(0, Math.min(m.at, text.length)));
     if (m.notes) notes[k].push(...m.notes);
-    else chords[k].set(Math.min(m.at - starts[k], rows[k].length), m.chord);
+    else chords[k].push({ pos: Math.min(m.at - starts[k], rows[k].length), chord: m.chord });
   }
   return rows.map((plainText, k) => {
-    const line = placementToLine({ plainText, chords: [...chords[k]].map(([pos, chord]) => ({ pos, chord })) });
+    const line = placementToLine({ plainText, chords: chords[k] });
     if (!notes[k].length) return line;
     const tail = notes[k].map(n => `{!${n}}`).join(' ');
     return !line ? tail : /\s$/.test(line) ? line + tail : `${line} ${tail}`;

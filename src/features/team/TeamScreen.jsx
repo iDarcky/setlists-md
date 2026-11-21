@@ -145,7 +145,7 @@ function CreateTeamForm({ onCreate, onCancel }) {
 // ── The Team page (redesign 2026-10-31) ─────────────────────────────────────
 
 function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJoinLink, joinRequests, onApproveJoin, onDeclineJoin, onApproveAllJoins,
-  onRoleChange, onRemove, onUpdate, onLeave, onDelete, onBack, onCreate, isDefaultSpace, onToggleDefaultSpace,
+  onRoleChange, onRemove, onUpdate, onLeave, onDelete, onBack, onCreate, onJoin, isDefaultSpace, onToggleDefaultSpace,
   setlists = [], songs = [], schedules = [], setlistMap = {}, onOpenSong }) {
   const confirm = useConfirm();
   const { canSetParts, setMemberInstruments } = useTeam();
@@ -266,6 +266,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
       {onToggleDefaultSpace && (
         <ShadButton variant="link" onClick={onToggleDefaultSpace}>{isDefaultSpace ? 'Opens here when the app starts' : 'Open this church when the app starts'}</ShadButton>
       )}
+      {onJoin && <ShadButton variant="link" onClick={onJoin}>Join another team</ShadButton>}
       {onCreate && <ShadButton variant="link" onClick={onCreate}>Start another church or band</ShadButton>}
       {!isOwner && <ShadButton variant="link" className="text-danger" onClick={leave}>Leave {team.name}</ShadButton>}
       {isOwner && <ShadButton variant="link" className="text-danger" onClick={deleteChurch}>Delete this church</ShadButton>}
@@ -321,7 +322,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
 
 // ── Main Screen ─────────────────────────────────────────────────────────────
 
-export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = null, onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
+export default function TeamScreen({ onBack, onJoin, onSwitchLibrary, initialCreate = false, onCreateHandled, defaultSpaceId = null, onSetDefaultSpace, setlists, songs, schedules, setlistMap, onOpenSong }) {
   const { user } = useAuth();
   const { team, members, isAdmin, loading, createTeam, removeMember, updateMemberRole, leaveTeam, deleteTeam, atWorkspaceLimit, updateTeam, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests } = useTeam();
   // Fresh "Waiting" list every time the page opens (realtime can miss one).
@@ -385,6 +386,7 @@ export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = fa
         onDelete={async () => { await deleteTeam(); }}
         onBack={onBack}
         onCreate={canCreate ? () => setCreating(true) : null}
+        onJoin={onJoin}
         isDefaultSpace={defaultSpaceId === team.id}
         onToggleDefaultSpace={onSetDefaultSpace
           ? () => onSetDefaultSpace(defaultSpaceId === team.id ? null : team.id)
@@ -425,7 +427,7 @@ export default function TeamScreen({ onBack, onSwitchLibrary, initialCreate = fa
               You already have one of your own
             </h2>
             <p className="text-copy-14 text-[var(--ds-gray-600)] m-0 leading-relaxed max-w-sm">
-              One account can own one church or band. To join another, ask its leader for the join link.
+              One account can own one church or band. To join another, use Join another team on your team’s page, or open its leader’s invite link.
               If you need to own a second one, write to hello@setlists.md.
             </p>
           </div>
