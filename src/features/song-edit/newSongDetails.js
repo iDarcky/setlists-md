@@ -1,4 +1,7 @@
 // Pure helpers for the new-song details form (NewSongForm.jsx).
+import { songKey } from '@/lib/songsData';
+import { songFromFlat } from '@/arrangements';
+import { generateId } from '@/parser';
 
 /** Every artist in the library, most used first. "A, B" counts as two. */
 export function libraryArtists(songs = []) {
@@ -14,5 +17,25 @@ export function detailsMissing(d) {
   return need.length > 1 ? `${need.slice(0, -1).join(', ')} and ${need.at(-1)}` : need[0];
 }
 
-export const EMPTY_DETAILS = { title: '', artist: '', key: '', tempo: null, time: '', duration: '', youtube: '' };
+// Most worship songs are 4/4, so the chip starts there.
+export const EMPTY_DETAILS = { title: '', artist: '', key: '', tempo: null, time: '4/4' };
 
+
+/** "You already have Oceans by Hillsong United, in D." */
+export function sameSongLine(song) {
+  const k = songKey(song);
+  return `You already have ${song.title}${song.artist ? ` by ${song.artist}` : ''}${k ? `, in ${k}` : ''}.`;
+}
+
+/** A new, empty song from the details sheet, ready for the chart page. */
+export function songFromDetails(d = {}) {
+  const song = songFromFlat({ id: generateId() });
+  const a = song.arrangements[0];
+  song.title = (d.title || '').trim();
+  song.artist = (d.artist || '').trim();
+  a.name = 'Main';
+  a.key = d.key || '';
+  if (d.tempo) a.tempo = d.tempo;
+  if (d.time) a.time = d.time.trim();
+  return song;
+}

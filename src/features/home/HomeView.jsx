@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { PageHeader } from '@/ui/shadcn/page-header';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
-import { AnimatePresence, motion as Motion } from 'motion/react';
 import {
-  Calendar, Check, ChevronLeft, ChevronRight, FileCheck, List, Music, Play, Plus, Users,
+  Calendar, Check, ChevronLeft, ChevronRight, FileCheck, List, Music, Play, Users,
 } from 'lucide-react';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
-import { Popover, PopoverTrigger, PopoverContent } from '@/ui/shadcn/popover';
+import { CreateButton } from '@/ui/shadcn/create-button';
 import { churchInitials } from '@/lib/joinLink';
 import { formatClockTime } from '@/lib/dateFormat';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -105,55 +104,6 @@ function Face({ name, url, you = false, size = 32, ring = false, className }) {
   );
 }
 
-
-// ── Create (the + by the hello) ─────────────────────────────────────────────
-
-/**
- * The + opens a small menu that springs from the button (the bencho create
- * menu's rows, corners and timing; anchored instead of centred, because a
- * header has no room for the block's 244px stage). The + never turns into an
- * ✕ (owner, 2026-11-15: "Don't rotate the +").
- */
-function CreateButton({ items }) {
-  const [open, setOpen] = useState(false);
-  if (!items.length) return null;
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button size="icon" aria-label="Create" className="size-11 shrink-0 rounded-control">
-          <Plus size={20} strokeWidth={2} aria-hidden="true" />
-        </Button>
-      </PopoverTrigger>
-      <AnimatePresence>
-        {open && (
-          <PopoverContent forceMount asChild align="end" sideOffset={8} className="w-[236px] p-1.5">
-            <Motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-              style={{ transformOrigin: 'top right' }}
-            >
-              {items.map((it, i) => (
-                <div key={it.label}>
-                  {it.divider && i > 0 && <div className="mx-1.5 my-1 h-px bg-border" />}
-                  <button
-                    type="button"
-                    onClick={() => { setOpen(false); it.onSelect(); }}
-                    className="flex h-9 w-full min-h-0 cursor-pointer items-center gap-2.5 rounded-control border-0 bg-transparent px-2.5 text-left font-sans text-[14px] font-medium text-foreground outline-none hover:bg-raised focus-visible:bg-raised"
-                  >
-                    <it.icon size={18} strokeWidth={STROKE} aria-hidden="true" />
-                    {it.label}
-                  </button>
-                </div>
-              ))}
-            </Motion.div>
-          </PopoverContent>
-        )}
-      </AnimatePresence>
-    </Popover>
-  );
-}
 
 // ── 1 · Get ready (once) ────────────────────────────────────────────────────
 

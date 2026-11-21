@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, List, Music } from 'lucide-react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamActivity } from '@/hooks/useTeamActivity';
@@ -15,6 +14,7 @@ import { membersWithoutParts } from '@/lib/memberInstruments';
 import { useNow } from '@/hooks/useNow';
 import { setlistStartMs } from '@/lib/setlistTime';
 import AddSongFlow from '@/features/songs/AddSongFlow';
+import { createMenu } from '@/features/songs/createMenu';
 import { supabase } from '@/auth/supabase';
 import { sendChurchRequest, sentChurchRequest, rememberChurchRequest } from '@/lib/churchRequest';
 import { signupSource } from '@/lib/siteEntry';
@@ -32,7 +32,7 @@ export default function Home({
   canAddSongs = false, onImportSongs, onImportSetlistFile, onEditImported, onBlank, onSetupDone, onRetrySync, onNotFound,
 }) {
   // New song and Import open their sheets here, on Home, not on Songs.
-  const [adding, setAdding] = useState(null); // null | 'add' | 'new' | 'import'
+  const [adding, setAdding] = useState(null); // null | 'new' | 'import'
   const { user } = useAuth();
   const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
@@ -129,11 +129,11 @@ export default function Home({
     : null;
 
   // The + menu: the three ways to start something a leader has.
-  const create = [
-    canAddSongs && { icon: Music, label: 'New song', onSelect: () => setAdding('new') },
-    canAddSongs && onImportSongs && { icon: FileText, label: 'Import PDFs', onSelect: () => setAdding('import') },
-    onNewSetlist && { icon: List, label: 'New setlist', onSelect: onNewSetlist, divider: true },
-  ].filter(Boolean);
+  const create = createMenu({
+    onNewSong: canAddSongs ? () => setAdding('new') : null,
+    onImport: canAddSongs && onImportSongs ? () => setAdding('import') : null,
+    onNewSetlist,
+  });
   // Activity rows name the server row; find the local copy by row map, then by name.
   const openActivity = (it) => {
     if (it.kind === 'song') {

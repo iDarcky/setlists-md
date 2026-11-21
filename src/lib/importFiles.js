@@ -56,8 +56,14 @@ async function songFromPdf(data, warnings) {
   return songFromFlat({ ...flat, id: generateId(), updatedAt: Date.now() });
 }
 
+const SCANNED = ' (scanned image — no text to read)';
 function pdfFailure(err, name) {
-  return err?.message === 'no-text-layer' ? `${name} (scanned image — no text to read)` : name;
+  return err?.message === 'no-text-layer' ? `${name}${SCANNED}` : name;
+}
+
+/** The file names among `failed` that are scans (a photo of a page, no text). */
+export function scannedFiles(failed = []) {
+  return failed.filter(f => f.endsWith(SCANNED)).map(f => f.slice(0, -SCANNED.length));
 }
 
 // A .zip is ambiguous: our own setlist bundles carry a manifest, but an OnSong
@@ -101,10 +107,12 @@ async function inspectZip(file, warnings = []) {
 /**
  * Classify and parse a FileList / File[].
  *
+ * @param {(name: string, state: 'reading'|'done'|'failed') => void} [onFile]
+ *   called as each PDF or text file is read, for the "Reading 6 files" list
  * @returns {Promise<{ songs: object[], setlistFile: File|null, failed: string[], error: string }>}
  *   `setlistFile` set means the caller should hand it to the setlist importer.
  */
-export async function parseImportFiles(fileList) {
+export async function parseImportFiles(fileList, onFile) {
   const files = Array.from(fileList || []);
   const empty = { songs: [], setlistFile: null, failed: [], error: '' };
   if (files.length === 0) return empty;
@@ -132,18 +140,24 @@ export async function parseImportFiles(fileList) {
   // PDFs are the only import that isn't instant (pdf.js loads lazily, then each
   // page is parsed), so they're handled before the cheap text files.
   for (const f of pdfs) {
+    onFile?.(f.name, 'reading');
     try {
       songs.push(await songFromPdf(await f.arrayBuffer(), warnings));
+      onFile?.(f.name, 'done');
     } catch (err) {
       failed.push(pdfFailure(err, f.name));
+      onFile?.(f.name, 'failed');
     }
   }
 
   for (const f of plain) {
+    onFile?.(f.name, 'reading');
     try {
       songs.push(songFromText(await readText(f), f.name));
+      onFile?.(f.name, 'done');
     } catch {
       failed.push(f.name);
+      onFile?.(f.name, 'failed');
     }
   }
 
