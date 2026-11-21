@@ -48,7 +48,8 @@ img { display: block; max-width: 100%; height: auto; }
 .hero { padding: clamp(56px, 10vw, 128px) 0 0; position: relative; }
 .hero-grid { position: relative; }
 .chorded { margin: 0; font-weight: 600; font-size: clamp(36px, 13vw, 156px); line-height: .92; letter-spacing: -.055em; display: flex; flex-wrap: nowrap; column-gap: .24em; white-space: nowrap; }
-.chorded .w { display: inline-flex; flex-direction: column; }
+.chorded .w { display: inline-flex; }
+.chorded .s { display: inline-flex; flex-direction: column; }
 .chorded .c { font: 500 clamp(16px, 1.8vw, 24px)/1 'Geist Mono'; color: var(--gold); letter-spacing: 0; margin: 0 0 .5em .06em; }
 .lede { font-size: clamp(19px, 1.8vw, 22px); color: var(--muted); max-width: 30ch; margin: 28px 0 32px; line-height: 1.45; }
 .cta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }

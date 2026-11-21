@@ -112,7 +112,7 @@ function page({ lang, doc, title, meta, body }) {
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/site.css?v=2">
+<link rel="stylesheet" href="/site.css?v=3">
 <script src="/site.js" defer></script>
 <script data-goatcounter="https://insideahead.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 </head>
