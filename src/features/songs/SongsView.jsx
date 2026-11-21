@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { PageHeader } from '@/ui/shadcn/page-header';
 import { EmptyState } from '@/ui/shadcn/empty-state';
-import { Plus, Music, SearchX } from 'lucide-react';
+import { Plus, Music, SearchX, FileText } from 'lucide-react';
 import { chipClass } from '@/ui/shadcn/chip';
 import { ListRow, KeyBadge } from '@/ui/shadcn/list-row';
+import { Badge } from '@/ui/shadcn/badge';
 import { SectionLabel } from '@/ui/shadcn/section-label';
 import { Search } from '@/ui/blocks/Search';
 import BackToTop from '@/ui/BackToTop';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
 import { Sheet } from '@/ui/shadcn/sheet';
+import { CreateButton } from '@/ui/shadcn/create-button';
 import { useLongPress } from '@/lib/useLongPress';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useRevealList } from '@/hooks/useRevealList';
@@ -39,7 +41,7 @@ const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Sv
 
 function Row({ row, nextLabel, selecting, selected, onOpen, onToggle, onLongPress }) {
   const { bind, consumeClick } = useLongPress(onLongPress);
-  const { song, keyName, line, next } = row;
+  const { song, keyName, line, next, check } = row;
   return (
     <ListRow
       {...bind}
@@ -54,7 +56,8 @@ function Row({ row, nextLabel, selecting, selected, onOpen, onToggle, onLongPres
       ) : null}
       title={song.title || 'Untitled'}
       sub={<>{song.artist ? `${song.artist} · ` : ''}<span className={cn(line.stale && 'text-[var(--chord)]')}>{line.text}</span></>}
-      trailing={(next && nextLabel) || keyName ? <>
+      trailing={(next && nextLabel) || keyName || check ? <>
+        {check && <Badge variant="warning">To check</Badge>}
         {next && nextLabel && <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-caption font-semibold bg-selected text-link">{nextLabel}</span>}
         {keyName && <KeyBadge>{keyName}</KeyBadge>}
       </> : null}
@@ -157,7 +160,7 @@ export function FilterSheet({ open, onOpenChange, sort, onSort, filters, onFilte
 export default function SongsView({
   leader = false, total = 0, rows = [], nextLabel = '', query = '', onQuery,
   sort = 'az', onSort, filters, onFilters, options = { keys: [], themes: [] },
-  onOpen, onEdit, onAdd, onTag, onDelete, onMove, onCopy, toCheck = 0, onCheckNext, embedded = false, layout = 'auto',
+  onOpen, onEdit, onAdd, onImport, create = [], onTag, onDelete, onMove, onCopy, toCheck = 0, onCheckNext, embedded = false, layout = 'auto',
 }) {
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
@@ -205,8 +208,8 @@ export default function SongsView({
             )}
             {selecting ? (
               <Button variant="outline" size="sm" onClick={stopSelect}>Done</Button>
-            ) : leader && onAdd ? (
-              <Button size="icon" aria-label="Add a song" className="size-11 shrink-0 rounded-control" onClick={onAdd}><Plus size={20} strokeWidth={2} aria-hidden="true" /></Button>
+            ) : leader ? (
+              <CreateButton items={create} />
             ) : null}
         </PageHeader>
 
@@ -222,9 +225,15 @@ export default function SongsView({
 
         {total === 0 ? (
           <EmptyState className="mt-6" icon={<Music strokeWidth={1.8} />}
-            title={leader ? 'Your song library is empty' : 'No songs yet'}
-            action={leader && onAdd ? <Button onClick={onAdd}><Plus size={18} strokeWidth={2} aria-hidden="true" />Add a song</Button> : null}>
-            {leader ? 'Add the songs your church sings: import the files you already have, or type one in.' : 'When your leaders add songs, they show up here.'}
+            title="No songs yet"
+            action={leader && (onAdd || onImport) ? (
+              // The two ways in, the same as the + (approved mockup, 2026-11-20).
+              <div className="flex w-full max-w-[280px] flex-col gap-2">
+                {onImport && <Button onClick={onImport}><FileText size={18} strokeWidth={1.8} aria-hidden="true" />Import PDFs</Button>}
+                {onAdd && <Button variant="outline" onClick={onAdd}><Plus size={18} strokeWidth={2} aria-hidden="true" />New song</Button>}
+              </div>
+            ) : null}>
+            {leader ? 'Start with next Sunday’s.' : 'When your leaders add songs, they show up here.'}
           </EmptyState>
         ) : (
           <>

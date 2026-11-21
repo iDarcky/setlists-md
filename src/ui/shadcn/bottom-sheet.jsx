@@ -21,8 +21,9 @@ import { cn } from './utils';
  * @param {(open: boolean) => void} onOpenChange
  * @param {boolean} [dismissible=true]  false = no swipe-down, no tap-outside, no Esc
  * @param {string} [className]  sizes the sheet (e.g. `h-auto`, a fixed height)
+ * @param {React.ReactNode} [footer]  buttons pinned under the content (Cancel / Next)
  */
-export function BottomSheet({ open, onOpenChange, title, description, children, className, dismissible = true }) {
+export function BottomSheet({ open, onOpenChange, title, description, children, className, footer, dismissible = true }) {
   const titleId = useId();
   const descId = useId();
   const panelRef = useRef(null);
@@ -115,6 +116,7 @@ export function BottomSheet({ open, onOpenChange, title, description, children, 
         <Sheet.Content disableDrag className="min-h-0 flex-1">
           <div className="px-6 pb-6 pt-2">{children}</div>
         </Sheet.Content>
+        {footer && <div className="flex shrink-0 items-center gap-2 border-t border-border px-4 py-2.5">{footer}</div>}
       </Sheet.Container>
       <Sheet.Backdrop onTap={close} className="bg-scrim" />
     </Sheet>
