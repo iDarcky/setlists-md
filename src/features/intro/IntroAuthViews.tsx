@@ -140,10 +140,11 @@ export function ResetPasswordView({ email, onChange, onSubmit, onBack, busy, mes
 
 /**
  * After "Send reset link", and after signing up when the email must be confirmed.
+ * @param ifAccount the reset wording: no promise the email has an account
  * @param resendLeft seconds until "Send it again" works again (0 = now)
  */
-export function CheckEmailView({ email, what = 'a link', onResend, onBack, resendLeft = 0, busy, message, embedded }: {
-  email: string; what?: string; onResend: () => void; onBack?: () => void;
+export function CheckEmailView({ email, what = 'a link', ifAccount = false, onResend, onBack, resendLeft = 0, busy, message, embedded }: {
+  email: string; what?: string; ifAccount?: boolean; onResend: () => void; onBack?: () => void;
   resendLeft?: number; busy?: boolean; message?: Message | null; embedded?: boolean;
 }) {
   return (
@@ -151,7 +152,11 @@ export function CheckEmailView({ email, what = 'a link', onResend, onBack, resen
       <IconSquare><Mail size={22} strokeWidth={1.8} /></IconSquare>
       <AuthHeader
         title="Check your email"
-        sub={<>We sent {what} to <b className="font-medium text-foreground">{email}</b>.</>}
+        sub={ifAccount
+          // A reset never says whether the email has an account (the usual
+          // rule, so nobody can check who signed up). QA 21 Nov.
+          ? <>If an account uses <b className="font-medium text-foreground">{email}</b>, we sent it {what}.</>
+          : <>We sent {what} to <b className="font-medium text-foreground">{email}</b>.</>}
       />
       <Note message={message} />
       <FormActions>
@@ -238,7 +243,7 @@ export function DeleteAccountView({ owned, teamName, confirm, onConfirmChange, o
   const keeps = owned ? (owned.alone ? null : owned.name) : teamName;
   return (
     <AuthLayout onBack={onCancel} embedded={embedded}>
-      <IconSquare><TriangleAlert size={22} strokeWidth={1.8} /></IconSquare>
+      <div className="self-center"><IconSquare><TriangleAlert size={22} strokeWidth={1.8} /></IconSquare></div>
       <AuthHeader
         title="Delete your account?"
         sub={`Your name and email are removed for good.${keeps ? ` Songs you added stay with ${keeps}.` : ''}`}

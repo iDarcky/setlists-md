@@ -23,7 +23,7 @@ export function JoinInviteView({ church, invitedBy, onShowLegal, error, embedded
 }) {
   return (
     <AuthLayout embedded={embedded} className="gap-7">
-      <div className="mt-20 flex flex-col gap-4 @min-[640px]:mt-0">
+      <div className="mt-20 flex flex-col items-center gap-4 text-center @min-[640px]:mt-0">
         {badge(church)}
         <h1 className="m-0 text-display">Join {nameOf(church)} on Setlists.md</h1>
         <p className="m-0 text-body text-muted-foreground">
@@ -48,11 +48,11 @@ export function WaitingView({ church, name, parts, onSignOut, embedded }: {
     <AuthLayout embedded={embedded}>
       {badge(church)}
       <AuthHeader title="Waiting for a leader" sub="This opens by itself once you’re let in." />
-      <Card>
+      <Card className="items-center text-center">
         <CardLabel>What you sent</CardLabel>
         <span className="text-body font-semibold">{name || 'You'}</span>
         {parts.length > 0
-          ? <div className="flex flex-wrap gap-1.5">{parts.map(p => <Badge key={p} variant="neutral" className="text-foreground">{joinPartLabel(p)}</Badge>)}</div>
+          ? <div className="flex flex-wrap justify-center gap-1.5">{parts.map(p => <Badge key={p} variant="neutral" className="text-foreground">{joinPartLabel(p)}</Badge>)}</div>
           : <span className="text-small text-muted-foreground">No instruments picked.</span>}
       </Card>
       <AuthActions>

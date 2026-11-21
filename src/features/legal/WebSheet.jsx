@@ -47,7 +47,7 @@ export default function WebSheet({ page, onClose }) {
     <Sheet open={!!meta} onOpenChange={(o) => { if (!o) onClose?.(); }} title={meta?.title || ''}
       className="sm:h-[85dvh] sm:max-w-[760px]">
       {meta && (
-        <div className="-mx-6 -mb-6 -mt-2 flex h-full min-h-[60dvh] flex-col">
+        <div className="-mx-6 -mb-6 -mt-2 flex h-full min-h-[60dvh] flex-col sm:h-[calc(100%+2rem)] sm:min-h-0">
           <div className="flex justify-end px-4 pb-2">
             <a href={webPageUrl(page)} target="_blank" rel="noopener noreferrer"
               className="inline-flex min-h-0 items-center gap-1.5 rounded-control px-2 py-1 text-small font-medium text-link no-underline outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
@@ -63,7 +63,9 @@ export default function WebSheet({ page, onClose }) {
                 src={webPageUrl(page, { inApp: true })}
                 onLoad={() => setLoadedPage(page)}
                 referrerPolicy="strict-origin-when-cross-origin"
-                className="block size-full border-0 bg-background"
+                // Hidden until it has drawn: an empty frame is white, which
+                // flashed before the page loaded (QA 21 Nov).
+                className={`block size-full border-0 bg-background ${loaded ? '' : 'invisible'}`}
               />
             </div>
           ) : (

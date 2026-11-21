@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import { GetAppView } from '@/features/intro/IntroStartViews';
+import { phoneInBrowser } from '@/lib/phoneInBrowser';
 
 const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint'));
 
@@ -9,6 +10,13 @@ const IOSInstallHint = lazy(() => import('@/features/onboarding/IOSInstallHint')
 // alerts, with their live state. The last setting-up screen, for people
 // joining and for the leader who made the team.
 export default function GetAppScreen({ teamName, onOpen, onBack, progress }) {
+  const [show] = useState(() => phoneInBrowser());
+  useEffect(() => { if (!show) onOpen?.(); }, [show]); // eslint-disable-line react-hooks/exhaustive-deps -- once
+  if (!show) return null;
+  return <GetApp teamName={teamName} onOpen={onOpen} onBack={onBack} progress={progress} />;
+}
+
+function GetApp({ teamName, onOpen, onBack, progress }) {
   const { canInstall, isIOS, isStandalone, promptInstall } = useInstallPrompt();
   const push = usePushSubscription();
   const [showIOSHint, setShowIOSHint] = useState(false);

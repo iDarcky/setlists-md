@@ -1,3 +1,4 @@
+import { claimBack, releaseBack } from '@/lib/introBack';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { churchInitials } from '@/lib/joinLink';
@@ -6,7 +7,7 @@ import { churchInitials } from '@/lib/joinLink';
 // out and joining", Version 2). On a phone the heading sits at the top and
 // the buttons at the bottom, within thumb reach. From the iPad up everything
 // is one 400px column in the middle of the screen, buttons right under the
-// form. The switch is at 640px of the screen's OWN width (a container query). No card around the form, headings left-aligned.
+// form. The switch is at 640px of the screen's OWN width (a container query). No card around the form, headings centred (22 Nov 2026).
 
 const BackIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -79,8 +80,9 @@ function useBackGesture(onBack) {
     if (!on) return undefined;
     if (!window.history.state?.introBack) window.history.pushState({ introBack: true }, '');
     const handler = () => ref.current?.();
+    claimBack();
     window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
+    return () => { releaseBack(); window.removeEventListener('popstate', handler); };
   }, [on]);
   return on ? () => window.history.back() : undefined;
 }
@@ -102,13 +104,13 @@ export function LogoMark({ size = 32, className }) {
 /** The church's logo, or its initials on a raised square. */
 export function ChurchBadge({ name, logoUrl, initials, quiet = false }) {
   if (logoUrl) {
-    return <img src={logoUrl} alt="" aria-hidden="true" className="size-10 rounded-[10px] object-cover" />;
+    return <img src={logoUrl} alt="" aria-hidden="true" className="size-10 self-center rounded-[10px] object-cover" />;
   }
   return (
     <div
       aria-hidden="true"
       className={cn(
-        'flex size-10 items-center justify-center rounded-[10px] bg-raised text-body font-semibold',
+        'flex size-10 items-center justify-center self-center rounded-[10px] bg-raised text-body font-semibold',
         quiet ? 'text-muted-foreground' : 'text-foreground',
       )}
     >
@@ -120,7 +122,7 @@ export function ChurchBadge({ name, logoUrl, initials, quiet = false }) {
 /** The tick square on "You're in". Neutral, like the church badge. */
 export function SuccessBadge() {
   return (
-    <div aria-hidden="true" className="flex size-10 items-center justify-center rounded-[10px] bg-raised text-foreground">
+    <div aria-hidden="true" className="flex size-10 items-center justify-center self-center rounded-[10px] bg-raised text-foreground">
       <TickIcon />
     </div>
   );
@@ -132,7 +134,9 @@ export function SuccessBadge() {
  */
 export function AuthHeader({ mark, eyebrow, title, sub, size = 'title' }) {
   return (
-    <div className="flex flex-col gap-2">
+    // Centred, like the code boxes and buttons under it (owner, 22 Nov
+    // 2026; was left-aligned).
+    <div className="flex flex-col items-center gap-2 text-center">
       {mark && <div className="mb-2">{mark}</div>}
       {eyebrow && <span className="text-caption font-medium text-muted-foreground">{eyebrow}</span>}
       <h1 className={cn('m-0 text-foreground', size === 'display' ? 'text-display' : 'text-title')}>{title}</h1>
