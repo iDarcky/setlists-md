@@ -2,6 +2,11 @@
   "cleanUrls": true,
   "redirects": [
     {
+      "source": "/ro/:page(privacy|terms|church-terms|copyright)",
+      "destination": "/:page",
+      "permanent": false
+    },
+    {
       "source": "/ro",
       "destination": "/",
       "permanent": false
