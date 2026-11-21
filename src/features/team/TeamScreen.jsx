@@ -224,7 +224,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
   });
 
   const resetLink = async () => {
-    const ok = await confirm({ title: 'Make a new link?', description: 'The old link stops working right away. People already waiting stay in the list.', confirmLabel: 'New link', cancelLabel: 'Keep link', variant: 'danger' });
+    const ok = await confirm({ title: 'Make a new code?', description: 'The old code and its link stop working right away. People already waiting stay in the list.', confirmLabel: 'New code', cancelLabel: 'Keep code', variant: 'danger' });
     if (!ok) return;
     run('reset', async () => {
       try { setLink(await resetTeamJoinLink(team.id)); setLinkError(null); } catch (err) { setLinkError(err.message); }
@@ -283,7 +283,7 @@ function TeamHome({ team, members, meId, myRole, isOwner, canManage, canManageJo
         waiting={canManageJoinLink ? <Waiting requests={joinRequests} busy={busy} message={waitMsg} onApprove={approve} onDecline={decline} onApproveAll={approveAll} /> : null}
         usage={canSeeUsage ? <UsageEntry summary={usageSummary} onOpen={() => setPage('usage')} /> : null}
         invite={canManageJoinLink ? (
-          <InviteCard teamName={team.name} url={link?.code ? joinUrl(window.location.origin, link.code) : ''} enabled={!!link?.enabled}
+          <InviteCard teamName={team.name} code={link?.code || ''} url={link?.code ? joinUrl(window.location.origin, link.code) : ''} enabled={!!link?.enabled}
             loading={!link && !linkError} error={linkError} busy={busy} onToggle={toggleLink} onReset={resetLink} />
         ) : null}
         footer={footer}
