@@ -2,7 +2,6 @@
 // Builds the legal pages from one source.
 //
 //   docs/legal/<DOC>.md     English  -> website/<page>.html + src/data/<page>.md
-//   docs/legal/<DOC>.ro.md  Romanian -> website/ro/<page>.html
 //
 // The website has no build step, so run this by hand after editing a text in
 // docs/legal/ and commit what it writes:  node scripts/build-legal-pages.mjs
@@ -21,20 +20,18 @@ const MARK = indexHtml.match(/<symbol id="mark"[\s\S]*?<\/symbol>/)[0];
 
 const DOCS = [
   { src: 'PRIVACY', page: 'privacy', app: true,
-    desc: { en: 'What Setlists.md keeps about you and your church, why, and your rights.', ro: 'Ce păstrează Setlists.md despre tine și biserica ta, de ce, și drepturile tale.' } },
+    desc: { en: 'What Setlists.md keeps about you and your church, why, and your rights.' } },
   { src: 'TERMS', page: 'terms', app: true,
-    desc: { en: 'The agreement for using Setlists.md.', ro: 'Înțelegerea pentru folosirea Setlists.md.' } },
+    desc: { en: 'The agreement for using Setlists.md.' } },
   { src: 'CHURCH-TERMS', page: 'church-terms', app: false,
-    desc: { en: 'How Setlists.md handles members’ data for each church or band.', ro: 'Cum prelucrează Setlists.md datele membrilor pentru fiecare biserică sau trupă.' } },
+    desc: { en: 'How Setlists.md handles members’ data for each church or band.' } },
   { src: 'COPYRIGHT', page: 'copyright', app: true,
-    desc: { en: 'Songs, licences, and how to report a song.', ro: 'Cântări, licențe și cum semnalezi o cântare.' } },
+    desc: { en: 'Songs, licences, and how to report a song.' } },
 ];
 
 const UI = {
-  en: { skip: 'Skip to content', how: 'How it works', faq: 'FAQ', help: 'Help', login: 'Log in', join: 'Join beta', menu: 'Menu', main: 'Main', homeLabel: 'Setlists.md home', other: 'Română', otherLang: 'ro',
+  en: { skip: 'Skip to content', how: 'How it works', faq: 'FAQ', help: 'Help', login: 'Log in', join: 'Join beta', menu: 'Menu', main: 'Main', homeLabel: 'Setlists.md home',
     foot: { privacy: 'Privacy', terms: 'Terms', church: 'Church terms', copyright: 'Copyright' }, made: 'Made in Romania for worship teams everywhere.' },
-  ro: { skip: 'Sari la conținut', how: 'Cum funcționează', faq: 'Întrebări', help: 'Ajutor', login: 'Intră în cont', join: 'Intră în beta', menu: 'Meniu', main: 'Principal', homeLabel: 'Setlists.md, pagina principală', other: 'English', otherLang: 'en',
-    foot: { privacy: 'Confidențialitate', terms: 'Termeni', church: 'Termeni pentru biserici', copyright: 'Drepturi de autor' }, made: 'Făcut în România pentru echipele de laudă de peste tot.' },
 };
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -89,9 +86,8 @@ function toHtml(md, linkBase) {
 
 function page({ lang, doc, title, meta, body }) {
   const t = UI[lang];
-  const path = lang === 'en' ? `/${doc.page}` : `/ro/${doc.page}`;
-  const otherPath = lang === 'en' ? `/ro/${doc.page}` : `/${doc.page}`;
-  const p = lang === 'en' ? '/' : '/ro/';
+  const path = `/${doc.page}`;
+  const p = '/';
   const foot = [['privacy', t.foot.privacy], ['terms', t.foot.terms], ['church-terms', t.foot.church], ['copyright', t.foot.copyright]]
     .map(([pg, label]) => `<a href="${p}${pg}"${pg === doc.page ? ' aria-current="page"' : ''}>${label}</a>`).join('');
   const app = 'https://app.setlists.md/';
@@ -104,8 +100,6 @@ function page({ lang, doc, title, meta, body }) {
 <title>${esc(title)} · Setlists.md</title>
 <meta name="description" content="${esc(doc.desc[lang])}">
 <link rel="canonical" href="${SITE}${path}">
-<link rel="alternate" hreflang="en" href="${SITE}/${doc.page}">
-<link rel="alternate" hreflang="ro" href="${SITE}/ro/${doc.page}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -136,13 +130,13 @@ function page({ lang, doc, title, meta, body }) {
     <a class="btn btn-gold btn-sm join" href="${app}?start=signup&amp;from=site">${t.join}</a>
     <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="mnav" aria-label="${t.menu}"><svg width="22" height="22" aria-hidden="true"><use href="#menu"/></svg></button>
   </div>
-  <nav class="mnav wrap" id="mnav" aria-label="${t.main}" hidden><a href="/#how">${t.how}</a><a href="/#faq">${t.faq}</a><a href="/help">${t.help}</a><a href="${otherPath}" hreflang="${t.otherLang}" lang="${t.otherLang}">${t.other}</a><a href="${app}?start=login&amp;from=site">${t.login}</a></nav>
+  <nav class="mnav wrap" id="mnav" aria-label="${t.main}" hidden><a href="/#how">${t.how}</a><a href="/#faq">${t.faq}</a><a href="/help">${t.help}</a><a href="${app}?start=login&amp;from=site">${t.login}</a></nav>
 </header>
 
 <main id="main">
 <div class="page"><div class="wrap"><div class="prose">
 <h1>${inline(title, '')}</h1>
-<div class="draft"><svg width="18" height="18" aria-hidden="true" style="flex:none;margin-top:1px"><use href="#info"/></svg><div>${inline(meta, '')} <a class="lang-inline" href="${otherPath}" hreflang="${t.otherLang}" lang="${t.otherLang}">${t.other}</a></div></div>
+<div class="draft"><svg width="18" height="18" aria-hidden="true" style="flex:none;margin-top:1px"><use href="#info"/></svg><div>${inline(meta, '')}</div></div>
 
 ${body}
 </div></div></div>
@@ -151,7 +145,7 @@ ${body}
 <footer class="foot">
   <div class="wrap row">
     <a class="brand" href="/" aria-label="${t.homeLabel}"><svg aria-hidden="true"><use href="#mark"/></svg><span translate="no">setlists<span class="ext">.md</span></span></a>
-    <nav aria-label="Footer"><a href="/#how">${t.how}</a><a href="/help">${t.help}</a>${foot}<a href="${otherPath}" hreflang="${t.otherLang}" lang="${t.otherLang}">${t.other}</a></nav>
+    <nav aria-label="Footer"><a href="/#how">${t.how}</a><a href="/help">${t.help}</a>${foot}</nav>
   </div>
   <div class="wrap made">© 2026 Setlists.md · ${t.made}</div>
 </footer>
@@ -161,11 +155,11 @@ ${body}
 }
 
 for (const doc of DOCS) {
-  for (const lang of ['en', 'ro']) {
-    const file = join(ROOT, 'docs/legal', `${doc.src}${lang === 'en' ? '' : '.ro'}.md`);
+  for (const lang of ['en']) {
+    const file = join(ROOT, 'docs/legal', `${doc.src}.md`);
     const md = readFileSync(file, 'utf8');
     const { title, meta, body } = toHtml(md, '');
-    const out = join(ROOT, 'website', lang === 'en' ? '' : 'ro', `${doc.page}.html`);
+    const out = join(ROOT, 'website', `${doc.page}.html`);
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, page({ lang, doc, title, meta, body }));
     if (lang === 'en' && doc.app) {
