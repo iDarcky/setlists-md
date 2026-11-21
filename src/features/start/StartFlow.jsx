@@ -3,7 +3,7 @@ import { supabase } from '@/auth/supabase';
 import { useTeam } from '@/auth/useTeam';
 import { rememberChurchRequest, finishChurchRequest } from '@/lib/churchRequest';
 import { inviteCodeFrom } from '@/lib/startFlow';
-import { joinUrl } from '@/lib/joinLink';
+import { inviteMessage, joinUrl } from '@/lib/joinLink';
 import { saveMemberInstruments } from '@/lib/memberInstruments';
 import { getTeamJoinLink, peekJoinLink } from '@/features/join/joinApi';
 import {
@@ -67,6 +67,7 @@ function AfterCreate({ team, userId, request, onRequestChange, onOpenTeam }) {
   const [error, setError] = useState('');
   const [link, setLink] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [sharedCopied, setSharedCopied] = useState(false);
   const name = team.name || request?.church || 'your team';
   const url = link?.code ? joinUrl(window.location.origin, link.code) : null;
 
@@ -119,15 +120,18 @@ function AfterCreate({ team, userId, request, onRequestChange, onOpenTeam }) {
         copied={copied}
         error={error}
         onBack={() => { setError(''); setStep('instruments'); }}
+        sharedCopied={sharedCopied}
         onCopy={async () => {
-          try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* no clipboard */ }
+          try { await navigator.clipboard.writeText(link.code.toUpperCase()); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { /* no clipboard */ }
         }}
-        onShare={canShare() ? async () => {
-          try {
-            await navigator.share({ title: `Join ${name} on Setlists.md`, text: `Join ${name} on Setlists.md. The code is ${link.code.toUpperCase()}.`, url });
-            setStep('app');
-          } catch { /* cancelled */ }
-        } : null}
+        onShare={async () => {
+          const text = inviteMessage(name, link.code);
+          if (canShare()) {
+            try { await navigator.share({ title: `Join ${name} on Setlists.md`, text, url }); setStep('app'); } catch { /* cancelled */ }
+            return;
+          }
+          try { await navigator.clipboard.writeText(`${text}\n${url}`); setSharedCopied(true); setTimeout(() => setSharedCopied(false), 2000); } catch { /* no clipboard */ }
+        }}
         onLater={() => setStep('app')}
       />
     );
