@@ -26,10 +26,10 @@ export function SwipeTabs({ labels, index, onIndex, pages, swipe = true, classNa
   const n = labels.length;
   const view = useRef<HTMLDivElement>(null);
   const start = useRef<{ x: number; y: number; axis: 'x' | 'y' | null } | null>(null);
-  const [dx, setDx] = useState(0); // px the finger has moved sideways
-  const width = view.current?.clientWidth || 1;
+  // How far the finger has moved sideways, in page widths (−0.4 = 40% left).
+  const [dx, setDx] = useState(0);
   // Where the track sits, in pages: 0 = first, 0.4 = on the way to the second.
-  const pos = Math.min(n - 1, Math.max(0, index - dx / width));
+  const pos = Math.min(n - 1, Math.max(0, index - dx));
 
   const onTouchStart = (e: TouchEvent) => {
     const el = e.target as Element;
@@ -45,7 +45,7 @@ export function SwipeTabs({ labels, index, onIndex, pages, swipe = true, classNa
       if (Math.abs(mx) < 10 && Math.abs(my) < 10) return;
       s.axis = Math.abs(mx) > Math.abs(my) * 1.5 ? 'x' : 'y';
     }
-    if (s.axis === 'x') setDx(mx);
+    if (s.axis === 'x') setDx(mx / (view.current?.clientWidth || 1));
   };
   const onTouchEnd = () => {
     const s = start.current;
