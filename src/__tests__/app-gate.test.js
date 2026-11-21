@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { isLockedOut, PUBLIC_VIEWS } from '@/lib/appGate';
 
-const base = { view: 'home', loaded: true, authLoading: false, configured: true, signedIn: false, soloMode: false };
+const base = { view: 'home', loaded: true, authLoading: false, configured: true, signedIn: false };
 
 describe('isLockedOut', () => {
   it('locks a signed-out visitor out of the main app', () => {
@@ -12,10 +12,6 @@ describe('isLockedOut', () => {
 
   it('lets a signed-in user in', () => {
     expect(isLockedOut({ ...base, signedIn: true })).toBe(false);
-  });
-
-  it('lets someone who chose Try solo in', () => {
-    expect(isLockedOut({ ...base, soloMode: true })).toBe(false);
   });
 
   it('keeps the welcome, sign-in, join and other public screens open', () => {

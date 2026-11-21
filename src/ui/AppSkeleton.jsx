@@ -2,7 +2,7 @@ import { APP_HEIGHT } from '@/lib/appViewport';
 
 // Launch placeholder while the app works out which church to open: the shape
 // of the top bar and Home, in grey, so nothing jumps when the church arrives
-// (owner, 2026-11-03: "show skeletons until it's loaded", not Personal).
+// (owner, 2026-11-03: "show skeletons until it's loaded").
 const Bar = ({ className = '' }) => <div className={`animate-pulse rounded-md bg-raised ${className}`} />;
 
 export default function AppSkeleton() {

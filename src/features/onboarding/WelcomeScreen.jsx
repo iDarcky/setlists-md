@@ -1,8 +1,23 @@
-import { WelcomeView } from '@/features/auth/AuthViews';
+import { useState } from 'react';
+import { WelcomeView } from '@/features/intro/IntroAuthViews';
+import { useProviderSignIn } from '@/features/intro/useProviderSignIn';
+import WebSheet from '@/features/legal/WebSheet';
 
-// The first screen of a first run: create an account or log in. "Try it solo"
-// was dropped on 2026-10-25; someone arriving through a church's join link
-// never sees this screen, the /join route takes them straight in.
+// The first screen of a first run (2026-11-20): Create account or Log in,
+// one tap each (Apple / Google lead once they are switched on).
+
 export default function WelcomeScreen({ onSignIn, onCreateAccount }) {
-  return <WelcomeView onCreateAccount={onCreateAccount} onLogIn={onSignIn} />;
+  const providers = useProviderSignIn();
+  const [legal, setLegal] = useState(null);
+  return (
+    <>
+      <WelcomeView
+        {...providers}
+        onCreateAccount={() => onCreateAccount?.()}
+        onLogIn={() => onSignIn?.()}
+        onShowLegal={setLegal}
+      />
+      <WebSheet page={legal} onClose={() => setLegal(null)} />
+    </>
+  );
 }

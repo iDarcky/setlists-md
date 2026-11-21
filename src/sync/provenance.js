@@ -1,7 +1,7 @@
 // Which Space (library) a song or setlist object came from.
 //
 // A Space's sync engine must only ever upload what belongs to that Space. On
-// 2026-11-14 a Personal pull finished after the app had switched to the
+// 2026-11-14 one library's pull finished after the app had switched to the
 // church; its songs landed in the church's state, looked like new local edits
 // there, and were uploaded into the church (31 created, 5 overwritten).
 //

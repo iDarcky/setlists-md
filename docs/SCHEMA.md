@@ -190,7 +190,12 @@ group's plan include this?" and returns
 - A feature with **no entry** in `FEATURE_GATES` is open to everyone,
   everywhere. Chart style (themes, fonts, colours), chord shapes and import
   are all open. Do not add a gate for anything that makes a chart readable.
-- The only gate today is `multi-service` → `church`. It also needs the group's
+- Plans (2026-11-19, `lib/plans.js`): `free` 5 people, `team` (Band) 15,
+  `church` 40 (+10 for €5). Since 2026-11-20 they differ by seats only:
+  `FEATURE_GATES` is empty, so every plan gets the schedule and services.
+- New groups start on Free; `guard_new_team` (20261121) forces plan/seats
+  on any app insert and allows one owned group per account.
+- Until 2026-11-20 `multi-service` → `church` was gated; a gate also needs the group's
   `subscription_status` to be `active`/`trialing` (defaults to `active`).
 - `checkEntitlement(plan, feature)` is the pure version; it takes a GROUP plan.
 

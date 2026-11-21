@@ -63,7 +63,8 @@ The repo uses **no git tags**. After a release, check that `beta` still exists
 
 ## How the app is built
 
-**Stack:** Vite 7 · React 19 (JSX, no TypeScript yet) · Tailwind v4 +
+**Stack:** Vite 7 · React 19 (JSX; TypeScript only for new screens in
+`features/intro/`, `npm run typecheck`) · Tailwind v4 +
 shadcn/ui (Radix) · lucide-react icons · `motion` for animation · idb-keyval
 (IndexedDB) · vite-plugin-pwa · Supabase (auth, data, realtime, edge
 functions) · Vercel.
@@ -92,7 +93,8 @@ src/
 │   ├── songs/ · song-edit/   Songs tab + import · song editor and the new-song form
 │   ├── song/ · reader/       song page (SongHub) · THE reader (docs/READER.md)
 │   ├── you/ · settings/ · team/   profile, settings, church/team pages
-│   ├── auth/ · join/ · start/      signed-out screens, invite links, start a church
+│   ├── auth/ · join/ · start/      signed-out, invite-link and setting-up state (containers)
+│   ├── intro/                the first-run views (TypeScript): welcome, log in, join or create, codes
 │   └── …                     notifications, sharing, legal, onboarding, sync UI, older screens
 ├── auth/ · sync/ · push/ · pdf/ · lib/ · hooks/ · data/ · styles/
 └── __tests__/
@@ -108,8 +110,8 @@ not a tab**: it opens only from the Schedule row on Home's two-weeks card and
 lights Home. **You** is the profile photo in the top bar, not a tab. Settings,
 team and church pages hang off You.
 
-**Main views:** `home`, `setlists` (a church gets the Schedule list in
-`mode="setlists"`, Upcoming / Past; Personal keeps the old `Setlists.jsx`),
+**Main views:** `home`, `setlists` (the Schedule list in
+`mode="setlists"`, Upcoming / Past),
 `schedule` (`SchedulePage`: invites, Next Sundays, You play, My availability
 calendar, and the Band grid for leaders), `library` (Songs), `song-hub`,
 `editor`, `setlist-view`, `setlist-build`, `setlist-read` (the one reading
@@ -118,7 +120,12 @@ route), `setlist-finale`.
 **Words the app uses.** Setlist (the songs for one service) · service
 template (a reusable starting point) · invite (a leader asking someone to
 play; the code still says `ask`/`pending`) · availability (one answer per
-day) · Space (a church, band or Personal library).
+day) · Space / group (a church or a band; there is no one-person library).
+
+**No group open.** `activeLibrary` is a group id or `null` (signed out, or
+not in a group yet: the start screens take over). `null` reads and writes
+nothing on the device and syncs nothing. Personal was removed on 2026-11-19;
+don't bring back a library that belongs to one person.
 
 **Data.**
 - **The server is the source of truth**; every device keeps an IndexedDB copy
@@ -137,9 +144,11 @@ day) · Space (a church, band or Personal library).
 - **Which mode a setlist opens in is decided by the clock**
   (`lib/openingMode.js`): live from 30 min before the service until it ends,
   practice otherwise. There is deliberately no manual way into live.
-- **Plans live on the group** (`teams.plan`), never on a person. The only gate
-  is `multi-service` → church; nothing that makes a chart readable is ever
-  gated. Pricing lives on the website.
+- **Plans live on the group** (`teams.plan`), never on a person, and differ
+  by **seats only**: Free 5, Band (`team`) 15, Church 40 (`lib/plans.js`).
+  No feature is gated (`FEATURE_GATES` is empty). Everyone starts a group on
+  Free at once; one owned group per account; plans change by hand (SQL) until
+  payments exist. Churches and bands get the same app and the same words.
 - **Preferences** that follow the account are only the keys in
   `PORTABLE_PREF_KEYS` (`app/usePreferenceSync.js`); hydrated once per user.
 
@@ -212,7 +221,6 @@ follows `settings.theme` (`default` = OS).
 - Auth callback URL handling is split: OAuth stays on `/auth/callback` (dedicated `AuthCallback.jsx`). Magic links and recovery links land on `/` and rely on App.jsx's cleanup effect — don't add a new redirect target without wiring a matching cleanup branch.
 - `RecoveryScreen.handleBack` calls `signOut()` *before* invoking the parent `onBack`. If you ever route away from it through another path, make sure that path also ends the recovery session.
 - PDF export renders an **in-app overlay with a same-origin `<iframe srcdoc>`** on every platform (`openPrintWindow()` in `src/pdf/pdfDocument.js`); printing goes through `iframe.contentWindow.print()`. Do NOT reintroduce `window.open` + `document.write` — popups return `null` handles in installed PWAs and don't exist in Capacitor/Electron webviews. The iframe inherits the page origin (prefs read `localStorage['setlists-md:pdf-prefs']` directly) **and the page CSP** — the print document uses an inline `<script>`/`<style>`, so before flipping the report-only CSP in `vercel.json` to enforcing, `script-src`/`style-src` must accommodate it (hash/nonce or refactor).
-- `SetlistOverview` is rendered in **two places**: (1) the dedicated `setlist-view` route in `App.jsx`, and (2) the desktop preview pane inside `Setlists.jsx`. Both wire its export callbacks (`onExportZip`, `onExportPdfOverview`, `onExportPdfFull`) — when you add or rename one, update *both* call sites or the desktop preview will silently no-op.
 - **The reader's live state is a FOLD, not a chip, and the ✕ is phone-conditional.**
   `LiveFold` paints into the chrome's top-right corner OUTSIDE the layout, so the
   song title is the same width live and off-live. On a phone (`!wide`) live drops

@@ -35,8 +35,12 @@ function Option({ icon, title, text, onClick }) {
 // "Start from blank" continues in the same sheet (user, 13 Nov: "why not
 // continue in the pop-up?"): the details first, then the editor opens with
 // them filled in and the chart gets the whole screen.
-export function AddSongSheet({ open, onOpenChange, onSearch, onImport, onBlank, songs = [], artists = [] }) {
-  const [step, setStep] = useState('pick');
+// `direct`: open straight on the details (Home's "New song" — the menu
+// already offers Import separately, so the chooser was a wasted tap; owner,
+// 2026-11-17). Back then becomes Cancel.
+export function AddSongSheet({ open, onOpenChange, onSearch, onImport, onBlank, songs = [], artists = [], direct = false }) {
+  const [pickedStep, setStep] = useState('pick');
+  const step = direct ? 'details' : pickedStep;
   const [details, setDetails] = useState(EMPTY_DETAILS);
   const close = (o) => { onOpenChange?.(o); if (!o) { setStep('pick'); setDetails(EMPTY_DETAILS); } };
   const pick = (fn) => () => { close(false); fn?.(); };
@@ -54,7 +58,7 @@ export function AddSongSheet({ open, onOpenChange, onSearch, onImport, onBlank, 
           <NewSongForm value={details} onChange={setDetails} artists={artists} sameTitle={sameTitle} />
           {missing && <p className="m-0 text-small text-muted-foreground">Still needs {missing}.</p>}
           <div className="flex gap-2 pt-1">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => setStep('pick')}>Back</Button>
+            <Button type="button" variant="outline" className="flex-1" onClick={() => (direct ? close(false) : setStep('pick'))}>{direct ? 'Cancel' : 'Back'}</Button>
             <Button type="submit" className="flex-[2]" disabled={!!missing}>Next: Chart</Button>
           </div>
         </form>

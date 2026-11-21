@@ -5,18 +5,19 @@ import { readLastLibrary, writeLastLibrary, waitingForHomeSpace } from '@/lib/la
 describe('lastLibrary', () => {
   beforeEach(() => localStorage.clear());
 
-  it('defaults to personal and remembers a church', () => {
-    expect(readLastLibrary()).toBe('personal');
+  it('remembers a church, and nothing by default', () => {
+    expect(readLastLibrary()).toBeNull();
     writeLastLibrary('team-1');
     expect(readLastLibrary()).toBe('team-1');
-    writeLastLibrary('personal');
-    expect(readLastLibrary()).toBe('personal');
+    writeLastLibrary(null);
+    expect(readLastLibrary()).toBeNull();
   });
 
-  it('waits on launch only while Personal is a placeholder', () => {
-    const base = { userId: 'u', authLoading: false, teamsLoaded: false, activeLibrary: 'personal', timedOut: false };
+  it('with no group open, waits for memberships and for one of them to open', () => {
+    const base = { userId: 'u', authLoading: false, teamsLoaded: false, activeLibrary: null, timedOut: false };
     expect(waitingForHomeSpace(base)).toBe(true);
     expect(waitingForHomeSpace({ ...base, teamsLoaded: true })).toBe(false);
+    expect(waitingForHomeSpace({ ...base, teamsLoaded: true, teamCount: 2 })).toBe(true);
     expect(waitingForHomeSpace({ ...base, timedOut: true })).toBe(false);
     expect(waitingForHomeSpace({ ...base, userId: null })).toBe(false);
     expect(waitingForHomeSpace({ ...base, userId: null, authLoading: true })).toBe(true);
@@ -32,7 +33,7 @@ describe('lastLibrary', () => {
   });
 
   it('waits for the library to load from the device, even past the timeout', () => {
-    const base = { userId: 'u', authLoading: false, teamsLoaded: true, activeLibrary: 'personal', timedOut: true, loaded: false };
+    const base = { userId: 'u', authLoading: false, teamsLoaded: true, activeLibrary: null, timedOut: true, loaded: false };
     expect(waitingForHomeSpace(base)).toBe(true);
     expect(waitingForHomeSpace({ ...base, loaded: true })).toBe(false);
   });

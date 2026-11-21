@@ -276,7 +276,7 @@ function unionArrangements(remote, local) {
 // canonical-equal means nothing to push. Never-manifested local items are
 // creates; manifested items the server no longer has were deleted elsewhere
 // (dropped) unless edited here (kept, as a create — an edit beats a delete).
-function freshWriterReconcile(changes, ctx, state, seeds = null) {
+function freshWriterReconcile(changes, ctx, state) {
   const server = { song: new Map(), setlist: new Map() };
   // Keys the feed says were deleted and not re-created since.
   const deleted = { song: new Set(), setlist: new Set() };
@@ -293,26 +293,6 @@ function freshWriterReconcile(changes, ctx, state, seeds = null) {
   }
   const manifests = { song: state?.syncManifest || {}, setlist: state?.setlistManifest || {} };
   const hashOf = (kind, ser) => (kind === 'song' ? canonicalSongHash(ser) : canonicalSetlistHash(ser));
-  // A seeded song's baseline is its seed — as this build renders it, so the
-  // hash matches what the seeded object hashes to. It counts as "synced once"
-  // only where the feed proves the account had it (a row, or a deletion of
-  // it); a seed the account never saw is a create like any other new song.
-  // Unlike a manifest baseline the seed is a whole object, so "both moved"
-  // can merge three-way instead of asking.
-  const seedCache = new Map();
-  const seedSong = (key) => {
-    if (!seeds?.[key]) return null;
-    if (!seedCache.has(key)) {
-      try { seedCache.set(key, songFromFlat({ ...parseSongMd(seeds[key]), id: key })); } catch { seedCache.set(key, null); }
-    }
-    return seedCache.get(key);
-  };
-  const seedEntry = (kind, key) => {
-    if (kind !== 'song') return null;
-    const base = seedSong(key);
-    const baseMd = base ? mdOf(base) : null;
-    return baseMd == null ? null : { lastSyncedHash: hashOf('song', baseMd) };
-  };
 
   for (const kind of KINDS) {
     const map = kind === 'song' ? ctx.songsById : ctx.setlistsById;
@@ -337,7 +317,7 @@ function freshWriterReconcile(changes, ctx, state, seeds = null) {
         markUpgrade(ctx, kind, key, row);
         continue;
       }
-      const entry = manifest[key] || seedEntry(kind, key);
+      const entry = manifest[key];
       // The manifest's baselines are markdown hashes, so the arithmetic below
       // is on the markdown for both kinds of row.
       const localMd = kind === 'song' ? mdOf(local) : null;
@@ -371,26 +351,15 @@ function freshWriterReconcile(changes, ctx, state, seeds = null) {
         ctx.dirty[kind][key] = serverSer;
         continue;
       }
-      // Both moved (or no baseline to tell). A seed is a whole baseline, so
-      // try the three-way merge first: disjoint edits land without a prompt.
-      const seedBase = kind === 'song' ? seedSong(key) : null;
-      if (seedBase) {
-        const { merged, conflictFields } = threeWayMergeSong(seedBase, local, remote);
-        if (conflictFields.length === 0) {
-          map.set(key, merged);
-          ctx.dirty[kind][key] = serverSer;
-          ctx.known[kind].set(key, remote);
-          continue;
-        }
-      }
-      // The server copy is adopted, ours travels in the conflict.
+      // Both moved (or no baseline to tell): the server copy is adopted,
+      // ours travels in the conflict.
       ctx.conflicts.push({ kind, id: key, title: titleOf(kind, local), local, remote });
       map.set(key, remote);
       ctx.known[kind].set(key, remote);
     }
     for (const [key, local] of map) {
       if (server[kind].has(key)) continue;
-      const entry = manifest[key] || (deleted[kind].has(key) ? seedEntry(kind, key) : null);
+      const entry = manifest[key];
       if (!entry) {
         ctx.dirty[kind][key] = null; // never synced: a create
         continue;
@@ -411,22 +380,9 @@ export function createReplicaEngine(onStatusChange, teamId, {
   client = defaultClient,
   pageSize = REPLICA_PAGE,
   onPullNeeded,
-  // Where this engine keeps its replica + lock. A team library is keyed by
-  // its team id; the personal library keeps its 'personal' key (the same
-  // slot the file engine uses — the two never run together).
+  // Where this engine keeps its replica + lock: the team id.
   libraryId = teamId,
   providerId = `supabase-team:${teamId}`,
-  // A writer's first run may read the old file-manifest to tell "synced
-  // once, deleted elsewhere" from "never synced". Only true for team
-  // libraries: the personal library's manifest belongs to a cloud FOLDER,
-  // so treating it as this server's history would drop every song the
-  // folder had synced and the server has not seen yet.
-  handoverFromManifest = true,
-  // `{ [songId]: md }` — songs this device may have SEEDED rather than synced
-  // (the demo songs). On a first run the seed is the song's baseline: an
-  // unedited seed adopts the account's copy without a prompt, an edited one
-  // merges three-way, and a seed the account deleted stays deleted.
-  seedBaselines = null,
 } = {}) {
   let syncing = false;
   let debounceTimer = null;
@@ -688,7 +644,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
           for (const key of [...map.keys()]) if (!ctx.rows[kind][key]) map.delete(key);
         }
       } else {
-        freshWriterReconcile(changes, ctx, handoverFromManifest ? state : null, seedBaselines);
+        freshWriterReconcile(changes, ctx, state);
       }
       mem.seeded = true;
     } else {
@@ -744,7 +700,7 @@ export function createReplicaEngine(onStatusChange, teamId, {
           const { changes } = await fetchAll(0);
           ctx = buildCtx(songs, setlists);
           mem.rows = ctx.rows = emptyRows();
-          freshWriterReconcile(changes, ctx, handoverFromManifest ? state : null, seedBaselines);
+          freshWriterReconcile(changes, ctx, state);
           for (const kind of KINDS) {
             for (const key of Object.keys(mem.dirty[kind])) {
               if (mem.dirty[kind][key] != null) delete mem.dirty[kind][key]; // only creates are ours to push here

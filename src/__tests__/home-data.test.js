@@ -45,8 +45,8 @@ describe('homeData', () => {
     const leader = nextUp({ setlists: SETLISTS, schedules: SCHEDULES, userId: 'boss', setlistMap: MAP, now: NOW, inTeam: true, leader: true });
     expect(leader.setlist.id).toBe('nov1');
     expect(leader.schedule).toBeNull();
-    const personal = nextUp({ setlists: SETLISTS, now: NOW });
-    expect(personal.setlist.id).toBe('nov1');
+    const noTeam = nextUp({ setlists: SETLISTS, now: NOW });
+    expect(noTeam.setlist.id).toBe('nov1');
   });
 
   it('counts days until a service', () => {
