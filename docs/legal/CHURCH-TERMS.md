@@ -1,6 +1,6 @@
 # Church and band terms (data processing)
 
-*Beta version. Last updated: 19 November 2026. A Romanian version is published alongside this one. Both versions carry equal weight.*
+*Beta version. Last updated: 19 November 2026.*
 
 These terms apply when you create a group on Setlists.md for a church, band or other organisation. You accept them for that organisation when you create the group. They describe how we handle your members' personal data for you, as GDPR article 28 requires.
 
