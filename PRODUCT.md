@@ -29,7 +29,7 @@ Affordable for small churches: one flat monthly price covers the whole team (Chu
 - Setlists with per-service keys, tempos and notes; breaks (prayer, announcements) in the running order.
 - Teams: shared library, roles (admin/leader/member), scheduling, availability, push notifications, private per-user notes. Church plan adds multiple services.
 - Billing: each team or church is its own Stripe subscription paid by the owner. Billing is scaffolded but not live.
-- **Launch:** public launch on 1 February 2027. Until then the landing page takes reservations: account and church are created, the team uses the beta, and nothing is charged until launch.
+- **Launch:** public launch on 1 March 2027. Until then the landing page takes reservations: account and church are created, the team uses the beta, and nothing is charged until launch.
 - **Pricing (decided October 2026):** Church $25/month, 30 members, extra seats in packs of 5 for $5/month. Team $15/month, 10 members, no extra seats. Yearly billing is 20% off. Founding reservations keep 20% off for life. Prices are shown in the visitor's local currency at checkout.
 - **Domains:** marketing site on `setlists.md`, the app on `app.setlists.md`.
 - **Undecided:** whether the founding discount also applies to seat packs, and whether it stacks with the yearly discount.

@@ -67,9 +67,10 @@ file you can export, share, or back up to your own cloud.
 
 ## Status
 
-Setlists.md is in active development, heading toward a **public beta on
-October 1**. It's live now at
-[setlistsmd.insideahead.com](https://setlistsmd.insideahead.com/).
+Setlists.md is in active development, heading toward a **public launch on
+1 March 2027** (alpha with a few churches from 1 January). The app is live at
+[app.setlists.md](https://app.setlists.md/) and the website at
+[setlists.md](https://setlists.md/).
 
 ## Documentation
 
