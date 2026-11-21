@@ -132,6 +132,9 @@ const StartFlow = lazy(loadStartFlow);
 // would have quietly outlived the graduation it was supposed to end — the same
 // dead import `Library.jsx` was carrying. Sixth of the family.
 const SetlistReader = lazy(() => import('@/features/reader/SetlistReader'));
+// The new chart, built from zero (Labs → "New chart"). Stays behind the switch
+// until it does everything the reader above does.
+const ChartV2 = lazy(() => import('@/features/chart-v2/ChartV2'));
 import { WebRedirect } from '@/features/legal/WebSheet';
 // Element 13: ONE finale, in place of LiveFinale + PracticeFinale (which were
 // ~80% the same file). Both were deleted on 2026-10-11.
@@ -2681,6 +2684,23 @@ export default function App() {
               state now, switchable from the chip in the reader's own top bar —
               which is why nothing here forks any more. */}
           {currentSetlist && view === 'setlist-read' && (
+            settings?.chartV2 ? (
+            <ChartV2
+              setlist={freshSetlist(currentSetlist)}
+              songs={songs}
+              settings={settings}
+              onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
+              onUpdateSetlist={isTeamReadOnly ? null : handleUpdateSetlist}
+              mode={readerMode}
+              startIndex={readerStartIndex}
+              onBack={goBack}
+              onFinish={(stats) => goSetlistFinale(currentSetlist, stats)}
+              // Live follow runs inside a church/band; `?test-follow` lets a
+              // signed-out browser try it between two tabs.
+              followRoom={team?.id ? `${team.id}:${currentSetlist.id}` : (new URLSearchParams(window.location.search).has('test-follow') ? `test:${currentSetlist.id}` : null)}
+              myName={displayName}
+            />
+            ) : (
             <SetlistReader
               setlist={freshSetlist(currentSetlist)}
               songs={songs}
@@ -2699,6 +2719,7 @@ export default function App() {
               onBack={goBack}
               onFinish={(stats) => goSetlistFinale(currentSetlist, stats)}
             />
+            )
           )}
           {/* Element 13 — ONE finale, whose only fork is its flavour (the badge
               and the phrase). It reads `readerMode`, so a session that STARTED
