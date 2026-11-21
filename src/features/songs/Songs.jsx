@@ -7,6 +7,7 @@ import {
 import SongsView from './SongsView';
 import { TagSheet, ChurchPickerSheet } from './SongsSheets';
 import AddSongFlow from './AddSongFlow';
+import { createMenu } from './createMenu';
 
 // Songs: works out the rows from the library and the setlists, and hands them
 // to SongsView. Members read; leaders add, tag, delete, and move or copy songs
@@ -14,16 +15,17 @@ import AddSongFlow from './AddSongFlow';
 
 export default function Songs({
   songs = [], setlists = [], readOnly = false, onOpenSong, onEditSong,
-  onSearchCatalog, onImportSongs, onImportSetlistFile, onEditImported, onCheckNext, onBlank, onTagSongs, onDeleteSongs, onMoveSongs, onCopySongs, otherChurches = [],
+  onNewSetlist, onImportSongs, onImportSetlistFile, onEditImported, onCheckNext, onBlank, onTagSongs, onDeleteSongs, onMoveSongs, onCopySongs, otherChurches = [],
 }) {
   const [now] = useState(() => Date.now());
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('az');
   const [filters, setFilters] = useState(NO_FILTERS);
-  const [adding, setAdding] = useState(null); // null | 'add' | 'import'
+  const [adding, setAdding] = useState(null); // null | 'new' | 'import'
   const [tagIds, setTagIds] = useState(null);
   const [moveCopy, setMoveCopy] = useState(null); // { action, ids }
   const q = useDeferredValue(query);
+  const leader = !readOnly;
 
   const stats = useMemo(() => playStats(setlists, now), [setlists, now]);
   const next = useMemo(() => nextSetlistSongs(setlists, now), [setlists, now]);
@@ -38,10 +40,10 @@ export default function Songs({
       line: playLine(stats[song.id], now),
       stat: stats[song.id],
       next: next.ids.has(song.id),
+      check: leader && needsCheck(song),
     }));
-  }, [songs, q, sort, stats, filters, now, next]);
+  }, [songs, q, sort, stats, filters, now, next, leader]);
 
-  const leader = !readOnly;
   const canMoveCopy = leader && otherChurches.length > 0;
 
   return (
@@ -62,7 +64,13 @@ export default function Songs({
         onEdit={leader ? onEditSong : null}
         toCheck={leader && onCheckNext ? songs.filter(needsCheck).length : 0}
         onCheckNext={onCheckNext}
-        onAdd={leader ? () => setAdding('add') : null}
+        create={leader ? createMenu({
+          onNewSong: () => setAdding('new'),
+          onImport: onImportSongs ? () => setAdding('import') : null,
+          onNewSetlist,
+        }) : []}
+        onAdd={leader ? () => setAdding('new') : null}
+        onImport={leader && onImportSongs ? () => setAdding('import') : null}
         onTag={leader && onTagSongs ? (ids) => setTagIds(ids) : null}
         onDelete={leader ? onDeleteSongs : null}
         onMove={canMoveCopy && onMoveSongs ? (ids) => setMoveCopy({ action: 'move', ids }) : null}
@@ -74,7 +82,6 @@ export default function Songs({
             mode={adding}
             onMode={setAdding}
             songs={songs}
-            onSearchCatalog={onSearchCatalog}
             onImportSongs={onImportSongs}
             onImportSetlistFile={onImportSetlistFile}
             onEditImported={onEditImported}

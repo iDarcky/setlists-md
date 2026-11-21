@@ -86,6 +86,18 @@ export function canFillVerseChords(sections = []) {
 }
 
 /**
+ * For the hint over the chart: which verses have no chords, and which verse
+ * would lend them its chords. `null` when there is nothing to copy.
+ * @returns {{ from: string, to: string[] } | null}
+ */
+export function verseChordsHint(sections = []) {
+  if (!canFillVerseChords(sections)) return null;
+  const src = sourceVerse(sections);
+  const to = sections.filter(s => s !== src && isVerse(s) && !sectionHasChords(s) && textLines(s).some(isLyricLine)).map(s => s.type);
+  return { from: src.type, to };
+}
+
+/**
  * New sections array with chordless verses given the first chorded verse's
  * chords, line by line, each at the same place along its line. Verses that already have any
  * chord are left alone, as is everything that is not a verse. Returns the

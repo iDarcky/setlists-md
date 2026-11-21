@@ -5,8 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { songFromPaste } from '@/lib/importFiles';
-import { TO_CHECK } from '@/lib/importCheck';
-import NewSongSheet from '@/features/setlist/NewSongSheet';
+import SetlistFlow from '@/features/setlist/SetlistFlow';
 
 const PASTED = `Verse 1
 G         C
@@ -32,18 +31,31 @@ describe('songFromPaste', () => {
   });
 });
 
-describe('NewSongSheet', () => {
-  it('pastes a song with the search words as the title, tagged To check', () => {
-    const onCreate = vi.fn();
-    render(<NewSongSheet open onOpenChange={() => {}} initialTitle="Amazing Grace" onCreate={onCreate} />);
-    fireEvent.click(screen.getByRole('button', { name: /Paste the song/ }));
-    expect(screen.getByLabelText('Song title').value).toBe('Amazing Grace');
-    fireEvent.change(screen.getByLabelText('The song'), { target: { value: PASTED } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add to setlist' }));
-    expect(onCreate).toHaveBeenCalledTimes(1);
-    const [list] = onCreate.mock.calls[0];
-    expect(list).toHaveLength(1);
-    expect(list[0].title).toBe('Amazing Grace');
-    expect(list[0].tags).toContain(TO_CHECK);
+describe('Setlist: a song the library does not have', () => {
+  const setup = (onCreateSongs = vi.fn(list => list)) => {
+    const setlist = { id: 'sl1', name: 'Sunday, 23 Nov', date: '2026-11-23', items: [{ songId: 's1', songTitle: 'Amazing Grace' }] };
+    render(<SetlistFlow setlist={setlist} songs={[{ id: 's1', title: 'Amazing Grace', arrangements: [{ id: 'a', key: 'G', sections: [] }] }]}
+      initialStep="songs" onSave={() => {}} onCancel={() => {}} onCreateSongs={onCreateSongs} />);
+    fireEvent.change(screen.getByPlaceholderText('Search the library'), { target: { value: 'Oceans' } });
+    return onCreateSongs;
+  };
+  it('offers New song "Oceans", Import PDFs and a slot', () => {
+    setup();
+    expect(screen.getByText('No song called “Oceans” yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New song “Oceans”' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import PDFs' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep an “Oceans” slot, choose later' })).toBeInTheDocument();
+  });
+  it('New song opens the same details sheet, named, saying where it goes', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'New song “Oceans”' }));
+    expect(screen.getAllByDisplayValue('Oceans')).toHaveLength(2); // the search, and the sheet's Name
+    expect(screen.getByText(/It goes into Songs and into/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next: Chart' })).toBeInTheDocument();
+  });
+  it('a kept slot reads "Oceans · no chart yet"', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep an “Oceans” slot, choose later' }));
+    expect(screen.getByText('· no chart yet', { exact: false })).toBeInTheDocument();
   });
 });

@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Segmented as Seg2 } from '@/ui/shadcn/segmented';
 import { menuItemClass, MenuSeparator } from '@/ui/shadcn/menu';
 import { cn } from '@/ui/shadcn/utils';
 import { Button } from '@/ui/shadcn/button';
@@ -35,8 +34,10 @@ import { MoreIcon } from '@/features/song/SongView';
 
 // The preview is the real Reader, so it draws exactly what the band will see.
 const Reader = lazy(() => import('@/features/reader/Reader'));
-import { PlusIcon } from '@/app/navIcons';
-import { canFillVerseChords, fillVerseChords } from '@/lib/verseChords';
+import { BackIcon, PlusIcon } from '@/app/navIcons';
+import { SwipeTabs } from './SwipeTabs';
+import { StartChart } from './StartChart';
+import { canFillVerseChords, fillVerseChords, verseChordsHint } from '@/lib/verseChords';
 
 // The song editor, built from zero (canvas → "Song, edit and chart", Edit
 // row). Two tabs instead of four: **Chart** is the chart itself, editable in
@@ -57,8 +58,6 @@ const TextIcon = () => <Svg><path d="M5 6h14M12 6v13M9 19h6" /></Svg>;
 const TrashIcon = () => <Svg><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></Svg>;
 
 const iconBtn = 'flex size-11 min-h-0 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
-// The header's title and artist: plain text until you tap, then a field.
-const headIn = 'h-6 w-full min-w-0 max-w-[420px] truncate rounded-[6px] border-0 bg-transparent px-1.5 text-center font-sans outline-none placeholder:text-muted-foreground/70 hover:bg-raised focus:bg-raised focus-visible:ring-2 focus-visible:ring-ring';
 // One compact control in the details row over the chart.
 const pill = 'inline-flex h-9 min-h-0 shrink-0 cursor-pointer items-center gap-1 rounded-control border border-border bg-transparent px-2 font-sans text-small font-medium text-foreground outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40';
 const menuRow = menuItemClass;
@@ -512,7 +511,7 @@ function OrderBar({ order, names, onChange, styleOf, vertical = false, onJump = 
   );
 }
 
-function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, setWords, onArr, onAddAfter, onTab, styleOf, folded = false, onFold }) {
+function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, setWords, onArr, onAddAfter, onTab, styleOf, folded = false, onFold, plays = 1 }) {
   const sec = arr.sections[index];
   const look = styleOf(sec.type);
   const [mode, setMode] = useState(null); // null | 'cue' | 'text'
@@ -536,6 +535,8 @@ function SectionCard({ arr, index, editing, setEditing, pick, setPick, words, se
         {(
           <>
             <SectionName name={sec.type} look={look} styleOf={styleOf} onPick={(t) => { if (t === baseType(sec.type)) return; onArr(renameSection(arr, index, newSectionName(arr.sections.filter((_, n) => n !== index), t))); }} />
+            {/* Written once, played as often as the order says. */}
+            {plays > 1 && <span className="shrink-0 text-small text-muted-foreground">plays {plays}×</span>}
             {/* The band cue lives here, by the name, as the chart shows it: tap to change; "+ Cue" when there is none. */}
             {mode !== 'cue' && (sec.note ? (
               <button type="button" onClick={() => open('cue')} aria-label={`Band cue: ${sec.note}, change`}
@@ -764,10 +765,13 @@ const withoutLabel = (lines) => (LABEL_LINE.test((lines[0] || '').trim()) ? line
  * fixed, rather than being asked up front (same rules as the old editor's
  * PasteReview, drawn new).
  */
-function PasteSong({ styleOf, onUse, onBlank, onCancel, replacing = null, onNewArr = null }) {
-  const [text, setText] = useState('');
-  const [blocks, setBlocks] = useState(null);
-  const read = () => setBlocks(inferSections(text).map(b => ({ type: baseType(b.type), lines: b.lines, repeat: b.repeat || 1, sure: b.confident })));
+// `initial`: text already pasted (a tap on Paste the song, or ⌘V on the empty
+// chart), so the sections show at once.
+function PasteSong({ styleOf, onUse, onBlank, onCancel, replacing = null, onNewArr = null, initial = '' }) {
+  const toBlocks = (t) => inferSections(t).map(b => ({ type: baseType(b.type), lines: b.lines, repeat: b.repeat || 1, sure: b.confident }));
+  const [text, setText] = useState(initial);
+  const [blocks, setBlocks] = useState(() => (initial.trim() ? toBlocks(initial) : null));
+  const read = () => setBlocks(toBlocks(text));
   const setType = (i, type) => setBlocks(bs => bs.map((b, j) => (j === i ? { ...b, type, sure: true } : b)));
   if (blocks) {
     return (
@@ -907,7 +911,7 @@ function ArrangementBar({ arrangements, arr, defaultId, onPick, onRename, onDefa
     </label>
   );
   return (
-    <div className={stacked ? 'grid grid-cols-2 gap-1.5 [&>*:first-child]:col-span-2 [&>*]:w-full [&>*]:justify-between' : 'flex w-max items-center gap-1.5'}>
+    <div className={stacked ? 'grid grid-cols-2 gap-2 [&>*:first-child]:col-span-2 [&>*]:h-12 [&>*]:w-full [&>*]:justify-between [&>*]:px-3.5 [&>*]:text-body' : 'flex w-max items-center gap-1.5'}>
       {naming != null ? (
         <form className="flex shrink-0 items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (naming.trim()) onRename(naming.trim()); setNaming(null); }}>
           <Input autoFocus value={naming} maxLength={40} aria-label="Arrangement name" onChange={(e) => setNaming(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setNaming(null); }} className="h-9 w-[160px]" />
@@ -971,7 +975,6 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
             <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
           </div>
         )}
-        {missing && <p className="m-0 text-small text-muted-foreground">Still needs {missing}.</p>}
       </form>
       {!wide && (
         <div className="sticky bottom-0 mt-auto flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
@@ -983,12 +986,22 @@ function NewSongDetails({ song, arr, onSong, onArr, sameTitle, artists = [], onN
   );
 }
 
-export default function SongEdit({ askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
+export default function SongEdit({ addLabel = '', askDetails = true, song, library = [], historyTeamId = null, mode = 'edit', checking = null, start = null, settings, onUpdateSettings, initialArrangementId, onSave, onBack, onDirtyChange, onOldEditor, layout = 'auto', embedded = false }) {
   const confirm = useConfirm();
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
   // Undo / redo: every change is a step, except quick typing, which is one.
-  const [hist, setHist] = useState(() => ({ past: [], present: song, future: [], at: 0 }));
+  // `start`: the song page's empty chart sends you here to paste or to write
+  // (owner, 2026-11-20). Write begins with an empty verse, open for typing.
+  const [seed] = useState(() => {
+    if (start?.mode !== 'write') return { song, words: null };
+    const id = song.arrangements?.some(a => a.id === initialArrangementId) ? initialArrangementId : song.defaultArrangementId || song.arrangements?.[0]?.id;
+    const base = getArrangement(song, id) || song.arrangements?.[0];
+    if (!base || base.sections?.length) return { song, words: null };
+    const r = addSection(base, -1, 'Verse');
+    return { song: withArrangement(song, base.id, () => r.arr), words: r.index };
+  });
+  const [hist, setHist] = useState(() => ({ past: [], present: seed.song, future: [], at: 0 }));
   const working = hist.present;
   // `step` forces its own undo step (a new arrangement is never folded into a rename).
   const setWorking = useCallback((u, step = false) => setHist((h) => {
@@ -1005,16 +1018,17 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
   const [tab, setTab] = useState('chart'); // chart | info
   const [preview, setPreview] = useState(false); // the read-only chart, beside (wide) or instead of (phone) the editor
   const [step, setStep] = useState(mode === 'new' && askDetails ? 'details' : null); // a new song asks the basics first
-  const [whole, setWhole] = useState(null); // null | 'paste' | 'text'
+  const [whole, setWhole] = useState(start?.mode === 'paste' ? 'paste' : null); // null | 'paste' | 'text'
   const [editing, setEditing] = useState(null); // { sec, line }: an open key change
   const [pick, setPick] = useState(null); // { sec, line, pos }: the letter the chord bar is for
-  const [words, setWords] = useState(null); // the section typed as words
+  const [words, setWords] = useState(seed.words); // the section typed as words
   const [saving, setSaving] = useState(false);
   const [folded, setFolded] = useState(() => new Set()); // `${arrId}:${index}` of sections folded shut
   const [history, setHistory] = useState(false);
+  const [hintOff, setHintOff] = useState(false); // the verse-chords hint, closed
   const { members = [] } = useTeam() || {};
   const nameOf = (uid) => members.find(m => m.user_id === uid)?.profile?.display_name || null;
-  const dirty = working !== song;
+  const dirty = working !== seed.song; // an empty verse from `start` is not a change yet
   const fresh = mode !== 'edit';
   // No song without a name, and none without a single line of words or chords.
   const hasLines = working.arrangements.some(x => (x.sections || []).some(sc => (sc.lines || []).some(l => (typeof l === 'string' ? l.trim() : l))));
@@ -1091,6 +1105,13 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
     onDirtyChange?.(false);
     onBack?.();
   };
+  // Checking: leave this one tagged "To check" and open the next.
+  const skip = async () => {
+    if (dirty && !(await confirm({ title: 'Skip without saving?', description: 'Your changes to this song will be lost. It stays “To check”.', confirmLabel: 'Skip', variant: 'danger' }))) return;
+    dropDraft();
+    onDirtyChange?.(false);
+    checking?.onSkip?.();
+  };
   const save = async () => {
     // A song needs a name; Info opens with the title box focused.
     if (missing) return;
@@ -1109,8 +1130,12 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
   const colors = useMemo(() => resolveSectionColors(settings), [settings]);
   const custom = settings?.customSectionTypes;
   const styleOf = (type) => sectionStyle(type || '', colors, custom);
-  // Nothing written yet: the chart opens on the paste box, like a blank page.
-  const pasting = whole === 'paste' || (whole == null && arr.sections.length === 0);
+  // Nothing written yet: Paste the song or Write it (the paste box opens from
+  // the first; ⌘V on the desktop pastes straight in).
+  const pasting = whole === 'paste';
+  const [pasted, setPasted] = useState(start?.text || '');
+  const openPaste = useCallback((text) => { setPasted(text || ''); setWhole('paste'); }, []);
+  const writeIt = () => { const r = addSection(arr, -1, 'Verse'); onArr(r.arr); setWords(r.index); setWhole(null); };
   const useSections = ({ sections, structure, meta = {} }) => {
     onArr(structure ? withOrder({ ...arr, sections }, structure) : { ...arr, sections, structure: [], structureMode: 'auto' });
     setWorking(w => ({
@@ -1121,16 +1146,18 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
     setWhole(null);
   };
 
-  const chart = pasting ? (
-    <PasteSong styleOf={styleOf} onUse={useSections} replacing={arr.sections.length > 0 ? (arr.name || 'this arrangement') : null}
+  const chart = whole == null && arr.sections.length === 0 ? (
+    <StartChart wide={wide} onPaste={openPaste} onWrite={writeIt} />
+  ) : pasting ? (
+    <PasteSong key={pasted} initial={pasted} styleOf={styleOf} onUse={useSections} replacing={arr.sections.length > 0 ? (arr.name || 'this arrangement') : null}
       onNewArr={mode === 'edit' && arr.sections.length > 0 ? ({ sections, structure }) => {
         const r = addArrangement(working, 'Pasted', { ...arr, sections: [] });
         const fresh2 = getArrangement(r.song, r.arrangementId);
         const filled = structure ? withOrder({ ...fresh2, sections }, structure) : { ...fresh2, sections, structure: [], structureMode: 'auto' };
         setWorking(withArrangement(r.song, r.arrangementId, () => filled), true); setArrId(r.arrangementId); setWhole(null);
       } : null}
-      onBlank={arr.sections.length === 0 ? () => { const r = addSection(arr, -1, 'Verse'); onArr(r.arr); setWords(r.index); setWhole(null); } : null}
-      onCancel={whole === 'paste' ? () => setWhole(null) : null} />
+      onBlank={arr.sections.length === 0 ? writeIt : null}
+      onCancel={() => setWhole(null)} />
   ) : whole === 'text' ? (
     <WholeText key="text" title="The whole song as text" initial={arrangementToText(arr)} onCancel={() => setWhole(null)}
       hint="## Name starts a section, > text under it is the band cue, [G] before a word puts the chord there."
@@ -1140,10 +1167,11 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
       hint="The song's .md file for this arrangement: the details between the --- lines, then the sections. Done puts it back on the song."
       onDone={(t) => { setWorking(w => applyMarkdown(w, arr.id, t)); setWhole(null); closeAll(); }} />
   ) : (
-    <div className="flex flex-col gap-5">
-      {!wide && <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />}
+    // From the desktop up the sections sit in two columns, as the band reads them.
+    <div className={cn('flex flex-col gap-5', wide && 'xl:grid xl:grid-cols-2 xl:items-start xl:gap-x-12 xl:gap-y-7')}>
       {arr.sections.map((x, i) => (
         <SectionCard key={`${i}-${x.type}`} arr={arr} index={i} editing={editing} setEditing={setEditing} pick={pick} setPick={setPick} words={words} setWords={setWords} onArr={onArr} styleOf={styleOf}
+          plays={order.filter(n => n === x.type).length}
           onTab={(line) => setTabEdit({ sec: i, line })}
           folded={folded.has(`${arr.id}:${i}`)}
           onFold={() => { closeAll(); setFolded(f => { const n = new Set(f); const k = `${arr.id}:${i}`; if (n.has(k)) n.delete(k); else n.add(k); return n; }); }}
@@ -1210,7 +1238,7 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
   const hasChords = arr.sections.some(sc => (sc.lines || []).some(l => typeof l === 'string' && l.includes('[')));
   const arrBar = (
     <ArrangementBar arrangements={arrangements} arr={arr} defaultId={working.defaultArrangementId || working.arrangements[0]?.id}
-      chords={hasChords} onArr={onArr} stacked={wide}
+      chords={hasChords} onArr={onArr} stacked
       onPick={(id) => { setArrId(id); closeAll(); setWhole(null); }}
       onRename={(name) => onArr({ ...arr, name })}
       onDefault={() => setWorking(w => setDefaultArrangement(w, arr.id), true)}
@@ -1222,7 +1250,22 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
       onNew={mode === 'edit' ? () => { const r = addArrangement(working, `${arr.name || 'Arrangement'} copy`, arr); setWorking(r.song, true); setArrId(r.arrangementId); closeAll(); } : null} />
   );
 
-  const saveLabel = fresh ? 'Add' : checking && !dirty ? 'Looks good' : 'Save';
+  // Checking imported songs: the button also opens the next one.
+  const saveLabel = fresh ? (addLabel || 'Add song')
+    : checking ? `${dirty ? 'Save' : 'Looks good'}${checking.left > 1 ? ' · next' : ''}`
+    : 'Save';
+  // "Verse 2 has no chords. Copy Verse 1's?" over the chart, for a song
+  // that is new or being checked (the ⋯ menu has it for any song).
+  const hint = (fresh || checking) && !hintOff && !whole && tab === 'chart' && !pick ? verseChordsHint(arr.sections) : null;
+  const hintBar = hint && (
+    <div role="status" className="mx-3 mb-2 flex shrink-0 items-center gap-3 rounded-card material-menu py-2 pl-3.5 pr-2">
+      <span className="min-w-0 flex-1 text-small font-medium">
+        {hint.to.length === 1 ? `${hint.to[0]} has no chords.` : `${hint.to.length} verses have no chords.`} Copy {hint.from}’s?
+      </span>
+      <Button size="sm" variant="outline" onClick={() => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); }}>Copy</Button>
+      <button type="button" aria-label="Not now" onClick={() => setHintOff(true)} className={cn(iconBtn, 'size-9 text-muted-foreground')}><Svg size={16}><path d="M18 6 6 18M6 6l12 12" /></Svg></button>
+    </div>
+  );
 
   if (step === 'details' && !draftFound) {
     return (
@@ -1234,31 +1277,37 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
 
   return (
     <div data-slot="song-edit" className={cn('flex flex-col bg-background font-sans text-foreground', embedded ? 'absolute inset-0' : 'h-full min-h-0')}>
-      <div className="flex min-h-14 shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
-        {wide && <Button variant="ghost" size="sm" onClick={cancel}>Cancel</Button>}
-        {/* Phone: no Cancel/Save up here, so the name sits left, like a page title. */}
-        <div className={cn('flex min-w-0 flex-1 flex-col gap-0.5 leading-tight', wide ? 'items-center' : 'items-start')}>
-          {/* Title and artist are typed right here (QA 11 Nov), not only in Info. */}
-          <input value={working.title ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, title: e.target.value })}
-            placeholder={mode === 'new' ? 'New song' : 'Song name'} aria-label="Title" spellCheck={false}
-            className={cn(headIn, 'text-body font-semibold text-foreground', !wide && 'max-w-none text-left text-heading')} />
-          <input value={working.artist ?? ''} maxLength={120} onChange={(e) => setWorking({ ...working, artist: e.target.value })}
-            placeholder={checking ? `Checking · ${checking.left === 1 ? 'last one' : `${checking.left} left`}` : 'Artist'} aria-label="Artist" spellCheck={false}
-            className={cn(headIn, 'text-caption text-muted-foreground', !wide && 'max-w-none text-left text-small')} />
-          {checking && working.artist && <span className="text-caption text-muted-foreground">Checking · {checking.left === 1 ? 'last one' : `${checking.left} left`}</span>}
-        </div>
+      {/* The song's name and its numbers; both are changed on Info (approved
+          mockup, owner 2026-11-20). Back is Cancel. */}
+      <div className="flex min-h-14 shrink-0 items-center gap-1 px-2 py-1.5">
+        <button type="button" aria-label="Cancel" title="Cancel" onClick={cancel} className={cn(iconBtn, 'text-muted-foreground')}><BackIcon /></button>
+        <button type="button" onClick={() => { closeAll(); setTab('info'); }} aria-label="Song details"
+          className="flex min-h-11 min-w-0 flex-1 cursor-pointer flex-col items-start justify-center border-0 bg-transparent p-0 text-left font-sans text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <b className="w-full truncate text-heading font-semibold leading-6">{working.title?.trim() || (mode === 'new' ? 'New song' : 'Untitled')}</b>
+          <span className="w-full truncate text-small text-muted-foreground">
+            {[
+              checking ? `Checking · ${checking.left === 1 ? 'last one' : `${checking.left} left`}` : wide ? working.artist?.trim() : (arr.name || 'Main'),
+              !wide && arr.key && <span key="k" className="font-mono font-semibold text-[var(--chord)]">{arr.key}</span>,
+              !wide && arr.tempo, !wide && arr.time,
+            ].filter(Boolean).reduce((out, x, i) => (i ? [...out, ' · ', x] : [x]), [])}
+          </span>
+        </button>
         <button type="button" aria-label="Undo" title="Undo" disabled={!hist.past.length} onClick={doUndo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></Svg></button>
         <button type="button" aria-label="Redo" title="Redo" disabled={!hist.future.length} onClick={doRedo} className={cn(iconBtn, 'size-10 disabled:opacity-30')}><Svg size={19}><path d="m15 14 5-5-5-5" /><path d="M20 9H9a5 5 0 0 0 0 10h3" /></Svg></button>
         <EditMenu items={[
+          { label: preview ? 'Close the preview' : 'Preview', sub: preview ? null : 'The chart as the band sees it', onClick: () => { closeAll(); setPreview(p => !p); setTab('chart'); } },
           { label: 'Edit all as text', onClick: () => { closeAll(); setWhole('text'); setTab('chart'); } },
           { label: 'Markdown editor', sub: 'The .md file, for those who know it', onClick: () => { closeAll(); setWhole('md'); setTab('chart'); } },
-          { label: 'Paste a song', sub: mode === 'new' ? null : 'Replace this arrangement, or add it as a new one', onClick: () => { closeAll(); setWhole('paste'); setTab('chart'); } },
+          { label: 'Paste a song', sub: mode === 'new' ? null : 'Replace this arrangement, or add it as a new one', onClick: () => { closeAll(); openPaste(''); setTab('chart'); } },
           arr.sections.length > 1 && { label: arr.sections.every((_, i) => folded.has(`${arr.id}:${i}`)) ? 'Open all sections' : 'Fold all sections', onClick: () => { closeAll(); setFolded(f => { const keys = arr.sections.map((_, i) => `${arr.id}:${i}`); const all = keys.every(k => f.has(k)); const n = new Set(f); keys.forEach(k => (all ? n.delete(k) : n.add(k))); return n; }); } },
           canFillVerseChords(arr.sections) && { label: 'Copy verse 1 chords to the other verses', sub: 'Placed at the same spot on each line. Undo if one is off.', onClick: () => { closeAll(); onArr({ ...arr, sections: fillVerseChords(arr.sections) }); } },
           mode === 'edit' && { label: 'Version history', sub: 'Earlier saves of this song', onClick: () => { closeAll(); setHistory(true); } },
           onOldEditor && { label: 'Open the old editor', onClick: onOldEditor },
         ].filter(Boolean)} />
-        {wide && <Button size="sm" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{saveLabel}</Button>}
+        {wide && (checking?.onSkip
+          ? <Button variant="outline" size="sm" className="ml-1" onClick={skip}>Skip</Button>
+          : <Button variant="outline" size="sm" className="ml-1" onClick={cancel}>Cancel</Button>)}
+        {wide && <Button size="sm" className="ml-1" onClick={save} disabled={!canSave} loading={saving} title={missing ? `Needs ${missing}` : undefined}>{saveLabel}</Button>}
       </div>
       {draftFound && (
         <div role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-warning-fill px-4 py-2">
@@ -1268,22 +1317,45 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
         </div>
       )}
       {(() => {
-        const tabs = (
-          <Seg2 tabs fill size="sm" className="w-[150px]" value={preview && !wide ? null : tab} onChange={(id) => { setTab(id); closeAll(); if (!wide) setPreview(false); }} options={[{ value: 'chart', label: 'Chart' }, { value: 'info', label: 'Info' }]} />
-        );
-        const need = missing && (fresh || dirty) && <p className="m-0 text-small text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>;
-        const main = (
-          <div className={cn('mx-auto flex w-full flex-col gap-3 pb-16', wide ? 'max-w-[760px] px-6 pt-4' : 'max-w-[680px] px-4 pt-3')}>
-            <div className="flex items-center gap-2">
-              {tabs}
-              <Button variant="ghost" size="sm" aria-pressed={preview} className={cn('ml-auto shrink-0 gap-1.5 px-2.5', preview && 'bg-raised text-foreground')} onClick={() => { closeAll(); setPreview(p => !p); }}>
-                <Svg size={17}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></Svg>Preview
-              </Button>
+        const need = missing && (fresh || dirty) && (whole || arr.sections.length > 0) && <p className="m-0 text-small text-muted-foreground">To {fresh ? 'add' : 'save'} this song it needs {missing}.</p>;
+        const col = cn('mx-auto flex w-full flex-col gap-3 pb-16', wide ? 'max-w-[1040px] px-6 pt-5' : 'max-w-[680px] px-4 pt-4');
+        const showOrder = !whole && arr.sections.length > 0;
+        // Phone: the order is pinned under the tabs, chips you drag.
+        const chartPage = (
+          <>
+            {!wide && showOrder && !(preview && !wide) && (
+              <div data-no-swipe className="sticky top-0 z-sticky border-b border-border bg-background px-4 py-2.5">
+                <OrderBar order={order} names={names} styleOf={styleOf} onChange={(o) => onArr(withOrder(arr, o))} />
+              </div>
+            )}
+            <div className={col}>
+              {need}
+              {preview && !wide ? preview_ : chart}
             </div>
-            {!wide && tab === 'chart' && !preview && <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none]">{arrBar}</div>}
-            {need}
-            <div className="pt-1">{preview && !wide ? preview_ : tab === 'chart' ? chart : info}</div>
+          </>
+        );
+        const head = 'm-0 px-1 text-label text-muted-foreground';
+        // Info: the arrangement box on top (today's, stacked), then the song.
+        const infoPage = (
+          <div className={cn(col, 'gap-6')}>
+            {!wide && (
+              <div className="flex flex-col gap-2">
+                <h3 className={head}>Arrangement</h3>
+                {arrBar}
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <h3 className={head}>Song</h3>
+              {info}
+            </div>
           </div>
+        );
+        const tabIndex = tab === 'info' ? 1 : 0;
+        const pages = (
+          <SwipeTabs labels={['Chart', 'Info']} index={tabIndex} swipe={!wide}
+            onIndex={(i) => { setTab(i ? 'info' : 'chart'); closeAll(); }}
+            tabsClassName={wide ? 'ml-6 w-[300px]' : undefined}
+            pages={[chartPage, infoPage]} />
         );
         const jump = (name) => {
           const i = arr.sections.findIndex(x => x.type === name);
@@ -1291,19 +1363,18 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
           setTab('chart');
           requestAnimationFrame(() => document.querySelector(`[data-slot="song-edit"] [data-sec="${i}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         };
-        const head = 'm-0 text-label text-muted-foreground';
         return (
-          <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 border-t border-border">
             {wide && (
               // Desktop: the song's frame down the left (arrangement, numbers,
               // the order to read, drag and jump with), so the chart starts at
               // the top and keeps the whole middle.
-              <aside className="flex min-h-0 w-[272px] shrink-0 flex-col gap-5 overflow-y-auto border-r border-border px-4 pb-10 pt-4">
+              <aside className="flex min-h-0 w-[320px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-border px-5 pb-10 pt-5">
                 <div className="flex flex-col gap-2">
                   <h3 className={head}>Arrangement</h3>
                   {arrBar}
                 </div>
-                {!whole && arr.sections.length > 0 && (
+                {showOrder && (
                   <div className="flex flex-col gap-2">
                     <h3 className={head}>Order</h3>
                     <OrderBar vertical order={order} names={names} styleOf={styleOf} onJump={jump} onChange={(o) => onArr(withOrder(arr, o))} />
@@ -1311,7 +1382,7 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
                 )}
               </aside>
             )}
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">{main}</div>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">{pages}</div>
             {wide && preview && (
               <aside className="flex min-h-0 w-[420px] shrink-0 flex-col border-l border-border">
                 <div className="flex shrink-0 items-center justify-between px-5 pb-1 pt-3">
@@ -1326,10 +1397,14 @@ export default function SongEdit({ askDetails = true, song, library = [], histor
           </div>
         );
       })()}
+      {hintBar}
       {!wide && !pick && !tabEdit && (
         // Phone: Cancel and Save sit under the thumb (user, 13 Nov), not in the top corners.
+        // Checking: Skip leaves the song tagged and opens the next one.
         <div className="flex shrink-0 gap-2 border-t border-border bg-background px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2.5">
-          <Button variant="outline" className="flex-1" onClick={cancel}>Cancel</Button>
+          {checking?.onSkip
+            ? <Button variant="outline" className="flex-1" onClick={skip}>Skip</Button>
+            : <Button variant="outline" className="flex-1" onClick={cancel}>Cancel</Button>}
           <Button className="flex-[2]" onClick={save} disabled={!canSave} loading={saving}>{saveLabel}</Button>
         </div>
       )}

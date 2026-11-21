@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Loader2, Pause, Play } from 'lucide-react';
 import { youtubeId } from '@/lib/coverArt';
 import { MAX_BPM, MIN_BPM, clampTempo } from '@/lib/metronome';
 import { useYouTubeTrack, hiddenHostStyle } from '@/hooks/useYouTubeTrack';
@@ -6,28 +7,28 @@ import { useYouTubeTrack, hiddenHostStyle } from '@/hooks/useYouTubeTrack';
 /**
  * Element 12 — the practice row.
  *
- * ONE row, two halves, sitting directly above element 10's nav bar: the click
- * on the left, the backing track on the right. Two bars at the bottom edge,
- * never three — the alternative was stacking a player, a tools bar and the nav
- * bar, which is ~150px of chrome eating the chart on a phone.
+ * TWO labelled tools of the same size, Track and Click, and nothing else
+ * (owner, 2026-11-20: the old row of a bare icon, a stepper, a play square and
+ * a second stepper "sucks", and people did not know what the icons were).
+ * What the chart shows and whether notes show are NOT here: the ☰ already has
+ * both, and saying a thing twice is what the owner rejected on the song page.
  *
- * The right half only exists when the song actually has a YouTube link. A dead
- * transport for a song with no track reads as broken.
+ * The −/+ for a tool shows only while that tool is on, as a thin strip above
+ * the tools: the click's tempo while it clicks, the track's speed while it
+ * plays. Idle, the bar is one short row and the chart keeps the room.
  *
- * On a narrow screen the two halves WRAP onto two lines rather than truncating.
- * Squeezing a tempo readout is how you end up unable to see what tempo you set.
+ * Track only exists when the song has a YouTube link. A dead transport for a
+ * song with no track reads as broken.
  *
  * Round 1 by decision: metronome + slow-down only. No count-in, no section
- * loop, no wake lock. The click and the track slow down **independently** —
- * they are not locked to each other.
+ * loop. The click and the track slow down **independently**.
  */
 export default function ReaderPracticeRow({
   song,
   bpm,
   onBpm,
   // Tap tempo and "Save as the song's tempo" were dropped in the QA pass
-  // (owner, 11 Nov). The tempo a band plays is the SETLIST's now — the leader
-  // sets it from the bar's tempo field — and nobody used TAP.
+  // (owner, 11 Nov). The tempo a band plays is the SETLIST's now.
   clickRunning,
   onToggleClick,
   canClick = true,
@@ -35,6 +36,9 @@ export default function ReaderPracticeRow({
   const ytId = youtubeId(song?.youtube);
   const text = 'var(--chart-text, var(--ds-gray-1000))';
   const muted = 'var(--chart-subtle, var(--ds-gray-700))';
+  // Hooks run whether or not there is a video; with none, the hook does nothing.
+  const track = useYouTubeTrack(ytId);
+  const { hostRef, playing, failed, loading, rate, rates, toggle, setRate } = track;
 
   // Typing an exact tempo. Held as a string while editing so a half-typed "1"
   // isn't clamped to 40 under the user's fingers.
@@ -46,86 +50,6 @@ export default function ReaderPracticeRow({
     setTyping(null);
   };
 
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-      {/* ── The click ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onToggleClick}
-          disabled={!canClick}
-          aria-label={clickRunning ? 'Stop the click' : 'Start the click'}
-          aria-pressed={clickRunning}
-          // min-h-0: the global `button { min-height: 44px }` on phones turns
-          // every small control in the reader into a capsule otherwise. This
-          // has cost four rounds before — see docs/READER.md.
-          className="min-h-0 shrink-0 w-8 h-8 rounded-lg grid place-items-center cursor-pointer border disabled:cursor-default disabled:opacity-40"
-          style={{
-            background: clickRunning ? 'var(--chord)' : 'transparent',
-            borderColor: clickRunning ? 'var(--chord)' : 'var(--chart-rule, var(--ds-gray-400))',
-            color: clickRunning ? '#0a0a0a' : text,
-          }}
-        >
-          {clickRunning
-            ? <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
-            : <MetronomeIcon />}
-        </button>
-
-        <Stepper
-          value={bpm}
-          min={MIN_BPM}
-          max={MAX_BPM}
-          onChange={onBpm}
-          label="Click tempo"
-          format={(v) => `${v}`}
-          suffix="bpm"
-          text={text}
-          muted={muted}
-          // The number itself is the exact-entry control — tap it and type.
-          // A stepper alone takes 32 presses to get from 132 to 100.
-          editing={typing}
-          onStartEdit={() => setTyping(String(bpm))}
-          onEditChange={setTyping}
-          onCommitEdit={commitTyped}
-        />
-
-        {/* The song's written tempo, and a way back to it. Slowing down is only
-            useful if returning to the real tempo is one tap. */}
-        {song?.tempo && Number(song.tempo) !== bpm && (
-          <button
-            type="button"
-            onClick={() => onBpm(Number(song.tempo))}
-            className="min-h-0 shrink-0 px-1.5 py-0.5 rounded text-label-11 tabular-nums cursor-pointer border-0 bg-transparent"
-            style={{ color: muted }}
-            aria-label={`Back to the written tempo, ${song.tempo}`}
-          >
-            {song.tempo}
-          </button>
-        )}
-
-      </div>
-
-      {/* ── The backing track ──────────────────────────────────────────── */}
-      {ytId && <TrackHalf ytId={ytId} text={text} muted={muted} />}
-    </div>
-  );
-}
-
-/**
- * The compact transport. Same engine as the Song Hub's bar (`useYouTubeTrack`),
- * a smaller face: play · rate. No title — the top bar two rows up already says
- * which song this is.
- *
- * **No scrubber, and no clock** (owner, 2026-08-01: "remove the scrub from the
- * practice view so we leave just the play/pause and slower/faster"). Practising
- * a song means playing it from the top at a slower speed, not hunting a
- * position — and a 3rem range input is the one control on this row nobody can
- * hit accurately on a phone while holding an instrument. The Song Hub's player
- * bar still has the full transport for when you ARE looking for a spot.
- */
-function TrackHalf({ ytId, text, muted }) {
-  const { hostRef, playing, failed, loading, rate, rates, toggle, setRate } = useYouTubeTrack(ytId);
-
   // Only the rates this video actually offers, so a step can never land on a
   // rate the player will refuse.
   const usable = Array.isArray(rates) && rates.length ? rates : [1];
@@ -135,45 +59,107 @@ function TrackHalf({ ytId, text, muted }) {
     if (next != null && next !== rate) setRate(next);
   };
 
+  const trackIcon = loading ? <Loader2 size={17} strokeWidth={1.8} className="animate-spin" />
+    : playing ? <Pause size={17} fill="currentColor" strokeWidth={0} />
+      : <Play size={17} fill="currentColor" strokeWidth={0} />;
+
   return (
-    <div className="flex items-center gap-2 min-w-0">
-      <div ref={hostRef} aria-hidden="true" style={hiddenHostStyle} />
+    <div className="flex flex-col gap-1.5 py-0.5">
+      {ytId && <div ref={hostRef} aria-hidden="true" style={hiddenHostStyle} />}
 
-      <button
-        type="button"
-        aria-label={playing ? 'Pause backing track' : 'Play backing track'}
-        onClick={toggle}
-        disabled={loading || failed}
-        className="min-h-0 shrink-0 w-8 h-8 rounded-lg grid place-items-center cursor-pointer border-0 disabled:cursor-default"
-        style={{ background: 'var(--color-brand)', color: '#ffffff', opacity: failed ? 0.4 : 1, WebkitTapHighlightColor: 'transparent' }}
-      >
-        {loading ? (
-          <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3" />
-            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        ) : playing ? (
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-        )}
-      </button>
-
-      {failed ? (
-        <span className="text-label-11" style={{ color: muted }}>Track unavailable</span>
-      ) : (
-        <Stepper
-          value={rate}
-          min={usable[0]}
-          max={usable[usable.length - 1]}
-          onChange={(_, dir) => stepRate(dir)}
-          stepped
-          label="Backing-track speed"
-          format={(v) => `${v}×`}
-          text={text}
-          muted={muted}
-        />
+      {clickRunning && (
+        <Strip label="Click" muted={muted}>
+          <Stepper
+            value={bpm} min={MIN_BPM} max={MAX_BPM} onChange={onBpm}
+            label="Click tempo" format={(v) => `${v}`} suffix="bpm" text={text} muted={muted}
+            // The number itself is the exact-entry control — tap it and type.
+            editing={typing}
+            onStartEdit={() => setTyping(String(bpm))}
+            onEditChange={setTyping}
+            onCommitEdit={commitTyped}
+          />
+          {/* The song's written tempo, and a way back to it. */}
+          {song?.tempo && Number(song.tempo) !== bpm && (
+            <button
+              type="button"
+              onClick={() => onBpm(Number(song.tempo))}
+              className="min-h-0 shrink-0 px-1.5 py-0.5 rounded text-label-11 tabular-nums cursor-pointer border-0 bg-transparent"
+              style={{ color: muted }}
+              aria-label={`Back to the written tempo, ${song.tempo}`}
+            >
+              {song.tempo}
+            </button>
+          )}
+        </Strip>
       )}
+
+      {ytId && playing && !failed && (
+        <Strip label="Speed" muted={muted}>
+          <Stepper
+            value={rate} min={usable[0]} max={usable[usable.length - 1]}
+            onChange={(_, dir) => stepRate(dir)} stepped
+            label="Backing-track speed" format={(v) => `${v}×`} text={text} muted={muted}
+          />
+        </Strip>
+      )}
+
+      <div className="flex gap-2">
+        {ytId && (
+          <Tool
+            on={playing}
+            onClick={toggle}
+            disabled={loading || failed}
+            aria-label={playing ? 'Pause backing track' : 'Play backing track'}
+            icon={trackIcon}
+          >
+            {failed ? 'No track' : 'Track'}
+          </Tool>
+        )}
+        <Tool
+          on={clickRunning}
+          onClick={onToggleClick}
+          disabled={!canClick}
+          aria-label={clickRunning ? 'Stop the click' : 'Start the click'}
+          icon={<MetronomeIcon size={17} />}
+        >
+          Click
+        </Tool>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One practice tool: icon and word, the same size as its neighbour. On is the
+ * chart's own ink filled in, so it reads on any chart theme.
+ */
+function Tool({ on, icon, children, ...props }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={!!on}
+      {...props}
+      // min-h-0: the global `button { min-height: 44px }` on phones turns every
+      // small control in the reader into a capsule otherwise (docs/READER.md).
+      className="min-h-0 h-10 flex-1 sm:flex-none sm:min-w-32 px-3 rounded-control inline-flex items-center justify-center gap-2 whitespace-nowrap text-small font-medium cursor-pointer border disabled:cursor-default disabled:opacity-40"
+      style={{
+        background: on ? 'var(--chart-text, var(--ds-gray-1000))' : 'transparent',
+        borderColor: on ? 'var(--chart-text, var(--ds-gray-1000))' : 'var(--chart-rule, var(--ds-gray-400))',
+        color: on ? 'var(--chart-bg, var(--ds-background-100))' : 'var(--chart-text, var(--ds-gray-1000))',
+        WebkitTapHighlightColor: 'transparent',
+      }}
+    >
+      {icon}{children}
+    </button>
+  );
+}
+
+/** The −/+ of a tool that is on: its name, then the stepper. */
+function Strip({ label, muted, children }) {
+  return (
+    <div className="reader-row-in flex items-center justify-center gap-2 sm:justify-start">
+      <span className="text-small" style={{ color: muted }}>{label}</span>
+      {children}
     </div>
   );
 }
@@ -281,9 +267,9 @@ function Stepper({
   );
 }
 
-export function MetronomeIcon() {
+export function MetronomeIcon({ size = 15 }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 4h6l3 16H6z" />
       <line x1="7" y1="14" x2="17" y2="14" />
       <line x1="12" y1="14" x2="18.5" y2="6.5" />

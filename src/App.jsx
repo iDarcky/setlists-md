@@ -260,6 +260,8 @@ export default function App() {
   const [editNewTitle, setEditNewTitle] = useState('');
   // A new song's details, filled in the Add-a-song sheet before the editor opens.
   const [editNewDetails, setEditNewDetails] = useState(null);
+  // The song page's empty chart: open the editor on paste or write (2026-11-20).
+  const [editStart, setEditStart] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -325,6 +327,8 @@ export default function App() {
   const [importQueue, setImportQueue] = useState(null);
   // Walking a leader through the batch-imported songs still tagged "To check".
   const [checkRun, setCheckRun] = useState(false);
+  // Songs skipped in this Check next run: they stay "To check" but don't come round again.
+  const checkSkipped = useRef(new Set());
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
   // Join another team: the invite-code screen over the app (2026-11-20).
@@ -989,7 +993,7 @@ export default function App() {
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle, newDetails } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle, newDetails, start } = {}) => {
     // Central gate for read-only team members (audit D-1): every editor entry
     // point funnels through here, so members can't reach the editor and lose
     // work to the server-authoritative sync (RLS already blocks their writes).
@@ -1002,6 +1006,7 @@ export default function App() {
       // Seed title for a brand-new song, carried from the Add-a-song search box.
       setEditNewTitle(newTitle || '');
       setEditNewDetails(newDetails || null);
+      setEditStart(start || null);
     }
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
@@ -1254,9 +1259,9 @@ export default function App() {
     // hub's default Chart tab.
     navigate('song-hub', { song });
   };
-  const goEditor = (song = null, arrangementId = null, newTitle = '', newDetails = null) => {
+  const goEditor = (song = null, arrangementId = null, newTitle = '', newDetails = null, start = null) => {
     if (isTeamReadOnly) return;
-    navigate('editor', { song, arrangementId, newTitle, newDetails });
+    navigate('editor', { song, arrangementId, newTitle, newDetails, start });
   };
   const [newSetlistOpen, setNewSetlistOpen] = useState(false);
   // What the new editor (SongEdit) edits. It only speaks the v2 shape, so a
@@ -1475,7 +1480,7 @@ export default function App() {
 
     // Checking batch-imported songs: straight on to the next one.
     if (checkRun) {
-      const next = songs.find(s => s.id !== song.id && needsCheck(s));
+      const next = songs.find(s => s.id !== song.id && needsCheck(s) && !checkSkipped.current.has(s.id));
       if (next) { navigate('editor', { song: next, replace: true }); return; }
       setCheckRun(false);
       toast({ title: 'All imported songs checked' });
@@ -1851,7 +1856,8 @@ export default function App() {
     const kept = list.length - fresh.length;
     toast({
       title: fresh.length === 1 ? `Added "${fresh[0].title || 'Untitled'}"` : fresh.length ? `Added ${fresh.length} songs` : 'Already in Songs',
-      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.` : 'Tagged “To check” in Songs.',
+      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.`
+        : fresh.some(needsCheck) ? 'Added to Songs and to this setlist. Tagged “To check” in Songs.' : 'Added to Songs and to this setlist.',
     });
     return out;
   };
@@ -2436,10 +2442,11 @@ export default function App() {
               readOnly={isTeamReadOnly}
               onOpenSong={goChart}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
-              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { setCheckRun(true); goEditor(first); } }}
+              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { checkSkipped.current = new Set(); setCheckRun(true); goEditor(first); } }}
               onBlank={isTeamReadOnly ? null : (details) => goEditor(null, null, '', details || null)}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
@@ -2471,9 +2478,8 @@ export default function App() {
               key={currentSong.id}
               song={currentSong}
               setlists={setlists}
-              onOpenSetlist={goSetlistView}
               onBack={goBack}
-              onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
+              onEdit={isTeamReadOnly ? null : (arrId, start) => goEditor(currentSong, arrId, '', null, start)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               onDelete={!isTeamReadOnly ? async () => {
                 // QA 11 Nov (row 178): one tap in the ⋯ deleted a song from the
@@ -2520,7 +2526,17 @@ export default function App() {
               historyTeamId={activeLibrary}
               mode={editTarget.mode}
               askDetails={!editNewDetails}
-              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? { left: songs.filter(needsCheck).length } : null}
+              start={editStart}
+              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? {
+                left: songs.filter(s => needsCheck(s) && !checkSkipped.current.has(s.id)).length,
+                onSkip: () => {
+                  checkSkipped.current.add(editTarget.song.id);
+                  const next = songs.find(s => needsCheck(s) && !checkSkipped.current.has(s.id));
+                  if (next) { navigate('editor', { song: next, replace: true }); return; }
+                  setCheckRun(false);
+                  goToMainView('library');
+                },
+              } : null}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               initialArrangementId={editArrangementId}
