@@ -1,3 +1,4 @@
+import { claimBack, releaseBack } from '@/lib/introBack';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/ui/shadcn/utils';
 import { churchInitials } from '@/lib/joinLink';
@@ -79,8 +80,9 @@ function useBackGesture(onBack) {
     if (!on) return undefined;
     if (!window.history.state?.introBack) window.history.pushState({ introBack: true }, '');
     const handler = () => ref.current?.();
+    claimBack();
     window.addEventListener('popstate', handler);
-    return () => window.removeEventListener('popstate', handler);
+    return () => { releaseBack(); window.removeEventListener('popstate', handler); };
   }, [on]);
   return on ? () => window.history.back() : undefined;
 }

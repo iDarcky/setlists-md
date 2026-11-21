@@ -9,6 +9,7 @@ import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
 import AppSkeleton, { PlainLoading } from "@/ui/AppSkeleton";
 import { expectsTeam } from "@/lib/launchCache";
+import { introBackOwnsHistory } from "@/lib/introBack";
 import { isQuotaError } from "@/lib/storageErrors";
 import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
@@ -121,6 +122,9 @@ const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistV
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // Fetched early for anyone without a team (see the preload effect), so the
 // set-up screens never wait on their code behind a loading screen.
+// Views only someone signed out sees; Back never returns to them once signed in.
+const SIGNED_OUT_VIEWS = ['signin', 'onboarding', 'recovery'];
+
 const loadStartFlow = () => import('@/features/start/StartFlow');
 const StartFlow = lazy(loadStartFlow);
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -399,6 +403,8 @@ export default function App() {
   // outlives any one triggerSync closure.
   const triggerSyncRef = useRef(null);
   const historyRef = useRef([]);
+  // Whether someone is signed in, for goBack (set during render).
+  const signedInRef = useRef(false);
   const quotaWarnedRef = useRef(false);
   // A save this device refused. Out of space gets a drawer that says what to
   // do, once per session; anything else is logged, as before.
@@ -1040,7 +1046,10 @@ export default function App() {
   };
 
   const goBack = useCallback(() => {
-    const prev = historyRef.current.pop();
+    // Signed in, the signed-out screens (Welcome, Log in) are never a step
+    // back: QA 21 Nov, Back from Join or create landed on Log in.
+    let prev = historyRef.current.pop();
+    while (prev && signedInRef.current && SIGNED_OUT_VIEWS.includes(prev.view)) prev = historyRef.current.pop();
     if (prev) {
       setView(prev.view);
       setCurrentSong(prev.song);
@@ -1104,6 +1113,9 @@ export default function App() {
 
   useEffect(() => {
     const handler = () => {
+      // A set-up or sign-in screen with ← Back handles the pop itself
+      // (AuthLayout's own history entry); the app must not move underneath.
+      if (introBackOwnsHistory()) return;
       if (historyRef.current.length === 0) return;
       // Browser/hardware back out of a dirty builder: the back already moved
       // one entry, so re-push to stay put while we ask. On discard we set the
@@ -2323,7 +2335,6 @@ export default function App() {
     if (!ok) return;
     try {
       await signOut();
-      toast({ title: 'Signed out' });
       // Back to the welcome screen (the gate does the rest): signing out
       // isn't a way to keep using the app without an account.
       goToMainView('home');
@@ -2334,6 +2345,7 @@ export default function App() {
 
   // No church or band yet: the "after sign-up" screens take the place of the
   // app until one exists (church/band request -> Waiting for approval -> ready).
+  signedInRef.current = !!user?.id;
   const startShows = startScreen({
     signedIn: !!user?.id,
     teamsLoaded,

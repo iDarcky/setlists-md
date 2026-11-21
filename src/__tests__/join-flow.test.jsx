@@ -86,7 +86,8 @@ describe('JoinFlow', () => {
     api.peekJoinLink.mockResolvedValue({ ...PEEK, is_full: false, team_id: 't1' });
     api.requestToJoin.mockResolvedValue({ status: 'full', team_id: 't1' });
     render(<JoinFlow code={CODE} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Drums' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await screen.findByText('Grace Church is full')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
   });
@@ -99,10 +100,11 @@ describe('JoinFlow', () => {
       .mockRejectedValueOnce(new Error('Network down'))
       .mockResolvedValueOnce({ status: 'pending', request_id: 'r1', team_id: 't1' });
     render(<JoinFlow code={CODE} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Drums' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(await screen.findByText('Network down')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    await waitFor(() => expect(api.requestToJoin).toHaveBeenLastCalledWith(CODE, 'kid', []));
+    await waitFor(() => expect(api.requestToJoin).toHaveBeenLastCalledWith(CODE, 'kid', ['drums']));
     expect(await screen.findByText('Waiting for a leader')).toBeInTheDocument();
   });
 

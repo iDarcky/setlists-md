@@ -131,7 +131,9 @@ export function InstrumentsView({ parts, onPartsChange, onContinue, onBack, prog
   progress?: Step; name?: string; onNameChange?: (v: string) => void; busy?: boolean; error?: string | null; embedded?: boolean;
 }) {
   const needsName = !!onNameChange;
-  const ready = !needsName || !!(name || '').trim();
+  // At least one pick before Continue (QA 21 Nov); Lyrics / slides and Sound
+  // desk cover people who don't play.
+  const ready = parts.length > 0 && (!needsName || !!(name || '').trim());
   return (
     <AuthLayout onBack={onBack} embedded={embedded}>
       <Bar progress={progress} />
