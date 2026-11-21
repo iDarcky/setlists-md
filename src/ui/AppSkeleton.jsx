@@ -13,13 +13,29 @@ export default function AppSkeleton() {
         <div className="hidden lg:block"><Bar className="h-10 w-72 rounded-full" /></div>
         <div className="flex items-center gap-3"><Bar className="size-8 rounded-full" /><Bar className="size-8 rounded-full" /></div>
       </div>
-      <div className="mx-auto flex w-full max-w-[1040px] flex-col gap-3 px-4 pt-2 sm:px-6 sm:pt-4 lg:px-8 lg:pt-8">
-        <Bar className="h-7 w-40" />
-        <Bar className="h-4 w-56" />
-        <Bar className="mt-2 h-40 w-full rounded-card" />
-        <Bar className="h-28 w-full rounded-card" />
-        <Bar className="h-48 w-full rounded-card" />
-      </div>
+      <HomeSkeleton />
     </div>
   );
+}
+
+/** Home's body in grey: the same blocks as AppSkeleton, for Home itself to
+ *  show until its team data is all in (owner, 21 Nov 2026: "bring all the
+ *  items at once"). */
+export function HomeSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading" className="mx-auto flex w-full max-w-[1040px] flex-col gap-3 px-4 pt-2 sm:px-6 sm:pt-4 lg:px-8 lg:pt-8">
+      <Bar className="h-7 w-40" />
+      <Bar className="h-4 w-56" />
+      <Bar className="mt-2 h-40 w-full rounded-card" />
+      <Bar className="h-28 w-full rounded-card" />
+      <Bar className="h-48 w-full rounded-card" />
+    </div>
+  );
+}
+
+/** Launch placeholder when no team is coming (signed out, or no team yet):
+ *  just the page colour. The app's shape here would flash a team space
+ *  before the welcome or set-up screens (owner, 21 Nov 2026). */
+export function PlainLoading() {
+  return <div aria-busy="true" aria-label="Loading" className="w-full bg-background" style={{ height: APP_HEIGHT }} />;
 }
