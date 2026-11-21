@@ -5,28 +5,22 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { buildSongFlow, repeatFirstIndex, repeatRuns } from '@/lib/songFlow';
 import { resolveKeyChanges, fromBodyMarkers } from '@/lib/keyChanges';
 import { extractInlineNotes } from '@/parser';
-import { sectionTone } from '@/lib/sectionTone';
-import SectionBlock from '@/features/chart/SectionBlock';
+import PlainLines from './PlainLines';
 
-// The chart on the song page, drawn new (owner, 2026-11-04: the old chart
-// "looks sad on this new page").
-//
-// It draws the same sections as the Reader's new look (owner, 2026-11-04: "the
-// song page uses the same section drawing"): the section BODY is the Reader's
-// own SectionBlock, so chords, the Aa fonts, sizes and colours, bar boxes,
-// key-change pills and tabs come from one renderer. What is drawn here is only
-// what a scrolling page needs and the Reader does differently: the heading row
-// (same chip, same gold cue pill, not sticky), "again" rows for repeats, ×N,
-// and two columns on a wide screen.
+// The song page's lyrics and chords. PLAIN (owner, 2026-11-17): "the song is
+// using a version of the chart, and it should not, it should just be plain
+// lyrics and chords based on the theme". So no Reader renderer here: the body
+// is PlainLines (app theme colours, one type size, chords above words), and
+// the section name is a quiet label, not the Reader's coloured chip. The
+// Reader's look (Aa: chart theme, fonts, bar boxes) lives in Play only.
 //
 // Play order, the key-change overlay (stored, else the body's {modulate}
-// markers) and which plays are repeats come from the same lib functions as the
-// Reader, so the two never disagree about what the song IS.
+// markers) and which plays are repeats still come from the same lib functions
+// as the Reader, so the two never disagree about what the song IS.
 
-const chipCls = 'inline-flex h-7 min-w-8 shrink-0 items-center justify-center rounded-[7px] px-1.5 text-caption font-semibold';
-// A section's band cue: quiet grey text at the right of its name, the way
-// MultiTracks prints it (QA 11 Nov: the gold pills shouted).
+// A section's band cue: quiet grey text at the right of its name.
 const pillCls = 'ml-auto text-right text-small italic text-muted-foreground';
+const nameCls = 'text-label text-muted-foreground';
 
 /**
  * @param {object} p
@@ -35,15 +29,7 @@ const pillCls = 'ml-auto text-right text-small italic text-muted-foreground';
  * @param {boolean} p.sharps
  * @param {'chords'|'lyrics'} p.show
  */
-// The section heading follows the Reader's own Heading setting, so the song
-// page and the Reader never disagree (QA 11 Nov: "still uses chip then name,
-// remove one of them"). 'chip' = the name alone in the section's colour (the
-// default, shown as "Name"), 'chipOnly' = the chip alone, 'both' = chip + name.
-// Retired values read the way the Reader reads them.
-const HEADING_ALIAS = { code: 'chipOnly', caps: 'chip', name: 'chip' };
-
-export default function SongChart({ song, semis = 0, sharps, show = 'chords', layout = 'auto', customSectionTypes = null, heading = 'chip' }) {
-  const look = HEADING_ALIAS[heading] || heading || 'chip';
+export default function SongChart({ song, semis = 0, sharps, show = 'chords', layout = 'auto' }) {
   const desk = useMediaQuery('(min-width: 1024px)');
   const wide = layout === 'desk' || (layout === 'auto' && desk);
   const { ordered } = useMemo(() => buildSongFlow(song), [song]);
@@ -66,9 +52,7 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
     const run = runs[i];
     if (skip.has(i) || (run && !run.lead)) return; // folded into a play before it
     const type = String(sec?.type || '');
-    const tone = sectionTone(type, customSectionTypes);
-    const chip = look !== 'chip' && <span className={chipCls} style={{ color: tone.fg, background: tone.bg }} {...(look === 'chipOnly' ? { 'aria-label': type, role: 'img' } : null)}>{tone.code}</span>;
-    const name = look !== 'chipOnly' && <b className={`text-body font-semibold${look === 'chip' ? '' : ' text-foreground'}`} style={look === 'chip' ? { color: tone.fg } : undefined}>{type}</b>;
+    const name = <span className={nameCls}>{type}</span>;
     // How many times in a row this is played. A first play followed straight
     // away by its own repeats carries the count ("Chorus ×2"); a repeat run
     // later in the song carries its own ("Chorus again ×2").
@@ -87,7 +71,6 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
         slot: i,
         el: (
           <div key={i} className="flex flex-wrap items-center gap-2 py-2">
-            {chip}
             {name}
             <span className="text-small text-muted-foreground">again{times > 1 ? ` ×${times}` : ''}</span>
             {cue && <span className={pillCls}>{cue}</span>}
@@ -102,39 +85,26 @@ export default function SongChart({ song, semis = 0, sharps, show = 'chords', la
     const sings = (sec?.lines || []).some(l => typeof l === 'string' && extractInlineNotes(l).clean.replace(/\[[^\]]*\]/g, '').trim());
     if (show === 'lyrics' && !sings) return;
 
-    // The body is the Reader's own SectionBlock (owner, 2026-11-04: the song
-    // page uses the same section drawing as the reader), so chord placement,
-    // the Aa fonts and sizes, bar boxes, key-change pills and tabs are one
-    // renderer in both places. Only the heading row is drawn here.
     const body = (
-      <SectionBlock
+      <PlainLines
         section={sec}
-        transpose={semis}
-        keyTranspose={semis}
-        modOffset={slotOffsets[i] ?? 0}
-        keyMarks={marks}
+        semis={semis}
+        sharps={sharps}
         songKey={song?.key}
-        accidentals={sharps ? 'sharps' : 'flats'}
+        keyMarks={marks}
+        modOffset={slotOffsets[i] ?? 0}
         showChords={show !== 'lyrics'}
-        showLyrics
         showTabs={show !== 'lyrics'}
-        tabInstrument="all"
-        hideHeading
-        notePlacement={wide ? 'leader' : 'above'}
-        customSectionTypes={customSectionTypes}
-        tabTranspose={semis}
-        chordBars
       />
     );
 
     blocks.push({
       slot: i,
       el: (
-        <section key={i} className="break-inside-avoid pb-1">
-          <div className="flex flex-wrap items-center gap-2 pb-1.5">
-            {chip}
+        <section key={i} className="break-inside-avoid pb-5">
+          <div className="flex flex-wrap items-center gap-2 pb-1">
             {name}
-            {times > 1 && <span className="text-small font-semibold text-muted-foreground">×{times}</span>}
+            {times > 1 && <span className="text-caption font-semibold text-muted-foreground">×{times}</span>}
             {cue && <span className={pillCls}>{cue}</span>}
           </div>
           {body}
