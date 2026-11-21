@@ -1,6 +1,6 @@
 # Privacy Policy
 
-*Beta version. Last updated: 19 November 2026. A Romanian version is published alongside this one. Both versions carry equal weight.*
+*Beta version. Last updated: 19 November 2026.*
 
 ## The short version
 

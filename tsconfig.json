@@ -21,5 +21,5 @@
     "paths": { "@/*": ["src/*"] },
     "types": ["vite/client"]
   },
-  "include": ["src/features/chart-v2/**/*", "src/features/intro/**/*", "src/types/**/*"]
+  "include": ["src/features/chart-v2/**/*", "src/features/intro/**/*", "src/types/**/*", "src/ui/typed.ts", "src/ui/shadcn/create-button.tsx", "src/features/songs/**/*.ts", "src/features/songs/**/*.tsx", "src/features/song-edit/**/*.ts", "src/features/song-edit/**/*.tsx", "src/features/song/**/*.ts", "src/features/song/**/*.tsx"]
 }

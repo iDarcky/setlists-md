@@ -1,3 +1,4 @@
+import { Music } from 'lucide-react';
 import { cn } from '@/ui/shadcn/utils';
 import { useCoverArt } from '@/lib/useCoverArt';
 
@@ -5,16 +6,21 @@ import { useCoverArt } from '@/lib/useCoverArt';
 // MultiTracks-style rebuild): the cover, the one-line numbers, the leader's
 // play sentence and the song map.
 
-/** Spotify art, else the YouTube still, else a plain green tile (the brand green, no letters). Never an empty box. */
+/**
+ * Spotify art, else the YouTube still, else a warm tile with a music note
+ * (owner, 2026-11-20: the cover stays, the green tile goes). Never an empty box.
+ */
 export function Cover({ song, size = 104, className }) {
   const { artUrl, markFailed } = useCoverArt(song);
   const box = { width: size, height: size };
   if (artUrl) {
-    return <img src={artUrl} alt="" onError={() => markFailed(artUrl)} style={box} className={cn('shrink-0 rounded-[10px] object-cover shadow-[0_8px_24px_rgba(0,0,0,.45)]', className)} />;
+    return <img src={artUrl} alt="" onError={() => markFailed(artUrl)} style={box} className={cn('shrink-0 rounded-[10px] object-cover material-small', className)} />;
   }
   return (
-    <span aria-hidden="true" style={{ ...box, background: 'linear-gradient(135deg,#7AA89C 0%,#53796F 55%,#2B403A 100%)' }}
-      className={cn('block shrink-0 rounded-[10px] shadow-[0_8px_24px_rgba(0,0,0,.45)]', className)} />
+    <span aria-hidden="true" style={box}
+      className={cn('flex shrink-0 items-center justify-center rounded-[10px] bg-raised text-muted-foreground material-small', className)}>
+      <Music size={Math.round(size * 0.38)} strokeWidth={1.8} />
+    </span>
   );
 }
 

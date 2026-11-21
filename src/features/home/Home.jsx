@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileText, List, Music } from 'lucide-react';
 import { useTeam } from '@/auth/useTeam';
 import { useAuth } from '@/auth/useAuth';
 import { useTeamActivity } from '@/hooks/useTeamActivity';
@@ -9,12 +8,14 @@ import {
 import { needsCheck } from '@/lib/importCheck';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import HomeView from './HomeView';
+import { HomeSkeleton } from '@/ui/AppSkeleton';
 import { partLabel, normalize } from '@/data/instruments';
 import { PartsSheet } from '@/features/team/PartsPicker';
 import { membersWithoutParts } from '@/lib/memberInstruments';
 import { useNow } from '@/hooks/useNow';
 import { setlistStartMs } from '@/lib/setlistTime';
 import AddSongFlow from '@/features/songs/AddSongFlow';
+import { createMenu } from '@/features/songs/createMenu';
 import { supabase } from '@/auth/supabase';
 import { sendChurchRequest, sentChurchRequest, rememberChurchRequest } from '@/lib/churchRequest';
 import { signupSource } from '@/lib/siteEntry';
@@ -32,11 +33,22 @@ export default function Home({
   canAddSongs = false, onImportSongs, onImportSetlistFile, onEditImported, onBlank, onSetupDone, onRetrySync, onNotFound,
 }) {
   // New song and Import open their sheets here, on Home, not on Songs.
-  const [adding, setAdding] = useState(null); // null | 'add' | 'new' | 'import'
+  const [adding, setAdding] = useState(null); // null | 'new' | 'import'
   const { user } = useAuth();
-  const { team, teams = [], teamsLoaded, members, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
+  const { team, teams = [], teamsLoaded, members, membersReady = true, isAdmin, canManageBand, canSetParts, updateMyInstruments, joinRequests = [] } = useTeam();
   const leader = !!team && (isAdmin || canManageBand);
-  const { activity: activityRows } = useTeamActivity(team?.id, { limit: 60 });
+  const { activity: activityRows, ready: activityReady } = useTeamActivity(team?.id, { limit: 60, userId: user?.id || null });
+  // Draw Home whole: names, faces and the activity feed together, not one
+  // block at a time (owner, 21 Nov 2026). A grey Home until they're in; a
+  // slow or offline connection gets what's there after 2.5 s.
+  const [waitedOut, setWaitedOut] = useState(false);
+  const dataReady = !team || (activityReady && membersReady);
+  useEffect(() => {
+    if (dataReady) return undefined;
+    const t = setTimeout(() => setWaitedOut(true), 2500);
+    return () => clearTimeout(t);
+  }, [dataReady]);
+  const homeReady = dataReady || waitedOut;
   // Render-time clock: one read per render keeps the derived lists consistent.
   const [now] = useState(() => Date.now());
   const ticking = useNow(60000, syncState?.state === 'error');
@@ -129,11 +141,11 @@ export default function Home({
     : null;
 
   // The + menu: the three ways to start something a leader has.
-  const create = [
-    canAddSongs && { icon: Music, label: 'New song', onSelect: () => setAdding('new') },
-    canAddSongs && onImportSongs && { icon: FileText, label: 'Import PDFs', onSelect: () => setAdding('import') },
-    onNewSetlist && { icon: List, label: 'New setlist', onSelect: onNewSetlist, divider: true },
-  ].filter(Boolean);
+  const create = createMenu({
+    onNewSong: canAddSongs ? () => setAdding('new') : null,
+    onImport: canAddSongs && onImportSongs ? () => setAdding('import') : null,
+    onNewSetlist,
+  });
   // Activity rows name the server row; find the local copy by row map, then by name.
   const openActivity = (it) => {
     if (it.kind === 'song') {
@@ -168,6 +180,7 @@ export default function Home({
 
   return (
     <>
+    {!homeReady ? <HomeSkeleton /> : (
     <HomeView
       name={first}
       dateLabel={dateLabel}
@@ -194,6 +207,7 @@ export default function Home({
       create={leader || !inTeam ? create : []}
       startChurch={noChurch ? <StartChurchCard sent={churchSent} onStart={() => setChurchAsk(true)} /> : null}
     />
+    )}
     {canAddSongs && (
       <AddSongFlow
         mode={adding}

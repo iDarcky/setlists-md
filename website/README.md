@@ -22,8 +22,7 @@ working. That switch happens in its own step.
 
 - `index.html` (/) — what it is, how it works, the small things, FAQ.
 - `help.html` (/help) — contact, invite links, starting a church, Add to Home Screen.
-- No Romanian landing page (retired Nov 2026: the app is English only). `/ro`
-  redirects to `/`; the Romanian legal pages live under `/ro/<page>`.
+- English only (Romanian pages removed Nov 2026). Old `/ro` links redirect to the English pages.
 - `robots.txt`, `sitemap.xml` — for Search Console. Add new pages to the sitemap.
 - `/privacy`, `/terms`, `/copyright` — linked in the footer, added in the legal PR.
 

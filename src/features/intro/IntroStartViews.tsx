@@ -151,30 +151,29 @@ export function InstrumentsView({ parts, onPartsChange, onContinue, onBack, prog
 
 // ── C1 Invite your team ─────────────────────────────────────────────────────
 
-export function InviteTeamView({ code, url, copied, onCopy, onShare, onLater, onBack, error, embedded }: {
-  code?: string | null; url?: string | null; copied?: boolean; onCopy: () => void; onShare?: (() => void) | null;
+// The code is the star; the link only travels inside "Share invite" (owner,
+// 21 Nov 2026). Without a share sheet, Share invite copies the message.
+export function InviteTeamView({ code, url, copied, sharedCopied, onCopy, onShare, onLater, onBack, error, embedded }: {
+  code?: string | null; url?: string | null; copied?: boolean; sharedCopied?: boolean; onCopy: () => void; onShare: () => void;
   onLater: () => void; onBack?: () => void; error?: string | null; embedded?: boolean;
 }) {
   return (
     <AuthLayout onBack={onBack} embedded={embedded}>
       <Progress step={4} of={5} />
-      <AuthHeader title="Invite your team" />
+      <AuthHeader title="Invite your team" sub="They tap Join a team in Setlists.md and type this code. You let them in." />
       <Card>
-        <CardLabel>Code</CardLabel>
-        <span className="font-mono text-[32px] font-semibold tracking-[6px]">{code ? code.toUpperCase() : '······'}</span>
-        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-          <span className="truncate font-mono text-small text-muted-foreground">{url ? url.replace(/^https?:\/\//, '') : '…'}</span>
-          <Button variant="link" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-small" onClick={onCopy} disabled={!url}>
-            {copied ? <><Check size={14} strokeWidth={1.8} aria-hidden="true" /> Copied</> : <><Copy size={14} strokeWidth={1.8} aria-hidden="true" /> Copy link</>}
+        <CardLabel>Your team’s code</CardLabel>
+        <span className="font-mono text-[40px] font-semibold leading-tight tracking-[8px]" aria-label={code ? code.toUpperCase().split('').join(' ') : undefined}>{code ? code.toUpperCase() : '······'}</span>
+        <div className="flex border-t border-border pt-3">
+          <Button variant="link" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-small" onClick={onCopy} disabled={!code}>
+            {copied ? <><Check size={14} strokeWidth={1.8} aria-hidden="true" /> Copied</> : <><Copy size={14} strokeWidth={1.8} aria-hidden="true" /> Copy code</>}
           </Button>
         </div>
       </Card>
       {error && <Alert variant="danger">{error}</Alert>}
       <FormActions>
-        {onShare && <Button onClick={onShare} disabled={!url}><Share size={18} strokeWidth={1.8} aria-hidden="true" /> Share invite</Button>}
-        <Button variant={onShare ? 'ghost' : 'default'} className={onShare ? 'hover:bg-transparent' : undefined} onClick={onLater}>
-          {onShare ? 'Later' : 'Continue'}
-        </Button>
+        <Button onClick={onShare} disabled={!url}><Share size={18} strokeWidth={1.8} aria-hidden="true" /> {sharedCopied ? 'Invite copied' : 'Share invite'}</Button>
+        <Button variant="ghost" className="hover:bg-transparent" onClick={onLater}>Later</Button>
       </FormActions>
     </AuthLayout>
   );

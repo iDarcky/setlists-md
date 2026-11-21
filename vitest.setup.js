@@ -8,13 +8,27 @@
 import 'fake-indexeddb/auto';
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterAll, afterEach, vi } from 'vitest';
 
 // Unmount anything a test rendered. Without this the next test's queries can
 // match the previous test's still-attached tree, which shows up as a passing
 // assertion against stale DOM — the worst kind of green.
 afterEach(() => {
   cleanup();
+});
+
+// react-modal-sheet polls for its sheet with a 50 ms setInterval for up to 1 s
+// after opening. When a file's last test opens a sheet, that poll can fire
+// after jsdom is torn down ("document is not defined" in CI, a random file
+// each time). Clear any interval still running when the file ends.
+const liveIntervals = new Set();
+const realSetInterval = globalThis.setInterval;
+const realClearInterval = globalThis.clearInterval;
+globalThis.setInterval = (...args) => { const id = realSetInterval(...args); liveIntervals.add(id); return id; };
+globalThis.clearInterval = (id) => { liveIntervals.delete(id); return realClearInterval(id); };
+afterAll(() => {
+  for (const id of liveIntervals) realClearInterval(id);
+  liveIntervals.clear();
 });
 
 // jsdom implements neither of these, and several components call them on mount

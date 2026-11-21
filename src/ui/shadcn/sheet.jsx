@@ -14,8 +14,9 @@ const subscribe = (cb) => {
 const getWide = () => window.matchMedia(QUERY).matches;
 
 // `dismissible={false}`: no ✕, no drag-down, no tap-outside — for a pop-up
-// that needs an answer (a sync conflict).
-function Sheet({ open, onOpenChange, title, description, children, className, dismissible = true }) {
+// that needs an answer (a sync conflict). `footer`: buttons pinned under the
+// content (Cancel / Next), at the bottom on a phone.
+function Sheet({ open, onOpenChange, title, description, children, className, footer, dismissible = true }) {
   const wide = useSyncExternalStore(subscribe, getWide, () => true);
   // Radix warns about a dialog with no description unless told there is none.
   const noDescription = description ? {} : { 'aria-describedby': undefined };
@@ -27,13 +28,14 @@ function Sheet({ open, onOpenChange, title, description, children, className, di
           <DialogHeader hideClose={!dismissible}><DialogTitle>{title}</DialogTitle></DialogHeader>
           {description && <DialogDescription className="sr-only">{description}</DialogDescription>}
           <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-2">{children}</div>
+          {footer && <div className="flex shrink-0 items-center gap-2 px-6 pb-6">{footer}</div>}
         </DialogContent>
       </Dialog>
     );
   }
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange} title={title} description={description}
-      className={cn('h-[calc(100dvh-64px)]', className)} dismissible={dismissible}>
+      className={cn('h-[calc(100dvh-64px)]', className)} footer={footer} dismissible={dismissible}>
       {children}
     </BottomSheet>
   );

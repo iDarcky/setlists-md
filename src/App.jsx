@@ -7,7 +7,8 @@ import { showUndoToast } from "@/lib/undoToast";
 import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
-import AppSkeleton from "@/ui/AppSkeleton";
+import AppSkeleton, { PlainLoading } from "@/ui/AppSkeleton";
+import { expectsTeam } from "@/lib/launchCache";
 import { isQuotaError } from "@/lib/storageErrors";
 import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
@@ -118,7 +119,10 @@ import { TEMPLATE_KIND } from '@/lib/newSetlist';
 import { needsCheck, clearCheck } from '@/lib/importCheck';
 const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistViewer'));
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
-const StartFlow = lazy(() => import('@/features/start/StartFlow'));
+// Fetched early for anyone without a team (see the preload effect), so the
+// set-up screens never wait on their code behind a loading screen.
+const loadStartFlow = () => import('@/features/start/StartFlow');
+const StartFlow = lazy(loadStartFlow);
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
 // PerformanceView and PracticeView — the `unifiedReader` Labs flag graduated
 // 2026-08-11 and the three old surfaces were deleted on 2026-10-11.
@@ -245,12 +249,25 @@ export default function App() {
   ));
   // The church/band this account asked us to set up (the "after sign-up"
   // screens, lib/startFlow): from this device, else from the account.
-  const [startRequest, setStartRequest] = useState(null);
+  // Worked out during render when the account changes (not in an effect),
+  // so the first signed-in frame already knows whether set-up is unfinished.
   const startRequestUser = user?.id || null;
   const startRequestMeta = user?.user_metadata?.start_request;
+  const readStartRequest = () => (startRequestUser ? storedRequest(sentChurchRequest(startRequestUser), { start_request: startRequestMeta }) : null);
+  const [startRequestState, setStartRequestState] = useState(() => ({ user: startRequestUser, meta: startRequestMeta, value: readStartRequest() }));
+  let startRequest = startRequestState.value;
+  if (startRequestState.user !== startRequestUser || startRequestState.meta !== startRequestMeta) {
+    startRequest = readStartRequest();
+    setStartRequestState({ user: startRequestUser, meta: startRequestMeta, value: startRequest });
+  }
+  const setStartRequest = useCallback((value) => {
+    setStartRequestState(prev => ({ ...prev, value: typeof value === 'function' ? value(prev.value) : value }));
+  }, []);
+  // The set-up screens (and Join another team) load their code as soon as
+  // someone is signed in, so opening them never shows a loading screen.
   useEffect(() => {
-    setStartRequest(startRequestUser ? storedRequest(sentChurchRequest(startRequestUser), { start_request: startRequestMeta }) : null);
-  }, [startRequestUser, startRequestMeta]);
+    if (startRequestUser) loadStartFlow().catch(() => { /* offline: Suspense retries */ });
+  }, [startRequestUser]);
   // After joining, switch into the new Space as soon as TeamProvider has it:
   // { teamId, view }. Membership loads asynchronously after approval.
   const [pendingSpaceSwitch, setPendingSpaceSwitch] = useState(null);
@@ -263,6 +280,8 @@ export default function App() {
   const [editNewTitle, setEditNewTitle] = useState('');
   // A new song's details, filled in the Add-a-song sheet before the editor opens.
   const [editNewDetails, setEditNewDetails] = useState(null);
+  // The song page's empty chart: open the editor on paste or write (2026-11-20).
+  const [editStart, setEditStart] = useState(null);
   const [currentSetlist, setCurrentSetlist] = useState(null);
   const [settings, setSettings] = useState(null);
   useChartTheme(settings);
@@ -328,6 +347,8 @@ export default function App() {
   const [importQueue, setImportQueue] = useState(null);
   // Walking a leader through the batch-imported songs still tagged "To check".
   const [checkRun, setCheckRun] = useState(false);
+  // Songs skipped in this Check next run: they stay "To check" but don't come round again.
+  const checkSkipped = useRef(new Set());
   // The church switcher, opened from the church name in the top bar.
   const [churchSheetOpen, setChurchSheetOpen] = useState(false);
   // Join another team: the invite-code screen over the app (2026-11-20).
@@ -992,7 +1013,7 @@ export default function App() {
 
   // Navigation with history stack. Not memoised — captures current state
   // through snapshot() on each call, which is what we want for back/forward.
-  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle, newDetails } = {}) => {
+  const navigate = (nextView, { song, setlist, replace, arrangementId, newTitle, newDetails, start } = {}) => {
     // Central gate for read-only team members (audit D-1): every editor entry
     // point funnels through here, so members can't reach the editor and lose
     // work to the server-authoritative sync (RLS already blocks their writes).
@@ -1005,6 +1026,7 @@ export default function App() {
       // Seed title for a brand-new song, carried from the Add-a-song search box.
       setEditNewTitle(newTitle || '');
       setEditNewDetails(newDetails || null);
+      setEditStart(start || null);
     }
     setView(nextView);
     // Entering Settings fresh always lands on the hub.
@@ -1257,9 +1279,9 @@ export default function App() {
     // hub's default Chart tab.
     navigate('song-hub', { song });
   };
-  const goEditor = (song = null, arrangementId = null, newTitle = '', newDetails = null) => {
+  const goEditor = (song = null, arrangementId = null, newTitle = '', newDetails = null, start = null) => {
     if (isTeamReadOnly) return;
-    navigate('editor', { song, arrangementId, newTitle, newDetails });
+    navigate('editor', { song, arrangementId, newTitle, newDetails, start });
   };
   const [newSetlistOpen, setNewSetlistOpen] = useState(false);
   // What the new editor (SongEdit) edits. It only speaks the v2 shape, so a
@@ -1478,7 +1500,7 @@ export default function App() {
 
     // Checking batch-imported songs: straight on to the next one.
     if (checkRun) {
-      const next = songs.find(s => s.id !== song.id && needsCheck(s));
+      const next = songs.find(s => s.id !== song.id && needsCheck(s) && !checkSkipped.current.has(s.id));
       if (next) { navigate('editor', { song: next, replace: true }); return; }
       setCheckRun(false);
       toast({ title: 'All imported songs checked' });
@@ -1854,7 +1876,8 @@ export default function App() {
     const kept = list.length - fresh.length;
     toast({
       title: fresh.length === 1 ? `Added "${fresh[0].title || 'Untitled'}"` : fresh.length ? `Added ${fresh.length} songs` : 'Already in Songs',
-      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.` : 'Tagged “To check” in Songs.',
+      description: kept ? `${kept === 1 ? 'One song was' : `${kept} songs were`} already in Songs, so the setlist uses ${kept === 1 ? 'that one' : 'those'}.`
+        : fresh.some(needsCheck) ? 'Added to Songs and to this setlist. Tagged “To check” in Songs.' : 'Added to Songs and to this setlist.',
     });
     return out;
   };
@@ -2193,8 +2216,11 @@ export default function App() {
   // Signed in and the space not fully known yet: the app's shape in grey,
   // never a half-filled Home. One loading screen, not a skeleton and
   // then a logo splash.
-  if (settlingHomeSpace) return <AppSkeleton />;
-  if (!loaded && !publicView && (authLoading || user?.id)) return <AppSkeleton />;
+  // No team coming (signed out, or not in one yet): the page colour only,
+  // never a team space that flashes before the welcome or set-up screens.
+  const launchPlaceholder = expectsTeam(user?.id) ? <AppSkeleton /> : <PlainLoading />;
+  if (settlingHomeSpace) return launchPlaceholder;
+  if (!loaded && !publicView && (authLoading || user?.id)) return launchPlaceholder;
   if (!loaded) {
     return (
       <div className="min-h-screen bg-[var(--ds-background-200)] flex flex-col items-center justify-center gap-6">
@@ -2322,7 +2348,7 @@ export default function App() {
   if (startShows) {
     return (
       <ErrorBoundary>
-        <Suspense fallback={<AppSkeleton />}>
+        <Suspense fallback={<PlainLoading />}>
           <StartFlow
             screen={startShows}
             user={user}
@@ -2439,10 +2465,11 @@ export default function App() {
               readOnly={isTeamReadOnly}
               onOpenSong={goChart}
               onEditSong={isTeamReadOnly ? null : (s) => goEditor(s)}
+              onNewSetlist={isTeamReadOnly ? null : () => goSetlistBuild()}
               onImportSongs={isTeamReadOnly ? null : handleAddImportedSongs}
               onImportSetlistFile={isTeamReadOnly ? null : handleImportSetlist}
               onEditImported={isTeamReadOnly ? null : handleEditImportedSong}
-              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { setCheckRun(true); goEditor(first); } }}
+              onCheckNext={isTeamReadOnly ? null : () => { const first = songs.find(needsCheck); if (first) { checkSkipped.current = new Set(); setCheckRun(true); goEditor(first); } }}
               onBlank={isTeamReadOnly ? null : (details) => goEditor(null, null, '', details || null)}
               onTagSongs={isTeamReadOnly ? null : handleTagSongs}
               onDeleteSongs={isTeamReadOnly ? null : handleDeleteSongs}
@@ -2474,9 +2501,8 @@ export default function App() {
               key={currentSong.id}
               song={currentSong}
               setlists={setlists}
-              onOpenSetlist={goSetlistView}
               onBack={goBack}
-              onEdit={isTeamReadOnly ? null : (arrId) => goEditor(currentSong, arrId)}
+              onEdit={isTeamReadOnly ? null : (arrId, start) => goEditor(currentSong, arrId, '', null, start)}
               onPlay={(arrId) => playSongCasually(currentSong, arrId)}
               onDelete={!isTeamReadOnly ? async () => {
                 // QA 11 Nov (row 178): one tap in the ⋯ deleted a song from the
@@ -2523,7 +2549,17 @@ export default function App() {
               historyTeamId={activeLibrary}
               mode={editTarget.mode}
               askDetails={!editNewDetails}
-              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? { left: songs.filter(needsCheck).length } : null}
+              start={editStart}
+              checking={checkRun && editTarget.mode === 'edit' && needsCheck(editTarget.song) ? {
+                left: songs.filter(s => needsCheck(s) && !checkSkipped.current.has(s.id)).length,
+                onSkip: () => {
+                  checkSkipped.current.add(editTarget.song.id);
+                  const next = songs.find(s => needsCheck(s) && !checkSkipped.current.has(s.id));
+                  if (next) { navigate('editor', { song: next, replace: true }); return; }
+                  setCheckRun(false);
+                  goToMainView('library');
+                },
+              } : null}
               settings={settings}
               onUpdateSettings={(key, value) => setSettings(prev => ({ ...prev, [key]: value }))}
               initialArrangementId={editArrangementId}
