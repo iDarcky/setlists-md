@@ -36,6 +36,9 @@ export function JoinOrCreateView({ name, onJoin, onCreate, onSignOut, embedded }
 }) {
   return (
     <AuthLayout embedded={embedded}>
+      {/* The bar from the first step (QA 22 Nov 2026). Five, like creating;
+          joining has fewer and its next screens say so. */}
+      <Progress step={1} of={5} />
       <AuthHeader title={name ? `Hi ${name}, let’s get you set up` : 'Let’s get you set up'} />
       <div className="grid grid-cols-2 gap-3">
         <Tile icon={<Link2 size={20} strokeWidth={1.8} />} title="Join a team" body="Your leader gave you a code or a link." onClick={onJoin} />
@@ -61,7 +64,9 @@ export function EnterCodeView({ onCode, answer, error, onPasteLink, onBack, busy
     <AuthLayout onBack={onBack} embedded={embedded}>
       <Progress step={2} of={3} />
       <AuthHeader title="Enter your invite code" sub="Ask your leader for the 6-character code." />
-      <div className="flex justify-center">
+      {/* Left, under the heading; the boxes one step lighter than the page
+          so they read as fields in dark mode (QA 22 Nov 2026). */}
+      <div className="otp-on-page flex justify-start">
         <OneTimeCode length={6} letters answer={answer ?? null} onFull={onCode} label="Invite code, 6 characters" />
       </div>
       {error && <Alert variant="danger">{error}</Alert>}

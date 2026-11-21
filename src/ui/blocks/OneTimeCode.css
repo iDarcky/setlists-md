@@ -136,3 +136,7 @@
   from { opacity: 1; }
   to { opacity: 0.25; }}
 
+
+/* On a page (not a card), dark mode: the boxes one step lighter than the
+   page so they read as fields (QA 22 Nov 2026). Light keeps white. */
+:root:not([data-theme="light"]) .otp-on-page .otp-cell { background: var(--raised); }

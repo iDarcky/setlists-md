@@ -8,7 +8,7 @@ import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
 import AppSkeleton, { PlainLoading } from "@/ui/AppSkeleton";
-import { expectsTeam } from "@/lib/launchCache";
+import { expectsTeam, cachedProfile, cacheProfile } from "@/lib/launchCache";
 import { introBackOwnsHistory } from "@/lib/introBack";
 import { isQuotaError } from "@/lib/storageErrors";
 import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
@@ -191,11 +191,19 @@ export default function App() {
   const signedOutSettled = !authLoading && !user?.id;
   // Launch: give memberships a few seconds to say which church to open before
   // falling back to whatever is open (offline, slow network).
-  const [homeSpaceTimedOut, setHomeSpaceTimedOut] = useState(false);
+  // The clock restarts for each account: a sign-up that takes longer than
+  // the wait must not find it already spent, or Home flashes before the
+  // set-up screens (QA 22 Nov 2026, account deleted and made again).
+  const homeSpaceKey = user?.id || 'anon';
+  const [homeSpaceTimedOutFor, setHomeSpaceTimedOutFor] = useState(null);
   useEffect(() => {
-    const t = setTimeout(() => setHomeSpaceTimedOut(true), 4000);
+    const t = setTimeout(() => setHomeSpaceTimedOutFor(homeSpaceKey), 4000);
     return () => clearTimeout(t);
-  }, []);
+  }, [homeSpaceKey]);
+  const homeSpaceTimedOut = homeSpaceTimedOutFor === homeSpaceKey;
+  // Name and photo from the last launch until the profile row arrives.
+  const savedMe = useMemo(() => cachedProfile(user?.id), [user?.id]);
+  useEffect(() => { if (user?.id && profile) cacheProfile(user.id, profile); }, [user?.id, profile]);
   const { schedules, loaded: schedulesLoaded, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
@@ -2278,7 +2286,9 @@ export default function App() {
   );
 
   const isSignedIn = !!user;
-  const displayName = profile?.display_name || settings?.userName || 'Guest';
+  const meName = profile?.display_name || savedMe?.display_name || user?.user_metadata?.name || user?.user_metadata?.full_name || settings?.userName || '';
+  const meAvatar = profile ? (profile.avatar_url || null) : (savedMe?.avatar_url || null);
+  const displayName = meName || 'Guest';
   const displayEmail = user?.email || 'guest@setlists.md';
   const currentWorkspaceName = teams.find(t => t.id === activeLibrary)?.name || team?.name || 'Team';
   currentWorkspaceNameRef.current = currentWorkspaceName;
@@ -2318,7 +2328,7 @@ export default function App() {
           />
         ),
       }}
-      me={{ name: displayName, url: profile?.avatar_url || null }}
+      me={{ name: displayName, url: meAvatar }}
       meBadge={pendingJoinCount}
       sync={topSync}
       onOpenYou={leaveEditing(() => navigate('you'))}
@@ -2361,7 +2371,7 @@ export default function App() {
           <StartFlow
             screen={startShows}
             user={user}
-            displayName={profile?.display_name || settings?.userName || ''}
+            displayName={meName}
             request={startRequest}
             team={teams[0] || null}
             onRequestChange={setStartRequest}
@@ -2742,7 +2752,7 @@ export default function App() {
           )}
           {view === "you" && settings && (
             <YouPage
-              me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
+              me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: meAvatar }}
               signedIn={isSignedIn}
               syncState={syncState}
               online={isOnline}

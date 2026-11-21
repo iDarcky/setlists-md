@@ -9,6 +9,7 @@ import { needsCheck } from '@/lib/importCheck';
 import { usePushSubscription } from '@/push/usePushSubscription';
 import HomeView from './HomeView';
 import { HomeSkeleton } from '@/ui/AppSkeleton';
+import { useImagesReady } from '@/hooks/useImagesReady';
 import { partLabel, normalize } from '@/data/instruments';
 import { PartsSheet } from '@/features/team/PartsPicker';
 import { membersWithoutParts } from '@/lib/memberInstruments';
@@ -42,7 +43,8 @@ export default function Home({
   // block at a time (owner, 21 Nov 2026). A grey Home until they're in; a
   // slow or offline connection gets what's there after 2.5 s.
   const [waitedOut, setWaitedOut] = useState(false);
-  const dataReady = !team || (activityReady && membersReady);
+  const facesReady = useImagesReady(team ? (members || []).map(m => m?.profile?.avatar_url) : []);
+  const dataReady = !team || (activityReady && membersReady && facesReady);
   useEffect(() => {
     if (dataReady) return undefined;
     const t = setTimeout(() => setWaitedOut(true), 2500);
