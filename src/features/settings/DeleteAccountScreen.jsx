@@ -6,9 +6,11 @@ import { useTeam } from '@/auth/useTeam';
 import { clearAll } from '@/storage';
 import { LAST_EMAIL_KEY } from '@/lib/lastEmail';
 import { DeleteAccountView } from '@/features/intro/IntroAuthViews';
+import { pickSuccessor, memberName } from '@/lib/deleteAccount';
 
 // "Delete your account?" (E3, 2026-11-20), over everything. The warning says
-// what the delete-account function will do to the team this person owns.
+// what the delete-account function will do to the team this person owns,
+// naming who gets it (22 Nov 2026).
 export default function DeleteAccountScreen({ onCancel, onSignOut }) {
   const { user, deleteAccount } = useAuth();
   const { team, teams, members } = useTeam();
@@ -16,20 +18,32 @@ export default function DeleteAccountScreen({ onCancel, onSignOut }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const ownedTeam = (teams || []).find(t => t.owner_id === user?.id) || null;
-  // Known at once for the open team; otherwise counted on the server.
-  const known = ownedTeam && team?.id === ownedTeam.id && members.length > 0 ? members.length : null;
-  const [count, setCount] = useState(known);
+  // The open team's roster is here already; another owned team is read once.
+  const local = ownedTeam && team?.id === ownedTeam.id && members.length > 0 ? members : null;
+  const [fetched, setFetched] = useState(null);
 
   useEffect(() => {
-    if (!ownedTeam || known != null || !supabase) return undefined;
+    if (!ownedTeam || local || !supabase) return undefined;
     let cancelled = false;
-    supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', ownedTeam.id)
-      .then(({ count: n }) => { if (!cancelled && typeof n === 'number') setCount(n); });
+    (async () => {
+      const { data: rows } = await supabase.from('team_members')
+        .select('user_id, role, joined_at').eq('team_id', ownedTeam.id);
+      let profiles = [];
+      try {
+        const { data } = await supabase.rpc('get_team_member_profiles', { p_team_id: ownedTeam.id });
+        profiles = data || [];
+      } catch { /* names fall back to "Another leader" */ }
+      const byId = Object.fromEntries(profiles.map(p => [p.user_id, p]));
+      if (!cancelled && rows) setFetched(rows.map(r => ({ ...r, profile: byId[r.user_id] || null })));
+    })();
     return () => { cancelled = true; };
-  }, [ownedTeam, known]);
+  }, [ownedTeam, local]);
 
-  const people = known ?? count;
-  const owned = ownedTeam && people != null ? { name: ownedTeam.name, alone: people <= 1 } : null;
+  const roster = local || fetched;
+  const next = roster ? pickSuccessor(roster, user?.id) : null;
+  const owned = ownedTeam
+    ? { name: ownedTeam.name, alone: roster ? !next : null, successor: next ? memberName(next) : null }
+    : null;
 
   const remove = async () => {
     setBusy(true);

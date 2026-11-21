@@ -229,30 +229,39 @@ export function SigningInView({ error, onBack, label = 'Signing you in…', embe
 
 /**
  * What happens to the team the person owns decides the warning
- * (supabase/functions/delete-account): it passes to another leader (or the
- * person who joined first), or, when the owner is alone in it, it goes too.
+ * (supabase/functions/delete-account): it passes to the earliest leader (or
+ * the person who joined first), and the screen names them; when the owner is
+ * alone in it, it goes too. An owner confirms by typing the team's name,
+ * anyone else types DELETE (QA 22 Nov 2026: "lock" it, more danger, short).
+ * `alone: null` while the people are still being counted.
  */
-export type OwnedTeam = { name: string; alone: boolean } | null;
+export type OwnedTeam = { name: string; alone: boolean | null; successor?: string | null } | null;
 
 export function DeleteAccountView({ owned, teamName, confirm, onConfirmChange, onDelete, onCancel, busy, error, embedded }: {
   owned: OwnedTeam; teamName?: string | null; confirm: string; onConfirmChange: (v: string) => void;
   onDelete: () => void; onCancel: () => void; busy?: boolean; error?: string | null; embedded?: boolean;
 }) {
   const uid = useId();
-  const ready = confirm.trim().toUpperCase() === 'DELETE';
-  const keeps = owned ? (owned.alone ? null : owned.name) : teamName;
+  const word = owned ? owned.name : 'DELETE';
+  const checking = !!owned && owned.alone == null;
+  const ready = !checking && confirm.trim().toLowerCase() === word.trim().toLowerCase();
   return (
     <AuthLayout onBack={onCancel} embedded={embedded}>
-      <div className="self-center"><IconSquare><TriangleAlert size={22} strokeWidth={1.8} /></IconSquare></div>
-      <AuthHeader
-        title="Delete your account?"
-        sub={`Your name and email are removed for good.${keeps ? ` Songs you added stay with ${keeps}.` : ''}`}
-      />
-      {owned && (owned.alone
-        ? <Alert variant="danger">You’re the only one in {owned.name}, so it’s deleted too, with all its songs and setlists.</Alert>
-        : <Alert variant="info">You own {owned.name}. It passes to another leader, or to the person who joined first.</Alert>)}
+      <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center self-center rounded-control bg-danger-fill text-danger-text">
+        <TriangleAlert size={22} strokeWidth={1.8} />
+      </span>
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h1 className="m-0 text-title text-danger-text">Delete your account?</h1>
+        <p className="m-0 text-body text-muted-foreground">This can’t be undone.</p>
+      </div>
+      {owned && (checking
+        ? <Alert variant="info">Checking who else is in {owned.name}…</Alert>
+        : owned.alone
+          ? <Alert variant="danger">You’re the only one in {owned.name}, so it’s deleted too, with all its songs and setlists.</Alert>
+          : <Alert variant="info">{owned.successor || 'Another leader'} will own {owned.name}. The team, its songs and setlists stay.</Alert>)}
+      {!owned && teamName && <p className="m-0 text-center text-small text-muted-foreground">Songs you added stay with {teamName}.</p>}
       <form id={`${uid}-form`} onSubmit={(e) => { e.preventDefault(); if (ready) onDelete(); }} noValidate>
-        <LabelInput fill label="Type DELETE to confirm" autoComplete="off" autoCapitalize="characters" name="confirm-delete"
+        <LabelInput fill label={`Type ${word} to confirm`} autoComplete="off" autoCapitalize={owned ? 'none' : 'characters'} name="confirm-delete"
           value={confirm} onChange={e => onConfirmChange(e.target.value)} onFocus={scrollFieldIntoView} />
       </form>
       {error && <Alert variant="danger">{error}</Alert>}
