@@ -8,7 +8,8 @@ import { useConfirm } from "@/ui/useConfirmHook";
 import OfflineBanner from "@/ui/OfflineBanner";
 import StatusScreen from "@/ui/StatusScreen";
 import AppSkeleton, { PlainLoading } from "@/ui/AppSkeleton";
-import { expectsTeam } from "@/lib/launchCache";
+import { expectsTeam, cachedProfile, cacheProfile } from "@/lib/launchCache";
+import { introBackOwnsHistory } from "@/lib/introBack";
 import { isQuotaError } from "@/lib/storageErrors";
 import { ChurchPickerSheet } from "@/features/songs/SongsSheets";
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
@@ -121,6 +122,9 @@ const SharedSetlistViewer = lazy(() => import('@/features/sharing/SharedSetlistV
 const JoinFlow = lazy(() => import('@/features/join/JoinFlow'));
 // Fetched early for anyone without a team (see the preload effect), so the
 // set-up screens never wait on their code behind a loading screen.
+// Views only someone signed out sees; Back never returns to them once signed in.
+const SIGNED_OUT_VIEWS = ['signin', 'onboarding', 'recovery'];
+
 const loadStartFlow = () => import('@/features/start/StartFlow');
 const StartFlow = lazy(loadStartFlow);
 // THE reader. One viewer for the whole set, in place of SetlistPlayer,
@@ -187,11 +191,19 @@ export default function App() {
   const signedOutSettled = !authLoading && !user?.id;
   // Launch: give memberships a few seconds to say which church to open before
   // falling back to whatever is open (offline, slow network).
-  const [homeSpaceTimedOut, setHomeSpaceTimedOut] = useState(false);
+  // The clock restarts for each account: a sign-up that takes longer than
+  // the wait must not find it already spent, or Home flashes before the
+  // set-up screens (QA 22 Nov 2026, account deleted and made again).
+  const homeSpaceKey = user?.id || 'anon';
+  const [homeSpaceTimedOutFor, setHomeSpaceTimedOutFor] = useState(null);
   useEffect(() => {
-    const t = setTimeout(() => setHomeSpaceTimedOut(true), 4000);
+    const t = setTimeout(() => setHomeSpaceTimedOutFor(homeSpaceKey), 4000);
     return () => clearTimeout(t);
-  }, []);
+  }, [homeSpaceKey]);
+  const homeSpaceTimedOut = homeSpaceTimedOutFor === homeSpaceKey;
+  // Name and photo from the last launch until the profile row arrives.
+  const savedMe = useMemo(() => cachedProfile(user?.id), [user?.id]);
+  useEffect(() => { if (user?.id && profile) cacheProfile(user.id, profile); }, [user?.id, profile]);
   const { schedules, loaded: schedulesLoaded, updateSchedule, createSchedule, deleteSchedule } = useTeamSchedules(team?.id);
   const { notifications: teamNotifications, markRead: markTeamNotifRead, dismiss: dismissTeamNotif, dismissAll: dismissAllTeamNotifs } = useTeamNotifications(team?.id);
   // Who may change the shared library — answered once, in `lib/teamRoles.js`.
@@ -399,6 +411,8 @@ export default function App() {
   // outlives any one triggerSync closure.
   const triggerSyncRef = useRef(null);
   const historyRef = useRef([]);
+  // Whether someone is signed in, for goBack (set during render).
+  const signedInRef = useRef(false);
   const quotaWarnedRef = useRef(false);
   // A save this device refused. Out of space gets a drawer that says what to
   // do, once per session; anything else is logged, as before.
@@ -1040,7 +1054,10 @@ export default function App() {
   };
 
   const goBack = useCallback(() => {
-    const prev = historyRef.current.pop();
+    // Signed in, the signed-out screens (Welcome, Log in) are never a step
+    // back: QA 21 Nov, Back from Join or create landed on Log in.
+    let prev = historyRef.current.pop();
+    while (prev && signedInRef.current && SIGNED_OUT_VIEWS.includes(prev.view)) prev = historyRef.current.pop();
     if (prev) {
       setView(prev.view);
       setCurrentSong(prev.song);
@@ -1104,6 +1121,9 @@ export default function App() {
 
   useEffect(() => {
     const handler = () => {
+      // A set-up or sign-in screen with ← Back handles the pop itself
+      // (AuthLayout's own history entry); the app must not move underneath.
+      if (introBackOwnsHistory()) return;
       if (historyRef.current.length === 0) return;
       // Browser/hardware back out of a dirty builder: the back already moved
       // one entry, so re-push to stay put while we ask. On discard we set the
@@ -2206,7 +2226,10 @@ export default function App() {
   // password reset) draw at once.
   const publicView = ['share-view', 'join', 'recovery', 'auth-callback', 'signin', 'onboarding'].includes(view) || view.startsWith('legal-');
   const settlingHomeSpace = !publicView && waitingForHomeSpace({
-    userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut,
+    // The timer is only for someone with a team on this device (offline or
+    // a slow network: open what's here). Nobody else gets the app before
+    // the server answers (owner, 22 Nov 2026).
+    userId: user?.id, authLoading, teamsLoaded, activeLibrary, timedOut: homeSpaceTimedOut && expectsTeam(user?.id),
     loaded, teamId: team?.id || null, schedulesLoaded: !team?.id || schedulesLoaded,
     teamCount: teams.length,
   });
@@ -2266,7 +2289,9 @@ export default function App() {
   );
 
   const isSignedIn = !!user;
-  const displayName = profile?.display_name || settings?.userName || 'Guest';
+  const meName = profile?.display_name || savedMe?.display_name || user?.user_metadata?.name || user?.user_metadata?.full_name || settings?.userName || '';
+  const meAvatar = profile ? (profile.avatar_url || null) : (savedMe?.avatar_url || null);
+  const displayName = meName || 'Guest';
   const displayEmail = user?.email || 'guest@setlists.md';
   const currentWorkspaceName = teams.find(t => t.id === activeLibrary)?.name || team?.name || 'Team';
   currentWorkspaceNameRef.current = currentWorkspaceName;
@@ -2306,7 +2331,7 @@ export default function App() {
           />
         ),
       }}
-      me={{ name: displayName, url: profile?.avatar_url || null }}
+      me={{ name: displayName, url: meAvatar }}
       meBadge={pendingJoinCount}
       sync={topSync}
       onOpenYou={leaveEditing(() => navigate('you'))}
@@ -2323,7 +2348,6 @@ export default function App() {
     if (!ok) return;
     try {
       await signOut();
-      toast({ title: 'Signed out' });
       // Back to the welcome screen (the gate does the rest): signing out
       // isn't a way to keep using the app without an account.
       goToMainView('home');
@@ -2334,6 +2358,7 @@ export default function App() {
 
   // No church or band yet: the "after sign-up" screens take the place of the
   // app until one exists (church/band request -> Waiting for approval -> ready).
+  signedInRef.current = !!user?.id;
   const startShows = startScreen({
     signedIn: !!user?.id,
     teamsLoaded,
@@ -2349,7 +2374,7 @@ export default function App() {
           <StartFlow
             screen={startShows}
             user={user}
-            displayName={profile?.display_name || settings?.userName || ''}
+            displayName={meName}
             request={startRequest}
             team={teams[0] || null}
             onRequestChange={setStartRequest}
@@ -2730,7 +2755,7 @@ export default function App() {
           )}
           {view === "you" && settings && (
             <YouPage
-              me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: profile?.avatar_url || null }}
+              me={{ name: displayName, email: isSignedIn ? displayEmail : null, url: meAvatar }}
               signedIn={isSignedIn}
               syncState={syncState}
               online={isOnline}

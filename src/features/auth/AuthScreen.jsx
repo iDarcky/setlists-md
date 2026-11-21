@@ -44,7 +44,9 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
   }, [resendAt, now]);
 
   const change = (field, value) => setValues(v => ({ ...v, [field]: value }));
-  const go = (next) => { setMode(next); setMessage(null); setResetSent(false); };
+  // Switching screens keeps the email and drops the password (QA 21 Nov:
+  // Log in → Create account carried both).
+  const go = (next) => { setMode(next); setMessage(null); setResetSent(false); setValues(v => ({ ...v, password: '' })); };
 
   const run = async (target, fn) => {
     setBusy(target);
@@ -120,6 +122,7 @@ export default function AuthScreen({ onBack, onSignedIn, defaultMode = 'signin',
       <CheckEmailView
         email={confirming ? pendingVerification : values.email.trim()}
         what={confirming ? 'a link to confirm your account' : 'a link to pick a new password'}
+        ifAccount={!confirming}
         onResend={confirming ? resend : resendReset}
         onBack={() => { setPendingVerification(null); go(confirming ? 'signup' : 'signin'); }}
         resendLeft={resendLeft}

@@ -137,7 +137,7 @@ export function Progress({ step, of }: { step: number; of: number }) {
 /** Instruments as wrapping pills; picked = ink fill, no tick, so nothing moves when you tap (2026-11-20). */
 export function PartPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   return (
-    <div role="group" aria-label="What do you play?" className="flex flex-wrap gap-2">
+    <div role="group" aria-label="What do you play?" className="flex flex-wrap justify-center gap-2">
       {JOIN_PARTS.map((p: { id: string; label: string }) => {
         const on = value.includes(p.id);
         return (

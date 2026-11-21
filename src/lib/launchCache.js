@@ -97,3 +97,16 @@ export function expectsTeam(userId) {
 export function clearLaunchCache(userId) {
   try { if (userId && typeof localStorage !== 'undefined') localStorage.removeItem(PREFIX + userId); } catch { /* ignore */ }
 }
+
+// The account's own name and photo, so a reload greets "Hi Dan" at once
+// instead of "Guest" until the profile row arrives (owner, 22 Nov 2026).
+// Only these two fields: preferences must still come from the server.
+export function cachedProfile(userId) {
+  const v = read(userId)?.profile;
+  return v && typeof v === 'object' ? v : null;
+}
+
+export function cacheProfile(userId, profile) {
+  if (!profile) return;
+  write(userId, { profile: { display_name: profile.display_name || null, avatar_url: profile.avatar_url || null } });
+}
