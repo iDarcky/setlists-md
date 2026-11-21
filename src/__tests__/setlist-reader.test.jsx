@@ -778,12 +778,12 @@ describe('edit mode — locking and the section controls', () => {
     );
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Practice tools' }));
-    expect(screen.getByLabelText('Click tempo up')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start the click' })).toBeTruthy();
     // Two bars at the bottom edge, never three — element 12's rule, and the
     // edit row is the third if the practice row stays open.
     openSongActions();
     fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
-    expect(screen.queryByLabelText('Click tempo up')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Start the click' })).toBeNull();
   });
 
   it('gives each section a pencil and a trash, and edits the words as text', () => {

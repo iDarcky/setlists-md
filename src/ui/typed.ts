@@ -48,3 +48,31 @@ export const Sheet = SheetJs as unknown as ComponentType<Kids & {
   footer?: ReactNode;
   dismissible?: boolean;
 }>;
+
+// Song page (2026-11-20).
+import { ListRow as ListRowJs } from '@/ui/shadcn/list-row';
+import { Segmented as SegmentedJs } from '@/ui/shadcn/segmented';
+
+export const ListRow = ListRowJs as unknown as ComponentType<Kids & {
+  title?: ReactNode;
+  sub?: ReactNode;
+  leading?: ReactNode;
+  trailing?: ReactNode;
+  chevron?: boolean;
+  size?: 'compact' | 'default' | 'tall';
+  weight?: 'regular' | 'medium' | 'strong';
+  onClick?: () => void;
+  as?: 'a' | 'div' | 'button';
+  href?: string;
+  target?: string;
+  rel?: string;
+}>;
+
+export const Segmented = SegmentedJs as unknown as ComponentType<{
+  value: string;
+  options: { value: string; label: ReactNode }[];
+  onChange: (value: string) => void;
+  label: string;
+  size?: 'sm' | 'default';
+  className?: string;
+}>;
