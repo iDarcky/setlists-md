@@ -52,7 +52,7 @@ export default defineConfig({
         test: {
           name: 'logic',
           environment: 'node',
-          include: ['src/**/*.test.js'],
+          include: ['src/**/*.test.js', 'src/**/*.test.ts'],
           restoreMocks: true,
         },
       },
@@ -61,7 +61,7 @@ export default defineConfig({
         test: {
           name: 'ui',
           environment: 'jsdom',
-          include: ['src/**/*.test.jsx'],
+          include: ['src/**/*.test.jsx', 'src/**/*.test.tsx'],
           setupFiles: ['./vitest.setup.js'],
           restoreMocks: true,
         },

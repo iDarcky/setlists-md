@@ -133,7 +133,14 @@ length = 4,
 /* what a full row gets back */
 answer = "Accept", 
 /* the cells' corner, px; the capsule wears the same one */
-corner = 8, /* Setlists.md: our control corner (was 12) */ } = {}) {
+corner = 8, /* Setlists.md: our control corner (was 12) */
+/* Setlists.md: letters too (join codes), shown in capitals */
+letters = false,
+/* Setlists.md: a real check. With onFull, a full row waits in "check"
+   until `answer` turns "Accept" or "Reject"; `answer` null = still checking. */
+onFull,
+/* Setlists.md: the screen reader's name for the field */
+label, } = {}) {
     const n = length === 4 ? 4 : 6;
     const r = clamp(corner, 0, H / 2);
     const rowW = n * W + (n - 1) * G;
@@ -235,7 +242,7 @@ corner = 8, /* Setlists.md: our control corner (was 12) */ } = {}) {
     const onChange = (raw) => {
         if (phase !== "type")
             return;
-        const next = raw.replace(/\D/g, "").slice(0, n);
+        const next = (letters ? raw.toLowerCase().replace(/[^a-z0-9]/g, "") : raw.replace(/\D/g, "")).slice(0, n);
         /* each new digit swells its cell — a paste runs along the row */
         if (!still && next.length > code.length) {
             const t0 = performance.now();
@@ -248,6 +255,11 @@ corner = 8, /* Setlists.md: our control corner (was 12) */ } = {}) {
             return;
         /* full: a beat of checking, then the answer */
         setPhase("check");
+        /* Setlists.md: someone else answers (the effect below) */
+        if (onFull) {
+            onFull(next);
+            return;
+        }
         later(() => {
             if (answer !== "Reject") {
                 setPhase("ok");
@@ -265,6 +277,26 @@ corner = 8, /* Setlists.md: our control corner (was 12) */ } = {}) {
             }
         }, still ? 0 : 420);
     };
+    /* Setlists.md: the outside answer to a full row */
+    useEffect(() => {
+        if (!onFull || phase !== "check")
+            return;
+        if (answer === "Accept") {
+            setPhase("ok");
+            fuse(1);
+            input.current?.blur();
+        }
+        else if (answer === "Reject") {
+            setPhase("no");
+            shook.current = performance.now();
+            wake();
+            later(() => {
+                setCode("");
+                setPhase("type");
+                input.current?.focus();
+            }, SHAKE_MS + n * 45 + 160);
+        }
+    }, [answer, phase]);
     /* pressing the capsule splits it back into empty cells */
     const reopen = () => {
         if (phase !== "ok")
@@ -348,7 +380,7 @@ corner = 8, /* Setlists.md: our control corner (was 12) */ } = {}) {
                     opacity: 1 - smooth(0, 0.45, m),
                 }}>
               {d && (<span key={`${i}-${d}`} className="otp-digit" style={{ translate: `0 ${(out * 8).toFixed(2)}px`, opacity: 1 - out }}>
-                  {d}
+                  {letters ? d.toUpperCase() : d}
                 </span>)}
             </span>);
         })}
@@ -370,10 +402,10 @@ corner = 8, /* Setlists.md: our control corner (was 12) */ } = {}) {
         <input ref={input} className="otp-field" value={code} onChange={(e) => onChange(e.target.value)} onFocus={() => setFocus(true)} onBlur={() => setFocus(false)} onPointerDown={(e) => { if (phase === "ok") {
         e.preventDefault();
         reopen();
-    } }} inputMode="numeric" autoComplete="one-time-code" 
+    } }} inputMode={letters ? "text" : "numeric"} autoComplete={letters ? "off" : "one-time-code"} autoCapitalize={letters ? "characters" : undefined} autoCorrect="off" 
     /* a code box is not a login: keep the password managers'
        badges out of it, the way each of them asks */
-    data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" maxLength={n} aria-label={phase === "ok" ? "Verified. Press to enter a new code" : `${n}-digit code`} spellCheck={false}/>
+    data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" maxLength={n} aria-label={phase === "ok" ? "Verified. Press to enter a new code" : (label || `${n}-digit code`)} spellCheck={false}/>
       </div>
       {goo}
     </div>);

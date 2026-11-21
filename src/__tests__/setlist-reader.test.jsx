@@ -831,6 +831,43 @@ describe('edit mode — locking and the section controls', () => {
     expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[C]my [G]hope']);
   });
 
+  it('keeps chords typed in Source through a trip to Lyrics (INS-82)', () => {
+    const onUpdateSong = vi.fn();
+    open({ onUpdateSong });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
+    fireEvent.click(screen.getByText('Source'));
+    fireEvent.change(screen.getByLabelText('Section lyrics and chords'), { target: { value: '[G]  [D]\n[C]my hope' } });
+    fireEvent.click(screen.getByText('Lyrics'));
+    fireEvent.click(screen.getByText('Source'));
+    // Before: the trip went back to the SAVED lines, and the new chords were lost.
+    expect(screen.getByLabelText('Section lyrics and chords').value).toBe('[G]  [D]\n[C]my hope');
+  });
+
+  it('keeps chords on their lines when an empty-looking chord line is deleted in Lyrics (INS-82)', () => {
+    const onUpdateSong = vi.fn();
+    const chordLine = songFromFlat({
+      id: 'm3', title: 'Cornerstone', key: 'C',
+      sections: [{ type: 'Verse 1', lines: ['[G]  [D]', '[C]my hope'] }],
+    });
+    render(
+      <SetlistReader
+        setlist={{ id: 'sl6', items: [{ songId: 'm3' }] }} songs={[chordLine]}
+        settings={{}} mode="practice" onBack={() => {}} onFinish={() => {}}
+        onUpdateSong={onUpdateSong}
+      />
+    );
+    openSongActions();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit this song' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Verse 1' }));
+    const box = screen.getByLabelText('Section lyrics');
+    expect(box.value).toBe('  \nmy hope');
+    // The chord line looks empty in Lyrics; deleting it used to slide its
+    // chords onto "my hope" and drop the C.
+    fireEvent.change(box, { target: { value: 'my hope' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(onUpdateSong.mock.calls[0][0].sections[0].lines).toEqual(['[C]my hope']);
+  });
+
   it('leaves the song alone when the lyric edit is cancelled', () => {
     const onUpdateSong = vi.fn();
     open({ onUpdateSong });

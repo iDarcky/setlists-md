@@ -533,13 +533,18 @@ export function lineToPlacement(line) {
  
 // Convert placement model back to chord-annotated line
 // { plainText: "Amazing grace", chords: [{chord:"C",pos:0},{chord:"G",pos:8}] } → "[C]Amazing [G]grace"
+// Chords that share a position (a chord-only line like "[Am][G][C]" puts them
+// all at 0) keep the order they came in. Inserting them right to left used to
+// write such a line backwards (INS-82).
 export function placementToLine({ plainText, chords }) {
-  const sorted = [...chords].sort((a, b) => b.pos - a.pos);
-  let result = plainText;
+  const sorted = [...chords].sort((a, b) => a.pos - b.pos); // stable: ties keep their order
+  let result = '';
+  let at = 0;
   for (const c of sorted) {
-    result = result.slice(0, c.pos) + '[' + c.chord + ']' + result.slice(c.pos);
+    result += plainText.slice(at, c.pos) + '[' + c.chord + ']';
+    at = Math.max(at, c.pos);
   }
-  return result;
+  return result + plainText.slice(at);
 }
  
 // Serialize a tab block object back to ASCII

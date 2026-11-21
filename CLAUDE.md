@@ -63,7 +63,8 @@ The repo uses **no git tags**. After a release, check that `beta` still exists
 
 ## How the app is built
 
-**Stack:** Vite 7 · React 19 (JSX, no TypeScript yet) · Tailwind v4 +
+**Stack:** Vite 7 · React 19 (JSX; TypeScript only for new screens in
+`features/intro/`, `npm run typecheck`) · Tailwind v4 +
 shadcn/ui (Radix) · lucide-react icons · `motion` for animation · idb-keyval
 (IndexedDB) · vite-plugin-pwa · Supabase (auth, data, realtime, edge
 functions) · Vercel.
@@ -92,7 +93,8 @@ src/
 │   ├── songs/ · song-edit/   Songs tab + import · song editor and the new-song form
 │   ├── song/ · reader/       song page (SongHub) · THE reader (docs/READER.md)
 │   ├── you/ · settings/ · team/   profile, settings, church/team pages
-│   ├── auth/ · join/ · start/      signed-out screens, invite links, start a church
+│   ├── auth/ · join/ · start/      signed-out, invite-link and setting-up state (containers)
+│   ├── intro/                the first-run views (TypeScript): welcome, log in, join or create, codes
 │   └── …                     notifications, sharing, legal, onboarding, sync UI, older screens
 ├── auth/ · sync/ · push/ · pdf/ · lib/ · hooks/ · data/ · styles/
 └── __tests__/

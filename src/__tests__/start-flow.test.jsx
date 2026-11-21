@@ -6,7 +6,20 @@ import { churchRequestText, CHURCH_REQUEST_TAG, rememberChurchRequest, finishChu
 
 const sent = vi.fn(async () => ({ id: 't1' }));
 vi.mock('@/auth/useTeam', () => ({ useTeam: () => ({ createTeam: (...a) => sent(...a) }) }));
-vi.mock('@/auth/supabase', () => ({ supabase: { auth: { updateUser: vi.fn(async () => ({})) } } }));
+const rpc = vi.fn(async () => ({ data: ['keys'], error: null }));
+vi.mock('@/auth/supabase', () => ({ supabase: {
+  auth: { updateUser: vi.fn(async () => ({})) },
+  from: () => ({ select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: 'm1' }, error: null }) }) }) }) }),
+  rpc: (...a) => rpc(...a),
+} }));
+const api = { peekJoinLink: vi.fn(), getTeamJoinLink: vi.fn(async () => ({ code: 'k7m2qx', enabled: true })) };
+vi.mock('@/features/join/joinApi', () => ({
+  peekJoinLink: (...a) => api.peekJoinLink(...a),
+  getTeamJoinLink: (...a) => api.getTeamJoinLink(...a),
+}));
+vi.mock('@/features/start/GetAppScreen', () => ({
+  default: ({ teamName, onOpen }) => <button type="button" onClick={onOpen}>Open {teamName}</button>,
+}));
 
 const { default: StartFlow } = await import('@/features/start/StartFlow');
 
@@ -77,39 +90,54 @@ describe('churchRequest with a kind', () => {
 describe('StartFlow', () => {
   const user = { id: 'u1', email: 'joe@example.com', user_metadata: {} };
 
-  it('asks the name, then makes it at once on Free', async () => {
+  it('join or create are two equal tiles; create asks the name, then makes it at once on Free', async () => {
     const onRequestChange = vi.fn();
     render(<StartFlow screen="choose" user={user} displayName="Joe Doe" request={null} onRequestChange={onRequestChange} />);
-    expect(screen.getByText('Hi Joe, your account is ready. One more step.')).toBeTruthy();
-    fireEvent.click(screen.getByText('Start a church or band'));
+    expect(screen.getByText('Hi Joe, let’s get you set up')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Join a team/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Create a team/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     expect(await screen.findByText('Add the name people know it by.')).toBeTruthy();
     expect(sent).not.toHaveBeenCalled();
-    fireEvent.change(screen.getByLabelText('Church or band name'), { target: { value: 'Grace Church' } });
-    fireEvent.change(screen.getByLabelText('City (optional)'), { target: { value: 'Cluj' } });
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Grace Church' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
     await waitFor(() => expect(sent).toHaveBeenCalled());
-    expect(sent.mock.calls[0][0]).toMatchObject({ name: 'Grace Church', location: 'Cluj' });
-    expect(sent.mock.calls[0][0]).not.toHaveProperty('kind');
+    expect(sent.mock.calls[0][0]).toMatchObject({ name: 'Grace Church', location: null });
     expect(onRequestChange.mock.calls[0][0]).toMatchObject({ church: 'Grace Church' });
     await waitFor(() => expect(sentChurchRequest('u1')).toMatchObject({ church: 'Grace Church' }));
   });
 
   it('a failed create says why and clears the hand-up', async () => {
-    sent.mockRejectedValueOnce(new Error('You already have a church or band of your own.'));
+    sent.mockRejectedValueOnce(new Error('Network down'));
     const onRequestChange = vi.fn();
     render(<StartFlow screen="choose" user={user} request={null} onRequestChange={onRequestChange} />);
-    fireEvent.click(screen.getByText('Start a church or band'));
-    fireEvent.change(screen.getByLabelText('Church or band name'), { target: { value: 'X' } });
+    fireEvent.click(screen.getByRole('button', { name: /Create a team/ }));
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'X' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
-    expect(await screen.findByText(/already have a church or band/)).toBeTruthy();
+    expect(await screen.findByText('Network down')).toBeTruthy();
     expect(onRequestChange).toHaveBeenLastCalledWith(null);
   });
 
-  it('invite link: opens the join flow with the code, or says the link is wrong', () => {
+  it('a code: checks it, then opens the join flow; a wrong one says so', async () => {
+    const onJoinCode = vi.fn();
+    api.peekJoinLink.mockResolvedValueOnce({ status: 'invalid' }).mockResolvedValueOnce({ status: 'ok', team_name: 'Grace' });
+    render(<StartFlow screen="choose" user={user} request={null} onJoinCode={onJoinCode} />);
+    fireEvent.click(screen.getByRole('button', { name: /Join a team/ }));
+    const field = screen.getByLabelText('Invite code, 6 characters');
+    fireEvent.change(field, { target: { value: 'ZZZ-ZZZ' } });
+    expect(await screen.findByText(/doesn’t match a team/)).toBeTruthy();
+    expect(api.peekJoinLink).toHaveBeenCalledWith('zzzzzz');
+    expect(onJoinCode).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByLabelText('Invite code, 6 characters').value).toBe(''), { timeout: 3000 });
+    fireEvent.change(screen.getByLabelText('Invite code, 6 characters'), { target: { value: 'k7m2qx' } });
+    await waitFor(() => expect(onJoinCode).toHaveBeenCalledWith('k7m2qx'));
+  });
+
+  it('a pasted link: opens the join flow with the code, or says the link is wrong', () => {
     const onJoinCode = vi.fn();
     render(<StartFlow screen="choose" user={user} request={null} onJoinCode={onJoinCode} />);
-    fireEvent.click(screen.getByText('I have an invite link'));
+    fireEvent.click(screen.getByRole('button', { name: /Join a team/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Paste it/ }));
     const input = screen.getByLabelText('Invite link');
     fireEvent.change(input, { target: { value: 'nope nope' } });
     fireEvent.click(screen.getByRole('button', { name: 'Join' }));
@@ -119,16 +147,37 @@ describe('StartFlow', () => {
     expect(onJoinCode).toHaveBeenCalledWith('abcdefgh12');
   });
 
-  it('ready: invite or open, then never again', () => {
-    const onInviteBand = vi.fn();
+  it('after creating: what you play, the invite code, the app, then never again', async () => {
+    const onOpenTeam = vi.fn();
     const onRequestChange = vi.fn();
     rememberChurchRequest('u1', 'Grace Church');
-    render(<StartFlow screen="ready" user={user} request={{ church: 'Grace Church', kind: 'church' }} team={{ id: 't1', name: 'Grace Church' }}
-      onInviteBand={onInviteBand} onRequestChange={onRequestChange} />);
-    expect(screen.getByText('Grace Church is ready')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
-    expect(onInviteBand).toHaveBeenCalledWith('t1');
+    render(<StartFlow screen="ready" user={user} request={{ church: 'Grace Church' }} team={{ id: 't1', name: 'Grace Church' }}
+      onOpenTeam={onOpenTeam} onRequestChange={onRequestChange} />);
+    expect(screen.getByText('What do you play?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Keys' }));
+    expect(screen.getByRole('button', { name: /Keys/ }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByText('Invite your team')).toBeTruthy();
+    // Sound desk and slides aren't instruments; Keys is saved on the leader's row.
+    expect(rpc).toHaveBeenCalledWith('set_member_instruments', { p_member_id: 'm1', p_instruments: ['keys'] });
+    expect(await screen.findByText('K7M2QX')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Later|Continue/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Grace Church' }));
+    expect(onOpenTeam).toHaveBeenCalledWith('t1');
     expect(onRequestChange.mock.calls[0][0]).toMatchObject({ done: true });
     expect(sentChurchRequest('u1').done).toBe(true);
+  });
+});
+
+// 2026-11-20: Join another team, from inside the app, opens on the code.
+describe('StartFlow from inside the app', () => {
+  it('opens on the code, and Back leaves', async () => {
+    const onClose = vi.fn();
+    render(<StartFlow screen="choose" initialStep="code" user={{ id: 'u1' }} onClose={onClose} />);
+    expect(screen.getByText('Enter your invite code')).toBeInTheDocument();
+    const back = vi.spyOn(window.history, 'back').mockImplementation(() => window.dispatchEvent(new PopStateEvent('popstate')));
+    fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    back.mockRestore();
   });
 });

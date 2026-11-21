@@ -5,9 +5,10 @@
 // a try/catch'd localStorage wrapper) so it can be unit-tested without React
 // or Supabase.
 
-// Must agree with the DB check `code ~ '^[a-z0-9]{8,32}$'`. Codes are minted
+// Must agree with the DB check `code ~ '^[a-z0-9]{6,32}$'` (6 since
+// 20261122_short_join_codes.sql; older codes are 12). Codes are minted
 // lower-case; links typed or autocorrected to upper-case still resolve.
-const CODE_RE = /^[a-z0-9]{8,32}$/;
+const CODE_RE = /^[a-z0-9]{6,32}$/;
 
 /** Normalise a code (trim, lower-case). Returns null if it can't be a code. */
 export function normalizeJoinCode(raw) {
@@ -183,9 +184,12 @@ export function churchInitials(name) {
  */
 export function joinStepFor({ peek, signedIn }) {
   if (!peek || peek.status !== 'ok') return 'error';
-  if (!signedIn) return 'landing';
+  // Signed out, a full team says so before anyone makes an account for it.
+  // (A member who is signed out can still open the app and log in.)
+  if (!signedIn) return peek.is_full ? 'full' : 'landing';
   if (peek.is_member) return 'in';
   if (peek.my_status === 'pending') return 'waiting';
+  if (peek.is_full) return 'full';
   return 'about';
 }
 
