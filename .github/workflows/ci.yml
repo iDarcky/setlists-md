@@ -34,7 +34,7 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Type check (new screens)
+      - name: Type check (new chart + new screens)
         run: npm run typecheck
 
       - name: Run tests

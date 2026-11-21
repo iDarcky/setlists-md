@@ -28,6 +28,7 @@ const REMINDERS = REMINDER_OPTIONS.map(o => ({ value: o.value, long: o.value ===
 // was redone, so both switches went.
 const LAB_FLAGS = [
   { id: 'moveBetweenChurches', label: 'Move or copy songs to another church' },
+  { id: 'chartV2', label: 'New chart (work in progress) when you press Play' },
 ];
 
 const STATUS = { active: 'Active', trialing: 'Trial', past_due: 'Past due', unpaid: 'Unpaid', canceled: 'Cancelled' };

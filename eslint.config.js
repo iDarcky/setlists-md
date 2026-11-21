@@ -70,7 +70,8 @@ export default defineConfig([
     rules: { 'no-restricted-imports': 'off' },
   },
   {
-    // The new first-run screens (src/features/intro) are TypeScript, 2026-11-20.
+    // TypeScript: the new chart (src/features/chart-v2, 2026-11-18) and the
+    // new first-run screens (src/features/intro, 2026-11-20).
     files: ['src/**/*.{ts,tsx}'],
     extends: [
       ...tseslint.configs.recommended,
