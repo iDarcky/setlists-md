@@ -31,6 +31,9 @@ export function TeamProvider({ children }) {
   // known yet", not "in no church" — App must not drop a remembered church
   // on that (the flicker on launch, 2026-11-03).
   const [teamsLoadedFor, setTeamsLoadedFor] = useState(null);
+  // The team whose roster is in (from this device or the server), so Home
+  // can draw names and faces whole instead of "Member" then the real one.
+  const [membersLoadedFor, setMembersLoadedFor] = useState(null);
   const loadedForUserRef = useRef(null);
   // Bumped to re-read memberships (e.g. a join request was just approved) or
   // the active roster (someone was approved in) without a reload.
@@ -141,6 +144,8 @@ export function TeamProvider({ children }) {
     // The roster this device last saw, until the server's arrives.
     const fromDevice = cachedMembers(user.id, activeTeamId);
     setMembers(fromDevice || []);
+    // A reload of the same roster keeps drawing; a new team waits for its own.
+    setMembersLoadedFor(prev => (fromDevice || prev === activeTeamId ? activeTeamId : null));
 
     (async () => {
       try {
@@ -199,6 +204,7 @@ export function TeamProvider({ children }) {
 
         if (ignore) return;
         setMembers(membersWithProfiles);
+        setMembersLoadedFor(activeTeamId);
         cacheMembers(user.id, activeTeamId, membersWithProfiles);
 
         // Load pending invites for the team (only admins/owners can see these due to RLS).
@@ -210,7 +216,10 @@ export function TeamProvider({ children }) {
         if (ignore) return;
         setInvites(inviteRows || []);
       } catch (err) {
-        if (!ignore) console.error('[team] Failed to load team members:', err);
+        if (!ignore) {
+          console.error('[team] Failed to load team members:', err);
+          setMembersLoadedFor(activeTeamId); // draw what we have, don't wait forever
+        }
       }
     })();
 
@@ -292,6 +301,7 @@ export function TeamProvider({ children }) {
       setActiveTeam,
       team,
       members,
+      membersReady: !!activeTeamId && membersLoadedFor === activeTeamId,
       invites,
       loading,
       isAdmin,
@@ -557,7 +567,7 @@ export function TeamProvider({ children }) {
         setInvites([]);
       },
     };
-  }, [teams, teamsLoadedFor, activeTeamId, team, members, invites, loading, user?.id, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
+  }, [teams, teamsLoadedFor, membersLoadedFor, activeTeamId, team, members, invites, loading, user?.id, hasTeamPlan, setActiveTeam, refreshTeams, reloadMembers, canManageJoinLink, joinRequests, approveJoinRequest, declineJoinRequest, approveAllJoinRequests, refreshJoinRequests]);
 
   return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }
